@@ -31,8 +31,8 @@ public static class BodyTables
         (Biosphere.Flourishing, 15), (Biosphere.Sapient, 5));
 
     public static readonly WeightedTable<Settlement> SettlementTable = new(
-        (Settlement.None, 70), (Settlement.Outpost, 18),
-        (Settlement.Colony, 9), (Settlement.MajorWorld, 3));
+        (Settlement.None, 88), (Settlement.Outpost, 8),
+        (Settlement.Colony, 3), (Settlement.MajorWorld, 1));
 
     public static Func<BodyKind?, double> KindModifier(OrbitBand band) => kind => (band, kind) switch
     {
@@ -82,6 +82,7 @@ public static class BodyTables
         double m = 1.0;
         if (bio == Biosphere.Flourishing) m *= 2.0;   // people settle where it's pleasant
         if (band == OrbitBand.Habitable) m *= 1.5;
+        if (band != OrbitBand.Habitable) m *= 0.5;    // barren off-band rocks rarely get settled
         return m;
     };
 }
