@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using StarGen.Core.Content;
 using StarGen.Core.Model;
 using StarGen.Core.Rng;
@@ -38,14 +39,56 @@ public static class StarGenerator
         }
 
         // Place companions in the outer half of the primary's slots (spec §5).
+        // Each companion must occupy a distinct slot ("occupies" — spec §5), so
+        // a candidate that collides with an earlier companion's slot is resolved
+        // deterministically without any additional RNG draws.
         var primary = system.Stars[0];
+        var takenSlots = new HashSet<int>();
         for (int i = 1; i < system.Stars.Count; i++)
         {
             int half = primary.Slots.Count / 2;
-            int slot = ctx.NextInt(RollChannel.CompanionSlot, half,
-                                   primary.Slots.Count, 0, i);
+            int candidate = ctx.NextInt(RollChannel.CompanionSlot, half,
+                                        primary.Slots.Count, 0, i);
+            int slot = ResolveFreeCompanionSlot(primary, takenSlots, candidate, half);
+            takenSlots.Add(slot);
             system.Stars[i].CompanionSlotIndex = slot;
         }
+    }
+
+    /// <summary>
+    /// Deterministically dedupes a companion slot candidate: first tries the
+    /// candidate itself, then probes upward within the outer half
+    /// [half, primary.Slots.Count), wrapping, then probes the full
+    /// [0, primary.Slots.Count) range. If every existing slot is already taken
+    /// (tiny primaries with more companions than slots), a new outer slot is
+    /// appended to the primary and used.
+    /// </summary>
+    private static int ResolveFreeCompanionSlot(Star primary, HashSet<int> takenSlots, int candidate, int half)
+    {
+        int count = primary.Slots.Count;
+
+        if (count > 0)
+        {
+            if (candidate >= 0 && candidate < count && !takenSlots.Contains(candidate))
+                return candidate;
+
+            int rangeLen = count - half;
+            if (rangeLen > 0)
+            {
+                for (int step = 1; step < rangeLen; step++)
+                {
+                    int probe = half + (((candidate - half + step) % rangeLen + rangeLen) % rangeLen);
+                    if (!takenSlots.Contains(probe)) return probe;
+                }
+            }
+
+            for (int probe = 0; probe < count; probe++)
+                if (!takenSlots.Contains(probe)) return probe;
+        }
+
+        int newIndex = primary.Slots.Count;
+        primary.Slots.Add(new OrbitSlot { Index = newIndex, Band = OrbitBand.Outer });
+        return newIndex;
     }
 
     private static OrbitBand BandFor(StarTypeDef def, int slotIndex)

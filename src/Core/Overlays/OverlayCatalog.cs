@@ -26,10 +26,10 @@ public static class OverlayCatalog
             }),
 
         new("derelict_fleet", 2,
-            isEligible: s => s.Stars.SelectMany(st => st.Slots).Any(sl => sl.Body == null),
+            isEligible: s => FreeSlots(s).Any(),
             apply: (ctx, s) =>
             {
-                var slot = s.Stars.SelectMany(st => st.Slots).First(sl => sl.Body == null);
+                var slot = FreeSlots(s).First();
                 slot.Body = new Body { Kind = BodyKind.Wreckage, Size = 0 };
                 slot.Body.Tags.Add("derelict fleet");
             }),
@@ -46,4 +46,19 @@ public static class OverlayCatalog
         .SelectMany(st => st.Slots)
         .Where(sl => sl.Body != null)
         .SelectMany(sl => sl.Body!.Satellites.Prepend(sl.Body!));
+
+    /// <summary>
+    /// Slots that are truly empty: no body assigned AND (for the primary) not
+    /// occupied by a companion star (spec §5 "occupies" — see StarGenerator).
+    /// </summary>
+    private static IEnumerable<OrbitSlot> FreeSlots(StarSystem s)
+    {
+        var companionSlots = s.Stars.Skip(1)
+            .Where(st => st.CompanionSlotIndex.HasValue)
+            .Select(st => st.CompanionSlotIndex!.Value)
+            .ToHashSet();
+
+        return s.Stars.SelectMany((star, starIndex) => star.Slots
+            .Where(sl => sl.Body == null && !(starIndex == 0 && companionSlots.Contains(sl.Index))));
+    }
 }

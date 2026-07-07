@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using StarGen.Core.Content;
 using StarGen.Core.Model;
 using StarGen.Core.Rng;
@@ -8,11 +9,20 @@ public static class BodyGenerator
 {
     public static void Generate(RollContext ctx, StarSystem system)
     {
+        // Companion stars occupy a slot in the primary's own list (spec §5 "occupies");
+        // those slots must stay empty of any independently-generated body.
+        var companionSlots = new HashSet<int>();
+        for (int i = 1; i < system.Stars.Count; i++)
+            if (system.Stars[i].CompanionSlotIndex is int occupied)
+                companionSlots.Add(occupied);
+
         for (int starIndex = 0; starIndex < system.Stars.Count; starIndex++)
         {
             var star = system.Stars[starIndex];
             foreach (var slot in star.Slots)
             {
+                if (starIndex == 0 && companionSlots.Contains(slot.Index)) continue;
+
                 // index/subIndex convention: body rolls use index = starIndex*100 + slotIndex.
                 int idx = starIndex * 100 + slot.Index;
                 var kind = BodyTables.Kind.Pick(

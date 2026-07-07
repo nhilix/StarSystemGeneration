@@ -32,6 +32,20 @@ public class StructuralInvariantTests
             foreach (var star in s.Stars.Skip(1))
                 Assert.NotNull(star.CompanionSlotIndex); // exactly one primary
 
+            // Companions truly occupy their slot (spec §5): unique, valid index
+            // into the primary's slots, and that primary slot has no body of its own.
+            var primary = s.Stars[0];
+            var companionIndices = s.Stars.Skip(1)
+                .Select(st => st.CompanionSlotIndex!.Value)
+                .ToList();
+            Assert.Equal(companionIndices.Count, companionIndices.Distinct().Count());
+            foreach (var companionIndex in companionIndices)
+            {
+                Assert.InRange(companionIndex, 0, primary.Slots.Count - 1);
+                var primarySlot = primary.Slots.Single(sl => sl.Index == companionIndex);
+                Assert.Null(primarySlot.Body);
+            }
+
             foreach (var body in s.Stars.SelectMany(st => st.Slots)
                                         .Where(sl => sl.Body != null)
                                         .Select(sl => sl.Body!))
