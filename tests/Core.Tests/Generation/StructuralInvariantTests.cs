@@ -46,6 +46,15 @@ public class StructuralInvariantTests
                 Assert.Null(primarySlot.Body);
             }
 
+            // Bodies are named uniquely within a system (star-scoped naming, spec §5).
+            var names = s.Stars.SelectMany(st => st.Slots)
+                .Where(sl => sl.Body != null)
+                .SelectMany(sl => sl.Body!.Satellites.Prepend(sl.Body!))
+                .Select(b => b.Name)
+                .Where(n => n != null)
+                .ToList();
+            Assert.Equal(names.Count, names.Distinct().Count());
+
             foreach (var body in s.Stars.SelectMany(st => st.Slots)
                                         .Where(sl => sl.Body != null)
                                         .Select(sl => sl.Body!))
