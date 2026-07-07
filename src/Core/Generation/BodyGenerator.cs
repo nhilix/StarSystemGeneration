@@ -39,7 +39,7 @@ public static class BodyGenerator
     /// Shared body pipeline. idx encodes star+slot; sat = 0 for planets,
     /// 1 + satelliteIndex for satellites (Task 9), keeping draws distinct.
     /// </summary>
-    public static Body GenerateBody(RollContext ctx, BodyKind kind, OrbitBand band, int idx, int sat)
+    public static Body GenerateBody(RollContext ctx, BodyKind kind, OrbitBand band, int idx, int sat, int? presetSize = null)
     {
         var body = new Body { Kind = kind };
 
@@ -56,7 +56,9 @@ public static class BodyGenerator
                 body.Biosphere = Biosphere.Barren;
                 break;
             default: // RockyWorld, IceWorld (Wreckage never reaches baseline)
-                body.Size = BodyTables.RockySize.Pick(ctx.NextDouble(RollChannel.BodySize, idx, sat));
+                // presetSize (satellites): skip the size-table roll entirely and use the
+                // already-determined satellite size so descriptors derive from the real size.
+                body.Size = presetSize ?? BodyTables.RockySize.Pick(ctx.NextDouble(RollChannel.BodySize, idx, sat));
                 body.Atmosphere = BodyTables.Atmo.Pick(
                     ctx.NextDouble(RollChannel.Atmosphere, idx, sat),
                     BodyTables.AtmoModifier(body.Size, band));
@@ -95,10 +97,12 @@ public static class BodyGenerator
         for (int s = 0; s < count; s++)
         {
             var kind = SatelliteTables.Kind.Pick(ctx.NextDouble(RollChannel.SatelliteKind, idx, s));
-            // sat parameter = 1 + s so satellite draws never collide with the parent's (sat = 0).
-            var sat = GenerateBody(ctx, kind, band, idx, 1 + s);
+            // Compute the capped satellite size first so it can be fed into GenerateBody
+            // as a preset — atmosphere/biosphere modifiers must derive from the real size.
             int maxSize = parent.Kind == BodyKind.GasGiant ? 4 : parent.Size - 1;
-            sat.Size = 1 + ctx.NextInt(RollChannel.SatelliteSize, 0, maxSize, idx, s);
+            int satSize = 1 + ctx.NextInt(RollChannel.SatelliteSize, 0, maxSize, idx, s);
+            // sat parameter = 1 + s so satellite draws never collide with the parent's (sat = 0).
+            var sat = GenerateBody(ctx, kind, band, idx, 1 + s, satSize);
             sat.Satellites.Clear(); // guard: no satellites of satellites, ever
             parent.Satellites.Add(sat);
         }
