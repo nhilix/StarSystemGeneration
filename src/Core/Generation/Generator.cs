@@ -1,5 +1,6 @@
 using StarGen.Core.Model;
 using StarGen.Core.Naming;
+using StarGen.Core.Overlays;
 using StarGen.Core.Rng;
 
 namespace StarGen.Core.Generation;
@@ -22,7 +23,7 @@ public static class Generator
         BodyGenerator.Generate(ctx, system);
         SocietyGenerator.Generate(ctx, system);
         NameGenerator.AssignNames(ctx, system);
-        // OverlayResolver.Resolve(ctx, system);
+        OverlayResolver.Resolve(ctx, system);
         return new HexResult(coord, system);
     }
 }

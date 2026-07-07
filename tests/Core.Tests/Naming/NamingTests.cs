@@ -20,8 +20,10 @@ public class NamingTests
                 .Where(sl => sl.Body != null)
                 .SelectMany(sl => sl.Body!.Satellites.Prepend(sl.Body!))
                 .Any(b => b.IsInhabited);
+            bool notable = r.System.OverlayId != null;
             if (r.System.GivenName != null) named++;
-            Assert.Equal(inhabited, r.System.GivenName != null);
+            // Named if inhabited OR notable (via overlay)
+            Assert.Equal(inhabited || notable, r.System.GivenName != null);
         }
         Assert.True(named > 0 && named < checkedSystems, "names must be neither universal nor absent");
     }
