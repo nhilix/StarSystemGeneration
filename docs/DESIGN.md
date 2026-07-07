@@ -119,6 +119,34 @@ ratings, trade-route data, and region-varying stellar density.
 5. **Game-layer hooks** — ship entity, travel between systems, discovery/ownership
    state, faction data. Scoped by its own future spec; not sized here.
 
+**Cross-cutting design phase (scheduled, spec not yet written): regional / spatial
+generation.** Phase 1 generates every hex homogeneously — one flat presence
+probability, one flat settlement rate, no spatial correlation between neighbors.
+That is a deliberate placeholder (spec §4 stage 0 was designed so density becomes a
+per-region input without changing the contract). The next generation-design phase
+replaces homogeneity with structure:
+
+- **Noise-driven density** — break up the flat ~50% presence roll with noise
+  patterns so the starfield has clumps, filaments, and voids instead of static.
+- **Region/zone typing** — subsections of the map generated under a regional
+  profile: high-density cores, dead zones, volatile zones, war zones, very stable
+  zones, high- vs. low-trade-value regions, etc. A zone acts as a modifier bundle
+  over the existing per-hex pipeline (density, settlement odds, overlay mix,
+  danger), not a rewrite of it.
+- **Emergent settlement structure** — settlement influenced by neighbors so
+  populated "highways" and clusters emerge (settled systems seeding nearby
+  settlement), rather than settlement being independent per hex. This must stay
+  deterministic and generate-on-demand — the key open problem, since naive neighbor
+  influence creates unbounded generation cascades.
+- **Political geography** — galactic kingdoms/factions whose shape *falls out of*
+  the above (highways + density + zones), giving borders between large political
+  parties; feeds the deferred faction layer (roadmap item 5).
+
+This phase needs its own brainstorm → spec → plan cycle like the system/body layer
+got, and it slots between/alongside Phases 2–3: the Unity map views will want at
+least noise-driven density early, since a flat 50% starfield is visibly artificial
+at sector scale.
+
 ---
 
 ## 5. Tech Stack & Tooling
