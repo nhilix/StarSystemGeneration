@@ -21,7 +21,7 @@ public static class Generator
         StarGenerator.Generate(ctx, system);
         BodyGenerator.Generate(ctx, system);
         SocietyGenerator.Generate(ctx, system);
-        // NameGenerator.AssignNames(ctx, system);
+        NameGenerator.AssignNames(ctx, system);
         // OverlayResolver.Resolve(ctx, system);
         return new HexResult(coord, system);
     }
