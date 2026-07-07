@@ -1,1 +1,3 @@
-﻿Console.WriteLine("Hello, World!");
+using StarGen.Inspector;
+
+new Repl().Run();
