@@ -20,6 +20,7 @@ public static class BodyGenerator
                     BodyTables.KindModifier(slot.Band));
                 if (kind == null) continue;
                 slot.Body = GenerateBody(ctx, kind.Value, slot.Band, idx, 0);
+                AddSatellites(ctx, slot.Body, slot.Band, idx);
             }
         }
     }
@@ -68,5 +69,28 @@ public static class BodyGenerator
         if (body.Atmosphere == Atmosphere.None || body.Atmosphere == Atmosphere.Trace) return 0;
         int hydro = ctx.NextInt(RollChannel.Hydrographics, 0, 101, idx, sat);
         return band == OrbitBand.Habitable ? hydro : hydro / 4;
+    }
+
+    private static void AddSatellites(RollContext ctx, Body parent, OrbitBand band, int idx)
+    {
+        var countTable = parent.Kind switch
+        {
+            BodyKind.GasGiant => SatelliteTables.GasGiantCount,
+            BodyKind.RockyWorld or BodyKind.IceWorld when parent.Size >= 4 => SatelliteTables.WorldCount,
+            _ => null,
+        };
+        if (countTable == null) return;
+
+        int count = countTable.Pick(ctx.NextDouble(RollChannel.SatelliteCount, idx));
+        for (int s = 0; s < count; s++)
+        {
+            var kind = SatelliteTables.Kind.Pick(ctx.NextDouble(RollChannel.SatelliteKind, idx, s));
+            // sat parameter = 1 + s so satellite draws never collide with the parent's (sat = 0).
+            var sat = GenerateBody(ctx, kind, band, idx, 1 + s);
+            int maxSize = parent.Kind == BodyKind.GasGiant ? 4 : parent.Size - 1;
+            sat.Size = 1 + ctx.NextInt(RollChannel.SatelliteSize, 0, maxSize, idx, s);
+            sat.Satellites.Clear(); // guard: no satellites of satellites, ever
+            parent.Satellites.Add(sat);
+        }
     }
 }
