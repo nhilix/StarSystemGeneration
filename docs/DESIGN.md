@@ -79,11 +79,17 @@ structure (a sector is 32×40 hexes, divided into sixteen 8×10 subsectors) as a
 convention only. The star/orbit/body/satellite layer's fields are defined in the
 generation rules spec below, using original terminology (no Traveller UWP codes).
 
-Field-level detail for Star / Orbit slot / Body / Society stats / Satellite: see
-`docs/superpowers/specs/2026-07-07-generation-rules-design.md` §5.
+Field-level detail for System / Star / Orbit slot / Body / Society stats / Satellite:
+see `docs/superpowers/specs/2026-07-07-generation-rules-design.md` §5.
 
-TODO: field-level detail for the galaxy/sector/subsector/hex layer itself (allegiance,
-travel zone, etc.) — not yet specced; deferred alongside the political/faction layer.
+**Hex layer (current scope):** a hex carries its coordinate, a presence flag (rolled
+as pipeline stage 0 — not every hex has a system; see spec §4), and, when present,
+the generated System. Because generation is deterministic, a Hex is a *view* of the
+generator's output at a coordinate, not stored data — nothing is persisted per hex
+until a future delta layer has something to record against it.
+
+Deferred to the political/faction spec: hex-level allegiance, travel/hazard zone
+ratings, trade-route data, and region-varying stellar density.
 
 ---
 
@@ -91,34 +97,62 @@ travel zone, etc.) — not yet specced; deferred alongside the political/faction
 
 1. **Build the Core generation engine** — implement the from-scratch system/body
    ruleset in `docs/superpowers/specs/2026-07-07-generation-rules-design.md`
-   (baseline + overlay pipeline, `WeightedTable<T>`, deterministic seeding, the
-   interactive inspector REPL).
+   (presence roll, baseline + overlay pipeline, `WeightedTable<T>`, hash-based
+   deterministic seeding, naming, the interactive inspector REPL).
+   *Done when:* the full spec §9 test suite passes; the REPL can walk a sector's
+   worth of hexes and every dump is coherent (no contradictory tag combinations on
+   eyeball review); `stats` over a few thousand hexes shows the intended shape
+   (presence rate near target, overlays rare, settlement rarer than biosphere).
 2. **Single-system view** — Unity renders one generated system: stars, orbits,
    worlds, satellites, inspectable stats. Proves the Core↔Unity data contract.
+   *Done when:* any `(seed, coordinate)` shown in the REPL renders identically-
+   structured in Unity — same bodies, same stats in the inspect panel — with no
+   generation logic in the Unity project.
 3. **Sector/subsector map** — hex grid navigation, lazy per-hex generation, system
    summary icons, drill-down into system view. Proves on-demand generation + caching.
+   *Done when:* panning a full sector (1,280 hexes) is smooth on first visit
+   (generation is lazy and fast enough) and revisiting hexes is visibly identical.
 4. **Galaxy scale** — multiple sectors, camera/LOD across galaxy → sector → system,
    persistence of seed + deltas only (not full generated data).
+   *Done when:* zooming galaxy → sector → system → body is seamless and a save file
+   contains only the master seed plus delta records.
 5. **Game-layer hooks** — ship entity, travel between systems, discovery/ownership
-   state, faction data.
-
-TODO: acceptance criteria per phase; rough sizing/estimate once Phase 1 scope is
-locked down.
+   state, faction data. Scoped by its own future spec; not sized here.
 
 ---
 
 ## 5. Tech Stack & Tooling
 
-- **Engine:** Unity (C#).
-- **Core:** standalone C# class library, no Unity dependency, unit-testable.
-- **Inspector:** console REPL project, Core-only, no Unity dependency (see spec §9).
+- **Engine:** Unity 6 LTS (current LTS at project start; pin the exact patch version
+  when the Unity project is created in Phase 2).
+- **Core:** C# class library targeting **.NET Standard 2.1** — the highest profile
+  Unity consumes — so the identical assembly/source serves Unity, the inspector, and
+  tests. No Unity references, no dependencies beyond the base class library if
+  avoidable. This constraint is load-bearing: any NuGet package added to Core must be
+  netstandard2.1-compatible or it silently breaks the Unity integration in Phase 2.
+- **Inspector:** .NET 8 (or current LTS) console app referencing Core (see spec §10).
+- **Tests:** xUnit project on .NET 8, referencing Core directly — plain `dotnet test`,
+  no Unity Test Framework involvement for generation logic. Unity-side tests only for
+  Unity-side behavior, later.
+- **Repo layout** (single repo, single solution for the .NET side):
+
+  ```
+  src/Core/            # generation engine (netstandard2.1)
+  src/Inspector/       # REPL console app (net8.0)
+  tests/Core.Tests/    # xUnit (net8.0)
+  unity/               # Unity project, added in Phase 2, references src/Core
+  docs/
+  ```
+
+- **CI:** GitHub Actions running `dotnet build` + `dotnet test` on push once code
+  exists. Unity build automation deferred until there's a Unity project worth building.
 - **Inspiration reference (not a dependency):** `eSG.py` / `systemCreator.py` live in
   the separate `Traveller-SystemGenerator` repo — loose inspiration for tone/structure
   only, not ported or referenced by Core.
 
-TODO: Unity version/LTS choice, repo/solution layout (single repo with `Core/` +
-`Unity/` folders vs. separate repos), test framework for Core (NUnit via Unity Test
-Framework vs. plain xUnit/NUnit project), CI.
+TODO: decide how Unity references Core (local UPM package pointing at `src/Core`
+source vs. built DLL drop) when Phase 2 starts — pick whichever gives the smoother
+edit-in-IDE → see-in-Unity loop at that point.
 
 ---
 
@@ -145,14 +179,34 @@ Decisions made so far, with rationale:
 - **Own repo, separate from `Traveller-SystemGenerator`** — keeps this project's
   history and scope self-contained rather than mixed into the old prototype's repo.
 - **Interactive text inspector, not a one-shot dump** — a REPL (seed/goto/next/prev/
-  reroll/find-overlay) so seeds and coordinates can be explored quickly during tuning,
-  independent of Unity. See spec §9.
+  reroll/find/stats) so seeds and coordinates can be explored quickly during tuning,
+  independent of Unity. See spec §10.
+- **Presence roll as pipeline stage 0** *(2026-07-07 review pass)* — not every hex
+  has a system; empty hexes are what give a starmap shape and make travel meaningful.
+  Density is a single tunable knob for now, region-varying later. See spec §4.
+- **Biosphere and settlement are separate axes** *(2026-07-07 review pass)* — natural
+  life and current habitation are different questions; conflating them makes both
+  "colony on a dead rock" and "unclaimed garden world" impossible, and those are two
+  of the most tone-defining system types. See spec §5.
+- **Stateless hash-based RNG, not sequential streams** *(2026-07-07 review pass)* —
+  each roll is a pure hash of (seed, coordinate, channel, index), which is what makes
+  the "adding rolls later doesn't shift existing output" guarantee actually hold.
+  See spec §8.
+- **Two-layer naming** *(2026-07-07 review pass)* — every system has a deterministic
+  catalog designation; only settled/notable systems get procedural proper names, so
+  an unnamed code on the map itself signals "unexplored." See spec §7.
+- **Tech stack** *(2026-07-07 review pass)* — Core targets .NET Standard 2.1 (the
+  Unity-compatibility ceiling); inspector and xUnit tests on .NET 8; Unity 6 LTS;
+  single repo (`src/` + `tests/` + `unity/` + `docs/`); GitHub Actions for
+  build+test. See Section 5.
 
 Open questions (unresolved):
 
-- Unity version, repo/solution layout for `Core` vs. Unity project vs. inspector REPL,
-  and Core test framework (see Section 5 TODOs).
-- Field-level detail for the galaxy/sector/subsector/hex layer (allegiance, travel
-  zone, etc.) and the political/faction layer — both deferred, see Section 3.
+- How Unity references Core in Phase 2 (local UPM source package vs. DLL drop) —
+  deferred until the Unity project exists (see Section 5 TODO).
+- Designation format for systems (sector prefix + hex number scheme) — decide during
+  Phase 1 implementation; cosmetic, not structural.
+- Field-level detail for hex-layer politics (allegiance, travel zones) and the
+  faction layer — deferred to the political/faction spec, see Section 3.
 
 ---

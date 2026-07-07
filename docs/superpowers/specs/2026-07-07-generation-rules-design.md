@@ -1,6 +1,6 @@
 # Generation Rules Design — System/Body Layer
 
-Status: **approved, ready for planning**
+Status: **draft — expanded after review pass, awaiting re-approval**
 Date: 2026-07-07
 
 ## 1. Overview
@@ -28,10 +28,10 @@ Traveller's specific tables, dice mechanics, or UWP-style codes.
 
 ## 3. Scope
 
-This spec covers the **system/body generation layer** only: stars, orbits, bodies,
-satellites, and per-world society stats, plus the overlay/archetype mechanism that
-injects exotic phenomena on top of that layer. This matches Roadmap Phase 1
-(single-system view) in `docs/DESIGN.md`.
+This spec covers the **system/body generation layer** only: system presence
+(stellar density), stars, orbits, bodies, satellites, per-world society stats, and
+system/body naming, plus the overlay/archetype mechanism that injects exotic
+phenomena on top of that layer. This matches Roadmap Phase 1 in `docs/DESIGN.md`.
 
 **Explicitly out of scope for this spec** (deferred to a follow-up spec):
 
@@ -43,20 +43,27 @@ injects exotic phenomena on top of that layer. This matches Roadmap Phase 1
 
 ## 4. Generation Pipeline
 
-A system is generated purely as a function of `(masterSeed, hexCoordinate)`, in two
-stages:
+A hex's contents are generated purely as a function of `(masterSeed, hexCoordinate)`,
+in three stages:
 
+0. **Presence roll** — before anything else, check whether this hex contains a system
+   at all. Baseline stellar density is a single tunable probability (starting point:
+   ~50%, tuned by eye in the inspector). An empty hex is a valid, stable result —
+   regenerating it always yields empty. Empty hexes are what make a starmap readable
+   and travel meaningful; a wall-to-wall starfield has no shape. Density is uniform
+   for now; varying it by region (spiral arms, rifts, dense cluster cores) is a
+   future layer that changes only this stage's probability input, not its contract.
 1. **Baseline roll** — independent weighted draws build the system bottom-up:
-   star(s) → orbit slots → body per slot → per-body descriptors → per-world society
-   stats (only rolled for worlds whose biosphere is sapient/colonized). Orbit band
-   (inner/habitable/outer, relative to that star's own habitable zone) skews
-   atmosphere/biosphere/population odds, so habitable-zone worlds are more likely to
-   be notable without it being forced.
+   star arrangement → star(s) → orbit slots → body per slot → per-body descriptors
+   (including the separate biosphere and settlement axes, Section 5) → society stats
+   for settled bodies. Orbit band (inner/habitable/outer, relative to that star's own
+   habitable band) skews atmosphere/biosphere/settlement odds, so habitable-zone
+   worlds are more likely to be notable without it being forced.
 2. **Overlay roll** — after the baseline is complete, a separate low-probability roll
    determines whether a curated overlay (Section 6) applies on top of it.
 
-This two-stage split is the core design decision: it keeps the common case cheap,
-simple, and organically varied (stage 1), while concentrating all hand-authored
+The baseline/overlay split is the core design decision: it keeps the common case
+cheap, simple, and organically varied (stage 1), while concentrating all hand-authored
 "interesting" content in a small, tunable second stage (stage 2) rather than trying to
 engineer interest into every independent roll.
 
@@ -66,11 +73,31 @@ All terminology below is original (no Traveller UWP reuse):
 
 | Entity | Key attributes |
 |---|---|
+| **System** | designation (deterministic, coordinate-derived — see Section 7), given name (procedural, only for settled or notable systems), star arrangement (single / binary / trinary), applied overlay (if any) |
 | **Star** | type/size class, luminosity tag (defines habitable band), age tag (young / mature / old — also gates overlay eligibility, e.g. an "unstable star" overlay requires young/dying) |
 | **Orbit slot** | index, band (inner / habitable / outer), occupant |
-| **Body** | kind (rocky world, gas giant, ice world, planetoid belt, etc.), size, atmosphere, hydrographic coverage, biosphere tag (barren → microbial → flourishing → sapient) |
-| **Society stats** *(only present when biosphere is sapient/colonized)* | population tier, government archetype, order/law tier, infrastructure/starport tier, notable points of interest |
+| **Body** | kind (rocky world, gas giant, ice world, planetoid belt, etc.), size, atmosphere, hydrographic coverage, **biosphere** axis, **settlement** axis (see below) |
+| **Society stats** *(present whenever settlement > none, or biosphere is sapient)* | population tier, government archetype, order/law tier, infrastructure/starport tier, notable points of interest |
 | **Satellite** | same schema as Body, attached to a parent Body's local orbit rather than the star's |
+
+**Biosphere vs. settlement — two separate axes.** These are rolled independently
+(with cross-influence), because they answer different questions:
+
+- **Biosphere** — natural life: `barren → microbial → flourishing → sapient`.
+- **Settlement** — who lives there now: `none → outpost → colony → major world`.
+
+A colony on a dead rock (settlement without biosphere) is the most common inhabited
+world in the target tone — Trek/Mass Effect/Traveller are full of mining outposts and
+domed colonies on airless moons. A flourishing garden world nobody has settled
+(biosphere without settlement) is a classic exploration hook. Conflating the two into
+one ladder makes both impossible. Cross-influence: a flourishing biosphere in the
+habitable band raises settlement odds (people settle where it's pleasant), and
+sapient biosphere implies a native society regardless of the settlement roll.
+
+**Star arrangement:** a weighted draw — single (common), binary (uncommon), trinary
+(rare). The primary star owns the system's orbit-slot array; each companion star
+occupies one of those slots and carries its own small set of close-in orbit slots
+(same schema, one level of recursion — companions of companions don't occur).
 
 Every table driving these rolls (star types, body kinds, government archetypes, etc.)
 is an instance of a generic **`WeightedTable<T>`** — data, not hardcoded branching
@@ -106,15 +133,45 @@ content:
 - Rarity is a single tunable weight per overlay. Varying rarity by location (e.g.
   rarer near sector capitals) is a possible future extension, not needed now.
 
-## 7. Determinism & Seeding
+## 7. Identity & Naming
 
-Every roll draws from an RNG sub-stream keyed by
-`(masterSeed, hexCoordinate, rollChannel)` rather than one shared stream. This means
-adding a new roll to the pipeline later doesn't shift the sequence of *existing*
-rolls — regenerating an already-visited system stays stable across schema growth, not
-just across repeated calls against the current schema.
+Every non-empty hex gets two layers of identity:
 
-## 8. Testing Strategy
+- **Designation** — a deterministic catalog code derived from the coordinate (e.g.
+  sector prefix + hex number, final format TBD during implementation). Every system
+  has one; it's the fallback display name and the stable key for cross-referencing.
+- **Given name** — a procedurally generated proper name (syllable-table driven, built
+  on the same `WeightedTable<T>` machinery, deterministic like every other roll).
+  Only systems that would plausibly *have* a name get one: settled systems, sapient
+  homeworlds, and overlay-marked notable systems. Everything else shows only its
+  designation — which itself reinforces the exploration tone: an unnamed catalog code
+  on the map is implicitly "nobody has been here."
+
+Bodies within a named system take derived names (name + orbit numeral, e.g.
+"Veshara III") unless individually notable; per-culture naming flavor is a future
+extension of the syllable tables, not in scope now.
+
+## 8. Determinism & Seeding
+
+Every roll is a **stateless hash-based draw**: the random value for a given roll is
+computed by hashing `(masterSeed, hexCoordinate, rollChannel, index)` — for example
+SplitMix64-style mixing over the packed inputs — rather than by advancing a shared
+sequential RNG stream. `rollChannel` identifies *which* decision is being made
+("star arrangement", "body kind", "settlement", ...); `index` disambiguates repeated
+draws on the same channel (orbit slot 0, 1, 2, ...).
+
+This is what makes the stability guarantee real rather than aspirational: because no
+draw depends on how many draws happened before it, adding a new roll to the pipeline
+later cannot shift the values of existing rolls. A sequential stream (even a seeded
+one) breaks the moment a new roll is inserted mid-pipeline.
+
+Channel discipline:
+
+- Channel IDs are stable named constants in a single registry.
+- A channel, once shipped, is never renumbered or reused. New rolls get new channels;
+  a removed roll's channel is retired permanently.
+
+## 9. Testing Strategy
 
 Core is a plain C# library with no Unity dependency, so all of this is testable
 headless:
@@ -127,8 +184,12 @@ headless:
 - **Eligibility invariant tests** — for each `OverlayDefinition`, generate many
   baselines and assert the overlay never applies where its predicate should exclude
   it (e.g., never "unstable star" on a mature star).
+- **Structural invariant tests** — generate many systems and assert schema-level
+  rules always hold: presence roll respected (empty hexes stay empty), society stats
+  present exactly when settlement > none or biosphere is sapient, companion stars
+  never nest more than one level, every non-empty system has a designation.
 
-## 9. Interactive Inspector REPL
+## 10. Interactive Inspector REPL
 
 A console REPL project, separate from Unity, referencing only Core — used for manual
 exploration during tuning and as a base for snapshot-style checks alongside the
@@ -141,14 +202,34 @@ Commands:
 - `goto <x> <y>` — generate and print the system at a coordinate.
 - `next` / `prev` — step to an adjacent coordinate without retyping it.
 - `reroll` — pick a new random master seed.
-- `find overlay` — scan a coordinate range and jump to the next system where an
-  overlay applied, for quickly finding exotic phenomena without manual hunting.
+- `find <criterion>` — scan forward from the current coordinate and jump to the next
+  system matching a criterion (`overlay`, a specific overlay id, `settled`,
+  `sapient`, a body kind, ...) — for finding rare content without manual hunting.
+- `stats <n>` — generate `n` hexes from the current position and print distribution
+  summaries (presence rate, star arrangements, body-kind counts, settlement tiers,
+  overlay frequency). This is the primary tuning instrument: after touching any
+  weight, one command shows whether the universe still has the intended shape,
+  without eyeballing systems one at a time.
 
-Each command prints a human-readable dump of the generated system (stars, orbits,
-bodies, tags, overlay if any). The REPL's job is fast iteration between seeds and
-coordinates, not anything beyond that.
+Sketch of the per-system dump (format will evolve; the point is the shape —
+scannable one-screen summary, indentation mirrors the orbit hierarchy):
 
-## 10. Follow-up Work (not in this spec)
+```
+[0412] KAV-0412 "Veshara"          binary · overlay: Precursor Ruins
+  Star A — amber dwarf, mature
+    1 [inner] scorched world · size 3 · no atmosphere
+    2 [hab]   verdant world · size 7 · breathable · oceans 60% · flourishing
+              colony · pop tier 5 · council rule · orderly · orbital-class port
+              POI: precursor ruins (overlay)
+    3 [outer] gas giant · 2 satellites
+  Star B — red ember, old (slot 5)
+    1 [inner] ice world · size 2 · barren
+```
+
+The REPL's job is fast iteration between seeds and coordinates, not anything beyond
+that.
+
+## 11. Follow-up Work (not in this spec)
 
 - Political/faction layer design (allegiances, conflict, inter-system relationships).
 - Expanded exotic-phenomena/overlay catalog beyond the illustrative examples above.
