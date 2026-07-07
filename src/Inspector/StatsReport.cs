@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using StarGen.Core.Generation;
 using StarGen.Core.Model;
@@ -11,6 +12,7 @@ public static class StatsReport
     public static string Build(ulong seed, int startX, int startY, int n, int sectorWidth)
     {
         int present = 0, overlays = 0;
+        int settledSystems = 0, sapientSystems = 0, namedSystems = 0;
         var arrangements = new Dictionary<StarArrangement, int>();
         var kinds = new Dictionary<BodyKind, int>();
         var settlements = new Dictionary<Settlement, int>();
@@ -24,23 +26,37 @@ public static class StatsReport
             if (system == null) continue;
             present++;
             if (system.OverlayId != null) overlays++;
+            if (system.GivenName != null) namedSystems++;
             Bump(arrangements, system.Arrangement);
+
+            bool anySettled = false, anySapient = false;
             foreach (var star in system.Stars)
                 foreach (var slot in star.Slots)
                 {
                     if (slot.Body == null) continue;
-                    Bump(kinds, slot.Body.Kind);
-                    Bump(settlements, slot.Body.Settlement);
-                    Bump(biospheres, slot.Body.Biosphere);
+                    foreach (var body in slot.Body.Satellites.Prepend(slot.Body))
+                    {
+                        Bump(kinds, body.Kind);
+                        Bump(settlements, body.Settlement);
+                        Bump(biospheres, body.Biosphere);
+                        if (body.Settlement != Settlement.None) anySettled = true;
+                        if (body.Biosphere == Biosphere.Sapient) anySapient = true;
+                    }
                 }
+            if (anySettled) settledSystems++;
+            if (anySapient) sapientSystems++;
         }
 
         var sb = new StringBuilder();
         sb.AppendLine($"hexes: {n}   systems: {present} ({Pct(present, n)})   overlays: {overlays} ({Pct(overlays, present)})");
+        sb.AppendLine($"system rollups (% of systems):");
+        sb.AppendLine($"  settled          {settledSystems,6}  {Pct(settledSystems, present)}");
+        sb.AppendLine($"  sapient life     {sapientSystems,6}  {Pct(sapientSystems, present)}");
+        sb.AppendLine($"  named            {namedSystems,6}  {Pct(namedSystems, present)}");
         Section(sb, "arrangements", arrangements, present);
-        Section(sb, "body kinds", kinds, Total(kinds));
-        Section(sb, "biospheres", biospheres, Total(biospheres));
-        Section(sb, "settlements", settlements, Total(settlements));
+        Section(sb, "body kinds (incl. satellites)", kinds, Total(kinds));
+        Section(sb, "biospheres (incl. satellites)", biospheres, Total(biospheres));
+        Section(sb, "settlements (incl. satellites)", settlements, Total(settlements));
         return sb.ToString();
     }
 
