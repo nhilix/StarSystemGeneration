@@ -30,9 +30,12 @@ public static class BodyTables
         (Biosphere.Barren, 50), (Biosphere.Microbial, 30),
         (Biosphere.Flourishing, 15), (Biosphere.Sapient, 5));
 
+    // Tuned against the per-system stats rollup: with ~8 bodies per system, even a
+    // small per-body settled rate compounds — 12% settled bodies meant >50% of
+    // systems were settled. ~2.8% base yields ~15% settled systems (frontier tone).
     public static readonly WeightedTable<Settlement> SettlementTable = new(
-        (Settlement.None, 88), (Settlement.Outpost, 8),
-        (Settlement.Colony, 3), (Settlement.MajorWorld, 1));
+        (Settlement.None, 97.2), (Settlement.Outpost, 2),
+        (Settlement.Colony, 0.6), (Settlement.MajorWorld, 0.2));
 
     public static Func<BodyKind?, double> KindModifier(OrbitBand band) => kind => (band, kind) switch
     {
