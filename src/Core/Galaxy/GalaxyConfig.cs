@@ -4,8 +4,8 @@ namespace StarGen.Core.Galaxy;
 public sealed class GalaxyConfig
 {
     public ulong MasterSeed { get; set; }
-    /// <summary>Radius of the hexagonal cell-lattice disc (spec §4). Default 21
-    /// -> 1,387 cells x 91 hexes ~ 126k hexes (~ the old 100-sector galaxy).</summary>
+    /// <summary>Radius of the circular cell-lattice disc in lattice steps (spec §4).
+    /// Default 21 -> 1,615 cells x 91 hexes ~ 147k hexes.</summary>
     public int GalaxyRadiusCells { get; set; } = 21;
     public double MeanDensityTarget { get; set; } = 0.5;
     public int ArmCount { get; set; } = 3;

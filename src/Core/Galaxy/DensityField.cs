@@ -7,10 +7,27 @@ namespace StarGen.Core.Galaxy;
 /// <summary>Tier 1 (spec §4): pure density field = galactic shape × local noise.</summary>
 public static class DensityField
 {
-    private static readonly HexCoordinate Origin = new(0, 0);
+    /// <summary>World-space length of one cell-lattice step (√273 with the pinned
+    /// 91-hex basis; both basis vectors have the same length).</summary>
+    private static readonly double CellLatticeUnit = CellWorldDistance(new HexCoordinate(1, 0));
 
     public static bool InGalaxy(GalaxyConfig config, HexCoordinate hex) =>
-        HexGrid.Distance(HexGrid.CellOf(hex), Origin) <= config.GalaxyRadiusCells;
+        CellInGalaxy(config, HexGrid.CellOf(hex));
+
+    /// <summary>Circular footprint, decided per cell so hex and cell membership
+    /// always agree: a cell is in the galaxy when its center lies within
+    /// GalaxyRadiusCells lattice steps of the origin in Euclidean world distance.
+    /// This circle circumscribes the former hexagonal footprint (whose flat sides
+    /// sat at ~86.6% of the corner distance and cropped the spiral arms), so the
+    /// arms now reach full length in every direction.</summary>
+    public static bool CellInGalaxy(GalaxyConfig config, HexCoordinate cellCoord) =>
+        CellWorldDistance(cellCoord) <= CellLatticeUnit * config.GalaxyRadiusCells + 1e-9;
+
+    private static double CellWorldDistance(HexCoordinate cellCoord)
+    {
+        var (x, y) = HexGrid.HexToWorld(HexGrid.CellCenter(cellCoord));
+        return Math.Sqrt(x * x + y * y);
+    }
 
     /// <summary>World radius used to normalize the shape function: one cell ring
     /// beyond the lattice, so density falls smoothly toward the membership rim.</summary>

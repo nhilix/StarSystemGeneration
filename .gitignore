@@ -511,3 +511,4 @@ unity/*.slnx
 unity/compile.log
 unity/test.log
 unity/test-results.xml
+.superpowers/shots/

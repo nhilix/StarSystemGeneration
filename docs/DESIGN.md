@@ -74,7 +74,7 @@ TODO: diagram of Core ↔ Presentation data flow once the interface shape is dec
 Hierarchy (top to bottom): **Galaxy → Sector → Subsector → Hex (System) → Star →
 Orbit → Body (World / Gas Giant / Planetoid Belt) → Satellite**.
 
-The spatial layer is hexagonal at every level (hex geometry spec): star hexes on an axial flat-top grid with 6-neighbor adjacency, aggregated into 91-hex hexagonal region cells whose centers form a coarser hex lattice, composing an origin-centered hexagonal galaxy disc (GalaxyRadiusCells, default 21 ≈ 126k hexes). The earlier Traveller sector/subsector convention is retired; the zoom ladder is galaxy → cell → hex. The star/orbit/body/satellite layer's fields are defined in the
+The spatial layer is hexagonal at every level (hex geometry spec): star hexes on an axial flat-top grid with 6-neighbor adjacency, aggregated into 91-hex hexagonal region cells whose centers form a coarser hex lattice, composing an origin-centered circular galaxy disc — cells whose centers lie within GalaxyRadiusCells lattice steps of the origin in Euclidean world distance (default 21 ≈ 1,615 cells ≈ 147k hexes) — so the spiral arms reach full length in every direction instead of being cropped by a hexagonal boundary. The earlier Traveller sector/subsector convention is retired; the zoom ladder is galaxy → cell → hex. The star/orbit/body/satellite layer's fields are defined in the
 generation rules spec below, using original terminology (no Traveller UWP codes).
 
 Field-level detail for System / Star / Orbit slot / Body / Society stats / Satellite:

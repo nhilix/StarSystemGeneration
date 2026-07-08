@@ -3,8 +3,9 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>The persisted Tier 2 artifact root (spec §3.1). Cells live on a hex
-/// lattice of radius GalaxyRadiusCells, in deterministic spiral order.</summary>
+/// <summary>The persisted Tier 2 artifact root (spec §3.1). Cells live on the hex
+/// lattice inside the circular footprint of radius GalaxyRadiusCells lattice
+/// steps (DensityField.CellInGalaxy), in deterministic spiral order.</summary>
 public sealed class GalaxySkeleton
 {
     public const int SchemaVersion = 2;
@@ -21,8 +22,13 @@ public sealed class GalaxySkeleton
     public GalaxySkeleton(GalaxyConfig config)
     {
         Config = config;
-        foreach (var coord in HexGrid.Spiral(new HexCoordinate(0, 0), config.GalaxyRadiusCells))
+        // The circular footprint reaches past lattice ring GalaxyRadiusCells:
+        // ring d's nearest cells sit at d·(√3/2) lattice steps from the origin,
+        // so members can appear out to ring 2R/√3.
+        int enumRadius = (int)System.Math.Ceiling(config.GalaxyRadiusCells * 2.0 / System.Math.Sqrt(3.0));
+        foreach (var coord in HexGrid.Spiral(new HexCoordinate(0, 0), enumRadius))
         {
+            if (!DensityField.CellInGalaxy(config, coord)) continue;
             var cell = new RegionCell { Q = coord.Q, R = coord.R, SpiralIndex = _cells.Count };
             _cells.Add(cell);
             _byCoord[coord] = cell;
