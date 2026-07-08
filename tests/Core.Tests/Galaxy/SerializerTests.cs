@@ -33,7 +33,7 @@ public class SerializerTests
     public void SchemaVersionMismatch_Throws_NeverSilentlyRebuilds()
     {
         var text = SkeletonSerializer.ToText(Build());
-        var tampered = text.Replace("STARGEN-SKELETON|2", "STARGEN-SKELETON|999");
+        var tampered = text.Replace("STARGEN-SKELETON|3", "STARGEN-SKELETON|999");
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(tampered)));
     }
@@ -41,7 +41,7 @@ public class SerializerTests
     [Fact]
     public void Load_RecordBeforeConfig_Throws()
     {
-        var text = "STARGEN-SKELETON|2\nANCHOR|0|0|1|0|0|-1\nEND\n";
+        var text = "STARGEN-SKELETON|3\nANCHOR|0|0|1|0|0|-1\nEND\n";
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(text)));
     }
@@ -75,10 +75,36 @@ public class SerializerTests
         // INTENTIONAL generation change, update the literal and say so in the commit.
         var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 3 });
         var lines = SkeletonSerializer.ToText(s).Split('\n');
-        Assert.Equal("STARGEN-SKELETON|2", lines[0].TrimEnd('\r'));
+        Assert.Equal("STARGEN-SKELETON|3", lines[0].TrimEnd('\r'));
         // Golden facts recorded at implementation time — fill the two literals with the
         // observed values on first run, then they are frozen:
         Assert.Equal(2, s.Polities.Count);
         Assert.Equal(30, s.Events.Count);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesNewConfigFields()
+    {
+        var s = SkeletonBuilder.Build(new GalaxyConfig
+        {
+            MasterSeed = 11, GalaxyRadiusCells = 3,
+            ArmStrength = 0.6, CoreRadius = 0.25, DiscFalloff = 0.7,
+            MineralAnchorMultiplier = 2.0, PrecursorAnchorMultiplier = 0.5,
+        });
+        string text = SkeletonSerializer.ToText(s);
+        var loaded = SkeletonSerializer.Load(new StringReader(text));
+        Assert.Equal(0.6, loaded.Config.ArmStrength);
+        Assert.Equal(0.25, loaded.Config.CoreRadius);
+        Assert.Equal(0.7, loaded.Config.DiscFalloff);
+        Assert.Equal(2.0, loaded.Config.MineralAnchorMultiplier);
+        Assert.Equal(0.5, loaded.Config.PrecursorAnchorMultiplier);
+        Assert.Equal(text, SkeletonSerializer.ToText(loaded));
+    }
+
+    [Fact]
+    public void Load_RejectsSchemaV2()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|2\nEND\n")));
     }
 }

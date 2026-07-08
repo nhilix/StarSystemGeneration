@@ -29,7 +29,11 @@ public static class SkeletonSerializer
             c.ArmTightness.ToString("R", Inv), c.ArmWidth.ToString("R", Inv),
             c.EpochCount.ToString(Inv), c.YearsPerEpoch.ToString(Inv),
             c.HomeworldRatePerCell.ToString("R", Inv),
-            c.TraversabilityThreshold.ToString("R", Inv)));
+            c.TraversabilityThreshold.ToString("R", Inv),
+            c.ArmStrength.ToString("R", Inv), c.CoreRadius.ToString("R", Inv),
+            c.DiscFalloff.ToString("R", Inv),
+            c.MineralAnchorMultiplier.ToString("R", Inv),
+            c.PrecursorAnchorMultiplier.ToString("R", Inv)));
         foreach (var sp in s.Species)
             w.WriteLine(string.Join("|", "SPECIES", sp.Id.ToString(Inv), sp.Name,
                 ((int)sp.Embodiment).ToString(Inv),
@@ -95,6 +99,11 @@ public static class SkeletonSerializer
                             EpochCount = int.Parse(f[7], Inv), YearsPerEpoch = int.Parse(f[8], Inv),
                             HomeworldRatePerCell = double.Parse(f[9], Inv),
                             TraversabilityThreshold = double.Parse(f[10], Inv),
+                            ArmStrength = double.Parse(f[11], Inv),
+                            CoreRadius = double.Parse(f[12], Inv),
+                            DiscFalloff = double.Parse(f[13], Inv),
+                            MineralAnchorMultiplier = double.Parse(f[14], Inv),
+                            PrecursorAnchorMultiplier = double.Parse(f[15], Inv),
                         });
                         break;
                     case "SPECIES":
