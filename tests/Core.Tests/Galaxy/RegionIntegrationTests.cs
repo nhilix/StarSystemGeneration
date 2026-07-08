@@ -37,20 +37,23 @@ public class RegionIntegrationTests
     [Fact]
     public void Homeworlds_HaveSapientMajorWorld_AndName()
     {
-        var galaxy = Galaxy();
-        var homeworlds = galaxy.Skeleton!.Cells.SelectMany(c => c.Anchors)
-            .Where(a => a.Type == AnchorType.Homeworld).ToList();
-        Assert.NotEmpty(homeworlds);
-        foreach (var anchor in homeworlds)
+        for (ulong seed = 40; seed < 46; seed++)
         {
-            var system = Generator.Generate(galaxy, anchor.Hex).System!;
-            var forced = system.Stars.SelectMany(st => st.Slots)
-                .Where(sl => sl.Body != null).Select(sl => sl.Body!)
-                .FirstOrDefault(b => b.Biosphere == Biosphere.Sapient
-                                     && b.Settlement == Settlement.MajorWorld);
-            Assert.NotNull(forced);
-            Assert.NotNull(forced!.Society);
-            Assert.NotNull(system.GivenName);
+            var galaxy = Galaxy(seed);
+            var homeworlds = galaxy.Skeleton!.Cells.SelectMany(c => c.Anchors)
+                .Where(a => a.Type == AnchorType.Homeworld).ToList();
+            Assert.NotEmpty(homeworlds);
+            foreach (var anchor in homeworlds)
+            {
+                var system = Generator.Generate(galaxy, anchor.Hex).System!;
+                var forced = system.Stars.SelectMany(st => st.Slots)
+                    .Where(sl => sl.Body != null).Select(sl => sl.Body!)
+                    .FirstOrDefault(b => b.Biosphere == Biosphere.Sapient
+                                         && b.Settlement == Settlement.MajorWorld);
+                Assert.NotNull(forced);
+                Assert.NotNull(forced!.Society);
+                Assert.NotNull(system.GivenName);
+            }
         }
     }
 

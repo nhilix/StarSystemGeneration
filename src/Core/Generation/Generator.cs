@@ -53,14 +53,21 @@ public static class Generator
             case AnchorType.Homeworld:
                 system.Tags.Add("homeworld");
                 var world = BestWorld(system);
-                if (world != null)
+                if (world == null)
                 {
-                    world.Biosphere = Biosphere.Sapient;
-                    world.Settlement = Settlement.MajorWorld;
-                    world.Society = null;                       // re-attach with forced facts
-                    SocietyGenerator.Generate(ctx, system);     // fills only missing societies
-                    NameGenerator.AssignNames(ctx, system);     // fills only missing names
+                    // All slots rolled empty — synthesize the homeworld body deterministically.
+                    // The primary always has >= 1 slot (every star type's MinSlots >= 1), and an
+                    // empty slot never consumed its body-descriptor draws, so GenerateBody's
+                    // rolls at (idx = slot.Index, sat = 0) are fresh and deterministic.
+                    var slot = system.Stars[0].Slots[0];
+                    slot.Body = BodyGenerator.GenerateBody(ctx, BodyKind.RockyWorld, slot.Band, slot.Index, 0);
+                    world = slot.Body;
                 }
+                world.Biosphere = Biosphere.Sapient;
+                world.Settlement = Settlement.MajorWorld;
+                world.Society = null;                       // re-attach with forced facts
+                SocietyGenerator.Generate(ctx, system);     // fills only missing societies
+                NameGenerator.AssignNames(ctx, system);     // fills only missing names
                 break;
         }
     }

@@ -28,9 +28,10 @@ public static class BodyGenerator
 
                 // index/subIndex convention: body rolls use index = starIndex*100 + slotIndex.
                 int idx = starIndex * 100 + slot.Index;
+                var kindModifier = BodyTables.KindModifier(slot.Band);
                 var kind = BodyTables.Kind.Pick(
                     ctx.NextDouble(RollChannel.BodyKind, idx),
-                    k => BodyTables.KindModifier(slot.Band)(k) * (region?.BeltModifier(k) ?? 1.0));
+                    k => kindModifier(k) * (region?.BeltModifier(k) ?? 1.0));
                 if (kind == null) continue;
                 slot.Body = GenerateBody(ctx, kind.Value, slot.Band, idx, 0, null, settlementScale);
                 AddSatellites(ctx, slot.Body, slot.Band, idx, settlementScale);
@@ -73,10 +74,10 @@ public static class BodyGenerator
                 break;
         }
 
+        var settlementModifier = BodyTables.SettlementModifier(body.Biosphere, band);
         body.Settlement = BodyTables.SettlementTable.Pick(
             ctx.NextDouble(RollChannel.Settlement, idx, sat),
-            st => BodyTables.SettlementModifier(body.Biosphere, band)(st)
-                  * (st == Settlement.None ? 1.0 : settlementScale));
+            st => settlementModifier(st) * (st == Settlement.None ? 1.0 : settlementScale));
 
         return body;
     }
