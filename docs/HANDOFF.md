@@ -1,42 +1,78 @@
-# Session Handoff — 2026-07-08
+# Session Handoff — 2026-07-08 (evening)
 
-State: `main` at `57d0863` (all branches merged and deleted; push to origin is manual and pending).
-Core tests 109/109 (`dotnet test StarSystemGeneration.sln`); Unity edit-mode 19/19 (batchmode, editor closed).
+State: `main` at `87a171e` (orbit-diagram merged ff, branch deleted; push to origin is manual and pending — now 12 commits ahead).
+Core tests 109/109 (`dotnet test StarSystemGeneration.sln`); Unity edit-mode 50/50 (batchmode, editor closed).
 Durable task ledger: `.superpowers/sdd/progress.md` (git-ignored — read it before re-doing anything).
 
 ## Just shipped (context, don't redo)
 
-- **Unity atlas** (galaxy → cell → hex drill-down, 5 layers, system data panel) — plan `docs/superpowers/plans/2026-07-08-unity-atlas.md`.
-- **Circular galaxy footprint** — `InGalaxy` is Euclidean on cell centers; radius 21 = 1,615 cells; spiral arms no longer cropped.
-- **Setup knobs + live preview** — spec `docs/superpowers/specs/2026-07-08-atlas-setup-knobs-design.md`, plan `...plans/2026-07-08-atlas-setup-knobs.md`. 12 sliders (Shape/Resources/History foldouts), density preview rebuilds per edit via `SkeletonBuilder.BuildShape` (no sim), artifact schema v3. User raised the radius clamp 45 → 100 (`57d0863`).
+- **Orbit-diagram system view** — roadmap phase 2 complete (DESIGN.md §4 updated). Spec
+  `docs/superpowers/specs/2026-07-08-orbit-diagram-design.md` (incl. two acceptance errata),
+  plan `docs/superpowers/plans/2026-07-08-orbit-diagram.md`. Fourth drill screen
+  (`AtlasScreen.System`): nested-concentric diagram, one vertex-colored mesh
+  (`OrbitLayout` pure geometry → `OrbitMeshBuilder.Compose` → `SystemView`), companions on
+  widened gaps (≥2·DR) with sub-ring-scaled bodies, star halos / gas bands / ocean blobs
+  (unkeyed overlays so selection recolor can't wipe them), hover tooltips, click →
+  `SystemPanel.Highlight` row scroll. Entry: second click on selected hex or panel button;
+  Cell breadcrumb now clears hex selection (old deferred ticket closed). Live acceptance:
+  REPL dump exactly matched Unity for seed 42 hex (77,-34) — phase-2 done-when.
+- **Setup knobs + live preview**, **circular footprint**, **Unity atlas** — see previous
+  handoff sections in git history if needed.
 
 ## Next up (pick one)
 
-1. **Sim economy slice** (biggest): regional spec stages 2–3 — polity budgets/military stockpiles, commodities/trade value/blockades; then stages 4–6 (federations, reputation/news propagation, event→POI compiler). Spec: `docs/superpowers/specs/2026-07-07-regional-generation-design.md`. Needs brainstorm→plan cycle for the slice boundary.
-2. **Orbit-diagram system view** — completes roadmap phase 2 (DESIGN.md §4): render one system's stars/orbits/bodies/satellites as a 2D diagram; the data panel half already exists.
-3. **Atlas polish batch** (small): smooth pan/zoom; cell-view hover highlight; "Cell (q,r)" breadcrumb should clear hex selection (currently enabled but no-op, plan-mandated); Atlas.unity as build scene 0 (currently SampleScene).
+1. **Sim economy slice** (biggest): regional spec stages 2–3 — polity budgets/military
+   stockpiles, commodities/trade value/blockades; then stages 4–6. Spec:
+   `docs/superpowers/specs/2026-07-07-regional-generation-design.md`. Needs brainstorm→plan
+   cycle for the slice boundary.
+2. **Atlas polish batch** (small): smooth pan/zoom (incl. system screen); cell-view hover
+   highlight; Atlas.unity as build scene 0; orbit-diagram follow-ups below could ride along.
+3. **Deferred ticket batch**: see below.
 
-## Deferred ticket items (small, from final reviews — details in ledger)
+## Deferred ticket items (small — details in ledger)
 
-- Golden literal test pinning the exact v3 CONFIG line field order.
-- Skip preview rebuild when only sim-only knobs change (epochs, years, homeworld rate, anchor mults).
-- Move `_setupErrorLabel` out of the ScrollView so build-failed messages are always visible.
-- `IsShapeOnly` guard: `Generate`/`StateOf` on a shape-only service should throw, not misbehave quietly.
-- Dedupe show-preview block in `AtlasController` (Render Setup branch vs `RenderPreview`).
-- Radius >45 preview cost: consider `_radiusField.isDelayed = true` now that the clamp is 100 (~12k cells per keystroke at max).
-- REPL `galaxy` command doesn't take the new knobs (UI-only for now).
-- Older Core items: ValueNoise octaves≤0 guard, WarStarted dedup, REPL goto wrap, StatsReport ignores satellites.
+Orbit-diagram (from final review + task reviews):
+- `ClearHexSelection()` needs a screen guard — automation calling it on the System screen
+  crashes `RenderSystemScreen` (`SelectedHex!.Value`). Only automation-reachable.
+- Companion-moon pad scaling untested; `Stars.Count == 0` bounds fallback unreachable by tests.
+- Doc note: multi-primary / zero-slot-primary inputs silently drop stars from the diagram.
+- Spec note: adjacent companions can visually overlap sub-ring swaths at hash-adjacent angles.
+- `SystemPanel.Highlight` silently no-ops on unknown BodyRef; `EnterSystem` exception message
+  reads oddly from the System screen.
+- Spec §8 follow-ups: in-diagram name labels (world→screen UI Toolkit), orbital-motion toggle,
+  hover recolor on the diagram, pan/zoom.
+
+Older (carried forward): golden v3 CONFIG-line literal test; skip preview rebuild on sim-only
+knobs; `_setupErrorLabel` outside ScrollView; `IsShapeOnly` guard; dedupe show-preview block;
+`_radiusField.isDelayed`; REPL `galaxy` knob parity; ValueNoise octaves≤0 guard; WarStarted
+dedup; REPL goto wrap; StatsReport ignores satellites.
 
 ## Process conventions (established, keep following)
 
-- Superpowers flow: brainstorm → spec (user reviews) → plan → **subagent-driven** execution → final whole-branch review (fable model) + one fix wave → finishing-a-development-branch → **merge to main locally**, verify tests, delete branch. User pushes manually.
-- Implementer reports must include verbatim test-summary lines; Unity runs also need `stat` timestamp of `unity/test-results.xml` (fabrication incident happened once).
-- Cheap model for transcription tasks (plan contains full code), sonnet for integration, fable for final review.
+- Superpowers flow: brainstorm → spec (user reviews) → plan → subagent-driven execution →
+  final whole-branch review (fable) + one fix wave → finishing-a-development-branch →
+  merge to main locally, verify tests, delete branch. User pushes manually.
+- Implementer reports MUST include verbatim test-summary lines + `test-results.xml`
+  LastWriteTime. Two more gate-reporting incidents this feature (T3 skipped the gate with a
+  fabricated excuse; T4 tried to pkill Unity when blocked) — keep the "gate mandatory, never
+  kill processes" language in dispatch prompts.
+- Cheap model for transcription tasks (plan contains full code), sonnet for integration,
+  fable for final review.
+- Mid-acceptance visual feedback is handled controller-inline (fix waves committed after
+  gates), not via subagent — established this feature and prior.
 
 ## Unity gotchas (hard-won)
 
-- Batchmode gates need the **editor closed**; live acceptance needs it **open** with the MCP bridge. Coordinate with the user.
-- MCP RunCommand sandbox: can reference `StarGen.Atlas` but NOT `StarGen.Core` types; use `AtlasAcceptance` menu items (`StarGen/Acceptance/...`) or UI-tree queries. `GetInstanceID` is obsolete → `GetEntityId`.
-- Unfocused editor doesn't tick the player loop: use `EditorApplication.Step()` to advance frames and manual `Camera.Render()`→RenderTexture→PNG instead of `ScreenCapture` (never flushes unfocused).
-- UI Toolkit `Foldout` headers are `Toggle`s — always scope Toggle queries (e.g. `Q("layer-toggle-row")`).
-- Screenshots lag UI chrome by one frame vs mesh recolor; trust live UI-tree queries over captures.
+- Batchmode gates need the **editor closed**; live acceptance needs it **open** with the MCP
+  bridge. Coordinate with the user.
+- MCP RunCommand sandbox: `StarGen.Atlas` OK, `StarGen.Core` types NOT (even
+  `Navigator.SelectedHex` trips CS0012 — log via menu items + a
+  `Application.logMessageReceived` hook to capture their output).
+- `Unity_GetConsoleLogs` can return empty even when logs exist — capture via the log hook.
+- Unfocused editor doesn't tick the player loop: `EditorApplication.Step()` + manual
+  `Camera.Render()`→RenderTexture→PNG (never `ScreenCapture`).
+- UI Toolkit `Foldout` headers are `Toggle`s — always scope Toggle queries.
+- PowerShell piping to the REPL mangles the FIRST stdin line (BOM) — use bash
+  `printf 'cmd\n...' | dotnet run --project src/Inspector`.
+- REPL syntax: `galaxy <seed> [radiusCells]`, `goto <q> <r>` (axial, e.g. SGC 2125-2014 →
+  77 -34 via −2048 bias).
