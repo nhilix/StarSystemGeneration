@@ -220,10 +220,23 @@ mergers over species-shaped history; pooled budgets would never fund expansion a
 multi-species empires would never conquer anything as themselves.
 
 **State.** Per cell: owning polity (or none), development tier, contested flag,
-resident species mix, event log. Global: the **polity registry** — id, name, species
+resident species mix. Global: the **polity registry** — id, name, species
 membership, blended temperament, capital, tech tier, military stockpile, commodity
 balances, relations matrix (war / neutral / trade / alliance / federation / vassal),
-stances (§7.5).
+stances (§7.5) — and the **event log**.
+
+**The event log is one global, append-only stream** — the single source of truth for
+everything that happened. Each record: epoch, event type, actor polity id(s),
+location (cell id; diplomatic events default to the actor's capital, which is also
+the news pulse's origin), magnitude, and type-specific payload. Events are never
+stored per-cell or per-polity (a battle touches two polities and a cell; a merge
+touches two polities and all their cells — duplicated storage would drift). Instead,
+**per-cell and per-polity indexes** (lists of event ids) are built at artifact
+finalization as views over the log: the event→POI compiler and hex history
+annotations read the cell index, `chronicle` reads the polity index, and news
+processing filters the log by epoch. The log is itself a serializable artifact
+layer, and the post-handoff live sim (§7.7) appends to the same stream — the
+galaxy's ongoing chronicle.
 
 **Determinism.** Fixed iteration order (cells by index, polities by id); every roll
 on skeleton `RollChannel`s keyed by (epoch, cell/polity id). The stateless hash
