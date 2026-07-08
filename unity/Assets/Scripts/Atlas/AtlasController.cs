@@ -17,6 +17,11 @@ namespace StarGen.Atlas
 
         private readonly AtlasNavigator _navigator = new();
         private GalaxyService? _service;
+
+        /// <summary>Automation surface: lets editor acceptance tooling drive the
+        /// real navigation paths (map clicks are the only input it can't fake).</summary>
+        public AtlasNavigator Navigator => _navigator;
+        public GalaxyService? Service => _service;
         private AtlasLayer _layer = AtlasLayer.Polity;
         private ulong _seed;
 
@@ -63,13 +68,16 @@ namespace StarGen.Atlas
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 _navigator.Back();
                 return;
             }
+            if (mouse == null) return;
 
-            Vector2 mousePos = Input.mousePosition;
+            Vector2 mousePos = mouse.position.ReadValue();
             switch (_navigator.Screen)
             {
                 case AtlasScreen.Galaxy:
@@ -100,7 +108,7 @@ namespace StarGen.Atlas
                 ui.SetTooltip(null);
             }
 
-            if (Input.GetMouseButtonDown(0) && pick is { } clicked)
+            if (UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame && pick is { } clicked)
                 _navigator.DrillToCell(clicked);
         }
 
@@ -118,7 +126,7 @@ namespace StarGen.Atlas
                 ui.SetTooltip(null);
             }
 
-            if (Input.GetMouseButtonDown(0) && pick is { } clicked)
+            if (UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame && pick is { } clicked)
                 _navigator.SelectHex(clicked);
         }
 

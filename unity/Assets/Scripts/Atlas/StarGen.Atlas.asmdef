@@ -1,7 +1,10 @@
 {
     "name": "StarGen.Atlas",
     "rootNamespace": "StarGen.Atlas",
-    "references": ["StarGen.Core"],
+    "references": [
+        "StarGen.Core",
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
