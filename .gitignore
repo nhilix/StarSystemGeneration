@@ -480,3 +480,16 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# --- Unity project (unity/) ---
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/obj/
+unity/UserSettings/
+unity/Build/
+unity/Builds/
+unity/*.csproj
+unity/*.sln
+unity/.vs/
+unity/.idea/
