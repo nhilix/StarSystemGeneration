@@ -4,10 +4,12 @@ using UnityEngine;
 namespace StarGen.Unity
 {
     /// <summary>
-    /// Integration spike: proves the Core <-> Unity contract by building a galaxy
-    /// skeleton in the editor and painting its cell grid into a texture — the ASCII
-    /// atlas as pixels. Attach to a GameObject with a SpriteRenderer and press Play.
+    /// Integration spike: builds a galaxy skeleton and paints its cell grid into a
+    /// texture — the ASCII atlas as pixels. Runs from Start() in play mode; the
+    /// editor menu item (StarGen > Run Galaxy Spike) drives the same logic in edit
+    /// mode via BuildAndPaint().
     /// </summary>
+    [RequireComponent(typeof(SpriteRenderer))]
     public sealed class GalaxyMapSpike : MonoBehaviour
     {
         public enum MapLayer { Density, Polity }
@@ -17,7 +19,9 @@ namespace StarGen.Unity
         [SerializeField] private MapLayer layer = MapLayer.Polity;
         [SerializeField] private float worldSize = 8f;   // sprite width in world units
 
-        private void Start()
+        private void Start() => BuildAndPaint();
+
+        public void BuildAndPaint()
         {
             var config = new GalaxyConfig
             {

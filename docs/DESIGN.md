@@ -127,8 +127,7 @@ ratings, trade-route data, and region-varying stellar density.
 
 ## 5. Tech Stack & Tooling
 
-- **Engine:** Unity 6 LTS (current LTS at project start; pin the exact patch version
-  when the Unity project is created in Phase 2).
+- **Engine:** Unity **6000.5.2f1** (Universal 2D / URP template), project at `unity/`.
 - **Core:** C# class library targeting **.NET Standard 2.1** — the highest profile
   Unity consumes — so the identical assembly/source serves Unity, the inspector, and
   tests. No Unity references, no dependencies beyond the base class library if
@@ -154,9 +153,13 @@ ratings, trade-route data, and region-varying stellar density.
   the separate `Traveller-SystemGenerator` repo — loose inspiration for tone/structure
   only, not ported or referenced by Core.
 
-TODO: decide how Unity references Core (local UPM package pointing at `src/Core`
-source vs. built DLL drop) when Phase 2 starts — pick whichever gives the smoother
-edit-in-IDE → see-in-Unity loop at that point.
+Unity references Core as a **local UPM package**: `src/Core` doubles as the package
+(`package.json` + `StarGen.Core.asmdef` with `noEngineReferences: true` beside the
+sources; `csc.rsp` supplies `-langversion:latest -nullable:enable` since Unity
+ignores the csproj; dotnet build output lives in dot-prefixed folders Unity skips).
+One source of truth — edit in the IDE, both `dotnet test` and Unity pick it up.
+The editor is driven directly via the official Unity MCP bridge (AI Assistant
+package) during development.
 
 ---
 
