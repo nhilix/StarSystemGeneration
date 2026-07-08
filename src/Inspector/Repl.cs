@@ -29,8 +29,9 @@ public sealed class Repl
                 case "quit" or "exit": return;
                 case "help":
                     Console.WriteLine("seed <n> | galaxy <seed> [sectors] | goto <x> <y> | next | prev | reroll");
-                    Console.WriteLine("find <criterion> | stats <n> | cell <cx> <cy> | map [layer] | map <sx> <sy>");
+                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | sector <sx> <sy> | cell <cx> <cy>");
                     Console.WriteLine("gsave <path> | gload <path> | quit");
+                    Console.WriteLine("map layers: density | polity | zone | dev | lean");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
                     break;
                 case "seed" when parts.Length == 2 && ulong.TryParse(parts[1], out var s):
@@ -81,6 +82,7 @@ public sealed class Repl
                         if (e.Cx == qcx && e.Cy == qcy)
                             Console.WriteLine($"  epoch {e.Epoch}: {e.Type} by {sk.Polities[e.ActorPolityId].Name}"
                                 + (e.TargetPolityId >= 0 ? $" vs {sk.Polities[e.TargetPolityId].Name}" : ""));
+                    Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, qcx, qcy));
                     break;
                 }
                 case "gsave" when parts.Length == 2 && _galaxy?.Skeleton != null:
@@ -111,11 +113,11 @@ public sealed class Repl
                     Console.WriteLine($"seed = {_seed}"); Show(); break;
                 case "find" when parts.Length == 2: Find(parts[1]); break;
                 case "stats" when parts.Length == 2 && int.TryParse(parts[1], out var n):
-                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _x, _y, n, SectorWidth)); break;
-                case "map" when _galaxy?.Skeleton == null:
+                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _x, _y, n, WalkWidth)); break;
+                case "map" or "sector" when _galaxy?.Skeleton == null:
                     Console.WriteLine("build a galaxy first (galaxy <seed>)");
                     break;
-                case "map" when parts.Length == 3
+                case "sector" when parts.Length == 3
                         && int.TryParse(parts[1], out var msx) && int.TryParse(parts[2], out var msy):
                     Console.WriteLine(GalaxyMapView.SectorMap(_galaxy!, msx, msy));
                     break;
@@ -129,11 +131,16 @@ public sealed class Repl
         }
     }
 
+    /// <summary>Row width for the linear hex walk: full galaxy width when a galaxy is
+    /// loaded (find/stats would otherwise only ever sample the leftmost sector band),
+    /// classic 32-hex sector width in flatspace.</summary>
+    private int WalkWidth => _galaxy?.Config.WidthHexes ?? SectorWidth;
+
     private void Step(int dir)
     {
-        int linear = _y * SectorWidth + _x + dir;
+        int linear = _y * WalkWidth + _x + dir;
         if (linear < 0) linear = 0;
-        (_x, _y) = (linear % SectorWidth, linear / SectorWidth);
+        (_x, _y) = (linear % WalkWidth, linear / WalkWidth);
     }
 
     private HexResult Gen(HexCoordinate c) =>

@@ -6,7 +6,10 @@ using StarGen.Core.Model;
 
 namespace StarGen.Inspector;
 
-/// <summary>ASCII galaxy atlas (spec §9): the visual counterpart of stats.</summary>
+/// <summary>ASCII galaxy atlas (spec §9): the visual counterpart of stats.
+/// Three zoom layers: galaxy (map, one glyph per cell), sector (32x40 hexes),
+/// cell (8x10 hexes). Every glyph is emitted twice horizontally to compensate
+/// for terminal fonts being ~2x taller than wide.</summary>
 public static class GalaxyMapView
 {
     private const string DensityRamp = " .:-=+*#%@";
@@ -17,7 +20,10 @@ public static class GalaxyMapView
         for (int cy = 0; cy < s.Config.CellsY; cy++)
         {
             for (int cx = 0; cx < s.Config.CellsX; cx++)
-                sb.Append(CellChar(s, s.CellAt(cx, cy), layer));
+            {
+                char glyph = CellChar(s, s.CellAt(cx, cy), layer);
+                sb.Append(glyph).Append(glyph);
+            }
             sb.AppendLine();
         }
         sb.AppendLine(Legend(s, layer));
@@ -59,19 +65,33 @@ public static class GalaxyMapView
     {
         if (sx < 0 || sy < 0 || sx >= galaxy.Config.SizeSectors || sy >= galaxy.Config.SizeSectors)
             return "sector out of range";
+        return HexMap(galaxy, sx * 32, sy * 40, 32, 40);
+    }
+
+    public static string CellZoom(GalaxyContext galaxy, int cx, int cy)
+    {
+        if (cx < 0 || cy < 0 || cx >= galaxy.Config.CellsX || cy >= galaxy.Config.CellsY)
+            return "cell out of range";
+        return HexMap(galaxy, cx * 8, cy * 10, 8, 10);
+    }
+
+    /// <summary>Hex-resolution render of any rectangular region (sector and cell zooms).</summary>
+    private static string HexMap(GalaxyContext galaxy, int x0, int y0, int width, int height)
+    {
         var sb = new StringBuilder();
         var skeleton = galaxy.Skeleton;
-        for (int hy = sy * 40; hy < sy * 40 + 40; hy++)
+        for (int hy = y0; hy < y0 + height; hy++)
         {
-            for (int hx = sx * 32; hx < sx * 32 + 32; hx++)
+            for (int hx = x0; hx < x0 + width; hx++)
             {
                 var coord = new HexCoordinate(hx, hy);
                 bool anchored = skeleton != null &&
                     skeleton.CellForHex(coord).Anchors.Any(a => a.Hex.Equals(coord));
                 var system = Generator.Generate(galaxy, coord).System;
-                sb.Append(system == null ? '·'
+                char glyph = system == null ? '·'
                     : anchored ? '@'
-                    : SystemIsSettled(system) ? 'o' : '*');
+                    : SystemIsSettled(system) ? 'o' : '*';
+                sb.Append(glyph).Append(glyph);
             }
             sb.AppendLine();
         }
