@@ -192,9 +192,9 @@ namespace StarGen.Atlas
             // Upper clamp matters more since the live preview: the field fires per
             // keystroke, so an uncapped "450" would build a ~609k-cell density pass
             // on the main thread before the user finished typing.
-            if (evt.newValue > 45)
+            if (evt.newValue > 100)
             {
-                _radiusField.SetValueWithoutNotify(45);
+                _radiusField.SetValueWithoutNotify(100);
                 _radiusWarnLabel.style.display = DisplayStyle.Flex;
                 return;
             }
@@ -210,7 +210,7 @@ namespace StarGen.Atlas
             if (!ulong.TryParse(_seedField.value, out var seed)) return false;
             int radius = _radiusField.value;
             if (radius < 2) radius = 2;
-            if (radius > 45) radius = 45;   // mirrors OnRadiusChanged; TryReadConfig
+            if (radius > 100) radius = 100;   // mirrors OnRadiusChanged; TryReadConfig
                                             // also runs before any change event fires.
             config = new GalaxyConfig
             {
