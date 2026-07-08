@@ -12,7 +12,10 @@ literal constant inside `DensityField.ShapeAt` / `SkeletonBuilder.PassResourceAn
 This feature promotes the remaining formation constants to `GalaxyConfig`,
 stamps them in the persisted artifact, and rebuilds the setup pane as a grouped,
 slider-driven form so the galaxy's shape, resource richness, and simulated
-history are tweakable at generation time.
+history are tweakable at generation time. The setup screen additionally shows a
+**live shape preview**: every seed/knob edit rebuilds a shape-only skeleton
+(density pass only, no simulation) and re-renders the galaxy mesh immediately;
+the full seeding + epoch simulation still runs only when Generate is clicked.
 
 **Invariant:** all new config fields default to the exact values of today's
 constants — a default-config galaxy is bit-identical to one generated before
@@ -27,10 +30,17 @@ this change (same seed → same skeleton artifact text).
   (config is trusted input, same as today).
 - One-click reset to defaults.
 
+**Goals (continued)**
+- Live shape preview on the setup screen: edits to seed or any knob re-render the
+  density-layer galaxy map without running the simulation; Generate remains the
+  gate for seeding passes + epoch sim.
+
 **Non-Goals**
 - `TraversabilityThreshold` stays config-only (not surfaced; easy to break galaxies with).
 - The inspector REPL's `galaxy <seed> [radius]` command is unchanged (follow-up noted in §8).
-- No presets/randomize button, no live preview while dragging — generate is the feedback loop.
+- No presets/randomize button — generate is still the gate for full history.
+- The preview shows the density layer only; polity/zone/dev/lean layers require the
+  sim and stay Generate-gated. No preview interaction (hover/click/drill) in setup.
 - No backward compatibility for schema v2 artifacts (pre-release; loader already hard-rejects).
 
 ## 3. Core: `GalaxyConfig` fields
@@ -84,6 +94,27 @@ double precursorChance = (0.02 + (cell.Lean == StellarLean.RemnantGraveyard ? 0.
 Multiplier 0 ⇒ that anchor type never rolls. Chances above 1.0 are harmless
 (`NextDouble < chance` is always true).
 
+### 4.1 Shape-only build (preview path)
+
+`SkeletonBuilder` gains a public entry point for the preview:
+
+```csharp
+/// <summary>Skeleton with cell densities/void/chokepoint marks only — no anchors,
+/// homeworlds, or history. The cheap path behind the atlas setup live preview;
+/// PassDensitySummary here is the same pass Build runs, so a preview's density
+/// layer is pixel-identical to the same config's full build.</summary>
+public static GalaxySkeleton BuildShape(GalaxyConfig config)
+{
+    var skeleton = new GalaxySkeleton(config);
+    PassDensitySummary(skeleton);
+    return skeleton;
+}
+```
+
+`Build` is refactored to call `BuildShape` then the remaining passes, so the two
+paths cannot drift. Measured cost at radius 21 is a few tens of ms (74k density
+samples) — acceptable per-edit for a tool; the Atlas side coalesces bursts (§6).
+
 ## 5. Core: serializer schema v3
 
 `GalaxySkeleton.SchemaVersion` bumps 2 → 3. The `CONFIG` record appends the five
@@ -103,7 +134,11 @@ existing check once the constant bumps.
 **GalaxyService** (unity/Assets/Scripts/Atlas/GalaxyService.cs): constructor
 becomes `GalaxyService(GalaxyConfig config)`; the old `(ulong seed, int radiusCells)`
 overload is removed (compile errors locate every caller). `GalaxyConfig` is the
-settings DTO — no generation logic moves into Unity.
+settings DTO — no generation logic moves into Unity. The service gains
+`BuildShapeOnly()` (wraps `SkeletonBuilder.BuildShape`) alongside `Build()`;
+a shape-only service supports `Skeleton`, `TryGetCell`, and the density layer,
+and is never asked for `Generate`/`StateOf`/polity data (setup has no map
+interaction). `IsShapeOnly` exposes which build produced the current skeleton.
 
 **AtlasUI** (unity/Assets/Scripts/Atlas/AtlasUI.cs):
 - `GenerateRequested` event becomes `Action<GalaxyConfig>`; `OnGenerateClicked`
@@ -130,9 +165,31 @@ settings DTO — no generation logic moves into Unity.
   (`style.maxHeight = Length.Percent(85)`, `ScrollView` wrapping the groups) so
   small game views still reach the Generate button.
 
+- Every knob/seed control change additionally raises `ConfigEdited` (also
+  `Action<GalaxyConfig>`), assembled from the same control-reading code as
+  Generate. An unparsable seed suppresses the event (last valid preview stays).
+
+**Live preview flow (AtlasController):**
+- The controller owns a dirty-flag + config snapshot; `ConfigEdited` stores the
+  config and marks dirty. `Update()` on the Setup screen consumes the flag at
+  most once per frame (coalescing slider-drag bursts): build a
+  `GalaxyService(config)`, call `BuildShapeOnly()`, and show it on `galaxyView`
+  with the **Density** layer forced, then `FitCamera(galaxyView.MapBounds)`.
+- On entering Setup (app start, Back, Escape) the controller renders an initial
+  preview from the current control values, so the screen is never empty.
+- The setup pane stays as the left overlay; the preview renders behind it in
+  the same galaxy view the Galaxy screen uses. No hover, tooltip, or click
+  handling on Setup (the existing `Update` switch already ignores Setup —
+  unchanged).
+- Preview services are throwaway: clicking Generate always constructs a fresh
+  `GalaxyService(config)` and runs the full `Build()` — determinism is anchored
+  to config alone, so the preview and the generated galaxy always agree on shape.
+
 **AtlasController** (unity/Assets/Scripts/Atlas/AtlasController.cs):
-`OnGenerate(GalaxyConfig config)` constructs `GalaxyService(config)`; `_seed`
-for HUD labels reads `config.MasterSeed`.
+`OnGenerate(GalaxyConfig config)` constructs `GalaxyService(config)` and runs
+the full build; `_seed` for HUD labels reads `config.MasterSeed`. `Render()`'s
+Setup branch keeps `galaxyView` active for the preview instead of deactivating
+it (the Galaxy branch re-shows the full-build service as today).
 
 **AtlasAcceptance** (unity/Assets/Editor/AtlasAcceptance.cs): unchanged in
 spirit — it sets the seed/radius fields and submits the Generate button, which
@@ -155,19 +212,27 @@ config equal to defaults with seed 42.
    fields non-default; assert loaded config field equality and byte-identical
    re-serialization. Assert v2 header is rejected.
 
+5. *Shape-only build:* `BuildShape` cell `MeanDensity`/`IsVoid` values equal the
+   full `Build`'s for the same config, and the shape-only skeleton has zero
+   species, polities, anchors, and events.
+
 **Unity edit-mode (Atlas tests):** update `GalaxyServiceTests` /
 `LayerPaletteTests` fixtures to the new ctor; add one test that
 `new GalaxyService(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 })`
-builds 37 cells (ctor-path regression).
+builds 37 cells (ctor-path regression), and one that `BuildShapeOnly()` sets
+`IsShapeOnly` and produces the same cell count as `Build()`.
 
-**Live MCP acceptance (controller-led):** open setup → verify grouped sliders
-render and scroll; generate with defaults (galaxy identical in cell count to
-1,615); set ArmCount 6 + ArmStrength 1.0 → regenerate → visibly six arms;
-set MineralAnchorMultiplier 3 → regenerate → anchored (white) hexes visibly
-denser; Reset defaults → controls return to stock; console clean.
+**Live MCP acceptance (controller-led):** open setup → grouped sliders render
+and scroll, and the density preview is visible behind the pane immediately;
+drag ArmCount to 6 → preview re-renders with six arms **without clicking
+Generate**; change the seed → preview changes; generate with defaults (1,615
+cells, sim runs); set MineralAnchorMultiplier 3 → regenerate → anchored (white)
+hexes visibly denser; Escape back to setup → preview returns; Reset defaults →
+controls return to stock and preview reverts; console clean.
 
 ## 8. Follow-ups (recorded, not in scope)
 
 - REPL `galaxy` command flag parsing for the same knobs.
 - Config presets ("dense core", "grand design", "anchor-rich") and a randomize button.
-- Live shape preview thumbnail while dragging sliders.
+- Async/throttled preview builds if radius-45 previews ever feel sluggish
+  (current coalescing is once per frame, synchronous).
