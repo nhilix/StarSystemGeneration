@@ -77,8 +77,8 @@ public class SeedingPassTests
         Assert.Equal(hexes.Count, hexes.Distinct().Count());
         foreach (var (c, a) in all)
         {
-            Assert.InRange(a.Hex.X, c.Cx * 8, c.Cx * 8 + 7);
-            Assert.InRange(a.Hex.Y, c.Cy * 10, c.Cy * 10 + 9);
+            Assert.InRange(a.Hex.Q, c.Cx * 8, c.Cx * 8 + 7);
+            Assert.InRange(a.Hex.R, c.Cy * 10, c.Cy * 10 + 9);
         }
     }
 

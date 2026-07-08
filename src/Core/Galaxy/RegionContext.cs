@@ -18,8 +18,8 @@ public sealed class RegionContext
     {
         if (galaxy.IsFlatspace || galaxy.Skeleton == null) return null;
         var s = galaxy.Skeleton;
-        if (hex.X < 0 || hex.Y < 0
-            || hex.X >= galaxy.Config.WidthHexes || hex.Y >= galaxy.Config.HeightHexes)
+        if (hex.Q < 0 || hex.R < 0
+            || hex.Q >= galaxy.Config.WidthHexes || hex.R >= galaxy.Config.HeightHexes)
             return null;
         var cell = s.CellForHex(hex);
 
@@ -71,7 +71,7 @@ public sealed class RegionContext
             return cell.WarScarred ? 0.4 : 1.0;
         }
         // Position in cell-center space: cell centers sit at (cx*8+4, cy*10+5).
-        double fx = (hex.X - 4.0) / 8.0, fy = (hex.Y - 5.0) / 10.0;
+        double fx = (hex.Q - 4.0) / 8.0, fy = (hex.R - 5.0) / 10.0;
         int cx0 = (int)Math.Floor(fx), cy0 = (int)Math.Floor(fy);
         double tx = fx - cx0, ty = fy - cy0;
         double a = CellScale(cx0, cy0) * (1 - tx) + CellScale(cx0 + 1, cy0) * tx;

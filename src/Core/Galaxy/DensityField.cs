@@ -9,14 +9,14 @@ public static class DensityField
 {
     public static double At(GalaxyConfig config, HexCoordinate hex)
     {
-        double nx = (hex.X - config.WidthHexes / 2.0) / (config.WidthHexes / 2.0);
-        double ny = (hex.Y - config.HeightHexes / 2.0) / (config.HeightHexes / 2.0);
+        double nx = (hex.Q - config.WidthHexes / 2.0) / (config.WidthHexes / 2.0);
+        double ny = (hex.R - config.HeightHexes / 2.0) / (config.HeightHexes / 2.0);
         double shape = ShapeAt(config, nx, ny);
         if (shape <= 0) return 0.0;
 
         double noise = ValueNoise.Warped(config.MasterSeed,
             RollChannel.NoiseDensityLattice, RollChannel.NoiseWarpLattice,
-            hex.X, hex.Y, octaves: 3, frequency: 0.035, warpStrength: 18.0);
+            hex.Q, hex.R, octaves: 3, frequency: 0.035, warpStrength: 18.0);
 
         // Shape sets the envelope; noise carves clumps/filaments/voids inside it.
         // 0.25 + 1.5*noise spans [0.25, 1.75]: voids suppress, ridges overshoot (clamped).

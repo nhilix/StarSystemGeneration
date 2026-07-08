@@ -39,11 +39,11 @@ public class DensityFieldTests
             double sum = 0; int n = 0;
             for (int dx = -radius; dx <= radius; dx += 2)
                 for (int dy = -radius; dy <= radius; dy += 2)
-                { sum += DensityField.At(config, new HexCoordinate(c.X + dx, c.Y + dy)); n++; }
+                { sum += DensityField.At(config, new HexCoordinate(c.Q + dx, c.R + dy)); n++; }
             return sum / n;
         }
         double coreAvg = Avg(center, 8);
-        double midAvg = Avg(new HexCoordinate(center.X + config.WidthHexes / 3, center.Y), 8);
+        double midAvg = Avg(new HexCoordinate(center.Q + config.WidthHexes / 3, center.R), 8);
         Assert.True(coreAvg > midAvg, $"core {coreAvg:F3} should exceed mid-disc {midAvg:F3}");
     }
 

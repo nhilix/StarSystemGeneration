@@ -76,7 +76,7 @@ public sealed class Repl
                     Console.WriteLine($"  owner: {owner} · dev {cell.DevelopmentTier}"
                         + (cell.WarScarred ? " · war-scarred" : ""));
                     foreach (var a in cell.Anchors)
-                        Console.WriteLine($"  anchor: {a.Type} at [{a.Hex.X:D4}-{a.Hex.Y:D4}]"
+                        Console.WriteLine($"  anchor: {a.Type} at [{a.Hex.Q:D4}-{a.Hex.R:D4}]"
                             + (a.SpeciesId >= 0 ? $" (species {sk.Species[a.SpeciesId].Name})" : ""));
                     foreach (var e in sk.Events)
                         if (e.Cx == qcx && e.Cy == qcy)

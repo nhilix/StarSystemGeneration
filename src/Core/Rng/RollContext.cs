@@ -16,7 +16,7 @@ public readonly struct RollContext
 
     public double NextDouble(RollChannel channel, int index = 0, int subIndex = 0)
     {
-        ulong coord = ((ulong)(uint)Coordinate.X << 32) | (uint)Coordinate.Y;
+        ulong coord = ((ulong)(uint)Coordinate.Q << 32) | (uint)Coordinate.R;
         ulong idx = ((ulong)(uint)index << 32) | (uint)subIndex;
         ulong h = StableHash.Mix(_masterSeed, coord, (ulong)channel, idx);
         return (h >> 11) * (1.0 / (1UL << 53)); // top 53 bits -> [0,1)

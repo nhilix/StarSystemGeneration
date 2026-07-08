@@ -25,5 +25,5 @@ public sealed class GalaxySkeleton
 
     public RegionCell CellAt(int cx, int cy) => Cells[cy * Config.CellsX + cx];
 
-    public RegionCell CellForHex(HexCoordinate hex) => CellAt(hex.X / 8, hex.Y / 10);
+    public RegionCell CellForHex(HexCoordinate hex) => CellAt(hex.Q / 8, hex.R / 10);
 }

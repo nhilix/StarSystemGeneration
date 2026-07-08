@@ -10,11 +10,11 @@ public static class SystemFormatter
     public static string Format(HexResult result)
     {
         if (result.System == null)
-            return $"[{result.Coordinate.X:D4}-{result.Coordinate.Y:D4}] — empty";
+            return $"[{result.Coordinate.Q:D4}-{result.Coordinate.R:D4}] — empty";
 
         var s = result.System;
         var sb = new StringBuilder();
-        sb.Append($"[{result.Coordinate.X:D4}-{result.Coordinate.Y:D4}] {s.Designation}");
+        sb.Append($"[{result.Coordinate.Q:D4}-{result.Coordinate.R:D4}] {s.Designation}");
         if (s.GivenName != null) sb.Append($" \"{s.GivenName}\"");
         sb.Append($" · {s.Arrangement.ToString().ToLowerInvariant()}");
         if (s.OverlayId != null) sb.Append($" · overlay: {s.OverlayId}");

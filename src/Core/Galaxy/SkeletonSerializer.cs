@@ -51,7 +51,7 @@ public static class SkeletonSerializer
             foreach (var a in cell.Anchors)
                 w.WriteLine(string.Join("|", "ANCHOR", cell.Cx.ToString(Inv),
                     cell.Cy.ToString(Inv), ((int)a.Type).ToString(Inv),
-                    a.Hex.X.ToString(Inv), a.Hex.Y.ToString(Inv), a.SpeciesId.ToString(Inv)));
+                    a.Hex.Q.ToString(Inv), a.Hex.R.ToString(Inv), a.SpeciesId.ToString(Inv)));
         }
         foreach (var e in s.Events)
             w.WriteLine(string.Join("|", "EVENT", e.Epoch.ToString(Inv),
