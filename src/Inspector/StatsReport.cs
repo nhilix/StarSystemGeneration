@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Generation;
 using StarGen.Core.Model;
 
@@ -9,7 +10,7 @@ namespace StarGen.Inspector;
 /// <summary>The primary tuning instrument (spec §10): distribution summary over n hexes.</summary>
 public static class StatsReport
 {
-    public static string Build(ulong seed, int startX, int startY, int n, int sectorWidth)
+    public static string Build(GalaxyContext galaxy, int startX, int startY, int n, int sectorWidth)
     {
         int present = 0, overlays = 0;
         int settledSystems = 0, sapientSystems = 0, namedSystems = 0;
@@ -22,7 +23,7 @@ public static class StatsReport
         for (int i = 0; i < n; i++, linear++)
         {
             var coord = new HexCoordinate(linear % sectorWidth, linear / sectorWidth);
-            var system = Generator.Generate(seed, coord).System;
+            var system = Generator.Generate(galaxy, coord).System;
             if (system == null) continue;
             present++;
             if (system.OverlayId != null) overlays++;
