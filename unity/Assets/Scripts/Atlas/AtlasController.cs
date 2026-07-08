@@ -24,6 +24,8 @@ namespace StarGen.Atlas
         public GalaxyService? Service => _service;
         private AtlasLayer _layer = AtlasLayer.Polity;
         private ulong _seed;
+        private HexCoordinate? _lastHoverPick;
+        private bool _hoverValid;
 
         private void Start()
         {
@@ -78,6 +80,13 @@ namespace StarGen.Atlas
             if (mouse == null) return;
 
             Vector2 mousePos = mouse.position.ReadValue();
+            if (ui.IsPointerOverChrome(mousePos))
+            {
+                // Chrome owns the pointer: no hover, no tooltip, and clicks must
+                // not fall through to the map underneath the panels.
+                ClearHover();
+                return;
+            }
             switch (_navigator.Screen)
             {
                 case AtlasScreen.Galaxy:
@@ -91,21 +100,41 @@ namespace StarGen.Atlas
             }
         }
 
+        private void ClearHover()
+        {
+            if (!_hoverValid && _lastHoverPick == null) return;
+            _hoverValid = false;
+            _lastHoverPick = null;
+            if (_navigator.Screen == AtlasScreen.Galaxy) galaxyView.SetHover(null);
+            ui.SetTooltip(null);
+        }
+
+        private bool HoverChanged(HexCoordinate? pick)
+        {
+            if (_hoverValid && System.Nullable.Equals(pick, _lastHoverPick)) return false;
+            _hoverValid = true;
+            _lastHoverPick = pick;
+            return true;
+        }
+
         private void UpdateGalaxyScreen(Vector2 mousePos)
         {
             var pick = galaxyView.Pick(mousePos, mainCamera);
-            galaxyView.SetHover(pick);
+            if (HoverChanged(pick))
+            {
+                galaxyView.SetHover(pick);
 
-            if (pick is { } cellCoord && _service!.TryGetCell(cellCoord, out var cell))
-            {
-                string owner = cell.OwnerPolityId >= 0
-                    ? _service.Skeleton.Polities[cell.OwnerPolityId].Name
-                    : "unclaimed";
-                ui.SetTooltip($"cell ({cell.Q},{cell.R}) · {owner} · dev {cell.DevelopmentTier}");
-            }
-            else
-            {
-                ui.SetTooltip(null);
+                if (pick is { } cellCoord && _service!.TryGetCell(cellCoord, out var cell))
+                {
+                    string owner = cell.OwnerPolityId >= 0
+                        ? _service.Skeleton.Polities[cell.OwnerPolityId].Name
+                        : "unclaimed";
+                    ui.SetTooltip($"cell ({cell.Q},{cell.R}) · {owner} · dev {cell.DevelopmentTier}");
+                }
+                else
+                {
+                    ui.SetTooltip(null);
+                }
             }
 
             if (UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame && pick is { } clicked)
@@ -116,14 +145,17 @@ namespace StarGen.Atlas
         {
             var pick = cellView.Pick(mousePos, mainCamera);
 
-            if (pick is { } hex)
+            if (HoverChanged(pick))
             {
-                var state = _service!.StateOf(hex);
-                ui.SetTooltip($"{Designation.For(hex)} · {state.ToString().ToLowerInvariant()}");
-            }
-            else
-            {
-                ui.SetTooltip(null);
+                if (pick is { } hex)
+                {
+                    var state = _service!.StateOf(hex);
+                    ui.SetTooltip($"{Designation.For(hex)} · {state.ToString().ToLowerInvariant()}");
+                }
+                else
+                {
+                    ui.SetTooltip(null);
+                }
             }
 
             if (UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame && pick is { } clicked)
@@ -132,6 +164,10 @@ namespace StarGen.Atlas
 
         private void Render()
         {
+            // Screen or content changed: last frame's hover belongs to the old view.
+            _hoverValid = false;
+            _lastHoverPick = null;
+
             switch (_navigator.Screen)
             {
                 case AtlasScreen.Setup:
@@ -161,8 +197,14 @@ namespace StarGen.Atlas
             cellView.gameObject.SetActive(true);
 
             var cellCoord = _navigator.SelectedCell!.Value;
-            cellView.Show(_service!, cellCoord);
-            _service!.TryGetCell(cellCoord, out var cell);
+            if (!_service!.TryGetCell(cellCoord, out var cell))
+            {
+                // Only reachable through automation driving the navigator to a
+                // coordinate outside the galaxy; the map never picks one.
+                _navigator.Back();
+                return;
+            }
+            cellView.Show(_service, cellCoord);
             ui.ShowCellHud(_service.CellSummary(cell));
 
             var crumbs = new List<string> { "Setup", $"Galaxy {_seed}", $"Cell ({cellCoord.Q},{cellCoord.R})" };

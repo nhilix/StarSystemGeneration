@@ -267,6 +267,9 @@ namespace StarGen.Atlas
             _tooltip.style.borderTopRightRadius = 4;
             _tooltip.style.borderBottomLeftRadius = 4;
             _tooltip.style.borderBottomRightRadius = 4;
+            // A floating readout must never occlude map picking, or it would
+            // flicker: appearing under the cursor would count as "over chrome".
+            _tooltip.pickingMode = PickingMode.Ignore;
 
             _root.Add(_tooltip);
         }
@@ -296,12 +299,27 @@ namespace StarGen.Atlas
 
         // ----- public API ---------------------------------------------------------
 
+        /// <summary>True when the screen-space position (bottom-left origin, as
+        /// reported by the Input System) is over any visible chrome pane. The map
+        /// panes are absolute-positioned children of the full-screen root, so
+        /// picking anything other than the root means chrome is under the cursor.</summary>
+        public bool IsPointerOverChrome(Vector2 screenPos)
+        {
+            var panel = _root.panel;
+            if (panel == null) return false;
+            var panelPos = RuntimePanelUtils.ScreenToPanel(
+                panel, new Vector2(screenPos.x, Screen.height - screenPos.y));
+            var picked = panel.Pick(panelPos);
+            return picked != null && picked != _root;
+        }
+
         public void ShowSetup(string? error = null)
         {
             _setupPane.style.display = DisplayStyle.Flex;
             _hudBar.style.display = DisplayStyle.None;
             _sidePanel.style.display = DisplayStyle.None;
             _systemPanelHost.style.display = DisplayStyle.None;
+            _tooltip.style.display = DisplayStyle.None;
 
             if (string.IsNullOrEmpty(error))
             {
