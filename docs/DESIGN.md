@@ -108,8 +108,8 @@ ratings, trade-route data, and region-varying stellar density.
    *Done when:* any `(seed, coordinate)` shown in the REPL renders identically-
    structured in Unity — same bodies, same stats in the inspect panel — with no
    generation logic in the Unity project.
-   *Status:* data-panel portion delivered by the Unity atlas (2026-07); orbit-diagram
-   rendering remains.
+   *Status:* complete — data panel via the Unity atlas and the orbit-diagram
+   system view (both 2026-07).
 3. **Cell map** — hex-lattice navigation, lazy per-hex generation, system summary icons, drill-down into system view (delivered with the Unity atlas). Proves on-demand generation + caching.
    *Done when:* panning a full cell neighborhood (~1,000 hexes) is smooth on first visit
    (generation is lazy and fast enough) and revisiting hexes is visibly identical.
