@@ -45,6 +45,9 @@ namespace StarGen.Atlas.EditorTools
             var cellGo = new GameObject("CellView");
             var cellView = cellGo.AddComponent<CellView>();
 
+            var systemGo = new GameObject("SystemView");
+            var systemView = systemGo.AddComponent<SystemView>();
+
             var uiGo = new GameObject("AtlasUI");
             var uiDocument = uiGo.AddComponent<UIDocument>();
             uiDocument.panelSettings = LoadOrCreatePanelSettings();
@@ -52,7 +55,7 @@ namespace StarGen.Atlas.EditorTools
 
             var atlasGo = new GameObject("Atlas");
             var controller = atlasGo.AddComponent<AtlasController>();
-            AssignControllerRefs(controller, galaxyView, cellView, atlasUi, cam);
+            AssignControllerRefs(controller, galaxyView, cellView, systemView, atlasUi, cam);
 
             EditorSceneManager.MarkSceneDirty(scene);
 
@@ -73,11 +76,13 @@ namespace StarGen.Atlas.EditorTools
         }
 
         private static void AssignControllerRefs(
-            AtlasController controller, GalaxyView galaxyView, CellView cellView, AtlasUI ui, Camera cam)
+            AtlasController controller, GalaxyView galaxyView, CellView cellView,
+            SystemView systemView, AtlasUI ui, Camera cam)
         {
             var so = new SerializedObject(controller);
             so.FindProperty("galaxyView").objectReferenceValue = galaxyView;
             so.FindProperty("cellView").objectReferenceValue = cellView;
+            so.FindProperty("systemView").objectReferenceValue = systemView;
             so.FindProperty("ui").objectReferenceValue = ui;
             so.FindProperty("mainCamera").objectReferenceValue = cam;
             so.ApplyModifiedPropertiesWithoutUndo();

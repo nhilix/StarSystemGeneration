@@ -94,5 +94,46 @@ namespace StarGen.UnityEditorTools
 
         [MenuItem("StarGen/Acceptance/Back")]
         public static void Back() => Controller().Navigator.Back();
+
+        [MenuItem("StarGen/Acceptance/Open System")]
+        public static void OpenSystem()
+        {
+            var controller = Controller();
+            controller.Navigator.EnterSystem();
+            Debug.Log($"[Acceptance] entered system screen: hex={controller.Navigator.SelectedHex}");
+        }
+
+        [MenuItem("StarGen/Acceptance/Select Binary Or Trinary Hex")]
+        public static void SelectMultiStar()
+        {
+            var controller = Controller();
+            var cellCoord = controller.Navigator.SelectedCell
+                ?? throw new System.InvalidOperationException("not in cell view");
+            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cellCoord), HexGrid.CellRadius))
+            {
+                var system = controller.Service!.Generate(hex).System;
+                if (system != null && system.Stars.Count > 1)
+                {
+                    controller.Navigator.SelectHex(hex);
+                    Debug.Log($"[Acceptance] selected {system.Arrangement} system "
+                        + $"{system.Designation} at {hex}");
+                    return;
+                }
+            }
+            Debug.LogWarning($"[Acceptance] no multi-star system in cell {cellCoord}");
+        }
+
+        [MenuItem("StarGen/Acceptance/Dump System Layout")]
+        public static void DumpSystemLayout()
+        {
+            var controller = Controller();
+            var hex = controller.Navigator.SelectedHex
+                ?? throw new System.InvalidOperationException("no hex selected");
+            var system = controller.Service!.Generate(hex).System
+                ?? throw new System.InvalidOperationException("selected hex has no system");
+            var layout = OrbitLayout.Compute(system);
+            Debug.Log($"[Acceptance] layout: stars={layout.Stars.Count} rings={layout.Rings.Count}"
+                + $" bodies={layout.Bodies.Count} picks={layout.Picks.Count} bounds={layout.Bounds}");
+        }
     }
 }
