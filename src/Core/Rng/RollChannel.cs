@@ -29,4 +29,18 @@ public enum RollChannel : ulong
     NameSyllable = 21,     // index = name slot, subIndex = syllable position
     OverlayChance = 22,
     OverlayPick = 23,
+
+    // --- Regional generation (slice 1). Values stable per registry discipline. ---
+    NoiseDensityLattice = 24,  // lattice draws: index = lattice x, subIndex = lattice y (via ValueNoise packing)
+    NoiseWarpLattice = 25,
+    NoiseStellarLattice = 26,
+    NoiseMetalLattice = 27,
+    AnchorPlacement = 28,      // cell-keyed: RollContext coordinate = cell coords
+    AnchorKind = 29,
+    HomeworldPlacement = 30,
+    SpeciesEmbodiment = 31,
+    SpeciesTemperament = 32,   // subIndex = temperament axis ordinal
+    SimExpansion = 33,         // index = epoch, subIndex = polity id
+    SimDevelopment = 34,       // index = epoch, subIndex = cell linear index
+    SimWar = 35,               // index = epoch, subIndex = polity id
 }
