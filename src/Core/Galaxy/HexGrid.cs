@@ -104,4 +104,35 @@ public static class HexGrid
         }
         return corners;
     }
+
+    /// <summary>Cells are radius-5 superhex clusters: exactly 91 hexes (spec §3).</summary>
+    public const int CellRadius = 5;
+
+    // Cluster lattice basis (determinant 91): A = (11,-5), B = (5,6).
+    private const int AQ = 11, AR = -5, BQ = 5, BR = 6;
+
+    public static HexCoordinate CellCenter(HexCoordinate cell) =>
+        new(cell.Q * AQ + cell.R * BQ, cell.Q * AR + cell.R * BR);
+
+    public static HexCoordinate CellOf(HexCoordinate hex)
+    {
+        // Inverse basis: [i]   1/91 [ BR -BQ ] [q]   =  (6q - 5r)/91, (5q + 11r)/91
+        //                [j] =      [-AR  AQ ] [r]
+        double i = (6.0 * hex.Q - 5.0 * hex.R) / 91.0;
+        double j = (5.0 * hex.Q + 11.0 * hex.R) / 91.0;
+        var candidate = new HexCoordinate((int)Math.Round(i), (int)Math.Round(j));
+        if (Distance(hex, CellCenter(candidate)) <= CellRadius) return candidate;
+
+        HexCoordinate? found = null;
+        foreach (var neighborCell in Neighbors(candidate))
+            if (Distance(hex, CellCenter(neighborCell)) <= CellRadius)
+            {
+                if (found != null)
+                    throw new InvalidOperationException(
+                        $"hex {hex} claimed by two cells — cluster basis broken");
+                found = neighborCell;
+            }
+        return found ?? throw new InvalidOperationException(
+            $"hex {hex} claimed by no cell — cluster basis broken");
+    }
 }

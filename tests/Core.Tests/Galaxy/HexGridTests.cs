@@ -138,4 +138,44 @@ public class HexGridTests
                     shared++;
         Assert.Equal(2, shared);
     }
+
+    [Fact]
+    public void CellCenter_UsesThePinnedBasis()
+    {
+        Assert.Equal(new HexCoordinate(0, 0), HexGrid.CellCenter(new HexCoordinate(0, 0)));
+        Assert.Equal(new HexCoordinate(11, -5), HexGrid.CellCenter(new HexCoordinate(1, 0)));
+        Assert.Equal(new HexCoordinate(5, 6), HexGrid.CellCenter(new HexCoordinate(0, 1)));
+        Assert.Equal(new HexCoordinate(16, 1), HexGrid.CellCenter(new HexCoordinate(1, 1)));
+    }
+
+    [Fact]
+    public void CellOf_IsAPartition_EveryHexExactlyOneCell()
+    {
+        // every hex within a big disc maps to a cell whose center is within 5,
+        // and CellOf(CellCenter(c)) == c
+        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 30))
+        {
+            var cell = HexGrid.CellOf(hex);
+            Assert.True(HexGrid.Distance(hex, HexGrid.CellCenter(cell)) <= HexGrid.CellRadius,
+                $"hex {hex} claimed by cell {cell} but is too far from its center");
+        }
+        foreach (var cell in HexGrid.Spiral(new HexCoordinate(0, 0), 3))
+            Assert.Equal(cell, HexGrid.CellOf(HexGrid.CellCenter(cell)));
+    }
+
+    [Fact]
+    public void EveryCell_HasExactly91Hexes()
+    {
+        // count membership by brute force over a region that fully contains cell (0,0)
+        // and its 6 neighbors
+        var counts = new Dictionary<HexCoordinate, int>();
+        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 22))
+        {
+            var cell = HexGrid.CellOf(hex);
+            counts[cell] = counts.TryGetValue(cell, out var v) ? v + 1 : 1;
+        }
+        // cells fully inside the radius-22 disc must have exactly 91 members
+        foreach (var cell in HexGrid.Spiral(new HexCoordinate(0, 0), 1))
+            Assert.Equal(91, counts[cell]);
+    }
 }
