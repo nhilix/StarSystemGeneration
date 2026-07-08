@@ -1,0 +1,7 @@
+{
+  "name": "com.stargen.core",
+  "version": "0.1.0",
+  "displayName": "StarGen Core",
+  "description": "Deterministic procedural star system and galaxy generation engine. Pure C# (netstandard2.1), no Unity dependencies - this folder doubles as the dotnet class library and a local UPM package.",
+  "unity": "6000.0"
+}

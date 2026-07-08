@@ -493,3 +493,7 @@ unity/*.csproj
 unity/*.sln
 unity/.vs/
 unity/.idea/
+
+# dot-prefixed dotnet build dirs (Unity-invisible, see StarGen.Core.csproj)
+.bin/
+.obj/

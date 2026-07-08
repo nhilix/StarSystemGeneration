@@ -4,5 +4,10 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>StarGen.Core</RootNamespace>
+    <!-- Dot-prefixed build dirs: this folder doubles as a local UPM package, and
+         Unity's importer skips dot-folders — so dotnet build outputs stay invisible
+         to the editor (visible bin/obj DLLs would import as duplicate types). -->
+    <BaseOutputPath>.bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>.obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>
