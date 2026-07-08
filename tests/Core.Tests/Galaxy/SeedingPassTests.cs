@@ -122,7 +122,7 @@ public class SeedingPassTests
             if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
             var cell = s.CellAt(polity.CapitalCx, polity.CapitalCy);
             Assert.Equal(polity.Id, cell.OwnerPolityId);
-            Assert.Equal(2, cell.DevelopmentTier);
+            Assert.InRange(cell.DevelopmentTier, 2, 5);   // seeding sets to 2; epoch sim can increase
             Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);
         }
     }

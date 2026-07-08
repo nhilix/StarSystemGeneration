@@ -20,7 +20,7 @@ public static class SkeletonBuilder
         PassStellarPopulation(skeleton);
         PassResourceAnchors(skeleton);
         PassHomeworlds(skeleton);
-        // EpochSim.Run(skeleton);
+        EpochSim.Run(skeleton);
         return skeleton;
     }
 
