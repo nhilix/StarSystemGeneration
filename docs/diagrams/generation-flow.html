@@ -1,0 +1,484 @@
+<title>StarGen — Generation &amp; Simulation Flow</title>
+<style>
+  :root {
+    --bg: #F4F6FA;
+    --panel: #FFFFFF;
+    --panel2: #EDF0F6;
+    --ink: #1C2434;
+    --muted: #5A6478;
+    --line: #C9D0DE;
+    --accent: #3E6FD9;
+    --done: #1F8A63;  --done-bg: rgba(31,138,99,.09);  --done-line: rgba(31,138,99,.45);
+    --spec: #A06E12;  --spec-bg: rgba(176,120,24,.10); --spec-line: rgba(176,120,24,.5);
+    --fut:  #6B7288;  --fut-bg:  rgba(107,114,136,.07);--fut-line: rgba(107,114,136,.45);
+    --star-opacity: 0.25;
+    --mono: "Cascadia Code", "Cascadia Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B0E16; --panel: #131826; --panel2: #0F1420;
+      --ink: #E6EAF5; --muted: #98A0B5; --line: #2A3247; --accent: #7FA3F0;
+      --done: #4CC79A; --done-bg: rgba(76,199,154,.08); --done-line: rgba(76,199,154,.4);
+      --spec: #E0AF52; --spec-bg: rgba(224,175,82,.08); --spec-line: rgba(224,175,82,.45);
+      --fut:  #8A91A8; --fut-bg:  rgba(138,145,168,.06);--fut-line: rgba(138,145,168,.4);
+      --star-opacity: 1;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F6FA; --panel: #FFFFFF; --panel2: #EDF0F6;
+    --ink: #1C2434; --muted: #5A6478; --line: #C9D0DE; --accent: #3E6FD9;
+    --done: #1F8A63; --done-bg: rgba(31,138,99,.09); --done-line: rgba(31,138,99,.45);
+    --spec: #A06E12; --spec-bg: rgba(176,120,24,.10); --spec-line: rgba(176,120,24,.5);
+    --fut:  #6B7288; --fut-bg:  rgba(107,114,136,.07);--fut-line: rgba(107,114,136,.45);
+    --star-opacity: 0.25;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B0E16; --panel: #131826; --panel2: #0F1420;
+    --ink: #E6EAF5; --muted: #98A0B5; --line: #2A3247; --accent: #7FA3F0;
+    --done: #4CC79A; --done-bg: rgba(76,199,154,.08); --done-line: rgba(76,199,154,.4);
+    --spec: #E0AF52; --spec-bg: rgba(224,175,82,.08); --spec-line: rgba(224,175,82,.45);
+    --fut:  #8A91A8; --fut-bg:  rgba(138,145,168,.06);--fut-line: rgba(138,145,168,.4);
+    --star-opacity: 1;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+    margin: 0; padding: 2.5rem 1.25rem 4rem;
+    position: relative;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: var(--star-opacity);
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, rgba(160,180,230,.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 78% 8%,  rgba(160,180,230,.4) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 55% 32%, rgba(200,215,255,.35) 50%, transparent 51%),
+      radial-gradient(1px 1px at 30% 58%, rgba(160,180,230,.4) 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 47%, rgba(160,180,230,.5) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 8% 82%, rgba(200,215,255,.3) 50%, transparent 51%),
+      radial-gradient(1px 1px at 65% 74%, rgba(160,180,230,.4) 50%, transparent 51%),
+      radial-gradient(1px 1px at 42% 92%, rgba(160,180,230,.35) 50%, transparent 51%);
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { margin-bottom: 2rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 .5rem;
+  }
+  h1 {
+    font-family: var(--mono); font-size: 1.45rem; font-weight: 600;
+    margin: 0 0 .5rem; text-wrap: balance;
+  }
+  .subtitle { color: var(--muted); max-width: 46rem; margin: 0 0 1.25rem; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; align-items: center;
+    font-family: var(--mono); font-size: .72rem;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: .6rem 0;
+  }
+  .legend .key { display: flex; align-items: center; gap: .45rem; }
+  .dot { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
+  .dot.done { background: var(--done); }
+  .dot.spec { background: var(--spec); }
+  .dot.fut  { background: transparent; border: 1.5px dashed var(--fut); }
+  .legend .stamp { margin-left: auto; color: var(--muted); }
+
+  /* ---- tier bands ---- */
+  .tier {
+    border: 1px solid var(--line); background: var(--panel2);
+    border-radius: 3px; padding: 1.1rem 1.1rem 1.25rem; margin: 0;
+  }
+  .tier-head {
+    display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap;
+    margin-bottom: .35rem;
+  }
+  .tier-tag {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 2px; padding: .1rem .45rem;
+  }
+  .tier-head h2 { font-family: var(--mono); font-size: 1.02rem; font-weight: 600; margin: 0; }
+  .tier-head .nature { font-size: .78rem; color: var(--muted); }
+  .tier > .desc { color: var(--muted); font-size: .82rem; margin: 0 0 .9rem; max-width: 52rem; }
+
+  /* ---- connector arrows ---- */
+  .flow { display: flex; flex-direction: column; }
+  .arrow {
+    align-self: center; display: flex; flex-direction: column; align-items: center;
+    padding: .15rem 0; color: var(--accent);
+  }
+  .arrow .stem { width: 1px; height: 1.1rem; background: var(--accent); opacity: .7; }
+  .arrow .head { font-size: .7rem; line-height: .6; margin-top: -1px; }
+  .arrow .lbl {
+    font-family: var(--mono); font-size: .68rem; color: var(--muted);
+    padding: .1rem 0 .2rem;
+  }
+
+  /* ---- node cards ---- */
+  .grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+  .node {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+    padding: .7rem .85rem .75rem; min-width: 0;
+  }
+  .node.done { border-color: var(--done-line); background: linear-gradient(var(--done-bg), var(--done-bg)) , var(--panel); }
+  .node.spec { border-color: var(--spec-line); background: linear-gradient(var(--spec-bg), var(--spec-bg)), var(--panel); }
+  .node.fut  { border-style: dashed; border-color: var(--fut-line); background: linear-gradient(var(--fut-bg), var(--fut-bg)), var(--panel); }
+  .node-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .25rem; }
+  .node-head .name { font-family: var(--mono); font-size: .83rem; font-weight: 600; }
+  .chip {
+    font-family: var(--mono); font-size: .58rem; letter-spacing: .12em;
+    padding: .08rem .4rem; border-radius: 2px; flex: none; margin-left: auto;
+  }
+  .chip.done { color: var(--done); border: 1px solid var(--done-line); }
+  .chip.spec { color: var(--spec); border: 1px solid var(--spec-line); }
+  .chip.fut  { color: var(--fut);  border: 1px dashed var(--fut-line); }
+  .node p { margin: 0; font-size: .78rem; color: var(--muted); }
+  .node ul { margin: .4rem 0 0; padding-left: 1rem; font-size: .76rem; color: var(--muted); }
+  .node li { margin: .12rem 0; }
+  .node li strong, .node p strong { color: var(--ink); font-weight: 600; }
+  .node li.spec-item::marker { color: var(--spec); }
+  .node li.spec-item { color: var(--spec); }
+  .node li.fut-item::marker { color: var(--fut); }
+  .node li.fut-item { font-style: italic; }
+
+  /* ---- sub-groups inside a tier ---- */
+  .subgroup { margin-top: 1rem; }
+  .subgroup > h3 {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .subgroup > h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* ---- horizontal chains (phase pipeline, hex pipeline) ---- */
+  .chain-scroll { overflow-x: auto; padding-bottom: .35rem; }
+  .chain { display: flex; align-items: stretch; gap: 0; min-width: max-content; }
+  .chain .node { width: 13.5rem; flex: none; }
+  .chain .link {
+    align-self: center; color: var(--accent); font-family: var(--mono);
+    padding: 0 .35rem; font-size: .85rem; flex: none;
+  }
+  .pills { display: flex; align-items: center; gap: .3rem; min-width: max-content; }
+  .pill {
+    font-family: var(--mono); font-size: .72rem; flex: none;
+    border: 1px solid var(--done-line); color: var(--ink);
+    background: var(--panel); border-radius: 999px; padding: .22rem .65rem;
+  }
+  .pill.spec { border-color: var(--spec-line); color: var(--spec); }
+  .pills .link { color: var(--accent); font-size: .75rem; }
+
+  .epoch-frame {
+    border: 1px solid var(--spec-line); border-radius: 3px;
+    padding: .8rem .85rem; background: var(--panel);
+  }
+  .epoch-frame > .frame-head {
+    display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem;
+  }
+  .epoch-frame .name { font-family: var(--mono); font-size: .83rem; font-weight: 600; }
+  .epoch-frame .note { font-size: .74rem; color: var(--muted); }
+
+  footer {
+    margin-top: 2.2rem; border-top: 1px solid var(--line); padding-top: 1rem;
+    font-size: .76rem; color: var(--muted);
+  }
+  footer .src { font-family: var(--mono); font-size: .7rem; }
+  footer ul { margin: .35rem 0 0; padding-left: 1rem; }
+  footer li { margin: .1rem 0; }
+  a { color: var(--accent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .node { transition: border-color .15s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">StarSystemGeneration · living baseline</p>
+    <h1>Generation &amp; Simulation Flow</h1>
+    <p class="subtitle">
+      End-to-end contract: <strong>hex&nbsp;=&nbsp;f(GalaxyConfig, coordinate)</strong> — the skeleton is a
+      memoized, persisted intermediate term. Three tiers feed two surfaces. Update this page as
+      layers deepen.
+    </p>
+    <div class="legend">
+      <span class="key"><span class="dot done"></span> Implemented</span>
+      <span class="key"><span class="dot spec"></span> Specced (sim-economy slice, plan pending)</span>
+      <span class="key"><span class="dot fut"></span> Future / deferred</span>
+      <span class="stamp">2026-07-08 · main @ a43afdf</span>
+    </div>
+  </header>
+
+  <div class="flow">
+
+    <!-- INPUT -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Input</span>
+        <h2>GalaxyConfig</h2>
+        <span class="nature">identity + tuning, stamped into the artifact</span>
+      </div>
+      <div class="grid">
+        <div class="node done">
+          <div class="node-head"><span class="name">Identity &amp; knobs</span><span class="chip done">DONE</span></div>
+          <ul>
+            <li>master seed · galaxy radius (cells)</li>
+            <li>12 tuning knobs — density target, arm count/tightness/width, epochs, homeworld rate, mineral/precursor rates…</li>
+            <li class="spec-item">+5 economy knobs: weariness rate, stockpile decay, tech threshold, trade income weight, provisions/pop</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+
+    <!-- TIER 1 -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Tier 1</span>
+        <h2>Density Field</h2>
+        <span class="nature">pure · stateless · per-hex · never stored</span>
+      </div>
+      <p class="desc">Two multiplied layers give every coordinate a density in [0,1]; zero beyond the rim.</p>
+      <div class="grid">
+        <div class="node done">
+          <div class="node-head"><span class="name">Galactic shape</span><span class="chip done">DONE</span></div>
+          <p>Dense core · log-spiral arm ridges · rim falloff · hard zero past the extent.</p>
+        </div>
+        <div class="node done">
+          <div class="node-head"><span class="name">Value noise</span><span class="chip done">DONE</span></div>
+          <p>StableHash-based octaves + domain warp — clumps, filaments, voids. No external libs.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">sampled by both consumers below</span></div>
+
+    <!-- TIER 2 -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Tier 2</span>
+        <h2>Galaxy Skeleton</h2>
+        <span class="nature">bounded precompute · persisted artifact · schema v3 → v4 (specced)</span>
+      </div>
+      <p class="desc">
+        Region-cell lattice (spiral-ordered, circular footprint). Built once per galaxy, saved,
+        loaded thereafter — hex generation only ever reads it.
+      </p>
+
+      <div class="subgroup">
+        <h3>Seeding passes (in order)</h3>
+        <div class="grid">
+          <div class="node done">
+            <div class="node-head"><span class="name">1 · Density summary</span><span class="chip done">DONE</span></div>
+            <p>Per-cell mean density, void flag, connectivity graph; <strong>chokepoints = articulation cells</strong>.</p>
+          </div>
+          <div class="node done">
+            <div class="node-head"><span class="name">2 · Stellar lean &amp; metallicity</span><span class="chip done">DONE</span></div>
+            <p>Young-bright / old-dim / remnant-graveyard leans + metallicity — species terrain and hex star-table bias.</p>
+          </div>
+          <div class="node done">
+            <div class="node-head"><span class="name">3 · Resource anchors</span><span class="chip done">DONE</span></div>
+            <p>Mineral-rich systems, precursor sites as <strong>anchored hexes</strong> (one anchor per hex, collision-probed).</p>
+          </div>
+          <div class="node done">
+            <div class="node-head"><span class="name">4 · Homeworlds &amp; species</span><span class="chip done">DONE</span></div>
+            <p>Spacing-aware sapient origins; species profiles — embodiment + temperament axes (6 scalars).</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <h3>Epoch simulation</h3>
+        <div class="grid" style="margin-bottom:.7rem;">
+          <div class="node done">
+            <div class="node-head"><span class="name">Stage 1 · core loop</span><span class="chip done">DONE</span></div>
+            <p>Per-polity loop, flat budgets: affinity-costed expansion, coin-flip development, one-cell skirmish wars
+               (dev-sum strength), capital relocation, flagged extinction.
+               <strong>Absorbed into the phase pipeline when the economy slice lands.</strong></p>
+          </div>
+        </div>
+
+        <div class="epoch-frame">
+          <div class="frame-head">
+            <span class="name">Stages 2–3 · phase pipeline (each epoch)</span>
+            <span class="chip spec">SPECCED</span>
+            <span class="note">2026-07-08-sim-economy-design.md — full §7.3 war minus vassalage, population, pathed trade, tech</span>
+          </div>
+          <div class="chain-scroll">
+            <div class="chain">
+              <div class="node spec">
+                <div class="node-head"><span class="name">1 · Income</span></div>
+                <ul>
+                  <li>cell production: Provisions / Ore / Exotics</li>
+                  <li>flows: BFS paths, cell throughput</li>
+                  <li>blockade = severed paths, lost surplus</li>
+                  <li>shortages → famine, stalls, decay</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">2 · Allocation</span></div>
+                <ul>
+                  <li>4-way budget split (temperament-weighted)</li>
+                  <li>military stockpile grow / decay</li>
+                  <li>development spend, tech-tier ceiling</li>
+                  <li>exotics → tech-tier ladder</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">3 · Action</span></div>
+                <ul>
+                  <li>expansion on frontier (affinity cost)</li>
+                  <li>war declarations → War registry</li>
+                  <li>deficit-driven goals: ore / exotics / chokepoint / punitive</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">4 · Resolution</span></div>
+                <ul>
+                  <li>fronts contested, stockpile × tech strength</li>
+                  <li>weariness accrual → break</li>
+                  <li>victory annexes goals · white peace freezes</li>
+                  <li>capital falls, extinction (carried over)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:.7rem;">
+          <div class="node fut">
+            <div class="node-head"><span class="name">Stage 4 · relations</span><span class="chip fut">FUTURE</span></div>
+            <p>Trade → alliance → federation ladder, conquest composition, schisms, vassalage, non-deficit war causes (ideology, spark events).</p>
+          </div>
+          <div class="node fut">
+            <div class="node-head"><span class="name">Stage 5 · news &amp; reputation</span><span class="chip fut">FUTURE</span></div>
+            <p>News pulses over the trade graph, arrival-time stances, reputation gates on diplomacy.</p>
+          </div>
+          <div class="node fut">
+            <div class="node-head"><span class="name">Stage 6 · finalization</span><span class="chip fut">FUTURE</span></div>
+            <p>Event→POI compiler (battles → ruins), world-state handoff — the live game's initial conditions.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <h3>Cross-cutting state</h3>
+        <div class="grid">
+          <div class="node done">
+            <div class="node-head"><span class="name">Event log</span><span class="chip done">DONE</span></div>
+            <p>Single global append-only stream.
+              <strong>5 types live</strong>; <span style="color:var(--spec)">+ WarEnded, TechAdvance, Famine, TradeBlocked (specced)</span>.</p>
+          </div>
+          <div class="node done">
+            <div class="node-head"><span class="name">Polity registry</span><span class="chip done">DONE</span></div>
+            <p>Id, name, species, capital, extinct-retained.
+              <span style="color:var(--spec)">+ stockpile, tech tier, wealth, balances, War registry (specced)</span>.</p>
+          </div>
+          <div class="node done">
+            <div class="node-head"><span class="name">Region-cell state</span><span class="chip done">DONE</span></div>
+            <p>Owner, dev tier, contested, war-scarred, anchors.
+              <span style="color:var(--spec)">+ population (species-tagged), route throughput (specced)</span>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">RegionContext read · on demand · never persisted</span></div>
+
+    <!-- TIER 3 -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Tier 3</span>
+        <h2>Per-Hex Generation</h2>
+        <span class="nature">Phase 1 pipeline + regional reads · flatspace mode = legacy path</span>
+      </div>
+      <div class="grid" style="margin-bottom:.9rem;">
+        <div class="node done">
+          <div class="node-head"><span class="name">Natural modifiers</span><span class="chip done">DONE</span></div>
+          <p>Cell lean biases star-type table; metallicity biases belts. Never paints bodies directly — character emerges via star → band → body causality.</p>
+        </div>
+        <div class="node done">
+          <div class="node-head"><span class="name">Political modifiers</span><span class="chip done">DONE</span></div>
+          <p>Settlement scale from dev tier (IDW-smoothed across cells), war-scar suppression.</p>
+          <ul>
+            <li class="fut-item">society polity flavor, overlay mix by zone tags, per-culture naming</li>
+          </ul>
+        </div>
+        <div class="node done">
+          <div class="node-head"><span class="name">Pre-commitments</span><span class="chip done">DONE</span></div>
+          <p>Anchored hexes override pinned fields (mineral-rich, precursor, homeworld → sapient major world); unpinned fields roll organically.</p>
+        </div>
+      </div>
+      <div class="chain-scroll">
+        <div class="pills">
+          <span class="pill">presence roll (density)</span><span class="link">→</span>
+          <span class="pill">stars</span><span class="link">→</span>
+          <span class="pill">orbit slots · bands</span><span class="link">→</span>
+          <span class="pill">bodies + satellites</span><span class="link">→</span>
+          <span class="pill">society</span><span class="link">→</span>
+          <span class="pill">naming</span><span class="link">→</span>
+          <span class="pill">pre-commitment apply</span><span class="link">→</span>
+          <span class="pill">overlays</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+
+    <!-- OUTPUTS -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Surfaces</span>
+        <h2>Inspection &amp; Rendering</h2>
+        <span class="nature">map-legibility rule: every sim mechanic must surface here</span>
+      </div>
+      <div class="grid">
+        <div class="node done">
+          <div class="node-head"><span class="name">Inspector REPL</span><span class="chip done">DONE</span></div>
+          <ul>
+            <li>galaxy build/load · save (artifact v3)</li>
+            <li>ASCII map layers: density, polity, dev, zones</li>
+            <li>cell · polity · chronicle · stats · goto/walk</li>
+            <li class="spec-item">+ trade / economy / war layers; enriched polity, chronicle, stats, cell</li>
+          </ul>
+        </div>
+        <div class="node done">
+          <div class="node-head"><span class="name">Unity atlas</span><span class="chip done">DONE</span></div>
+          <ul>
+            <li>Setup screen: 12 knobs, live shape preview</li>
+            <li>Galaxy screen: 5 layers, hover, drill-down</li>
+            <li>Cell screen: 91 hexes, system panel</li>
+            <li>System screen: orbit diagram (roadmap phase 2 ✓)</li>
+            <li class="fut-item">economy layer parity, smooth pan/zoom, in-diagram labels</li>
+          </ul>
+        </div>
+        <div class="node fut">
+          <div class="node-head"><span class="name">Game layer</span><span class="chip fut">FUTURE</span></div>
+          <ul>
+            <li class="fut-item">live tick over the world-state handoff</li>
+            <li class="fut-item">ships, travel, discovery, player-as-news</li>
+            <li class="fut-item">delta layer over the artifact</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <span class="src">Sources of truth (specs govern; this page summarizes):</span>
+    <ul>
+      <li><span class="src">docs/superpowers/specs/2026-07-07-generation-rules-design.md</span> — Phase 1 system/body pipeline</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-07-regional-generation-design.md</span> — three tiers, sim stages 1–6</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (specced, plan pending)</li>
+      <li><span class="src">docs/DESIGN.md §4</span> — roadmap (phases 1–2 complete, 3 delivered at cell resolution)</li>
+    </ul>
+  </footer>
+</div>
