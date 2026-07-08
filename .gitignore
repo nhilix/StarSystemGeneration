@@ -503,3 +503,8 @@ unity/.idea/
 .bin/
 .obj/
 unity/*.slnx
+
+# Unity batchmode gate artifacts
+unity/compile.log
+unity/test.log
+unity/test-results.xml
