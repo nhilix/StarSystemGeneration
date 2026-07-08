@@ -106,9 +106,17 @@ public sealed class OrbitLayoutResult
 
 Constants (initial values; tunable during implementation, invariants below hold
 regardless): `R0 = 1.0` (innermost gap), `DR = 0.5` (ring gap), primary star
-disc `0.28`, companion disc `0.16`, body disc `0.06 + 0.016 × Size`, moon disc
+disc `0.28`, companion disc `0.16`, body disc `0.05 + 0.010 × Size`, moon disc
 `0.035` at parent radius `+ 0.09`, ring stroke `0.02`, `subDRmin = 0.11`
 (minimum companion sub-ring spacing).
+
+**Size hierarchy (acceptance errata, 2026-07-08):** a body must read as
+distinctly smaller than the star it orbits — the body-disc formula caps at
+`0.15` (size 10), below the companion disc and roughly half the primary disc.
+Bodies and moons orbiting a **companion** additionally scale by that
+companion's compression ratio `subDR / DR` (their orbits are much smaller, so
+the discs — and the moon orbit pad — shrink to fit); without this, a full-size
+gas giant disc overwhelms sub-rings spaced ~⅓ as far apart.
 
 - **Primary** (the star with `CompanionSlotIndex == null`) sits at the origin.
   Ring radii are cumulative: ring *i* = ring *i−1* + the gap between slots
@@ -147,6 +155,18 @@ dashed ring (48 dashes), filled disc (24-segment fan), filled annulus (hab
 band, translucent vertex alpha), outline ring (settled marker). It records the
 vertex range per `BodyRef` so single elements can be recolored in place
 (`RecolorOne`-style, as `HexMeshBuilder` does).
+
+**Disc detail overlays (acceptance errata, 2026-07-08):** per-kind visual
+details make bodies distinct at a glance, echoing the approved mockup — stars
+get a semi-transparent halo disc (1.7× radius, star color at 0.18 alpha, drawn
+under the star disc); gas giants get one or two lighter horizontal bands
+(count from the body's detail hash); rocky/ice worlds with `Hydrographics > 0`
+get blue blobs covering roughly that percentage of the disc area (2–3 blobs,
+positions from the detail hash). Moons stay plain. Detail overlays are
+**unkeyed** geometry drawn over the keyed disc: selection recolor restores one
+flat base color, so keyed detail vertices would be wiped on deselect.
+`BodySpec` carries `Hydrographics` and a `DetailHash` (channel 0xA3) so the
+mesh builder stays deterministic without touching Core types.
 
 `SystemView` (MonoBehaviour, `MeshFilter`+`MeshRenderer`, `Sprites/Default` —
 identical scaffolding to `CellView`):

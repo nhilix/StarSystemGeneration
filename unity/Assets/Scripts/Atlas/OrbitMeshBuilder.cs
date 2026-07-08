@@ -14,14 +14,18 @@ namespace StarGen.Atlas
         public const int DashCount = 48;
         public const int DiscSegments = 24;
         private const float SettledOutlinePad = 0.03f;
+        private const float HaloScale = 1.7f;
 
         private readonly List<Vector3> _vertices = new();
         private readonly List<Color32> _colors = new();
         private readonly List<int> _triangles = new();
         private readonly Dictionary<BodyRef, (int Start, int Count)> _ranges = new();
 
-        /// <summary>Draw order per spec §5: hab annuli → rings → stars → bodies and
-        /// moons → settled outlines. Fills baseColors for selection recolor.</summary>
+        /// <summary>Draw order per spec §5: hab annuli → rings → stars (halo under
+        /// disc) → bodies and moons (detail overlays on top) → settled outlines.
+        /// Fills baseColors for selection recolor. Detail overlays (halos, gas
+        /// bands, ocean blobs) are deliberately unkeyed: Recolor restores one flat
+        /// base color, so keyed detail verts would be wiped on deselect.</summary>
         public static OrbitMeshBuilder Compose(OrbitLayoutResult layout,
             Dictionary<BodyRef, Color32> baseColors)
         {
@@ -47,6 +51,7 @@ namespace StarGen.Atlas
             {
                 var color = OrbitPalette.StarColor(star.TypeId);
                 var key = new BodyRef(star.StarIndex, -1, -1);
+                builder.AddDisc(star.Pos, star.Radius * HaloScale, OrbitPalette.Halo(color));
                 builder.AddDisc(star.Pos, star.Radius, color, key);
                 baseColors[key] = color;
             }
@@ -55,6 +60,7 @@ namespace StarGen.Atlas
                 var color = body.Ref.Moon >= 0 ? OrbitPalette.Moon : OrbitPalette.BodyColor(body.Kind);
                 builder.AddDisc(body.Pos, body.Radius, color, body.Ref);
                 baseColors[body.Ref] = color;
+                if (body.Ref.Moon < 0) builder.AddBodyDetail(body);
             }
             foreach (var body in layout.Bodies)
                 if (body.Settled)
@@ -100,6 +106,55 @@ namespace StarGen.Atlas
         public void AddAnnulus(Vector2 center, float inner, float outer, Color32 color) =>
             AddArcStrip(center, (inner + outer) * 0.5f, outer - inner, 0f, 2f * Mathf.PI,
                 RingSegments, color);
+
+        /// <summary>Horizontal stripe clipped to stay inside a disc of discRadius:
+        /// the gas-giant band motif. Offsets/heights are fractions of the radius.</summary>
+        public void AddDiscBand(Vector2 center, float discRadius, float yOffsetFrac,
+            float heightFrac, Color32 color)
+        {
+            float y0 = yOffsetFrac * discRadius;
+            float h = heightFrac * discRadius;
+            float yEdge = Mathf.Min(Mathf.Abs(y0) + h * 0.5f, discRadius * 0.98f);
+            float w = Mathf.Sqrt(Mathf.Max(0f, discRadius * discRadius - yEdge * yEdge));
+            int v = _vertices.Count;
+            _vertices.Add(new Vector3(center.x - w, center.y + y0 - h * 0.5f, 0f));
+            _vertices.Add(new Vector3(center.x + w, center.y + y0 - h * 0.5f, 0f));
+            _vertices.Add(new Vector3(center.x + w, center.y + y0 + h * 0.5f, 0f));
+            _vertices.Add(new Vector3(center.x - w, center.y + y0 + h * 0.5f, 0f));
+            for (int i = 0; i < 4; i++) _colors.Add(color);
+            _triangles.Add(v); _triangles.Add(v + 1); _triangles.Add(v + 2);
+            _triangles.Add(v); _triangles.Add(v + 2); _triangles.Add(v + 3);
+        }
+
+        /// <summary>Per-kind detail overlay: gas giants get one or two horizontal
+        /// bands (count from DetailHash), rocky/ice worlds with oceans get blue
+        /// blobs covering roughly Hydrographics% of the disc. Placement derives
+        /// from DetailHash only — same system, same picture.</summary>
+        private void AddBodyDetail(BodySpec body)
+        {
+            if (body.Kind == StarGen.Core.Model.BodyKind.GasGiant)
+            {
+                AddDiscBand(body.Pos, body.Radius, 0.25f, 0.22f, OrbitPalette.GasBand);
+                if (body.DetailHash >= 0.5f)
+                    AddDiscBand(body.Pos, body.Radius, -0.4f, 0.16f, OrbitPalette.GasBand);
+                return;
+            }
+            bool wetWorld = body.Kind == StarGen.Core.Model.BodyKind.RockyWorld
+                || body.Kind == StarGen.Core.Model.BodyKind.IceWorld;
+            if (!wetWorld || body.Hydrographics <= 0) return;
+
+            int blobs = body.Hydrographics >= 60 ? 3 : 2;
+            float blobRadius = body.Radius * Mathf.Sqrt(body.Hydrographics / 100f / blobs);
+            for (int j = 0; j < blobs; j++)
+            {
+                float angle = 2f * Mathf.PI * Frac(body.DetailHash * (j + 1) * 7.31f);
+                float dist = (body.Radius - blobRadius) * Frac(body.DetailHash * (j + 2) * 3.77f);
+                var blobPos = body.Pos + dist * new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                AddDisc(blobPos, blobRadius, OrbitPalette.Ocean);
+            }
+        }
+
+        private static float Frac(float x) => x - Mathf.Floor(x);
 
         public bool TryGetRange(BodyRef key, out int start, out int count)
         {

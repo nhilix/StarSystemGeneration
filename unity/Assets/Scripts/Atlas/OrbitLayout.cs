@@ -73,10 +73,16 @@ namespace StarGen.Atlas
         public readonly BodyRef Ref;
         public readonly BodyKind Kind;
         public readonly bool Settled;
+        public readonly int Hydrographics;    // 0-100 surface coverage %
+        /// <summary>Deterministic unit hash for visual detail placement
+        /// (ocean blobs, gas-band count) — same system, same picture.</summary>
+        public readonly float DetailHash;
 
-        public BodySpec(Vector2 pos, float radius, BodyRef bodyRef, BodyKind kind, bool settled)
+        public BodySpec(Vector2 pos, float radius, BodyRef bodyRef, BodyKind kind,
+            bool settled, int hydrographics, float detailHash)
         {
             Pos = pos; Radius = radius; Ref = bodyRef; Kind = kind; Settled = settled;
+            Hydrographics = hydrographics; DetailHash = detailHash;
         }
     }
 
@@ -113,8 +119,10 @@ namespace StarGen.Atlas
         public const float DR = 0.5f;               // default ring gap
         public const float PrimaryDisc = 0.28f;
         public const float CompanionDisc = 0.16f;
-        public const float BodyDiscBase = 0.06f;
-        public const float BodyDiscPerSize = 0.016f;
+        // Body discs cap at 0.15 (size 10): distinctly below the companion disc
+        // and roughly half the primary, so star > planet > moon stays readable.
+        public const float BodyDiscBase = 0.05f;
+        public const float BodyDiscPerSize = 0.010f;
         public const float MoonDisc = 0.035f;
         public const float MoonOrbitPad = 0.09f;
         public const float RingStroke = 0.02f;
@@ -125,6 +133,7 @@ namespace StarGen.Atlas
 
         private const uint OrbitChannel = 0xA1;
         private const uint MoonChannel = 0xA2;
+        private const uint DetailChannel = 0xA3;
 
         /// <summary>Widened gap around a companion slot: at least a doubled swath
         /// (its gravitational influence clears the primary's disc), more when the
@@ -176,7 +185,7 @@ namespace StarGen.Atlas
             result.Picks.Add(new PickTarget(Vector2.zero, PickRadiusFor(PrimaryDisc),
                 new BodyRef(primaryIndex, -1, -1)));
             LayoutStar(result, system.Designation, primaryIndex, primary, Vector2.zero,
-                radii, HabHalfWidthFactor * DR);
+                radii, HabHalfWidthFactor * DR, bodyScale: 1f);
 
             for (int i = 0; i < system.Stars.Count; i++)
             {
@@ -198,8 +207,10 @@ namespace StarGen.Atlas
                 result.Stars.Add(new StarSpec(center, CompanionDisc, i, companion.TypeId));
                 result.Picks.Add(new PickTarget(center, PickRadiusFor(CompanionDisc),
                     new BodyRef(i, -1, -1)));
+                // Companion orbits are compressed by subDr/DR; its bodies and
+                // moons scale by the same ratio so they fit their rings.
                 LayoutStar(result, system.Designation, i, companion, center,
-                    subRadii, HabHalfWidthFactor * subDr);
+                    subRadii, HabHalfWidthFactor * subDr, bodyScale: subDr / DR);
             }
 
             result.Bounds = ComputeBounds(result);
@@ -224,7 +235,8 @@ namespace StarGen.Atlas
         }
 
         private static void LayoutStar(OrbitLayoutResult result, string designation,
-            int starIndex, Star star, Vector2 center, float[] radii, float habHalf)
+            int starIndex, Star star, Vector2 center, float[] radii, float habHalf,
+            float bodyScale)
         {
             int firstHab = -1, lastHab = -1;
             for (int i = 0; i < star.Slots.Count; i++)
@@ -257,10 +269,11 @@ namespace StarGen.Atlas
                     continue;
                 }
 
-                float discRadius = BodyDiscBase + BodyDiscPerSize * body.Size;
+                float discRadius = bodyScale * (BodyDiscBase + BodyDiscPerSize * body.Size);
                 var pos = center + radii[i] * direction;
                 result.Bodies.Add(new BodySpec(pos, discRadius, slotRef, body.Kind,
-                    body.Settlement != Settlement.None));
+                    body.Settlement != Settlement.None, body.Hydrographics,
+                    UnitHash(designation, DetailChannel, starIndex, i)));
                 result.Picks.Add(new PickTarget(pos, PickRadiusFor(discRadius), slotRef));
 
                 int moonCount = body.Satellites.Count;
@@ -268,13 +281,15 @@ namespace StarGen.Atlas
                 {
                     float start = UnitHash(designation, MoonChannel, starIndex, i);
                     float moonAngle = 2f * Mathf.PI * (start + (float)m / moonCount);
-                    var moonPos = pos + (discRadius + MoonOrbitPad)
+                    var moonPos = pos + (discRadius + bodyScale * MoonOrbitPad)
                         * new Vector2(Mathf.Cos(moonAngle), Mathf.Sin(moonAngle));
                     var moon = body.Satellites[m];
                     var moonRef = new BodyRef(starIndex, i, m);
-                    result.Bodies.Add(new BodySpec(moonPos, MoonDisc, moonRef, moon.Kind,
-                        moon.Settlement != Settlement.None));
-                    result.Picks.Add(new PickTarget(moonPos, PickRadiusFor(MoonDisc), moonRef));
+                    result.Bodies.Add(new BodySpec(moonPos, bodyScale * MoonDisc, moonRef,
+                        moon.Kind, moon.Settlement != Settlement.None, moon.Hydrographics,
+                        UnitHash(designation, DetailChannel, starIndex, i)));
+                    result.Picks.Add(new PickTarget(moonPos,
+                        PickRadiusFor(bodyScale * MoonDisc), moonRef));
                 }
             }
         }

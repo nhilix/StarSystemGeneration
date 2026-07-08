@@ -162,6 +162,42 @@ namespace StarGen.Atlas.Tests
         }
 
         [Test]
+        public void CompanionBodies_ScaleWithSubRingSpacing()
+        {
+            var result = OrbitLayout.Compute(TestSystems.BuildTrinary());
+            // Ember companion (star 1, 3 sub-slots): scale = subDr / DR.
+            float clearance = OrbitLayout.CompanionClearance(3);
+            float subDr = (0.9f * clearance - OrbitLayout.CompanionDisc) / 4f;
+            var ice = result.Bodies.First(b => b.Ref.Equals(new BodyRef(1, 1, -1)));
+            float expected = (OrbitLayout.BodyDiscBase + 3 * OrbitLayout.BodyDiscPerSize)
+                * (subDr / OrbitLayout.DR);
+            Assert.AreEqual(expected, ice.Radius, 1e-4f);
+            Assert.Less(ice.Radius, OrbitLayout.CompanionDisc * 0.5f);
+        }
+
+        [Test]
+        public void BodyDiscs_StayDistinctlySmallerThanTheirStar()
+        {
+            // Constants contract: even a size-10 body reads smaller than any star disc.
+            Assert.Less(OrbitLayout.BodyDiscBase + 10 * OrbitLayout.BodyDiscPerSize,
+                OrbitLayout.CompanionDisc);
+            var result = OrbitLayout.Compute(TestSystems.BuildTrinary());
+            var primary = result.Stars.First(s => s.StarIndex == 0);
+            foreach (var body in result.Bodies.Where(b => b.Ref.Star == 0))
+                Assert.Less(body.Radius, primary.Radius * 0.6f);
+        }
+
+        [Test]
+        public void BodySpecs_CarryHydrographics()
+        {
+            var result = OrbitLayout.Compute(TestSystems.BuildTrinary());
+            Assert.AreEqual(60,
+                result.Bodies.First(b => b.Ref.Equals(new BodyRef(0, 3, -1))).Hydrographics);
+            Assert.AreEqual(0,
+                result.Bodies.First(b => b.Ref.Equals(new BodyRef(0, 1, -1))).Hydrographics);
+        }
+
+        [Test]
         public void PickAt_ResolvesNearestTarget()
         {
             var result = OrbitLayout.Compute(TestSystems.BuildTrinary());

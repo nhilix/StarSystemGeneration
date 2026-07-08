@@ -66,5 +66,17 @@ namespace StarGen.Atlas.Tests
                 Assert.IsTrue(baseColors.ContainsKey(pick.Ref));
             }
         }
+
+        [Test]
+        public void DiscBand_QuadCounts_AndStaysInsideDisc()
+        {
+            var builder = new OrbitMeshBuilder();
+            builder.AddDiscBand(Vector2.zero, 1f, 0.25f, 0.22f, new Color32(255, 255, 255, 255));
+            var mesh = builder.Build();
+            Assert.AreEqual(4, mesh.vertexCount);
+            Assert.AreEqual(6, mesh.triangles.Length);
+            foreach (var v in mesh.vertices)
+                Assert.LessOrEqual(new Vector2(v.x, v.y).magnitude, 1f + 1e-4f);
+        }
     }
 }

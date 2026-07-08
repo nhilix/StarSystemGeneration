@@ -13,6 +13,12 @@ namespace StarGen.Atlas
         public static readonly Color32 Ring = new(0x26, 0x2C, 0x3F, 255);
         public static readonly Color32 HabBand = new(0x3F, 0xBF, 0x7F, 26);   // 0.10 alpha
         public static readonly Color32 SettledOutline = new(0xFF, 0xBF, 0x4F, 255);
+        public static readonly Color32 Ocean = new(0x3E, 0x7F, 0xD0, 255);
+        public static readonly Color32 GasBand = new(0xF2, 0xB2, 0x6A, 255);
+
+        /// <summary>Semi-transparent glow color for a star's halo disc.</summary>
+        public static Color32 Halo(Color32 starColor) =>
+            new(starColor.r, starColor.g, starColor.b, 46);   // 0.18 alpha
 
         public static Color32 StarColor(string typeId) => typeId switch
         {

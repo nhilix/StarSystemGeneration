@@ -35,6 +35,7 @@ namespace StarGen.Atlas.Tests
             primary.Slots[1].Body = MakeBody(BodyKind.RockyWorld, 5);
             primary.Slots[2].Body = MakeBody(BodyKind.PlanetoidBelt, 0);
             var colony = MakeBody(BodyKind.RockyWorld, 7, Settlement.Colony);
+            colony.Hydrographics = 60;
             colony.Satellites.Add(MakeBody(BodyKind.RockyWorld, 1));
             colony.Satellites.Add(MakeBody(BodyKind.IceWorld, 1));
             primary.Slots[3].Body = colony;
