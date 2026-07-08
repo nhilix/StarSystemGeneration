@@ -38,8 +38,8 @@ public static class SkeletonSerializer
                 sp.Industry.ToString("R", Inv), sp.Adaptability.ToString("R", Inv)));
         foreach (var p in s.Polities)
             w.WriteLine(string.Join("|", "POLITY", p.Id.ToString(Inv), p.Name,
-                p.SpeciesId.ToString(Inv), p.CapitalCx.ToString(Inv),
-                p.CapitalCy.ToString(Inv), p.Extinct ? "1" : "0"));
+                p.SpeciesId.ToString(Inv), p.CapitalQ.ToString(Inv),
+                p.CapitalR.ToString(Inv), p.Extinct ? "1" : "0"));
         foreach (var cell in s.Cells)
         {
             w.WriteLine(string.Join("|", "CELL", cell.Q.ToString(Inv), cell.R.ToString(Inv),
@@ -111,7 +111,7 @@ public static class SkeletonSerializer
                         s!.Polities.Add(new Polity
                         {
                             Id = int.Parse(f[1], Inv), Name = f[2], SpeciesId = int.Parse(f[3], Inv),
-                            CapitalCx = int.Parse(f[4], Inv), CapitalCy = int.Parse(f[5], Inv),
+                            CapitalQ = int.Parse(f[4], Inv), CapitalR = int.Parse(f[5], Inv),
                             Extinct = f[6] == "1",
                         });
                         break;

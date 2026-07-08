@@ -23,7 +23,7 @@ public static class EpochSim
     }
 
     private static RollContext Ctx(GalaxySkeleton s, Polity p) =>
-        new(s.Config.MasterSeed, new HexCoordinate(p.CapitalCx, p.CapitalCy));
+        new(s.Config.MasterSeed, p.CapitalCoord);
 
     private static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
         s.Cells.Where(c => c.OwnerPolityId == p.Id).ToList();
@@ -139,7 +139,7 @@ public static class EpochSim
             Cx = target.Q, Cy = target.R, Magnitude = attack - defense,
         });
 
-        if (defender.CapitalCx == target.Q && defender.CapitalCy == target.R)
+        if (defender.CapitalQ == target.Q && defender.CapitalR == target.R)
         {
             var remaining = Owned(s, defender)
                 .OrderByDescending(c => c.DevelopmentTier)
@@ -147,8 +147,8 @@ public static class EpochSim
                 .FirstOrDefault();
             if (remaining != null)
             {
-                defender.CapitalCx = remaining.Q;
-                defender.CapitalCy = remaining.R;
+                defender.CapitalQ = remaining.Q;
+                defender.CapitalR = remaining.R;
                 s.Events.Add(new GalaxyEvent
                 {
                     Epoch = epoch, Type = GalaxyEventType.LostCapital,

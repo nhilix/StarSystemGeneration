@@ -73,17 +73,11 @@ public class SeedingPassTests
         var all = s.Cells.SelectMany(c => c.Anchors.Select(a => (c, a))).ToList();
         Assert.True(all.Count(x => x.a.Type == AnchorType.MineralRich) > 5, "mineral anchors should exist");
         Assert.Contains(all, x => x.a.Type == AnchorType.PrecursorSite);
-        // one anchor per hex, and each anchor's hex lies inside its cell
         var hexes = all.Select(x => x.a.Hex).ToList();
         Assert.Equal(hexes.Count, hexes.Distinct().Count());
         foreach (var (c, a) in all)
-        {
-            // HEXMIGRATION: real in-cell containment (Task 6's PickAnchorHex rewrite)
-            // isn't in yet — pass 3/4 still uses a placeholder pick, so this just
-            // keeps the suite compiling; Task 6 restores a real assertion here.
-            Assert.InRange(a.Hex.Q, c.Q * 8, c.Q * 8 + 7);
-            Assert.InRange(a.Hex.R, c.R * 10, c.R * 10 + 9);
-        }
+            Assert.True(HexGrid.Distance(a.Hex, HexGrid.CellCenter(c.Coord)) <= HexGrid.CellRadius,
+                $"anchor at {a.Hex} outside cell {c.Coord}");
     }
 
     [Fact]
@@ -105,13 +99,11 @@ public class SeedingPassTests
             s.Config.HomeworldRatePerCell * s.Cells.Count));
         Assert.InRange(s.Polities.Count, 2, expected);   // spacing may reject a few below target
         Assert.True(s.Polities.Count >= expected / 2, $"got {s.Polities.Count}, want >= {expected / 2}");
-        var capitals = s.Polities.Select(p => (p.CapitalCx, p.CapitalCy)).ToList();
-        foreach (var a in capitals)
-            foreach (var b in capitals)
-                if (a != b)
-                    Assert.True(System.Math.Max(System.Math.Abs(a.CapitalCx - b.CapitalCx),
-                                                System.Math.Abs(a.CapitalCy - b.CapitalCy)) >= 2,
-                        "capitals must not be adjacent");
+        foreach (var a in s.Polities)
+            foreach (var b in s.Polities)
+                if (a.Id != b.Id)
+                    Assert.True(HexGrid.Distance(a.CapitalCoord, b.CapitalCoord) >= 2,
+                        "capitals must not be adjacent on the cell lattice");
     }
 
     [Fact]
@@ -124,7 +116,7 @@ public class SeedingPassTests
             Assert.False(string.IsNullOrEmpty(species.Name));
             Assert.InRange(species.Cohesion, 0.0, 1.0);
             if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
-            var cell = s.CellAt(new HexCoordinate(polity.CapitalCx, polity.CapitalCy));
+            var cell = s.CellAt(polity.CapitalCoord);
             Assert.Equal(polity.Id, cell.OwnerPolityId);
             Assert.InRange(cell.DevelopmentTier, 2, 5);   // seeding sets to 2; epoch sim can increase
             Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);

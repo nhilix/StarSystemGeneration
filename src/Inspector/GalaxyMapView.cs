@@ -31,7 +31,7 @@ public static class GalaxyMapView
     private static char CellChar(GalaxySkeleton s, RegionCell c, string layer) => layer switch
     {
         "polity" => c.IsVoid ? ' '
-            : s.Polities.Any(p => !p.Extinct && p.CapitalCx == c.Q && p.CapitalCy == c.R) ? '*'
+            : s.Polities.Any(p => !p.Extinct && p.CapitalQ == c.Q && p.CapitalR == c.R) ? '*'
             : c.OwnerPolityId < 0 ? '.'
             : c.OwnerPolityId < 26 ? (char)('A' + c.OwnerPolityId)
             : (char)('a' + c.OwnerPolityId % 26),

@@ -150,19 +150,32 @@ public static class SkeletonBuilder
         }
     }
 
-    /// <summary>Deterministic in-cell hex pick with forward-probe collision handling.</summary>
-#warning HEXMIGRATION: PickAnchorHex is a placeholder that always returns the cell's own center hex (no 91-member spiral pick, no forward-probe collision handling); the real in-cell placement lands with the anchor/homeworld hex-lattice rewrite (Task 6).
-    internal static HexCoordinate PickAnchorHex(GalaxySkeleton s, RegionCell cell, int drawIndex) =>
-        HexGrid.CellCenter(cell.Coord);
+    /// <summary>Deterministic in-cell hex pick over the cell's 91-hex spiral,
+    /// with forward-probe collision handling (one anchor per hex).</summary>
+    internal static HexCoordinate PickAnchorHex(GalaxySkeleton s, RegionCell cell, int drawIndex)
+    {
+        var ctx = new RollContext(s.Config.MasterSeed, cell.Coord);
+        var members = new List<HexCoordinate>(
+            HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius));
+        int local = ctx.NextInt(RollChannel.AnchorPlacement, 0, members.Count, drawIndex);
+        for (int probe = 0; probe < members.Count; probe++)
+        {
+            var hex = members[(local + probe) % members.Count];
+            bool taken = false;
+            foreach (var a in cell.Anchors)
+                if (a.Hex.Equals(hex)) { taken = true; break; }
+            if (!taken) return hex;
+        }
+        return members[0];   // unreachable: a cell never carries 91 anchors
+    }
 
     /// <summary>Spec §5 pass 4 + §6: homeworlds, species profiles, founding polities.</summary>
-#warning HEXMIGRATION: homeworld target/spacing sized off cell-lattice count only and minSpacing/CapitalCx/CapitalCy still use pre-hex arithmetic; the hex-lattice-native capacity + spacing model lands with the homeworld-placement rewrite (Task 6).
     internal static void PassHomeworlds(GalaxySkeleton s)
     {
         var config = s.Config;
-        int target = Math.Max(2, (int)Math.Round(
-            config.HomeworldRatePerCell * s.Cells.Count));
-        int minSpacing = Math.Max(2, config.GalaxyRadiusCells / (2 * target) + 2);
+        int target = Math.Max(2, (int)Math.Round(config.HomeworldRatePerCell * s.Cells.Count));
+        int minSpacing = Math.Max(2, config.GalaxyRadiusCells
+            / Math.Max(1, (int)Math.Ceiling(Math.Sqrt(target))));
 
         var candidates = s.Cells.Where(c => !c.IsVoid)
             .Select(c => (cell: c,
@@ -175,7 +188,7 @@ public static class SkeletonBuilder
         {
             if (s.Polities.Count >= target) break;
             bool tooClose = s.Polities.Any(p =>
-                Math.Max(Math.Abs(p.CapitalCx - cell.Q), Math.Abs(p.CapitalCy - cell.R)) < minSpacing);
+                HexGrid.Distance(p.CapitalCoord, cell.Coord) < minSpacing);
             if (tooClose) continue;
 
             int id = s.Polities.Count;
@@ -184,7 +197,7 @@ public static class SkeletonBuilder
             s.Polities.Add(new Polity
             {
                 Id = id, Name = species.Name, SpeciesId = id,
-                CapitalCx = cell.Q, CapitalCy = cell.R,
+                CapitalQ = cell.Q, CapitalR = cell.R,
             });
             cell.Anchors.Add(new Anchor
             {
