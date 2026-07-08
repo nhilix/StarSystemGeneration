@@ -13,7 +13,7 @@ public static class SkeletonBuilder
         PassDensitySummary(skeleton);
         // PASSES (later tasks append here, in order):
         PassStellarPopulation(skeleton);
-        // PassResourceAnchors(skeleton);
+        PassResourceAnchors(skeleton);
         // PassHomeworlds(skeleton);
         // EpochSim.Run(skeleton);
         return skeleton;
@@ -115,5 +115,53 @@ public static class SkeletonBuilder
             cell.Metallicity = ValueNoise.Sample(config.MasterSeed,
                 RollChannel.NoiseMetalLattice, hx, hy, 2, 0.015);
         }
+    }
+
+    /// <summary>Spec §5 pass 3: strategic anchors. Closed vocabulary, one per hex.</summary>
+    internal static void PassResourceAnchors(GalaxySkeleton s)
+    {
+        var config = s.Config;
+        foreach (var cell in s.Cells)
+        {
+            var ctx = new RollContext(config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
+
+            if (!cell.IsVoid)
+            {
+                double mineralChance = 0.10 + 0.25 * cell.Metallicity;
+                if (ctx.NextDouble(RollChannel.AnchorKind, 0) < mineralChance)
+                    cell.Anchors.Add(new Anchor
+                    {
+                        Type = AnchorType.MineralRich,
+                        Hex = PickAnchorHex(s, cell, 0),
+                    });
+            }
+
+            // Precursor sites roll everywhere — a site deep in a void is a story (spec §5).
+            double precursorChance = 0.02 + (cell.Lean == StellarLean.RemnantGraveyard ? 0.02 : 0.0);
+            if (ctx.NextDouble(RollChannel.AnchorKind, 1) < precursorChance)
+                cell.Anchors.Add(new Anchor
+                {
+                    Type = AnchorType.PrecursorSite,
+                    Hex = PickAnchorHex(s, cell, 1),
+                });
+        }
+    }
+
+    /// <summary>Deterministic in-cell hex pick with forward-probe collision handling.</summary>
+    internal static HexCoordinate PickAnchorHex(GalaxySkeleton s, RegionCell cell, int drawIndex)
+    {
+        var ctx = new RollContext(s.Config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
+        int local = ctx.NextInt(RollChannel.AnchorPlacement, 0, 80, drawIndex);
+        for (int probe = 0; probe < 80; probe++)
+        {
+            int slot = (local + probe) % 80;
+            var hex = new HexCoordinate(cell.Cx * 8 + slot % 8, cell.Cy * 10 + slot / 8);
+            bool taken = false;
+            foreach (var a in cell.Anchors)
+                if (a.Hex.Equals(hex)) { taken = true; break; }
+            if (!taken) return hex;
+        }
+        // Unreachable: a cell never carries 80 anchors.
+        return new HexCoordinate(cell.Cx * 8, cell.Cy * 10);
     }
 }

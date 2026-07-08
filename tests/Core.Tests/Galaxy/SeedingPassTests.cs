@@ -64,4 +64,32 @@ public class SeedingPassTests
         Assert.True(s.Cells.Select(c => System.Math.Round(c.Metallicity, 2)).Distinct().Count() > 10,
             "metallicity should vary across cells");
     }
+
+    [Fact]
+    public void Anchors_ArePlaced_OnePerHex_InsideTheirCell()
+    {
+        var s = Build();
+        var all = s.Cells.SelectMany(c => c.Anchors.Select(a => (c, a))).ToList();
+        Assert.True(all.Count(x => x.a.Type == AnchorType.MineralRich) > 5, "mineral anchors should exist");
+        Assert.Contains(all, x => x.a.Type == AnchorType.PrecursorSite);
+        // one anchor per hex, and each anchor's hex lies inside its cell
+        var hexes = all.Select(x => x.a.Hex).ToList();
+        Assert.Equal(hexes.Count, hexes.Distinct().Count());
+        foreach (var (c, a) in all)
+        {
+            Assert.InRange(a.Hex.X, c.Cx * 8, c.Cx * 8 + 7);
+            Assert.InRange(a.Hex.Y, c.Cy * 10, c.Cy * 10 + 9);
+        }
+    }
+
+    [Fact]
+    public void MineralAnchors_FollowMetallicity()
+    {
+        var s = Build();
+        var richCells = s.Cells.Where(c => !c.IsVoid && c.Metallicity > 0.6).ToList();
+        var poorCells = s.Cells.Where(c => !c.IsVoid && c.Metallicity < 0.4).ToList();
+        double richRate = richCells.Count(c => c.Anchors.Any(a => a.Type == AnchorType.MineralRich)) / (double)richCells.Count;
+        double poorRate = poorCells.Count(c => c.Anchors.Any(a => a.Type == AnchorType.MineralRich)) / (double)poorCells.Count;
+        Assert.True(richRate > poorRate, $"metal-rich cells ({richRate:F2}) should out-anchor metal-poor ({poorRate:F2})");
+    }
 }
