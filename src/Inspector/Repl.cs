@@ -30,7 +30,7 @@ public sealed class Repl
                 case "help":
                     Console.WriteLine("seed <n> | galaxy <seed> [sectors] | goto <x> <y> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | cell <cx> <cy> | map [layer] | map <sx> <sy>");
-                    Console.WriteLine("gsave <path> | gload <path> | quit    (map arrives with the atlas task)");
+                    Console.WriteLine("gsave <path> | gload <path> | quit");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
                     break;
                 case "seed" when parts.Length == 2 && ulong.TryParse(parts[1], out var s):
@@ -112,6 +112,17 @@ public sealed class Repl
                 case "find" when parts.Length == 2: Find(parts[1]); break;
                 case "stats" when parts.Length == 2 && int.TryParse(parts[1], out var n):
                     Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _x, _y, n, SectorWidth)); break;
+                case "map" when _galaxy?.Skeleton == null:
+                    Console.WriteLine("build a galaxy first (galaxy <seed>)");
+                    break;
+                case "map" when parts.Length == 3
+                        && int.TryParse(parts[1], out var msx) && int.TryParse(parts[2], out var msy):
+                    Console.WriteLine(GalaxyMapView.SectorMap(_galaxy!, msx, msy));
+                    break;
+                case "map":
+                    Console.WriteLine(GalaxyMapView.CellMap(_galaxy!.Skeleton!,
+                        parts.Length >= 2 ? parts[1] : "density"));
+                    break;
                 default:
                     Console.WriteLine("unrecognized — try 'help'"); break;
             }
