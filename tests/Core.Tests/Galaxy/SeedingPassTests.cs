@@ -1,5 +1,6 @@
 using System.Linq;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
 using Xunit;
 
 namespace StarGen.Core.Tests.Galaxy;
@@ -8,14 +9,14 @@ public class SeedingPassTests
 {
     // small GalaxyRadiusCells keeps builds fast while big enough for structure.
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 8 });
 
     [Fact]
     public void Build_IsDeterministic()
     {
         var a = Build();
         var b = Build();
-        for (int i = 0; i < a.Cells.Length; i++)
+        for (int i = 0; i < a.Cells.Count; i++)
         {
             Assert.Equal(a.Cells[i].MeanDensity, b.Cells[i].MeanDensity);
             Assert.Equal(a.Cells[i].IsVoid, b.Cells[i].IsVoid);
@@ -47,13 +48,13 @@ public class SeedingPassTests
     {
         var s = Build();
         var counts = s.Cells.GroupBy(c => c.Lean).ToDictionary(g => g.Key, g => g.Count());
-        Assert.True(counts.TryGetValue(StellarLean.Balanced, out var balanced) && balanced > s.Cells.Length / 3,
+        Assert.True(counts.TryGetValue(StellarLean.Balanced, out var balanced) && balanced > s.Cells.Count / 3,
             "Balanced should be the most common lean");
         Assert.Contains(StellarLean.YoungBright, counts.Keys);
         Assert.Contains(StellarLean.OldDim, counts.Keys);
         // RemnantGraveyard is rare (~12%) — at 256 cells it should appear but stay a small minority
         if (counts.TryGetValue(StellarLean.RemnantGraveyard, out var graveyards))
-            Assert.True(graveyards < s.Cells.Length / 4);
+            Assert.True(graveyards < s.Cells.Count / 4);
     }
 
     [Fact]
@@ -77,8 +78,11 @@ public class SeedingPassTests
         Assert.Equal(hexes.Count, hexes.Distinct().Count());
         foreach (var (c, a) in all)
         {
-            Assert.InRange(a.Hex.Q, c.Cx * 8, c.Cx * 8 + 7);
-            Assert.InRange(a.Hex.R, c.Cy * 10, c.Cy * 10 + 9);
+            // HEXMIGRATION: real in-cell containment (Task 6's PickAnchorHex rewrite)
+            // isn't in yet — pass 3/4 still uses a placeholder pick, so this just
+            // keeps the suite compiling; Task 6 restores a real assertion here.
+            Assert.InRange(a.Hex.Q, c.Q * 8, c.Q * 8 + 7);
+            Assert.InRange(a.Hex.R, c.R * 10, c.R * 10 + 9);
         }
     }
 
@@ -98,7 +102,7 @@ public class SeedingPassTests
     {
         var s = Build();
         int expected = System.Math.Max(2, (int)System.Math.Round(
-            s.Config.HomeworldRatePerCell * s.Cells.Length));
+            s.Config.HomeworldRatePerCell * s.Cells.Count));
         Assert.InRange(s.Polities.Count, 2, expected);   // spacing may reject a few below target
         Assert.True(s.Polities.Count >= expected / 2, $"got {s.Polities.Count}, want >= {expected / 2}");
         var capitals = s.Polities.Select(p => (p.CapitalCx, p.CapitalCy)).ToList();
@@ -120,7 +124,7 @@ public class SeedingPassTests
             Assert.False(string.IsNullOrEmpty(species.Name));
             Assert.InRange(species.Cohesion, 0.0, 1.0);
             if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
-            var cell = s.CellAt(polity.CapitalCx, polity.CapitalCy);
+            var cell = s.CellAt(new HexCoordinate(polity.CapitalCx, polity.CapitalCy));
             Assert.Equal(polity.Id, cell.OwnerPolityId);
             Assert.InRange(cell.DevelopmentTier, 2, 5);   // seeding sets to 2; epoch sim can increase
             Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);

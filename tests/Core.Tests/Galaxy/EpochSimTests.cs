@@ -14,7 +14,7 @@ public class EpochSimTests
     {
         var a = Build();
         var b = Build();
-        for (int i = 0; i < a.Cells.Length; i++)
+        for (int i = 0; i < a.Cells.Count; i++)
         {
             Assert.Equal(a.Cells[i].OwnerPolityId, b.Cells[i].OwnerPolityId);
             Assert.Equal(a.Cells[i].DevelopmentTier, b.Cells[i].DevelopmentTier);
@@ -69,8 +69,10 @@ public class EpochSimTests
             Assert.True(e.Epoch >= lastEpoch, "event log must be chronological");
             lastEpoch = e.Epoch;
             Assert.Contains(s.Polities, p => p.Id == e.ActorPolityId);
-            Assert.InRange(e.Cx, 0, s.GridSize - 1);
-            Assert.InRange(e.Cy, 0, s.GridSize - 1);
+            // HEXMIGRATION: event Cx/Cy now store cell-lattice Q/R, which range over
+            // [-GalaxyRadiusCells, GalaxyRadiusCells] rather than [0, GridSize-1).
+            Assert.InRange(e.Cx, -s.Config.GalaxyRadiusCells, s.Config.GalaxyRadiusCells);
+            Assert.InRange(e.Cy, -s.Config.GalaxyRadiusCells, s.Config.GalaxyRadiusCells);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using StarGen.Core.Model;
 
 namespace StarGen.Core.Galaxy;
 
@@ -6,8 +7,12 @@ public enum StellarLean { Balanced, YoungBright, OldDim, RemnantGraveyard }
 
 public sealed class RegionCell
 {
-    public int Cx { get; set; }
-    public int Cy { get; set; }
+    public int Q { get; set; }
+    public int R { get; set; }
+    public HexCoordinate Coord => new(Q, R);
+    /// <summary>Position in the skeleton's spiral enumeration — the determinism
+    /// ordering key (replaces the rectangular linear index).</summary>
+    public int SpiralIndex { get; set; }
     public double MeanDensity { get; set; }
     public bool IsVoid { get; set; }
     public bool IsChokepoint { get; set; }
@@ -18,7 +23,4 @@ public sealed class RegionCell
     public int DevelopmentTier { get; set; }
     public bool Contested { get; set; }
     public bool WarScarred { get; set; }
-
-#warning HEXMIGRATION: LinearIndex uses the placeholder square-grid width; real hex-lattice indexing lands with the GalaxySkeleton cell-store rewrite.
-    public int LinearIndex(GalaxyConfig config) => Cy * GalaxySkeleton.GridSizeFor(config) + Cx;
 }

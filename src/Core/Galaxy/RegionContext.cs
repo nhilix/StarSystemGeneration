@@ -19,8 +19,9 @@ public sealed class RegionContext
         if (galaxy.IsFlatspace || galaxy.Skeleton == null) return null;
         var s = galaxy.Skeleton;
         if (!DensityField.InGalaxy(galaxy.Config, hex)) return null;
-#warning HEXMIGRATION - placeholder rectangular cell store cannot index negative-coordinate hexes; Task 5 replaces the store and Task 8 rewrites this method
-        if (hex.Q < 0 || hex.R < 0) return null;   // defensive until the hex-lattice store lands
+        // The dictionary-backed cell store (Task 5) indexes negative-coordinate hexes
+        // fine, so the old defensive early-return is gone: InGalaxy already guarantees
+        // CellForHex resolves to a cell that exists.
         var cell = s.CellForHex(hex);
 
         var region = new RegionContext
@@ -59,24 +60,11 @@ public sealed class RegionContext
         _ => _ => 1.0,
     };
 
-    /// <summary>Bilinear over the 4 nearest cell centers (spec §8 smoothing).</summary>
+#warning HEXMIGRATION: bilinear 4-neighbor-cell smoothing removed pending hex-native geometry (the old square-grid cell-center math no longer applies); settlement scale currently reads only the hex's own cell, no interpolation, until the RegionContext rewrite (Task 8).
     private static double InterpolatedSettlementScale(GalaxySkeleton s, HexCoordinate hex)
     {
-#warning HEXMIGRATION: bilinear neighbor-cell clamp uses the placeholder square grid; the hex-native settlement-scale lookup lands with the RegionContext rewrite.
-        double CellScale(int cx, int cy)
-        {
-            cx = Math.Clamp(cx, 0, s.GridSize - 1);
-            cy = Math.Clamp(cy, 0, s.GridSize - 1);
-            var cell = s.CellAt(cx, cy);
-            if (cell.OwnerPolityId >= 0) return 1.0 + 0.8 * cell.DevelopmentTier;
-            return cell.WarScarred ? 0.4 : 1.0;
-        }
-        // Position in cell-center space: cell centers sit at (cx*8+4, cy*10+5).
-        double fx = (hex.Q - 4.0) / 8.0, fy = (hex.R - 5.0) / 10.0;
-        int cx0 = (int)Math.Floor(fx), cy0 = (int)Math.Floor(fy);
-        double tx = fx - cx0, ty = fy - cy0;
-        double a = CellScale(cx0, cy0) * (1 - tx) + CellScale(cx0 + 1, cy0) * tx;
-        double b = CellScale(cx0, cy0 + 1) * (1 - tx) + CellScale(cx0 + 1, cy0 + 1) * tx;
-        return a * (1 - ty) + b * ty;
+        var cell = s.CellForHex(hex);
+        if (cell.OwnerPolityId >= 0) return 1.0 + 0.8 * cell.DevelopmentTier;
+        return cell.WarScarred ? 0.4 : 1.0;
     }
 }

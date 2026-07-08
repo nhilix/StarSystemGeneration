@@ -25,7 +25,7 @@ public class SerializerTests
         Assert.Equal(SkeletonSerializer.ToText(original), SkeletonSerializer.ToText(loaded));
         Assert.Equal(original.Polities.Count, loaded.Polities.Count);
         Assert.Equal(original.Events.Count, loaded.Events.Count);
-        Assert.Equal(original.Cells.Length, loaded.Cells.Length);
+        Assert.Equal(original.Cells.Count, loaded.Cells.Count);
         Assert.Equal(original.Config.MasterSeed, loaded.Config.MasterSeed);
     }
 

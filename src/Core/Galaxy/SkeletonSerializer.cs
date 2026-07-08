@@ -42,15 +42,15 @@ public static class SkeletonSerializer
                 p.CapitalCy.ToString(Inv), p.Extinct ? "1" : "0"));
         foreach (var cell in s.Cells)
         {
-            w.WriteLine(string.Join("|", "CELL", cell.Cx.ToString(Inv), cell.Cy.ToString(Inv),
+            w.WriteLine(string.Join("|", "CELL", cell.Q.ToString(Inv), cell.R.ToString(Inv),
                 cell.MeanDensity.ToString("R", Inv), cell.IsVoid ? "1" : "0",
                 cell.IsChokepoint ? "1" : "0", ((int)cell.Lean).ToString(Inv),
                 cell.Metallicity.ToString("R", Inv), cell.OwnerPolityId.ToString(Inv),
                 cell.DevelopmentTier.ToString(Inv), cell.Contested ? "1" : "0",
                 cell.WarScarred ? "1" : "0"));
             foreach (var a in cell.Anchors)
-                w.WriteLine(string.Join("|", "ANCHOR", cell.Cx.ToString(Inv),
-                    cell.Cy.ToString(Inv), ((int)a.Type).ToString(Inv),
+                w.WriteLine(string.Join("|", "ANCHOR", cell.Q.ToString(Inv),
+                    cell.R.ToString(Inv), ((int)a.Type).ToString(Inv),
                     a.Hex.Q.ToString(Inv), a.Hex.R.ToString(Inv), a.SpeciesId.ToString(Inv)));
         }
         foreach (var e in s.Events)
@@ -116,7 +116,7 @@ public static class SkeletonSerializer
                         });
                         break;
                     case "CELL":
-                        var cell = s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv));
+                        var cell = s!.CellAt(new HexCoordinate(int.Parse(f[1], Inv), int.Parse(f[2], Inv)));
                         cell.MeanDensity = double.Parse(f[3], Inv);
                         cell.IsVoid = f[4] == "1";
                         cell.IsChokepoint = f[5] == "1";
@@ -128,7 +128,7 @@ public static class SkeletonSerializer
                         cell.WarScarred = f[11] == "1";
                         break;
                     case "ANCHOR":
-                        s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv)).Anchors.Add(new Anchor
+                        s!.CellAt(new HexCoordinate(int.Parse(f[1], Inv), int.Parse(f[2], Inv))).Anchors.Add(new Anchor
                         {
                             Type = (AnchorType)int.Parse(f[3], Inv),
                             Hex = new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),

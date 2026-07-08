@@ -57,7 +57,7 @@ public sealed class Repl
                         if (c.OwnerPolityId >= 0) claimed++;
                     }
                     int living = skeleton.Polities.Count(p => !p.Extinct);
-                    Console.WriteLine($"galaxy built in {sw.ElapsedMilliseconds} ms: {skeleton.Cells.Length} cells, "
+                    Console.WriteLine($"galaxy built in {sw.ElapsedMilliseconds} ms: {skeleton.Cells.Count} cells, "
                         + $"{living} living / {skeleton.Polities.Count - living} extinct polities, "
                         + $"{skeleton.Events.Count} events, {100.0 * claimed / nonVoid:F1}% of space claimed, "
                         + $"{chokepoints} chokepoints");
@@ -66,10 +66,9 @@ public sealed class Repl
                 case "cell" when parts.Length == 3 && _galaxy?.Skeleton is { } sk
                         && int.TryParse(parts[1], out var qcx) && int.TryParse(parts[2], out var qcy):
                 {
-#warning HEXMIGRATION: 'cell' command bounds-checks against the placeholder square grid; replaced once the REPL addresses real hex cells.
-                    if (qcx < 0 || qcy < 0 || qcx >= sk.GridSize || qcy >= sk.GridSize)
+#warning HEXMIGRATION: 'cell' command still takes rectangular cx/cy args on the command line; replaced once the REPL addresses real cell-lattice coordinates (Task 10).
+                    if (!sk.TryGetCell(new HexCoordinate(qcx, qcy), out var cell))
                     { Console.WriteLine("cell out of range"); break; }
-                    var cell = sk.CellAt(qcx, qcy);
                     string owner = cell.OwnerPolityId >= 0 ? sk.Polities[cell.OwnerPolityId].Name : "unclaimed";
                     Console.WriteLine($"cell [{qcx},{qcy}] density {cell.MeanDensity:F2}"
                         + (cell.IsVoid ? " VOID" : "") + (cell.IsChokepoint ? " CHOKEPOINT" : "")

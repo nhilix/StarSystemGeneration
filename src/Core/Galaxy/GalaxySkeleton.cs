@@ -3,37 +3,36 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>The persisted Tier 2 artifact root (spec §3.1).</summary>
+/// <summary>The persisted Tier 2 artifact root (spec §3.1). Cells live on a hex
+/// lattice of radius GalaxyRadiusCells, in deterministic spiral order.</summary>
 public sealed class GalaxySkeleton
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     public GalaxyConfig Config { get; }
-    public RegionCell[] Cells { get; }
+    public IReadOnlyList<RegionCell> Cells => _cells;
     public List<SpeciesProfile> Species { get; } = new();
     public List<Polity> Polities { get; } = new();
     public List<GalaxyEvent> Events { get; } = new();
 
-#warning HEXMIGRATION: GridSize is a placeholder square grid sized off GalaxyRadiusCells; the real hex-lattice cell store (RegionCell keyed by superhex CellOf/CellCenter) lands in its own task.
-    /// <summary>Temporary square-grid width/height, standing in for the old
-    /// SizeSectors-derived CellsX/CellsY until the hex-lattice cell store lands.</summary>
-    public int GridSize { get; }
+    private readonly List<RegionCell> _cells = new();
+    private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();
 
     public GalaxySkeleton(GalaxyConfig config)
     {
         Config = config;
-        GridSize = GridSizeFor(config);
-        Cells = new RegionCell[GridSize * GridSize];
-        for (int cy = 0; cy < GridSize; cy++)
-            for (int cx = 0; cx < GridSize; cx++)
-                Cells[cy * GridSize + cx] = new RegionCell { Cx = cx, Cy = cy };
+        foreach (var coord in HexGrid.Spiral(new HexCoordinate(0, 0), config.GalaxyRadiusCells))
+        {
+            var cell = new RegionCell { Q = coord.Q, R = coord.R, SpiralIndex = _cells.Count };
+            _cells.Add(cell);
+            _byCoord[coord] = cell;
+        }
     }
 
-    /// <summary>Shared placeholder sizing so callers that only hold a GalaxyConfig
-    /// (e.g. RegionCell.LinearIndex) agree with the instance GridSize above.</summary>
-    internal static int GridSizeFor(GalaxyConfig config) => config.GalaxyRadiusCells * 2 + 1;
+    public RegionCell CellAt(HexCoordinate cellCoord) => _byCoord[cellCoord];
 
-    public RegionCell CellAt(int cx, int cy) => Cells[cy * GridSize + cx];
+    public bool TryGetCell(HexCoordinate cellCoord, out RegionCell cell) =>
+        _byCoord.TryGetValue(cellCoord, out cell!);
 
-    public RegionCell CellForHex(HexCoordinate hex) => CellAt(hex.Q / 8, hex.R / 10);
+    public RegionCell CellForHex(HexCoordinate hex) => CellAt(HexGrid.CellOf(hex));
 }

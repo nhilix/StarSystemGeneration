@@ -28,13 +28,12 @@ public static class EpochSim
     private static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
         s.Cells.Where(c => c.OwnerPolityId == p.Id).ToList();
 
-#warning HEXMIGRATION: adjacency walks the placeholder square grid (4-neighbor rectangular), not the hex lattice; replaced when the sim moves onto real hex cells.
+#warning HEXMIGRATION: adjacency now walks real cell-lattice HexGrid.Neighbors (mechanical fix so the sim keeps compiling against the Task 5 cell store); budgets/cost-ordering/tie-break behavior are otherwise untouched and are Task 7's to revisit.
     private static IEnumerable<RegionCell> Adjacent(GalaxySkeleton s, RegionCell cell)
     {
-        if (cell.Cx > 0) yield return s.CellAt(cell.Cx - 1, cell.Cy);
-        if (cell.Cx < s.GridSize - 1) yield return s.CellAt(cell.Cx + 1, cell.Cy);
-        if (cell.Cy > 0) yield return s.CellAt(cell.Cx, cell.Cy - 1);
-        if (cell.Cy < s.GridSize - 1) yield return s.CellAt(cell.Cx, cell.Cy + 1);
+        foreach (var neighborCoord in HexGrid.Neighbors(cell.Coord))
+            if (s.TryGetCell(neighborCoord, out var neighbor))
+                yield return neighbor;
     }
 
     internal static double Affinity(SpeciesProfile species, RegionCell cell)
@@ -73,7 +72,7 @@ public static class EpochSim
             .Where(c => c.OwnerPolityId < 0 && !c.IsVoid)
             .Distinct()
             .Select(c => (cell: c, cost: Cost(species, c)))
-            .OrderBy(t => t.cost).ThenBy(t => t.cell.LinearIndex(s.Config))
+            .OrderBy(t => t.cost).ThenBy(t => t.cell.SpiralIndex)
             .ToList();
 
         foreach (var (cell, cost) in frontier)
@@ -85,7 +84,7 @@ public static class EpochSim
             s.Events.Add(new GalaxyEvent
             {
                 Epoch = epoch, Type = GalaxyEventType.CellClaimed,
-                ActorPolityId = polity.Id, Cx = cell.Cx, Cy = cell.Cy,
+                ActorPolityId = polity.Id, Cx = cell.Q, Cy = cell.R,
             });
         }
     }
@@ -99,7 +98,7 @@ public static class EpochSim
         var species = s.Species[polity.SpeciesId];
         var ctx = Ctx(s, polity);
         foreach (var cell in Owned(s, polity))
-            if (ctx.NextDouble(RollChannel.SimDevelopment, epoch, cell.LinearIndex(s.Config))
+            if (ctx.NextDouble(RollChannel.SimDevelopment, epoch, cell.SpiralIndex)
                 < species.Industry * 0.5)
                 cell.DevelopmentTier = Math.Min(5, cell.DevelopmentTier + 1);
     }
@@ -114,7 +113,7 @@ public static class EpochSim
         var owned = Owned(s, polity);
         var target = owned.SelectMany(c => Adjacent(s, c))
             .Where(c => c.OwnerPolityId >= 0 && c.OwnerPolityId != polity.Id)
-            .OrderBy(c => c.LinearIndex(s.Config))
+            .OrderBy(c => c.SpiralIndex)
             .FirstOrDefault();
         if (target == null) return;
 
@@ -127,7 +126,7 @@ public static class EpochSim
         {
             Epoch = epoch, Type = GalaxyEventType.WarStarted,
             ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-            Cx = target.Cx, Cy = target.Cy, Magnitude = attack + defense,
+            Cx = target.Q, Cy = target.R, Magnitude = attack + defense,
         });
         target.WarScarred = true;
         if (attack <= defense) return;
@@ -137,24 +136,24 @@ public static class EpochSim
         {
             Epoch = epoch, Type = GalaxyEventType.CellTaken,
             ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-            Cx = target.Cx, Cy = target.Cy, Magnitude = attack - defense,
+            Cx = target.Q, Cy = target.R, Magnitude = attack - defense,
         });
 
-        if (defender.CapitalCx == target.Cx && defender.CapitalCy == target.Cy)
+        if (defender.CapitalCx == target.Q && defender.CapitalCy == target.R)
         {
             var remaining = Owned(s, defender)
                 .OrderByDescending(c => c.DevelopmentTier)
-                .ThenBy(c => c.LinearIndex(s.Config))
+                .ThenBy(c => c.SpiralIndex)
                 .FirstOrDefault();
             if (remaining != null)
             {
-                defender.CapitalCx = remaining.Cx;
-                defender.CapitalCy = remaining.Cy;
+                defender.CapitalCx = remaining.Q;
+                defender.CapitalCy = remaining.R;
                 s.Events.Add(new GalaxyEvent
                 {
                     Epoch = epoch, Type = GalaxyEventType.LostCapital,
                     ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-                    Cx = target.Cx, Cy = target.Cy,
+                    Cx = target.Q, Cy = target.R,
                 });
             }
         }
@@ -165,7 +164,7 @@ public static class EpochSim
             {
                 Epoch = epoch, Type = GalaxyEventType.PolityExtinct,
                 ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-                Cx = target.Cx, Cy = target.Cy,
+                Cx = target.Q, Cy = target.R,
             });
         }
     }

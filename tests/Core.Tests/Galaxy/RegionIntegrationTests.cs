@@ -65,15 +65,14 @@ public class RegionIntegrationTests
         foreach (var cell in galaxy.Skeleton!.Cells)
         {
             if (cell.MeanDensity < 0.2) continue;
-            for (int hx = cell.Cx * 8; hx < cell.Cx * 8 + 8; hx++)
-                for (int hy = cell.Cy * 10; hy < cell.Cy * 10 + 10; hy++)
-                {
-                    var system = Generator.Generate(galaxy, new HexCoordinate(hx, hy)).System;
-                    if (system == null) continue;
-                    bool dead = system.Stars[0].TypeId is "ashen_remnant" or "collapsed_core";
-                    if (cell.Lean == StellarLean.RemnantGraveyard) { totalInGraveyards++; if (dead) deadInGraveyards++; }
-                    else if (cell.Lean == StellarLean.Balanced) { totalElsewhere++; if (dead) deadElsewhere++; }
-                }
+            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius))
+            {
+                var system = Generator.Generate(galaxy, hex).System;
+                if (system == null) continue;
+                bool dead = system.Stars[0].TypeId is "ashen_remnant" or "collapsed_core";
+                if (cell.Lean == StellarLean.RemnantGraveyard) { totalInGraveyards++; if (dead) deadInGraveyards++; }
+                else if (cell.Lean == StellarLean.Balanced) { totalElsewhere++; if (dead) deadElsewhere++; }
+            }
         }
         if (totalInGraveyards < 30) return;   // seed produced too few graveyard systems to compare
         Assert.True(deadInGraveyards / (double)totalInGraveyards > deadElsewhere / (double)totalElsewhere,
@@ -90,16 +89,17 @@ public class RegionIntegrationTests
             bool owned = cell.OwnerPolityId >= 0 && cell.DevelopmentTier >= 3;
             bool wild = cell.OwnerPolityId < 0;
             if (!owned && !wild) continue;
-            for (int hx = cell.Cx * 8; hx < cell.Cx * 8 + 8; hx += 2)
-                for (int hy = cell.Cy * 10; hy < cell.Cy * 10 + 10; hy += 2)
-                {
-                    var system = Generator.Generate(galaxy, new HexCoordinate(hx, hy)).System;
-                    if (system == null) continue;
-                    bool settled = system.Stars.SelectMany(st => st.Slots)
-                        .Any(sl => sl.Body != null && sl.Body.Settlement != Settlement.None);
-                    if (owned) { totalOwned++; if (settled) settledOwned++; }
-                    else { totalWild++; if (settled) settledWild++; }
-                }
+            int i = 0;
+            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius))
+            {
+                if (i++ % 2 != 0) continue;
+                var system = Generator.Generate(galaxy, hex).System;
+                if (system == null) continue;
+                bool settled = system.Stars.SelectMany(st => st.Slots)
+                    .Any(sl => sl.Body != null && sl.Body.Settlement != Settlement.None);
+                if (owned) { totalOwned++; if (settled) settledOwned++; }
+                else { totalWild++; if (settled) settledWild++; }
+            }
         }
         Assert.True(totalOwned > 20 && totalWild > 20, "need enough samples on both sides");
         Assert.True(settledOwned / (double)totalOwned > settledWild / (double)totalWild,

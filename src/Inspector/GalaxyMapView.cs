@@ -14,19 +14,16 @@ public static class GalaxyMapView
 {
     private const string DensityRamp = " .:-=+*#%@";
 
-#warning HEXMIGRATION: CellMap renders the placeholder square grid; replaced by a real hex-lattice atlas render in its own task.
+#warning HEXMIGRATION: CellMap now walks the flat spiral-ordered cell list (no 2D grid rows/cols) instead of the placeholder square grid; a true staggered hex-lattice atlas render lands with the inspector rewrite (Task 10).
     public static string CellMap(GalaxySkeleton s, string layer)
     {
         var sb = new StringBuilder();
-        for (int cy = 0; cy < s.GridSize; cy++)
+        foreach (var cell in s.Cells)
         {
-            for (int cx = 0; cx < s.GridSize; cx++)
-            {
-                char glyph = CellChar(s, s.CellAt(cx, cy), layer);
-                sb.Append(glyph).Append(glyph);
-            }
-            sb.AppendLine();
+            char glyph = CellChar(s, cell, layer);
+            sb.Append(glyph).Append(glyph);
         }
+        sb.AppendLine();
         sb.AppendLine(Legend(s, layer));
         return sb.ToString();
     }
@@ -34,7 +31,7 @@ public static class GalaxyMapView
     private static char CellChar(GalaxySkeleton s, RegionCell c, string layer) => layer switch
     {
         "polity" => c.IsVoid ? ' '
-            : s.Polities.Any(p => !p.Extinct && p.CapitalCx == c.Cx && p.CapitalCy == c.Cy) ? '*'
+            : s.Polities.Any(p => !p.Extinct && p.CapitalCx == c.Q && p.CapitalCy == c.R) ? '*'
             : c.OwnerPolityId < 0 ? '.'
             : c.OwnerPolityId < 26 ? (char)('A' + c.OwnerPolityId)
             : (char)('a' + c.OwnerPolityId % 26),
@@ -62,19 +59,19 @@ public static class GalaxyMapView
         _ => "density: ' " + DensityRamp + " ' low->high",
     };
 
-#warning HEXMIGRATION: SectorMap bounds-checks against the placeholder square grid (old SizeSectors sectorization); replaced by hex-native zoom navigation in its own task.
+#warning HEXMIGRATION: SectorMap bounds-checks against the placeholder square-grid radius (old SizeSectors sectorization); replaced by hex-native zoom navigation in its own task (Task 10).
     public static string SectorMap(GalaxyContext galaxy, int sx, int sy)
     {
-        int gridSize = galaxy.Skeleton?.GridSize ?? 0;
+        int gridSize = galaxy.Skeleton?.Config.GalaxyRadiusCells * 2 + 1 ?? 0;
         if (sx < 0 || sy < 0 || sx >= gridSize || sy >= gridSize)
             return "sector out of range";
         return HexMap(galaxy, sx * 32, sy * 40, 32, 40);
     }
 
-#warning HEXMIGRATION: CellZoom bounds-checks against the placeholder square grid; replaced by hex-native zoom navigation in its own task.
+#warning HEXMIGRATION: CellZoom bounds-checks against the placeholder square-grid radius; replaced by hex-native zoom navigation in its own task (Task 10).
     public static string CellZoom(GalaxyContext galaxy, int cx, int cy)
     {
-        int gridSize = galaxy.Skeleton?.GridSize ?? 0;
+        int gridSize = galaxy.Skeleton?.Config.GalaxyRadiusCells * 2 + 1 ?? 0;
         if (cx < 0 || cy < 0 || cx >= gridSize || cy >= gridSize)
             return "cell out of range";
         return HexMap(galaxy, cx * 8, cy * 10, 8, 10);

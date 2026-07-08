@@ -30,12 +30,13 @@ public static class SkeletonBuilder
         foreach (var cell in s.Cells)
         {
             double sum = 0; int n = 0;
-            for (int hx = cell.Cx * 8; hx < cell.Cx * 8 + 8; hx += 2)
-                for (int hy = cell.Cy * 10; hy < cell.Cy * 10 + 10; hy += 2)
-                {
-                    sum += DensityField.At(config, new HexCoordinate(hx, hy));
-                    n++;
-                }
+            int i = 0;
+            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius))
+            {
+                if (i++ % 2 != 0) continue;      // 46 of 91 hexes
+                sum += DensityField.At(config, hex);
+                n++;
+            }
             cell.MeanDensity = sum / n;
             cell.IsVoid = cell.MeanDensity < config.TraversabilityThreshold;
         }
@@ -43,10 +44,9 @@ public static class SkeletonBuilder
     }
 
     /// <summary>Articulation points of the traversability graph (spec §5 pass 1).</summary>
-#warning HEXMIGRATION: chokepoint graph walks the placeholder square grid; the articulation-point pass moves onto real hex-cell adjacency in its own task.
     private static void MarkChokepoints(GalaxySkeleton s)
     {
-        int w = s.GridSize, h = s.GridSize, n = w * h;
+        int n = s.Cells.Count;
         int[] disc = new int[n], low = new int[n], parent = new int[n];
         bool[] visited = new bool[n], articulation = new bool[n];
         for (int i = 0; i < n; i++) parent[i] = -1;
@@ -54,11 +54,9 @@ public static class SkeletonBuilder
 
         IEnumerable<int> Neighbors(int idx)
         {
-            int cx = idx % w, cy = idx / w;
-            if (cx > 0 && !s.Cells[idx - 1].IsVoid) yield return idx - 1;
-            if (cx < w - 1 && !s.Cells[idx + 1].IsVoid) yield return idx + 1;
-            if (cy > 0 && !s.Cells[idx - w].IsVoid) yield return idx - w;
-            if (cy < h - 1 && !s.Cells[idx + w].IsVoid) yield return idx + w;
+            foreach (var neighborCoord in HexGrid.Neighbors(s.Cells[idx].Coord))
+                if (s.TryGetCell(neighborCoord, out var neighbor) && !neighbor.IsVoid)
+                    yield return neighbor.SpiralIndex;
         }
 
         for (int root = 0; root < n; root++)
@@ -110,15 +108,15 @@ public static class SkeletonBuilder
         var config = s.Config;
         foreach (var cell in s.Cells)
         {
-            double hx = cell.Cx * 8 + 4, hy = cell.Cy * 10 + 5;
+            var (wx, wy) = HexGrid.HexToWorld(HexGrid.CellCenter(cell.Coord));
             double stellar = ValueNoise.Sample(config.MasterSeed,
-                RollChannel.NoiseStellarLattice, hx, hy, 2, 0.02);
+                RollChannel.NoiseStellarLattice, wx, wy, 2, 0.02);
             cell.Lean = stellar < 0.12 ? StellarLean.RemnantGraveyard
                       : stellar < 0.40 ? StellarLean.OldDim
                       : stellar > 0.72 ? StellarLean.YoungBright
                       : StellarLean.Balanced;
             cell.Metallicity = ValueNoise.Sample(config.MasterSeed,
-                RollChannel.NoiseMetalLattice, hx, hy, 2, 0.015);
+                RollChannel.NoiseMetalLattice, wx, wy, 2, 0.015);
         }
     }
 
@@ -128,7 +126,7 @@ public static class SkeletonBuilder
         var config = s.Config;
         foreach (var cell in s.Cells)
         {
-            var ctx = new RollContext(config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
+            var ctx = new RollContext(config.MasterSeed, cell.Coord);
 
             if (!cell.IsVoid)
             {
@@ -153,44 +151,31 @@ public static class SkeletonBuilder
     }
 
     /// <summary>Deterministic in-cell hex pick with forward-probe collision handling.</summary>
-    internal static HexCoordinate PickAnchorHex(GalaxySkeleton s, RegionCell cell, int drawIndex)
-    {
-        var ctx = new RollContext(s.Config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
-        int local = ctx.NextInt(RollChannel.AnchorPlacement, 0, 80, drawIndex);
-        for (int probe = 0; probe < 80; probe++)
-        {
-            int slot = (local + probe) % 80;
-            var hex = new HexCoordinate(cell.Cx * 8 + slot % 8, cell.Cy * 10 + slot / 8);
-            bool taken = false;
-            foreach (var a in cell.Anchors)
-                if (a.Hex.Equals(hex)) { taken = true; break; }
-            if (!taken) return hex;
-        }
-        // Unreachable: a cell never carries 80 anchors.
-        return new HexCoordinate(cell.Cx * 8, cell.Cy * 10);
-    }
+#warning HEXMIGRATION: PickAnchorHex is a placeholder that always returns the cell's own center hex (no 91-member spiral pick, no forward-probe collision handling); the real in-cell placement lands with the anchor/homeworld hex-lattice rewrite (Task 6).
+    internal static HexCoordinate PickAnchorHex(GalaxySkeleton s, RegionCell cell, int drawIndex) =>
+        HexGrid.CellCenter(cell.Coord);
 
     /// <summary>Spec §5 pass 4 + §6: homeworlds, species profiles, founding polities.</summary>
-#warning HEXMIGRATION: homeworld target/spacing sized off the placeholder square grid (cell count, GridSize); the hex-lattice-native capacity model lands with the homeworld-placement rewrite.
+#warning HEXMIGRATION: homeworld target/spacing sized off cell-lattice count only and minSpacing/CapitalCx/CapitalCy still use pre-hex arithmetic; the hex-lattice-native capacity + spacing model lands with the homeworld-placement rewrite (Task 6).
     internal static void PassHomeworlds(GalaxySkeleton s)
     {
         var config = s.Config;
         int target = Math.Max(2, (int)Math.Round(
-            config.HomeworldRatePerCell * s.Cells.Length));
-        int minSpacing = Math.Max(2, s.GridSize / (2 * target) + 2);
+            config.HomeworldRatePerCell * s.Cells.Count));
+        int minSpacing = Math.Max(2, config.GalaxyRadiusCells / (2 * target) + 2);
 
         var candidates = s.Cells.Where(c => !c.IsVoid)
             .Select(c => (cell: c,
-                order: new RollContext(config.MasterSeed, new HexCoordinate(c.Cx, c.Cy))
+                order: new RollContext(config.MasterSeed, c.Coord)
                     .NextDouble(RollChannel.HomeworldPlacement)))
-            .OrderBy(t => t.order).ThenBy(t => t.cell.LinearIndex(config))
+            .OrderBy(t => t.order).ThenBy(t => t.cell.SpiralIndex)
             .Select(t => t.cell);
 
         foreach (var cell in candidates)
         {
             if (s.Polities.Count >= target) break;
             bool tooClose = s.Polities.Any(p =>
-                Math.Max(Math.Abs(p.CapitalCx - cell.Cx), Math.Abs(p.CapitalCy - cell.Cy)) < minSpacing);
+                Math.Max(Math.Abs(p.CapitalCx - cell.Q), Math.Abs(p.CapitalCy - cell.R)) < minSpacing);
             if (tooClose) continue;
 
             int id = s.Polities.Count;
@@ -199,7 +184,7 @@ public static class SkeletonBuilder
             s.Polities.Add(new Polity
             {
                 Id = id, Name = species.Name, SpeciesId = id,
-                CapitalCx = cell.Cx, CapitalCy = cell.Cy,
+                CapitalCx = cell.Q, CapitalCy = cell.R,
             });
             cell.Anchors.Add(new Anchor
             {
@@ -213,7 +198,7 @@ public static class SkeletonBuilder
     private static SpeciesProfile RollSpecies(GalaxySkeleton s, RegionCell cell, int id)
     {
         var config = s.Config;
-        var ctx = new RollContext(config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
+        var ctx = new RollContext(config.MasterSeed, cell.Coord);
         var embodimentTable = new WeightedTable<Embodiment>(
             (Embodiment.TerranAnalog, 40), (Embodiment.Aquatic, 15), (Embodiment.Cryophilic, 12),
             (Embodiment.Lithic, 15), (Embodiment.Hive, 10), (Embodiment.Machine, 8));
@@ -248,16 +233,13 @@ public static class SkeletonBuilder
         _ => true,
     };
 
-#warning HEXMIGRATION: precursor-neighborhood scan walks the placeholder square grid; replaced with real hex adjacency in its own task.
     private static bool NeighborhoodHasPrecursor(GalaxySkeleton s, RegionCell cell)
     {
-        for (int dx = -1; dx <= 1; dx++)
-            for (int dy = -1; dy <= 1; dy++)
-            {
-                int cx = cell.Cx + dx, cy = cell.Cy + dy;
-                if (cx < 0 || cy < 0 || cx >= s.GridSize || cy >= s.GridSize) continue;
-                if (s.CellAt(cx, cy).Anchors.Any(a => a.Type == AnchorType.PrecursorSite)) return true;
-            }
+        if (cell.Anchors.Any(a => a.Type == AnchorType.PrecursorSite)) return true;
+        foreach (var neighborCoord in HexGrid.Neighbors(cell.Coord))
+            if (s.TryGetCell(neighborCoord, out var neighbor)
+                && neighbor.Anchors.Any(a => a.Type == AnchorType.PrecursorSite))
+                return true;
         return false;
     }
 
