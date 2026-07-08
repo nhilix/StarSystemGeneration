@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using StarGen.Core.Galaxy;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,7 +19,8 @@ namespace StarGen.Atlas
         private static readonly Color WarnColor = new(1.0f, 0.55f, 0.35f);
         private static readonly string[] LayerNames = { "Density", "Polity", "Zone", "Dev", "Lean" };
 
-        public event Action<ulong, int>? GenerateRequested;
+        public event Action<GalaxyConfig>? GenerateRequested;
+        public event Action<GalaxyConfig>? ConfigEdited;
         public event Action<AtlasLayer>? LayerChanged;
         public event Action<int>? BreadcrumbClicked;
         public event Action? BackRequested;
@@ -31,6 +33,10 @@ namespace StarGen.Atlas
         private IntegerField _radiusField = null!;
         private Label _radiusWarnLabel = null!;
         private Label _setupErrorLabel = null!;
+        private SliderInt _armCount = null!, _epochCount = null!, _yearsPerEpoch = null!;
+        private Slider _armTightness = null!, _armWidth = null!, _armStrength = null!,
+            _coreRadius = null!, _discFalloff = null!, _meanDensity = null!,
+            _mineralMult = null!, _precursorMult = null!, _homeworldRate = null!;
 
         // HUD bar (galaxy + cell).
         private VisualElement _hudBar = null!;
@@ -75,7 +81,8 @@ namespace StarGen.Atlas
             _setupPane.style.position = Position.Absolute;
             _setupPane.style.top = 60;
             _setupPane.style.left = 40;
-            _setupPane.style.width = 320;
+            _setupPane.style.width = 340;
+            _setupPane.style.maxHeight = Length.Percent(85);
             StylePanel(_setupPane);
 
             var title = new Label("Atlas Setup");
@@ -85,33 +92,93 @@ namespace StarGen.Atlas
             title.style.marginBottom = 8;
             _setupPane.Add(title);
 
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1;
+            _setupPane.Add(scroll);
+
             _seedField = new TextField("Seed") { value = "42" };
             StyleFieldLabel(_seedField);
-            _setupPane.Add(_seedField);
+            _seedField.RegisterValueChangedCallback(_ => RaiseConfigEdited());
+            scroll.Add(_seedField);
 
             _radiusField = new IntegerField("Galaxy radius (cells)") { value = 21 };
             StyleFieldLabel(_radiusField);
-            _radiusField.RegisterValueChangedCallback(OnRadiusChanged);
-            _setupPane.Add(_radiusField);
+            _radiusField.RegisterValueChangedCallback(evt =>
+            {
+                OnRadiusChanged(evt);
+                RaiseConfigEdited();
+            });
+            scroll.Add(_radiusField);
 
             _radiusWarnLabel = new Label("large: build + mesh get slow");
             _radiusWarnLabel.style.color = WarnColor;
             _radiusWarnLabel.style.fontSize = 12;
             _radiusWarnLabel.style.marginBottom = 4;
             _radiusWarnLabel.style.display = DisplayStyle.None;
-            _setupPane.Add(_radiusWarnLabel);
+            scroll.Add(_radiusWarnLabel);
 
             _setupErrorLabel = new Label();
             _setupErrorLabel.style.color = WarnColor;
             _setupErrorLabel.style.fontSize = 12;
             _setupErrorLabel.style.marginBottom = 4;
             _setupErrorLabel.style.display = DisplayStyle.None;
-            _setupPane.Add(_setupErrorLabel);
+            scroll.Add(_setupErrorLabel);
+
+            var shape = MakeFoldout("Shape", open: true);
+            _armCount = AddIntSlider(shape, "Arm count", 1, 8, 3);
+            _armTightness = AddSlider(shape, "Arm tightness", 0.15f, 0.8f, 0.35f);
+            _armWidth = AddSlider(shape, "Arm width", 0.05f, 0.5f, 0.18f);
+            _armStrength = AddSlider(shape, "Arm strength", 0f, 1f, 0.9f);
+            _coreRadius = AddSlider(shape, "Core bulge size", 0.08f, 0.4f, 0.18f);
+            _discFalloff = AddSlider(shape, "Disc falloff", 0.25f, 1f, 0.55f);
+            _meanDensity = AddSlider(shape, "Mean density", 0.2f, 0.8f, 0.5f);
+            scroll.Add(shape);
+
+            var resources = MakeFoldout("Resources", open: false);
+            _mineralMult = AddSlider(resources, "Mineral-rich anchors ×", 0f, 3f, 1f);
+            _precursorMult = AddSlider(resources, "Precursor sites ×", 0f, 3f, 1f);
+            _homeworldRate = AddSlider(resources, "Homeworld rate", 0.005f, 0.06f, 0.02f);
+            scroll.Add(resources);
+
+            var history = MakeFoldout("History", open: false);
+            _epochCount = AddIntSlider(history, "Epochs", 0, 24, 12);
+            _yearsPerEpoch = AddIntSlider(history, "Years per epoch", 10, 200, 50);
+            scroll.Add(history);
+
+            var resetButton = new Button(ResetDefaults) { text = "Reset defaults" };
+            resetButton.style.marginTop = 6;
+            _setupPane.Add(resetButton);
 
             var generateButton = new Button(OnGenerateClicked) { text = "Generate" };
             _setupPane.Add(generateButton);
 
             _root.Add(_setupPane);
+        }
+
+        private Foldout MakeFoldout(string text, bool open)
+        {
+            var foldout = new Foldout { text = text, value = open };
+            foldout.style.marginTop = 4;
+            foldout.style.color = TextColor;
+            return foldout;
+        }
+
+        private Slider AddSlider(VisualElement parent, string label, float lo, float hi, float value)
+        {
+            var slider = new Slider(label, lo, hi) { value = value, showInputField = true };
+            StyleFieldLabel(slider);
+            slider.RegisterValueChangedCallback(_ => RaiseConfigEdited());
+            parent.Add(slider);
+            return slider;
+        }
+
+        private SliderInt AddIntSlider(VisualElement parent, string label, int lo, int hi, int value)
+        {
+            var slider = new SliderInt(label, lo, hi) { value = value, showInputField = true };
+            StyleFieldLabel(slider);
+            slider.RegisterValueChangedCallback(_ => RaiseConfigEdited());
+            parent.Add(slider);
+            return slider;
         }
 
         private void OnRadiusChanged(ChangeEvent<int> evt)
@@ -125,16 +192,69 @@ namespace StarGen.Atlas
             _radiusWarnLabel.style.display = evt.newValue > 40 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
+        /// <summary>Reads all setup controls into a config. Slider floats round to
+        /// 4 decimals so a stock UI reads back exactly Core's double defaults
+        /// (0.35f must become 0.35). False when the seed doesn't parse.</summary>
+        public bool TryReadConfig(out GalaxyConfig config)
+        {
+            config = null!;
+            if (!ulong.TryParse(_seedField.value, out var seed)) return false;
+            int radius = _radiusField.value;
+            if (radius < 2) radius = 2;
+            config = new GalaxyConfig
+            {
+                MasterSeed = seed,
+                GalaxyRadiusCells = radius,
+                ArmCount = _armCount.value,
+                ArmTightness = Math.Round(_armTightness.value, 4),
+                ArmWidth = Math.Round(_armWidth.value, 4),
+                ArmStrength = Math.Round(_armStrength.value, 4),
+                CoreRadius = Math.Round(_coreRadius.value, 4),
+                DiscFalloff = Math.Round(_discFalloff.value, 4),
+                MeanDensityTarget = Math.Round(_meanDensity.value, 4),
+                MineralAnchorMultiplier = Math.Round(_mineralMult.value, 4),
+                PrecursorAnchorMultiplier = Math.Round(_precursorMult.value, 4),
+                HomeworldRatePerCell = Math.Round(_homeworldRate.value, 4),
+                EpochCount = _epochCount.value,
+                YearsPerEpoch = _yearsPerEpoch.value,
+            };
+            return true;
+        }
+
+        private void RaiseConfigEdited()
+        {
+            // An unparsable seed suppresses the event; the last valid preview stays.
+            if (TryReadConfig(out var config)) ConfigEdited?.Invoke(config);
+        }
+
         private void OnGenerateClicked()
         {
-            if (!ulong.TryParse(_seedField.value, out var seed))
+            if (!TryReadConfig(out var config))
             {
                 ShowSetup("seed must be a non-negative whole number");
                 return;
             }
-            int radius = _radiusField.value;
-            if (radius < 2) radius = 2;
-            GenerateRequested?.Invoke(seed, radius);
+            GenerateRequested?.Invoke(config);
+        }
+
+        private void ResetDefaults()
+        {
+            var d = new GalaxyConfig();
+            // Seed deliberately untouched: resetting knobs must not discard the
+            // seed being explored (setup-knobs spec §6).
+            _radiusField.value = d.GalaxyRadiusCells;
+            _armCount.value = d.ArmCount;
+            _armTightness.value = (float)d.ArmTightness;
+            _armWidth.value = (float)d.ArmWidth;
+            _armStrength.value = (float)d.ArmStrength;
+            _coreRadius.value = (float)d.CoreRadius;
+            _discFalloff.value = (float)d.DiscFalloff;
+            _meanDensity.value = (float)d.MeanDensityTarget;
+            _mineralMult.value = (float)d.MineralAnchorMultiplier;
+            _precursorMult.value = (float)d.PrecursorAnchorMultiplier;
+            _homeworldRate.value = (float)d.HomeworldRatePerCell;
+            _epochCount.value = d.EpochCount;
+            _yearsPerEpoch.value = d.YearsPerEpoch;
         }
 
         private void BuildHudBar()

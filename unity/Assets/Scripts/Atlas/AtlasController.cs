@@ -17,6 +17,8 @@ namespace StarGen.Atlas
 
         private readonly AtlasNavigator _navigator = new();
         private GalaxyService? _service;
+        private GalaxyService? _previewService;
+        private GalaxyConfig? _pendingPreview;
 
         /// <summary>Automation surface: lets editor acceptance tooling drive the
         /// real navigation paths (map clicks are the only input it can't fake).</summary>
@@ -30,6 +32,7 @@ namespace StarGen.Atlas
         private void Start()
         {
             ui.GenerateRequested += OnGenerate;
+            ui.ConfigEdited += config => _pendingPreview = config;
             ui.LayerChanged += layer => { _layer = layer; galaxyView.SetLayer(layer); };
             ui.BreadcrumbClicked += OnBreadcrumb;
             ui.BackRequested += _navigator.Back;
@@ -37,14 +40,14 @@ namespace StarGen.Atlas
             Render();
         }
 
-        private void OnGenerate(ulong seed, int radius)
+        private void OnGenerate(GalaxyConfig config)
         {
             try
             {
-                var service = new GalaxyService(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = radius });
+                var service = new GalaxyService(config);
                 service.Build();
                 _service = service;
-                _seed = seed;
+                _seed = config.MasterSeed;
                 _navigator.EnterGalaxy();
             }
             catch (System.Exception ex)
@@ -77,6 +80,13 @@ namespace StarGen.Atlas
                 _navigator.Back();
                 return;
             }
+
+            if (_navigator.Screen == AtlasScreen.Setup && _pendingPreview is { } previewConfig)
+            {
+                _pendingPreview = null;
+                RenderPreview(previewConfig);
+            }
+
             if (mouse == null) return;
 
             Vector2 mousePos = mouse.position.ReadValue();
@@ -162,6 +172,18 @@ namespace StarGen.Atlas
                 _navigator.SelectHex(clicked);
         }
 
+        /// <summary>Shape-only rebuild behind the setup pane (setup-knobs spec §6).
+        /// Preview services are throwaway; Generate always builds fresh from config.</summary>
+        private void RenderPreview(GalaxyConfig config)
+        {
+            var service = new GalaxyService(config);
+            service.BuildShapeOnly();
+            _previewService = service;
+            galaxyView.gameObject.SetActive(true);
+            galaxyView.Show(service, AtlasLayer.Density);
+            FitCamera(galaxyView.MapBounds);
+        }
+
         private void Render()
         {
             // Screen or content changed: last frame's hover belongs to the old view.
@@ -171,9 +193,20 @@ namespace StarGen.Atlas
             switch (_navigator.Screen)
             {
                 case AtlasScreen.Setup:
-                    galaxyView.gameObject.SetActive(false);
                     cellView.gameObject.SetActive(false);
                     ui.ShowSetup();
+                    if (_previewService != null)
+                    {
+                        galaxyView.gameObject.SetActive(true);
+                        galaxyView.Show(_previewService, AtlasLayer.Density);
+                        FitCamera(galaxyView.MapBounds);
+                    }
+                    else
+                    {
+                        galaxyView.gameObject.SetActive(false);
+                        // First entry: seed the initial preview from current controls.
+                        if (ui.TryReadConfig(out var initial)) _pendingPreview = initial;
+                    }
                     break;
 
                 case AtlasScreen.Galaxy:
