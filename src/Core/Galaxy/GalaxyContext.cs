@@ -5,6 +5,7 @@ public sealed class GalaxyContext
 {
     public GalaxyConfig Config { get; }
     public bool IsFlatspace { get; }
+    public GalaxySkeleton? Skeleton { get; set; }
 
     public GalaxyContext(GalaxyConfig config)
     {
