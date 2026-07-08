@@ -1,0 +1,10 @@
+{
+    "name": "StarGen.Atlas.Editor",
+    "rootNamespace": "StarGen.Atlas.EditorTools",
+    "references": ["StarGen.Atlas"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": false,
+    "noEngineReferences": false
+}

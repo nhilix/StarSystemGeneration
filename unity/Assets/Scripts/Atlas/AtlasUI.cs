@@ -185,7 +185,7 @@ namespace StarGen.Atlas
                 _layerToggleRow.Add(toggle);
                 _layerToggles[i] = toggle;
             }
-            _layerToggles[0].SetValueWithoutNotify(true);
+            _layerToggles[1].SetValueWithoutNotify(true);   // Polity — matches AtlasController's default _layer
             _hudBar.Add(_layerToggleRow);
 
             _root.Add(_hudBar);
