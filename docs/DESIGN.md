@@ -91,7 +91,7 @@ until a future delta layer has something to record against it.
 Deferred to the political/faction spec: hex-level allegiance, travel/hazard zone
 ratings, trade-route data, and region-varying stellar density.
 
-**Galaxy structure artifact:** above the hex layer sits the persisted galaxy structure artifact (regional spec §3.1): region-cell state, species/polity registries, and the event log — built once per GalaxyConfig, versioned, and loaded rather than regenerated so existing galaxies stay stable under newer generator code. Coordinates have a defined galaxy extent; hexes beyond the rim are empty space.
+**Galaxy structure artifact:** above the hex layer sits the persisted galaxy structure artifact (regional spec §3.1): region-cell state, species/polity registries, and the event log — built once per GalaxyConfig, versioned, and loaded rather than regenerated so existing galaxies stay stable under newer generator code. Coordinates have a defined galaxy extent; hexes beyond the rim are empty space. Byte-identical regeneration is guaranteed per platform/runtime (floating-point library differences can vary across architectures); the persist-and-load design absorbs this — an artifact, once built, is authoritative.
 
 ---
 
