@@ -1,0 +1,10 @@
+<Project>
+  <!-- Must live in Directory.Build.props (evaluated before NuGet restore), not the
+       csproj: restore writes obj/ before csproj properties apply. Dot-prefixed dirs
+       keep dotnet build output invisible to Unity's importer (this folder doubles
+       as a local UPM package). -->
+  <PropertyGroup>
+    <BaseOutputPath>.bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>.obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
