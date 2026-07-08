@@ -41,7 +41,7 @@ public class SerializerTests
     [Fact]
     public void Load_RecordBeforeConfig_Throws()
     {
-        var text = "STARGEN-SKELETON|1\nANCHOR|0|0|1|0|0|-1\nEND\n";
+        var text = "STARGEN-SKELETON|2\nANCHOR|0|0|1|0|0|-1\nEND\n";
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(text)));
     }
