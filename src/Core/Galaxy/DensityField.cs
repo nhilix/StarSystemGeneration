@@ -63,15 +63,15 @@ public static class DensityField
         if (r >= 1.0) return 0.0;                       // hard zero beyond the rim
 
         double theta = Math.Atan2(ny, nx);
-        double core = Math.Exp(-(r * r) / (2 * 0.18 * 0.18));            // bright center
-        double disc = Math.Exp(-(r * r) / (2 * 0.55 * 0.55));            // broad falloff
+        double core = Math.Exp(-(r * r) / (2 * config.CoreRadius * config.CoreRadius));            // bright center
+        double disc = Math.Exp(-(r * r) / (2 * config.DiscFalloff * config.DiscFalloff));            // broad falloff
 
         // Log-spiral arms: angular distance to the nearest arm ridge at this radius.
         double armAngle = Math.Log(Math.Max(r, 0.05)) / config.ArmTightness;
         double phase = (theta - armAngle) * config.ArmCount / (2 * Math.PI);
         double toRidge = Math.Abs(phase - Math.Round(phase)) * 2;        // 0 at ridge, 1 between
         double arms = Math.Exp(-(toRidge * toRidge) / (2 * config.ArmWidth * config.ArmWidth))
-                      * (1 - core) * 0.9;
+                      * (1 - core) * config.ArmStrength;
 
         return Math.Clamp(core + disc * 0.45 + arms * disc, 0.0, 1.0);
     }

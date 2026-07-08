@@ -11,6 +11,16 @@ public sealed class GalaxyConfig
     public int ArmCount { get; set; } = 3;
     public double ArmTightness { get; set; } = 0.35;
     public double ArmWidth { get; set; } = 0.18;
+    /// <summary>Arm contrast vs. the smooth disc; 0 = armless elliptical galaxy.</summary>
+    public double ArmStrength { get; set; } = 0.9;
+    /// <summary>Bright-center bulge sigma in rim-normalized units.</summary>
+    public double CoreRadius { get; set; } = 0.18;
+    /// <summary>Disc density falloff sigma; higher = flatter, denser rim.</summary>
+    public double DiscFalloff { get; set; } = 0.55;
+    /// <summary>Scales mineral-rich anchor chance (1 = stock, 0 = none).</summary>
+    public double MineralAnchorMultiplier { get; set; } = 1.0;
+    /// <summary>Scales precursor-site anchor chance (1 = stock, 0 = none).</summary>
+    public double PrecursorAnchorMultiplier { get; set; } = 1.0;
     public int EpochCount { get; set; } = 12;
     public int YearsPerEpoch { get; set; } = 50;
     public double HomeworldRatePerCell { get; set; } = 0.02;     // ~28 polities at radius 21
