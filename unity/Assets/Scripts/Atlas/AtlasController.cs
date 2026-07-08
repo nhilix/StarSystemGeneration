@@ -251,7 +251,7 @@ namespace StarGen.Atlas
             {
                 var result = _service.Generate(hex);
                 double density = result.IsEmpty ? DensityField.At(_service.Context.Config, hex) : double.NaN;
-                ui.ShowSystemPanel(SystemPanelBuilder.Build(result, density));
+                ui.ShowSystemPanel(SystemPanelBuilder.Build(result, density).Root);
             }
             else
             {
