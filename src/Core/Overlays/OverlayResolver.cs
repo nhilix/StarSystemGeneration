@@ -11,8 +11,10 @@ public static class OverlayResolver
     /// <summary>Chance any overlay applies to a system (spec §6). Tunable.</summary>
     public const double GlobalOverlayChance = 0.05;
 
-    public static void Resolve(RollContext ctx, StarSystem system)
+    public static void Resolve(RollContext ctx, StarSystem system, bool anchored = false)
     {
+        if (anchored) return;   // anchored systems: no random overlay pile-up (spec §8)
+
         // Step 1: does any overlay apply at all?
         if (ctx.NextDouble(RollChannel.OverlayChance) >= GlobalOverlayChance) return;
 

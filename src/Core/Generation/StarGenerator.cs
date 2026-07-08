@@ -7,7 +7,7 @@ namespace StarGen.Core.Generation;
 
 public static class StarGenerator
 {
-    public static void Generate(RollContext ctx, StarSystem system)
+    public static void Generate(RollContext ctx, StarSystem system, StarGen.Core.Galaxy.RegionContext? region = null)
     {
         system.Arrangement = StarTypes.Arrangement.Pick(ctx.NextDouble(RollChannel.StarArrangement));
         int starCount = system.Arrangement switch
@@ -19,7 +19,8 @@ public static class StarGenerator
 
         for (int i = 0; i < starCount; i++)
         {
-            var def = StarTypes.Table.Pick(ctx.NextDouble(RollChannel.StarType, 0, i));
+            var def = StarTypes.Table.Pick(ctx.NextDouble(RollChannel.StarType, 0, i),
+                region == null ? null : region.StarTypeModifier);
             var star = new Star
             {
                 TypeId = def.Id,

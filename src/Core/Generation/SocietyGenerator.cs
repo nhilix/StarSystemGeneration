@@ -25,6 +25,7 @@ public static class SocietyGenerator
     private static void Attach(RollContext ctx, Body body, int idx, int sat)
     {
         if (!body.IsInhabited) return;
+        if (body.Society != null) return;
 
         var (min, max) = body.Settlement switch
         {

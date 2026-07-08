@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Content;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 using StarGen.Core.Rng;
 
@@ -7,8 +8,10 @@ namespace StarGen.Core.Generation;
 
 public static class BodyGenerator
 {
-    public static void Generate(RollContext ctx, StarSystem system)
+    public static void Generate(RollContext ctx, StarSystem system, RegionContext? region = null)
     {
+        double settlementScale = region?.SettlementScale ?? 1.0;
+
         // Companion stars occupy a slot in the primary's own list (spec §5 "occupies");
         // those slots must stay empty of any independently-generated body.
         var companionSlots = new HashSet<int>();
@@ -27,10 +30,10 @@ public static class BodyGenerator
                 int idx = starIndex * 100 + slot.Index;
                 var kind = BodyTables.Kind.Pick(
                     ctx.NextDouble(RollChannel.BodyKind, idx),
-                    BodyTables.KindModifier(slot.Band));
+                    k => BodyTables.KindModifier(slot.Band)(k) * (region?.BeltModifier(k) ?? 1.0));
                 if (kind == null) continue;
-                slot.Body = GenerateBody(ctx, kind.Value, slot.Band, idx, 0);
-                AddSatellites(ctx, slot.Body, slot.Band, idx);
+                slot.Body = GenerateBody(ctx, kind.Value, slot.Band, idx, 0, null, settlementScale);
+                AddSatellites(ctx, slot.Body, slot.Band, idx, settlementScale);
             }
         }
     }
@@ -39,7 +42,8 @@ public static class BodyGenerator
     /// Shared body pipeline. idx encodes star+slot; sat = 0 for planets,
     /// 1 + satelliteIndex for satellites (Task 9), keeping draws distinct.
     /// </summary>
-    public static Body GenerateBody(RollContext ctx, BodyKind kind, OrbitBand band, int idx, int sat, int? presetSize = null)
+    public static Body GenerateBody(RollContext ctx, BodyKind kind, OrbitBand band, int idx, int sat,
+        int? presetSize = null, double settlementScale = 1.0)
     {
         var body = new Body { Kind = kind };
 
@@ -71,7 +75,8 @@ public static class BodyGenerator
 
         body.Settlement = BodyTables.SettlementTable.Pick(
             ctx.NextDouble(RollChannel.Settlement, idx, sat),
-            BodyTables.SettlementModifier(body.Biosphere, band));
+            st => BodyTables.SettlementModifier(body.Biosphere, band)(st)
+                  * (st == Settlement.None ? 1.0 : settlementScale));
 
         return body;
     }
@@ -83,7 +88,7 @@ public static class BodyGenerator
         return band == OrbitBand.Habitable ? hydro : hydro / 4;
     }
 
-    private static void AddSatellites(RollContext ctx, Body parent, OrbitBand band, int idx)
+    private static void AddSatellites(RollContext ctx, Body parent, OrbitBand band, int idx, double settlementScale = 1.0)
     {
         var countTable = parent.Kind switch
         {
@@ -102,7 +107,7 @@ public static class BodyGenerator
             int maxSize = parent.Kind == BodyKind.GasGiant ? 4 : parent.Size - 1;
             int satSize = 1 + ctx.NextInt(RollChannel.SatelliteSize, 0, maxSize, idx, s);
             // sat parameter = 1 + s so satellite draws never collide with the parent's (sat = 0).
-            var sat = GenerateBody(ctx, kind, band, idx, 1 + s, satSize);
+            var sat = GenerateBody(ctx, kind, band, idx, 1 + s, satSize, settlementScale);
             sat.Satellites.Clear(); // guard: no satellites of satellites, ever
             parent.Satellites.Add(sat);
         }
