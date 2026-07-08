@@ -9,7 +9,7 @@ namespace StarGen.Core.Tests.Galaxy;
 public class SerializerTests
 {
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 8 });
 
     [Fact]
     public void SameConfig_ByteIdenticalSerialization()
@@ -33,7 +33,7 @@ public class SerializerTests
     public void SchemaVersionMismatch_Throws_NeverSilentlyRebuilds()
     {
         var text = SkeletonSerializer.ToText(Build());
-        var tampered = text.Replace("STARGEN-SKELETON|1", "STARGEN-SKELETON|999");
+        var tampered = text.Replace("STARGEN-SKELETON|2", "STARGEN-SKELETON|999");
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(tampered)));
     }
@@ -73,12 +73,12 @@ public class SerializerTests
     {
         // Golden guard against unintended drift (spec §10). If this fails because of an
         // INTENTIONAL generation change, update the literal and say so in the commit.
-        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 2 });
+        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 3 });
         var lines = SkeletonSerializer.ToText(s).Split('\n');
-        Assert.Equal("STARGEN-SKELETON|1", lines[0].TrimEnd('\r'));
+        Assert.Equal("STARGEN-SKELETON|2", lines[0].TrimEnd('\r'));
         // Golden facts recorded at implementation time — fill the two literals with the
         // observed values on first run, then they are frozen:
         Assert.Equal(2, s.Polities.Count);
-        Assert.Equal(23, s.Events.Count);
+        Assert.Equal(30, s.Events.Count);
     }
 }
