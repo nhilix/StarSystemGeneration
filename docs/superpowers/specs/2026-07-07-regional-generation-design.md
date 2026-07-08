@@ -96,6 +96,18 @@ regenerated galaxy under a long-lived save. Therefore:
 - The hex tier is never persisted — it is genuinely a pure function of
   (config, skeleton, coordinate).
 
+**What the artifact does and does not freeze (the honest cross-version guarantee):**
+keeping an old artifact under newer code pins the *macro* galaxy — polities, borders,
+zones, history, anchored pre-commitments (your mineral systems, homeworlds, and
+battlefield ruins stay exactly where they were). It does **not** pin unpinned per-hex
+baseline rolls: if a code update changes a body-kind weight or adds a roll, the
+organic details of unanchored systems may shift under the same artifact. Within one
+code version, hex = f(config, coordinate) holds absolutely; across versions, the
+artifact guarantees structural stability, and per-hex stability is only as strong as
+the channel discipline plus table stability. Anything a future game save *must* keep
+stable at hex level therefore belongs in the delta layer or an anchor, not in an
+assumption that baseline rolls never change.
+
 ## 4. Tier 1: The Density Field
 
 `DensityField.At(config, hex) → [0,1]`, a pure function composed of two multiplied
@@ -132,19 +144,35 @@ come from read-time interpolation, never finer sim resolution.
 
 **Seeding passes** (pre-history artifact layers, in order):
 
-1. **Density summary** — each cell samples Tier 1: mean density,
-   void/corridor/chokepoint classification (chokepoints = graph articulation cells in
-   the density connectivity graph; their strategic value feeds the sim).
-2. **Resource anchors** — strategic features placed as **anchored hexes**: the
+1. **Density summary** — each cell samples Tier 1: mean density, plus a
+   void/corridor/chokepoint classification. The connectivity graph is defined
+   concretely: cells are nodes; adjacent cells share an edge iff both sit above a
+   configurable traversability density threshold; **chokepoints are articulation
+   cells** of that graph (removing them disconnects regions). Their strategic value
+   feeds the sim (§7.1).
+2. **Climate & composition summary** — noise-driven cell-level leans over world
+   character: ice-heavy, ocean-rich, mineral-dense, biosphere-fertile, etc. (own
+   noise channels, same hash machinery as Tier 1). This layer exists because
+   species-relative terrain (§6.1) and Provisions production (§7.1) both require
+   world composition to *vary spatially* — Phase 1's uniform body tables would
+   otherwise make every cell look identical to every species. It is consumed twice:
+   by the sim as terrain, and by hex generation as **natural modifier bundles** that
+   bias body-kind/biosphere rolls per cell (§8).
+3. **Resource anchors** — strategic features placed as **anchored hexes**: the
    skeleton picks a specific hex in a cell (hash-draw from cell coordinates) and
    records what must be true there. Anchor types are a closed, versioned vocabulary —
-   initially exactly: *mineral-rich system*, *precursor site*, *homeworld* (pass 3),
+   initially exactly: *mineral-rich system*, *precursor site*, *homeworld* (pass 4),
    plus the event-POI types compiled in §7.6. New types extend the vocabulary with a
-   schema version bump. Placement is density-weighted with deliberate rare exceptions
-   (a precursor site deep in a void is a story).
-3. **Homeworlds** — sapient-origin systems, seeded density- and spacing-aware so
-   nascent polities don't all start adjacent. Each homeworld generates a species
-   profile (§6).
+   schema version bump. Placement is density- and climate-weighted with deliberate
+   rare exceptions (a precursor site deep in a void is a story). **One anchor per
+   hex**: anchor placement draws are collision-checked within the cell and probe to a
+   distinct hex deterministically.
+4. **Homeworlds** — sapient-origin systems, seeded density-, climate-, and
+   spacing-aware so nascent polities don't all start adjacent and each starts on a
+   world its embodiment finds comfortable. **Homeworld count is a config knob**
+   expressed as a rate (default ≈ one per 4 sectors → ~25 starting polities at 100
+   sectors) — this, with merges and eliminations, drives the final polity-count
+   acceptance band (§10). Each homeworld generates a species profile (§6).
 
 **The pre-commitment mechanism** — the single top-down channel by which the skeleton
 dictates hex-level facts: an anchored hex's record ("system present, mineral-rich";
@@ -219,11 +247,21 @@ keep playing subsequent epochs as themselves. A post-hoc layer could only paint
 mergers over species-shaped history; pooled budgets would never fund expansion and
 multi-species empires would never conquer anything as themselves.
 
-**State.** Per cell: owning polity (or none), development tier, contested flag,
-resident species mix. Global: the **polity registry** — id, name, species
-membership, blended temperament, capital, tech tier, military stockpile, commodity
-balances, relations matrix (war / neutral / trade / alliance / federation / vassal),
-stances (§7.5) — and the **event log**.
+**State.** Per cell: owning polity (or none), development tier, contested flag, and
+**population** — a species-tagged quantity that grows with development and provisions
+surplus and shrinks under war scarring and famine. Population (not development) is
+what weights blended temperament in merges (§7.4), consumes Provisions (§7.1), and
+constitutes the resident species mix that conquest leaves behind. Global: the
+**polity registry** — id, name, species membership, blended temperament, capital,
+tech tier, military stockpile, commodity balances, relations matrix (war / neutral /
+trade / alliance / federation / vassal), stances (§7.5) — and the **event log**.
+
+**Polity lifecycle.** A polity whose capital cell falls relocates its capital to its
+highest-development remaining cell (emitting a *lost capital* event → §7.6 POI); a
+polity that loses its last cell is **extinct** — but extinct polities are *retained
+in the registry*, flagged, forever: the event log, POI tags, and chronicle reference
+them ("former capital of a collapsed empire" must resolve decades later). Extinction
+also fires a news pulse; how the galaxy reacts depends on who did it and how.
 
 **The event log is one global, append-only stream** — the single source of truth for
 everything that happened. Each record: epoch, event type, actor polity id(s),
@@ -256,12 +294,18 @@ Three strategic goods plus abstract wealth, each map-legible:
 | **Ore** | mineral anchors, asteroid-dense cells | development slows, military stockpile decays |
 | **Exotics** | precursor sites, anomaly cells | tech stagnation; the scarcest and most fought-over |
 
-Each cell's production profile + **route throughput** + strategic position
-(chokepoint status) composes its **system value** — and value is what wars are about.
-Income phase: surpluses flow along the trade graph to deficits; complementary
-economies mechanically strengthen relations (the real basis of the trade→alliance
-ladder). **Blockade** is war's economic weapon: cutting routes starves flows without
-taking cells.
+Each cell's production profile (from the climate & composition summary, §5 pass 2) +
+**route throughput** + strategic position (chokepoint status) composes its **system
+value** — and value is what wars are about. Income phase: surpluses flow along the
+trade graph to deficits; complementary economies mechanically strengthen relations
+(the real basis of the trade→alliance ladder). **Blockade** is war's economic
+weapon: cutting routes starves flows without taking cells.
+
+**Tech advancement** is threshold-based: a polity's cumulative Exotics investment
+crossing tier thresholds raises its tech tier, at a rate scaled by Industry;
+precursor-site exploitation contributes outsized Exotics. Tech tiers multiply
+military effectiveness, development ceilings, and route reach — which is why Exotics
+are the most fought-over commodity despite being the smallest flow.
 
 ### 7.2 Allocation and expansion
 
@@ -285,6 +329,20 @@ derive from deficits and value: ore wars, chokepoint seizures, exotics grabs,
 punitive blockades — and history annotations inherit them ("the Ore War of epoch 6,
 fought over the Kessuline Belt"). Contested cells flip by relative strength (military
 stockpile + tech + ally support); multi-epoch contests accumulate war scarring.
+
+**War termination:** each belligerent accrues war weariness per epoch at war
+(steepened by shortages and lost cells). A war ends when a side's weariness or
+depleted stockpile crosses its threshold: if one side breaks first, the victor takes
+the war-goal cells (or **vassalizes** — below); if both break within the same epoch,
+**white peace** — front freezes, contested cells demilitarize into volatile-zone
+history. Exhausted victors emerge with drained stockpiles and elevated schism odds.
+
+**Vassalage** (the outcome between white peace and annexation): the broken party
+keeps internal ownership but pays tribute (income share), joins its overlord's
+defensive wars, and cannot expand toward the overlord. Vassals are absorption
+candidates in later epochs (a gentler merge gate than federation) and secession
+candidates whenever the overlord's cohesion or military falters — both emitting the
+appropriate events and news.
 
 ### 7.4 Relations ladder, federations, and composition
 
@@ -397,17 +455,25 @@ in without a pipeline rewrite.
 
 Hex generation resolves its region cell (+ neighbors) into a **RegionContext**:
 
-1. **Modifier bundle (soft influence)** — pure functions of cell state:
-   - *Settlement odds* scale with development tier and polity presence (heartland ↑↑,
-     unclaimed wilds ≈ baseline frontier rates, dead zones ≈ 0).
-   - *Society rolls* take polity flavor: government archetypes biased by the polity's
-     ideology bundle (with organic exceptions), infrastructure/port tiers pulled
-     toward polity tech, population boosted in developed cells, resident species mix
-     as society flavor.
-   - *Overlay mix* by zone tag: war zones boost wreckage overlays, dead zones boost
-     ruins, stable cores suppress hazards.
-   - **Nature stays natural:** biosphere, atmosphere, and body kinds are never
-     politically modified — civilization-facing rolls only.
+1. **Modifier bundle (soft influence)** — pure functions of cell state, in two
+   strictly separated groups:
+   - **Natural modifiers** (from the climate & composition summary, §5 pass 2):
+     body-kind and biosphere roll biases per cell — ice-heavy cells roll more ice
+     worlds, fertile cells richer biospheres. This is nature varying spatially, and
+     it is what makes the sim's species-relative terrain visible on the ground.
+   - **Political modifiers** (from sim state):
+     - *Settlement odds* scale with development tier and polity presence (heartland
+       ↑↑, unclaimed wilds ≈ baseline frontier rates, dead zones ≈ 0).
+     - *Society rolls* take polity flavor: government archetypes biased by the
+       polity's ideology bundle (with organic exceptions), infrastructure/port tiers
+       pulled toward polity tech, population boosted in developed cells, resident
+       species mix as society flavor.
+     - *Overlay mix* by zone tag: war zones boost wreckage overlays, dead zones boost
+       ruins, stable cores suppress hazards.
+   - **The separation rule (amended from "nature stays natural"):** *political* state
+     never modifies nature — no polity ever changes what body kinds or biospheres
+     roll. *Natural* cell character does, because it is nature. Civilization-facing
+     rolls (settlement, society, overlays) accept both groups.
 2. **Pre-commitments (hard facts)** — anchored hexes override their specific fields;
    unpinned fields roll normally. Anchored hexes are excluded from the random overlay
    roll (historical POIs and random mysteries don't pile up).
@@ -421,7 +487,10 @@ zone tag) do not interpolate — political borders are hard lines, correctly.
 **API:** `Generate(GalaxyContext, coord)` where GalaxyContext = config + skeleton. A
 **flatspace mode** (null RegionContext → neutral modifiers + flat density) is
 retained deliberately: the isolation harness for Phase 1 pipeline tests and the
-back-compat path for the existing suite.
+back-compat path for the existing suite. Concretely, the legacy
+`Generate(masterSeed, coord)` signature survives as a wrapper equivalent to
+`Generate(GalaxyContext.Flatspace(masterSeed), coord)`, so the existing 46 tests are
+untouched by the migration.
 
 **Determinism:** modifiers are pure functions of skeleton state; existing
 RollChannels untouched; new draws get new channels.
@@ -450,8 +519,11 @@ syllable flavors; polity names extend the existing syllable generator in this ph
   load-vs-rebuild equivalence within one code version.
 - **Sim invariants** — budgets never negative/NaN; every owned cell traces to a live
   registry polity; event log referentially intact (every POI's cells/polities
-  exist); merges conserve territory and membership; news never arrives before it
-  happens; anchored-hex pre-commitments always honored by hex output.
+  exist — including extinct polities, which the registry retains flagged rather than
+  deletes); merges conserve territory, membership, and population; news never
+  arrives before it happens; wars always terminate (weariness monotonically
+  accumulates while at war); one anchor per hex; anchored-hex pre-commitments always
+  honored by hex output.
 - **Shape acceptance bands** — the Phase 1 `stats` lesson institutionalized: polity
   count, unclaimed-wilds %, zone-tag mix, and mean density asserted within tunable
   bands over a reference config, so a weight change that quietly paints the whole
