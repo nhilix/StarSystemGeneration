@@ -208,9 +208,12 @@ namespace StarGen.Atlas
                 result.Picks.Add(new PickTarget(center, PickRadiusFor(CompanionDisc),
                     new BodyRef(i, -1, -1)));
                 // Companion orbits are compressed by subDr/DR; its bodies and
-                // moons scale by the same ratio so they fit their rings.
+                // moons scale by the same ratio so they fit their rings. Clamped
+                // at 1 so a shared-slot clearance can never inflate bodies past
+                // the size hierarchy (star > planet > moon).
                 LayoutStar(result, system.Designation, i, companion, center,
-                    subRadii, HabHalfWidthFactor * subDr, bodyScale: subDr / DR);
+                    subRadii, HabHalfWidthFactor * subDr,
+                    bodyScale: Mathf.Min(1f, subDr / DR));
             }
 
             result.Bounds = ComputeBounds(result);
@@ -263,9 +266,11 @@ namespace StarGen.Atlas
                 if (isBelt)
                 {
                     // Belts draw as their dashed ring; the pick target is a point on
-                    // the ring at the slot angle with an enlarged radius (spec §4).
+                    // the ring at the slot angle with an enlarged radius (spec §4),
+                    // compressed like everything else inside a companion so it
+                    // cannot eclipse a sub-system's empty space.
                     result.Picks.Add(new PickTarget(center + radii[i] * direction,
-                        BeltPickRadius, slotRef));
+                        Math.Max(bodyScale * BeltPickRadius, MinPickRadius), slotRef));
                     continue;
                 }
 
