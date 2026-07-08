@@ -1,8 +1,0 @@
-  Determining projects to restore...
-  All projects are up-to-date for restore.
-  StarGen.Core -> C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\src\Core\bin\Debug\netstandard2.1\StarGen.Core.dll
-  StarGen.Core.Tests -> C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\tests\Core.Tests\bin\Debug\net10.0\StarGen.Core.Tests.dll
-Test run for C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\tests\Core.Tests\bin\Debug\net10.0\StarGen.Core.Tests.dll (.NETCoreApp,Version=v10.0)
-A total of 1 test files matched the specified pattern.
-
-Passed!  - Failed:     0, Passed:    51, Skipped:     0, Total:    51, Duration: 223 ms - StarGen.Core.Tests.dll (net10.0)

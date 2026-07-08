@@ -1,4 +1,0 @@
-  Determining projects to restore...
-  All projects are up-to-date for restore.
-  StarGen.Core -> C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\src\Core\bin\Debug\netstandard2.1\StarGen.Core.dll
-C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\tests\Core.Tests\Galaxy\ValueNoiseTests.cs(1,20): error CS0234: The type or namespace name 'Galaxy' does not exist in the namespace 'StarGen.Core' (are you missing an assembly reference?) [C:\Users\Jaaco\Documents\Dev\StarSystemGeneration\tests\Core.Tests\StarGen.Core.Tests.csproj]
