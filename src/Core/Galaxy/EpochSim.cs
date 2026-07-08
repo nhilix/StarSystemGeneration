@@ -28,7 +28,6 @@ public static class EpochSim
     private static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
         s.Cells.Where(c => c.OwnerPolityId == p.Id).ToList();
 
-#warning HEXMIGRATION: adjacency now walks real cell-lattice HexGrid.Neighbors (mechanical fix so the sim keeps compiling against the Task 5 cell store); budgets/cost-ordering/tie-break behavior are otherwise untouched and are Task 7's to revisit.
     private static IEnumerable<RegionCell> Adjacent(GalaxySkeleton s, RegionCell cell)
     {
         foreach (var neighborCoord in HexGrid.Neighbors(cell.Coord))
@@ -84,7 +83,7 @@ public static class EpochSim
             s.Events.Add(new GalaxyEvent
             {
                 Epoch = epoch, Type = GalaxyEventType.CellClaimed,
-                ActorPolityId = polity.Id, Cx = cell.Q, Cy = cell.R,
+                ActorPolityId = polity.Id, Q = cell.Q, R = cell.R,
             });
         }
     }
@@ -126,7 +125,7 @@ public static class EpochSim
         {
             Epoch = epoch, Type = GalaxyEventType.WarStarted,
             ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-            Cx = target.Q, Cy = target.R, Magnitude = attack + defense,
+            Q = target.Q, R = target.R, Magnitude = attack + defense,
         });
         target.WarScarred = true;
         if (attack <= defense) return;
@@ -136,10 +135,10 @@ public static class EpochSim
         {
             Epoch = epoch, Type = GalaxyEventType.CellTaken,
             ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-            Cx = target.Q, Cy = target.R, Magnitude = attack - defense,
+            Q = target.Q, R = target.R, Magnitude = attack - defense,
         });
 
-        if (defender.CapitalQ == target.Q && defender.CapitalR == target.R)
+        if (defender.CapitalCoord.Equals(target.Coord))
         {
             var remaining = Owned(s, defender)
                 .OrderByDescending(c => c.DevelopmentTier)
@@ -153,7 +152,7 @@ public static class EpochSim
                 {
                     Epoch = epoch, Type = GalaxyEventType.LostCapital,
                     ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-                    Cx = target.Q, Cy = target.R,
+                    Q = target.Q, R = target.R,
                 });
             }
         }
@@ -164,7 +163,7 @@ public static class EpochSim
             {
                 Epoch = epoch, Type = GalaxyEventType.PolityExtinct,
                 ActorPolityId = polity.Id, TargetPolityId = defender.Id,
-                Cx = target.Q, Cy = target.R,
+                Q = target.Q, R = target.R,
             });
         }
     }

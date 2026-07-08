@@ -1,5 +1,6 @@
 using System.Linq;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
 using Xunit;
 
 namespace StarGen.Core.Tests.Galaxy;
@@ -7,7 +8,7 @@ namespace StarGen.Core.Tests.Galaxy;
 public class EpochSimTests
 {
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 8 });
 
     [Fact]
     public void Sim_IsDeterministic()
@@ -36,8 +37,8 @@ public class EpochSimTests
     public void ClaimedFraction_AtReferenceConfig_IsWithinAcceptanceBand()
     {
         // Spec §10 shape band: polities should visibly expand without paving over the
-        // whole galaxy. Reference config: seed 42, the small reference config. Observed fraction at
-        // this config is ~0.618 (68/110); the default-size config observation was ~0.735.
+        // whole galaxy. Reference config: seed 42, the small reference config (hex lattice,
+        // GalaxyRadiusCells = 8). Observed fraction at this config is ~0.654 (100/153).
         var s = Build();
         var claimable = s.Cells.Where(c => !c.IsVoid).ToList();
         int claimed = claimable.Count(c => c.OwnerPolityId >= 0);
@@ -69,10 +70,8 @@ public class EpochSimTests
             Assert.True(e.Epoch >= lastEpoch, "event log must be chronological");
             lastEpoch = e.Epoch;
             Assert.Contains(s.Polities, p => p.Id == e.ActorPolityId);
-            // HEXMIGRATION: event Cx/Cy now store cell-lattice Q/R, which range over
-            // [-GalaxyRadiusCells, GalaxyRadiusCells] rather than [0, GridSize-1).
-            Assert.InRange(e.Cx, -s.Config.GalaxyRadiusCells, s.Config.GalaxyRadiusCells);
-            Assert.InRange(e.Cy, -s.Config.GalaxyRadiusCells, s.Config.GalaxyRadiusCells);
+            Assert.True(s.TryGetCell(new HexCoordinate(e.Q, e.R), out _),
+                $"event references cell ({e.Q},{e.R}) outside the lattice");
         }
     }
 

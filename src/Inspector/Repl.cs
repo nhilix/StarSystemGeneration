@@ -79,7 +79,7 @@ public sealed class Repl
                         Console.WriteLine($"  anchor: {a.Type} at [{a.Hex.Q:D4}-{a.Hex.R:D4}]"
                             + (a.SpeciesId >= 0 ? $" (species {sk.Species[a.SpeciesId].Name})" : ""));
                     foreach (var e in sk.Events)
-                        if (e.Cx == qcx && e.Cy == qcy)
+                        if (e.Q == qcx && e.R == qcy)
                             Console.WriteLine($"  epoch {e.Epoch}: {e.Type} by {sk.Polities[e.ActorPolityId].Name}"
                                 + (e.TargetPolityId >= 0 ? $" vs {sk.Polities[e.TargetPolityId].Name}" : ""));
                     Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, qcx, qcy));

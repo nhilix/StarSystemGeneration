@@ -9,7 +9,7 @@ public sealed class GalaxyEvent
     public GalaxyEventType Type { get; set; }
     public int ActorPolityId { get; set; }
     public int TargetPolityId { get; set; } = -1;
-    public int Cx { get; set; }
-    public int Cy { get; set; }
+    public int Q { get; set; }
+    public int R { get; set; }
     public double Magnitude { get; set; }
 }

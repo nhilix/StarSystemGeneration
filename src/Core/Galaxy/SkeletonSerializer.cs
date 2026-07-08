@@ -56,7 +56,7 @@ public static class SkeletonSerializer
         foreach (var e in s.Events)
             w.WriteLine(string.Join("|", "EVENT", e.Epoch.ToString(Inv),
                 ((int)e.Type).ToString(Inv), e.ActorPolityId.ToString(Inv),
-                e.TargetPolityId.ToString(Inv), e.Cx.ToString(Inv), e.Cy.ToString(Inv),
+                e.TargetPolityId.ToString(Inv), e.Q.ToString(Inv), e.R.ToString(Inv),
                 e.Magnitude.ToString("R", Inv)));
         w.WriteLine("END");
     }
@@ -140,7 +140,7 @@ public static class SkeletonSerializer
                         {
                             Epoch = int.Parse(f[1], Inv), Type = (GalaxyEventType)int.Parse(f[2], Inv),
                             ActorPolityId = int.Parse(f[3], Inv), TargetPolityId = int.Parse(f[4], Inv),
-                            Cx = int.Parse(f[5], Inv), Cy = int.Parse(f[6], Inv),
+                            Q = int.Parse(f[5], Inv), R = int.Parse(f[6], Inv),
                             Magnitude = double.Parse(f[7], Inv),
                         });
                         break;
