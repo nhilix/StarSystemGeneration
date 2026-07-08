@@ -1,6 +1,11 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using StarGen.Core.Content;
 using StarGen.Core.Model;
 using StarGen.Core.Rng;
+using StarGen.Core.Tables;
 
 namespace StarGen.Core.Galaxy;
 
@@ -14,7 +19,7 @@ public static class SkeletonBuilder
         // PASSES (later tasks append here, in order):
         PassStellarPopulation(skeleton);
         PassResourceAnchors(skeleton);
-        // PassHomeworlds(skeleton);
+        PassHomeworlds(skeleton);
         // EpochSim.Run(skeleton);
         return skeleton;
     }
@@ -163,5 +168,103 @@ public static class SkeletonBuilder
         }
         // Unreachable: a cell never carries 80 anchors.
         return new HexCoordinate(cell.Cx * 8, cell.Cy * 10);
+    }
+
+    /// <summary>Spec §5 pass 4 + §6: homeworlds, species profiles, founding polities.</summary>
+    internal static void PassHomeworlds(GalaxySkeleton s)
+    {
+        var config = s.Config;
+        int target = Math.Max(2, (int)Math.Round(
+            config.HomeworldRatePerSector * config.SizeSectors * config.SizeSectors));
+        int minSpacing = Math.Max(2, config.CellsX / (2 * target) + 2);
+
+        var candidates = s.Cells.Where(c => !c.IsVoid)
+            .Select(c => (cell: c,
+                order: new RollContext(config.MasterSeed, new HexCoordinate(c.Cx, c.Cy))
+                    .NextDouble(RollChannel.HomeworldPlacement)))
+            .OrderBy(t => t.order).ThenBy(t => t.cell.LinearIndex(config))
+            .Select(t => t.cell);
+
+        foreach (var cell in candidates)
+        {
+            if (s.Polities.Count >= target) break;
+            bool tooClose = s.Polities.Any(p =>
+                Math.Max(Math.Abs(p.CapitalCx - cell.Cx), Math.Abs(p.CapitalCy - cell.Cy)) < minSpacing);
+            if (tooClose) continue;
+
+            int id = s.Polities.Count;
+            var species = RollSpecies(s, cell, id);
+            s.Species.Add(species);
+            s.Polities.Add(new Polity
+            {
+                Id = id, Name = species.Name, SpeciesId = id,
+                CapitalCx = cell.Cx, CapitalCy = cell.Cy,
+            });
+            cell.Anchors.Add(new Anchor
+            {
+                Type = AnchorType.Homeworld, Hex = PickAnchorHex(s, cell, 2), SpeciesId = id,
+            });
+            cell.OwnerPolityId = id;
+            cell.DevelopmentTier = 2;
+        }
+    }
+
+    private static SpeciesProfile RollSpecies(GalaxySkeleton s, RegionCell cell, int id)
+    {
+        var config = s.Config;
+        var ctx = new RollContext(config.MasterSeed, new HexCoordinate(cell.Cx, cell.Cy));
+        var embodimentTable = new WeightedTable<Embodiment>(
+            (Embodiment.TerranAnalog, 40), (Embodiment.Aquatic, 15), (Embodiment.Cryophilic, 12),
+            (Embodiment.Lithic, 15), (Embodiment.Hive, 10), (Embodiment.Machine, 8));
+
+        Embodiment embodiment = Embodiment.TerranAnalog;
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            embodiment = embodimentTable.Pick(ctx.NextDouble(RollChannel.SpeciesEmbodiment, attempt));
+            if (FitsCell(s, cell, embodiment)) break;
+        }
+
+        double Axis(int i) => 0.15 + 0.7 * ctx.NextDouble(RollChannel.SpeciesTemperament, 0, i);
+        var species = new SpeciesProfile
+        {
+            Id = id, Embodiment = embodiment,
+            Expansionism = Axis(0), Cohesion = Axis(1), Militancy = Axis(2),
+            Openness = Axis(3), Industry = Axis(4), Adaptability = Axis(5),
+            Name = SpeciesName(ctx, id),
+        };
+        if (embodiment == Embodiment.Hive)
+            species.Cohesion = Math.Max(species.Cohesion, 0.75);   // hive correlation (spec §6)
+        return species;
+    }
+
+    private static bool FitsCell(GalaxySkeleton s, RegionCell cell, Embodiment e) => e switch
+    {
+        Embodiment.Cryophilic => cell.Lean == StellarLean.OldDim,
+        Embodiment.Aquatic or Embodiment.TerranAnalog =>
+            cell.Lean == StellarLean.Balanced || cell.Lean == StellarLean.YoungBright,
+        Embodiment.Lithic => cell.Metallicity > 0.4,
+        Embodiment.Machine => NeighborhoodHasPrecursor(s, cell),
+        _ => true,
+    };
+
+    private static bool NeighborhoodHasPrecursor(GalaxySkeleton s, RegionCell cell)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                int cx = cell.Cx + dx, cy = cell.Cy + dy;
+                if (cx < 0 || cy < 0 || cx >= s.Config.CellsX || cy >= s.Config.CellsY) continue;
+                if (s.CellAt(cx, cy).Anchors.Any(a => a.Type == AnchorType.PrecursorSite)) return true;
+            }
+        return false;
+    }
+
+    private static string SpeciesName(RollContext ctx, int id)
+    {
+        int syllables = 2 + (ctx.NextDouble(RollChannel.NameLength, 1000 + id) < 0.4 ? 1 : 0);
+        string name = "";
+        for (int i = 0; i < syllables; i++)
+            name += NameTables.Syllables.Pick(ctx.NextDouble(RollChannel.NameSyllable, 1000 + id, i));
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(name);
     }
 }

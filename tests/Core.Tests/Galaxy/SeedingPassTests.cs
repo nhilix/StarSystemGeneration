@@ -92,4 +92,38 @@ public class SeedingPassTests
         double poorRate = poorCells.Count(c => c.Anchors.Any(a => a.Type == AnchorType.MineralRich)) / (double)poorCells.Count;
         Assert.True(richRate > poorRate, $"metal-rich cells ({richRate:F2}) should out-anchor metal-poor ({poorRate:F2})");
     }
+
+    [Fact]
+    public void Homeworlds_CountAndSpacing()
+    {
+        var s = Build();
+        int expected = System.Math.Max(2, (int)System.Math.Round(
+            s.Config.HomeworldRatePerSector * s.Config.SizeSectors * s.Config.SizeSectors));
+        Assert.InRange(s.Polities.Count, 2, expected);   // spacing may reject a few below target
+        Assert.True(s.Polities.Count >= expected / 2, $"got {s.Polities.Count}, want >= {expected / 2}");
+        var capitals = s.Polities.Select(p => (p.CapitalCx, p.CapitalCy)).ToList();
+        foreach (var a in capitals)
+            foreach (var b in capitals)
+                if (a != b)
+                    Assert.True(System.Math.Max(System.Math.Abs(a.CapitalCx - b.CapitalCx),
+                                                System.Math.Abs(a.CapitalCy - b.CapitalCy)) >= 2,
+                        "capitals must not be adjacent");
+    }
+
+    [Fact]
+    public void Homeworlds_HaveSpeciesAnchorsAndOwnership()
+    {
+        var s = Build();
+        foreach (var polity in s.Polities)
+        {
+            var species = s.Species.Single(sp => sp.Id == polity.SpeciesId);
+            Assert.False(string.IsNullOrEmpty(species.Name));
+            Assert.InRange(species.Cohesion, 0.0, 1.0);
+            if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
+            var cell = s.CellAt(polity.CapitalCx, polity.CapitalCy);
+            Assert.Equal(polity.Id, cell.OwnerPolityId);
+            Assert.Equal(2, cell.DevelopmentTier);
+            Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);
+        }
+    }
 }
