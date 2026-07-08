@@ -68,7 +68,9 @@ public static class SkeletonSerializer
         var headerParts = header.Split('|');
         if (headerParts.Length != 2 || headerParts[0] != "STARGEN-SKELETON")
             throw new InvalidDataException("not a skeleton artifact");
-        if (int.Parse(headerParts[1], Inv) != GalaxySkeleton.SchemaVersion)
+        if (!int.TryParse(headerParts[1], NumberStyles.Integer, Inv, out var version))
+            throw new InvalidDataException("not a skeleton artifact: non-numeric schema version");
+        if (version != GalaxySkeleton.SchemaVersion)
             throw new InvalidDataException(
                 $"schema version {headerParts[1]} != {GalaxySkeleton.SchemaVersion}; " +
                 "keep the artifact with matching code or explicitly regenerate (spec §3.1)");
@@ -77,67 +79,77 @@ public static class SkeletonSerializer
         string? line;
         while ((line = reader.ReadLine()) != null && line != "END")
         {
-            var f = line.Split('|');
-            switch (f[0])
+            try
             {
-                case "CONFIG":
-                    s = new GalaxySkeleton(new GalaxyConfig
-                    {
-                        MasterSeed = ulong.Parse(f[1], Inv), SizeSectors = int.Parse(f[2], Inv),
-                        MeanDensityTarget = double.Parse(f[3], Inv), ArmCount = int.Parse(f[4], Inv),
-                        ArmTightness = double.Parse(f[5], Inv), ArmWidth = double.Parse(f[6], Inv),
-                        EpochCount = int.Parse(f[7], Inv), YearsPerEpoch = int.Parse(f[8], Inv),
-                        HomeworldRatePerSector = double.Parse(f[9], Inv),
-                        TraversabilityThreshold = double.Parse(f[10], Inv),
-                    });
-                    break;
-                case "SPECIES":
-                    s!.Species.Add(new SpeciesProfile
-                    {
-                        Id = int.Parse(f[1], Inv), Name = f[2],
-                        Embodiment = (Embodiment)int.Parse(f[3], Inv),
-                        Expansionism = double.Parse(f[4], Inv), Cohesion = double.Parse(f[5], Inv),
-                        Militancy = double.Parse(f[6], Inv), Openness = double.Parse(f[7], Inv),
-                        Industry = double.Parse(f[8], Inv), Adaptability = double.Parse(f[9], Inv),
-                    });
-                    break;
-                case "POLITY":
-                    s!.Polities.Add(new Polity
-                    {
-                        Id = int.Parse(f[1], Inv), Name = f[2], SpeciesId = int.Parse(f[3], Inv),
-                        CapitalCx = int.Parse(f[4], Inv), CapitalCy = int.Parse(f[5], Inv),
-                        Extinct = f[6] == "1",
-                    });
-                    break;
-                case "CELL":
-                    var cell = s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv));
-                    cell.MeanDensity = double.Parse(f[3], Inv);
-                    cell.IsVoid = f[4] == "1";
-                    cell.IsChokepoint = f[5] == "1";
-                    cell.Lean = (StellarLean)int.Parse(f[6], Inv);
-                    cell.Metallicity = double.Parse(f[7], Inv);
-                    cell.OwnerPolityId = int.Parse(f[8], Inv);
-                    cell.DevelopmentTier = int.Parse(f[9], Inv);
-                    cell.Contested = f[10] == "1";
-                    cell.WarScarred = f[11] == "1";
-                    break;
-                case "ANCHOR":
-                    s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv)).Anchors.Add(new Anchor
-                    {
-                        Type = (AnchorType)int.Parse(f[3], Inv),
-                        Hex = new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
-                        SpeciesId = int.Parse(f[6], Inv),
-                    });
-                    break;
-                case "EVENT":
-                    s!.Events.Add(new GalaxyEvent
-                    {
-                        Epoch = int.Parse(f[1], Inv), Type = (GalaxyEventType)int.Parse(f[2], Inv),
-                        ActorPolityId = int.Parse(f[3], Inv), TargetPolityId = int.Parse(f[4], Inv),
-                        Cx = int.Parse(f[5], Inv), Cy = int.Parse(f[6], Inv),
-                        Magnitude = double.Parse(f[7], Inv),
-                    });
-                    break;
+                var f = line.Split('|');
+                if (f[0] != "CONFIG" && s == null)
+                    throw new InvalidDataException("record before CONFIG");
+                switch (f[0])
+                {
+                    case "CONFIG":
+                        s = new GalaxySkeleton(new GalaxyConfig
+                        {
+                            MasterSeed = ulong.Parse(f[1], Inv), SizeSectors = int.Parse(f[2], Inv),
+                            MeanDensityTarget = double.Parse(f[3], Inv), ArmCount = int.Parse(f[4], Inv),
+                            ArmTightness = double.Parse(f[5], Inv), ArmWidth = double.Parse(f[6], Inv),
+                            EpochCount = int.Parse(f[7], Inv), YearsPerEpoch = int.Parse(f[8], Inv),
+                            HomeworldRatePerSector = double.Parse(f[9], Inv),
+                            TraversabilityThreshold = double.Parse(f[10], Inv),
+                        });
+                        break;
+                    case "SPECIES":
+                        s!.Species.Add(new SpeciesProfile
+                        {
+                            Id = int.Parse(f[1], Inv), Name = f[2],
+                            Embodiment = (Embodiment)int.Parse(f[3], Inv),
+                            Expansionism = double.Parse(f[4], Inv), Cohesion = double.Parse(f[5], Inv),
+                            Militancy = double.Parse(f[6], Inv), Openness = double.Parse(f[7], Inv),
+                            Industry = double.Parse(f[8], Inv), Adaptability = double.Parse(f[9], Inv),
+                        });
+                        break;
+                    case "POLITY":
+                        s!.Polities.Add(new Polity
+                        {
+                            Id = int.Parse(f[1], Inv), Name = f[2], SpeciesId = int.Parse(f[3], Inv),
+                            CapitalCx = int.Parse(f[4], Inv), CapitalCy = int.Parse(f[5], Inv),
+                            Extinct = f[6] == "1",
+                        });
+                        break;
+                    case "CELL":
+                        var cell = s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv));
+                        cell.MeanDensity = double.Parse(f[3], Inv);
+                        cell.IsVoid = f[4] == "1";
+                        cell.IsChokepoint = f[5] == "1";
+                        cell.Lean = (StellarLean)int.Parse(f[6], Inv);
+                        cell.Metallicity = double.Parse(f[7], Inv);
+                        cell.OwnerPolityId = int.Parse(f[8], Inv);
+                        cell.DevelopmentTier = int.Parse(f[9], Inv);
+                        cell.Contested = f[10] == "1";
+                        cell.WarScarred = f[11] == "1";
+                        break;
+                    case "ANCHOR":
+                        s!.CellAt(int.Parse(f[1], Inv), int.Parse(f[2], Inv)).Anchors.Add(new Anchor
+                        {
+                            Type = (AnchorType)int.Parse(f[3], Inv),
+                            Hex = new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
+                            SpeciesId = int.Parse(f[6], Inv),
+                        });
+                        break;
+                    case "EVENT":
+                        s!.Events.Add(new GalaxyEvent
+                        {
+                            Epoch = int.Parse(f[1], Inv), Type = (GalaxyEventType)int.Parse(f[2], Inv),
+                            ActorPolityId = int.Parse(f[3], Inv), TargetPolityId = int.Parse(f[4], Inv),
+                            Cx = int.Parse(f[5], Inv), Cy = int.Parse(f[6], Inv),
+                            Magnitude = double.Parse(f[7], Inv),
+                        });
+                        break;
+                }
+            }
+            catch (Exception ex) when (ex is FormatException or IndexOutOfRangeException
+                or NullReferenceException or OverflowException)
+            {
+                throw new InvalidDataException($"malformed skeleton artifact at line: {line}", ex);
             }
         }
         return s ?? throw new InvalidDataException("artifact missing CONFIG line");

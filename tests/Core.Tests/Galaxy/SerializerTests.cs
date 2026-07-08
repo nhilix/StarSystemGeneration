@@ -39,6 +39,36 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Load_RecordBeforeConfig_Throws()
+    {
+        var text = "STARGEN-SKELETON|1\nANCHOR|0|0|1|0|0|-1\nEND\n";
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader(text)));
+    }
+
+    [Fact]
+    public void Load_TruncatedCellLine_Throws()
+    {
+        var text = SkeletonSerializer.ToText(Build());
+        var lines = text.Split('\n');
+        var cellLineIndex = Array.FindIndex(lines, l => l.StartsWith("CELL|"));
+        Assert.True(cellLineIndex >= 0, "fixture must contain a CELL line");
+        var fields = lines[cellLineIndex].Split('|');
+        lines[cellLineIndex] = string.Join("|", fields.Take(3));
+        var tampered = string.Join("\n", lines);
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader(tampered)));
+    }
+
+    [Fact]
+    public void Load_NonNumericSchemaVersion_Throws()
+    {
+        var text = "STARGEN-SKELETON|abc\nEND\n";
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader(text)));
+    }
+
+    [Fact]
     public void GoldenSnapshot_SmallGalaxyHeader()
     {
         // Golden guard against unintended drift (spec §10). If this fails because of an
