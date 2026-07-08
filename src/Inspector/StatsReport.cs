@@ -10,7 +10,7 @@ namespace StarGen.Inspector;
 /// <summary>The primary tuning instrument (spec §10): distribution summary over n hexes.</summary>
 public static class StatsReport
 {
-    public static string Build(GalaxyContext galaxy, int startX, int startY, int n, int sectorWidth)
+    public static string Build(GalaxyContext galaxy, int startIndex, int n)
     {
         int present = 0, overlays = 0;
         int settledSystems = 0, sapientSystems = 0, namedSystems = 0;
@@ -19,10 +19,9 @@ public static class StatsReport
         var settlements = new Dictionary<Settlement, int>();
         var biospheres = new Dictionary<Biosphere, int>();
 
-        int linear = startY * sectorWidth + startX;
-        for (int i = 0; i < n; i++, linear++)
+        for (int i = 0; i < n; i++)
         {
-            var coord = new HexCoordinate(linear % sectorWidth, linear / sectorWidth);
+            var coord = GalaxyEnumerator.SpiralAt(startIndex + i);
             var system = Generator.Generate(galaxy, coord).System;
             if (system == null) continue;
             present++;

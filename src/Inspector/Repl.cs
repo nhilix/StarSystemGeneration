@@ -9,9 +9,8 @@ namespace StarGen.Inspector;
 
 public sealed class Repl
 {
-    private const int SectorWidth = 32;
     private ulong _seed = 42;
-    private int _x, _y;
+    private int _spiralIndex;
     private GalaxyContext? _galaxy;
 
     public void Run()
@@ -28,8 +27,8 @@ public sealed class Repl
             {
                 case "quit" or "exit": return;
                 case "help":
-                    Console.WriteLine("seed <n> | galaxy <seed> [sectors] | goto <x> <y> | next | prev | reroll");
-                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | sector <sx> <sy> | cell <cx> <cy>");
+                    Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
+                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("gsave <path> | gload <path> | quit");
                     Console.WriteLine("map layers: density | polity | zone | dev | lean");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
@@ -66,8 +65,8 @@ public sealed class Repl
                 case "cell" when parts.Length == 3 && _galaxy?.Skeleton is { } sk
                         && int.TryParse(parts[1], out var qcx) && int.TryParse(parts[2], out var qcy):
                 {
-#warning HEXMIGRATION: 'cell' command still takes rectangular cx/cy args on the command line; replaced once the REPL addresses real cell-lattice coordinates (Task 10).
-                    if (!sk.TryGetCell(new HexCoordinate(qcx, qcy), out var cell))
+                    var cellCoord = new HexCoordinate(qcx, qcy);
+                    if (!sk.TryGetCell(cellCoord, out var cell))
                     { Console.WriteLine("cell out of range"); break; }
                     string owner = cell.OwnerPolityId >= 0 ? sk.Polities[cell.OwnerPolityId].Name : "unclaimed";
                     Console.WriteLine($"cell [{qcx},{qcy}] density {cell.MeanDensity:F2}"
@@ -82,7 +81,7 @@ public sealed class Repl
                         if (e.Q == qcx && e.R == qcy)
                             Console.WriteLine($"  epoch {e.Epoch}: {e.Type} by {sk.Polities[e.ActorPolityId].Name}"
                                 + (e.TargetPolityId >= 0 ? $" vs {sk.Polities[e.TargetPolityId].Name}" : ""));
-                    Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, qcx, qcy));
+                    Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, cellCoord));
                     break;
                 }
                 case "gsave" when parts.Length == 2 && _galaxy?.Skeleton != null:
@@ -105,7 +104,7 @@ public sealed class Repl
                     break;
                 case "goto" when parts.Length == 3
                         && int.TryParse(parts[1], out var gx) && int.TryParse(parts[2], out var gy):
-                    (_x, _y) = (Math.Max(0, gx), Math.Max(0, gy)); Show(); break;
+                    _spiralIndex = GalaxyEnumerator.SpiralIndexOf(new HexCoordinate(gx, gy)); Show(); break;
                 case "next": Step(+1); Show(); break;
                 case "prev": Step(-1); Show(); break;
                 case "reroll":
@@ -113,13 +112,9 @@ public sealed class Repl
                     Console.WriteLine($"seed = {_seed}"); Show(); break;
                 case "find" when parts.Length == 2: Find(parts[1]); break;
                 case "stats" when parts.Length == 2 && int.TryParse(parts[1], out var n):
-                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _x, _y, n, WalkWidth)); break;
-                case "map" or "sector" when _galaxy?.Skeleton == null:
+                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _spiralIndex, n)); break;
+                case "map" when _galaxy?.Skeleton == null:
                     Console.WriteLine("build a galaxy first (galaxy <seed>)");
-                    break;
-                case "sector" when parts.Length == 3
-                        && int.TryParse(parts[1], out var msx) && int.TryParse(parts[2], out var msy):
-                    Console.WriteLine(GalaxyMapView.SectorMap(_galaxy!, msx, msy));
                     break;
                 case "map":
                     Console.WriteLine(GalaxyMapView.CellMap(_galaxy!.Skeleton!,
@@ -131,31 +126,20 @@ public sealed class Repl
         }
     }
 
-    /// <summary>Row width for the linear hex walk: full galaxy width when a galaxy is
-    /// loaded (find/stats would otherwise only ever sample the leftmost sector band),
-    /// classic 32-hex sector width in flatspace.</summary>
-#warning HEXMIGRATION: WalkWidth approximates the old rectangular WidthHexes from GalaxyRadiusCells so goto/next/prev/find/stats keep compiling; the linear x,y walk itself is replaced by a hex-native walk (e.g. HexGrid.Spiral) in its own task.
-    private int WalkWidth => _galaxy != null ? _galaxy.Config.GalaxyRadiusCells * 2 + 1 : SectorWidth;
-
-    private void Step(int dir)
-    {
-        int linear = _y * WalkWidth + _x + dir;
-        if (linear < 0) linear = 0;
-        (_x, _y) = (linear % WalkWidth, linear / WalkWidth);
-    }
+    private void Step(int dir) => _spiralIndex = Math.Max(0, _spiralIndex + dir);
 
     private HexResult Gen(HexCoordinate c) =>
         Generator.Generate(_galaxy ?? GalaxyContext.Flatspace(_seed), c);
 
     private void Show() =>
-        Console.WriteLine(SystemFormatter.Format(Gen(new HexCoordinate(_x, _y))));
+        Console.WriteLine(SystemFormatter.Format(Gen(GalaxyEnumerator.SpiralAt(_spiralIndex))));
 
     private void Find(string criterion)
     {
         for (int i = 0; i < 50_000; i++)
         {
             Step(+1);
-            var system = Gen(new HexCoordinate(_x, _y)).System;
+            var system = Gen(GalaxyEnumerator.SpiralAt(_spiralIndex)).System;
             if (system != null && Matches(system, criterion)) { Show(); return; }
         }
         Console.WriteLine($"no match for '{criterion}' within 50,000 hexes");

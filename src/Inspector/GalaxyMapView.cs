@@ -7,23 +7,39 @@ using StarGen.Core.Model;
 namespace StarGen.Inspector;
 
 /// <summary>ASCII galaxy atlas (spec §9): the visual counterpart of stats.
-/// Three zoom layers: galaxy (map, one glyph per cell), sector (32x40 hexes),
-/// cell (8x10 hexes). Every glyph is emitted twice horizontally to compensate
+/// Two zoom layers: galaxy (map, one glyph per cell) and cell zoom (the cell's
+/// 91 member hexes). Both render on an offset canvas — flat-top odd columns
+/// drop a half line — with every glyph emitted twice horizontally to compensate
 /// for terminal fonts being ~2x taller than wide.</summary>
 public static class GalaxyMapView
 {
     private const string DensityRamp = " .:-=+*#%@";
 
-#warning HEXMIGRATION: CellMap now walks the flat spiral-ordered cell list (no 2D grid rows/cols) instead of the placeholder square grid; a true staggered hex-lattice atlas render lands with the inspector rewrite (Task 10).
     public static string CellMap(GalaxySkeleton s, string layer)
     {
-        var sb = new StringBuilder();
-        foreach (var cell in s.Cells)
+        var offsets = s.Cells.Select(c => (cell: c, off: HexGrid.ToOffset(c.Coord))).ToList();
+        int minCol = offsets.Min(t => t.off.Col), maxCol = offsets.Max(t => t.off.Col);
+        int minRow = offsets.Min(t => t.off.Row), maxRow = offsets.Max(t => t.off.Row);
+        int width = (maxCol - minCol + 1) * 2, height = (maxRow - minRow) * 2 + 2;
+        var canvas = new char[height, width];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++) canvas[y, x] = ' ';
+
+        foreach (var (cell, off) in offsets)
         {
             char glyph = CellChar(s, cell, layer);
-            sb.Append(glyph).Append(glyph);
+            int col = off.Col - minCol, row = off.Row - minRow;
+            int y = 2 * row + (off.Col & 1);          // odd columns drop half a line
+            canvas[y, col * 2] = glyph;
+            canvas[y, col * 2 + 1] = glyph;
         }
-        sb.AppendLine();
+
+        var sb = new StringBuilder();
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++) sb.Append(canvas[y, x]);
+            sb.AppendLine();
+        }
         sb.AppendLine(Legend(s, layer));
         return sb.ToString();
     }
@@ -59,42 +75,36 @@ public static class GalaxyMapView
         _ => "density: ' " + DensityRamp + " ' low->high",
     };
 
-#warning HEXMIGRATION: SectorMap bounds-checks against the placeholder square-grid radius (old SizeSectors sectorization); replaced by hex-native zoom navigation in its own task (Task 10).
-    public static string SectorMap(GalaxyContext galaxy, int sx, int sy)
+    public static string CellZoom(GalaxyContext galaxy, HexCoordinate cellCoord)
     {
-        int gridSize = galaxy.Skeleton?.Config.GalaxyRadiusCells * 2 + 1 ?? 0;
-        if (sx < 0 || sy < 0 || sx >= gridSize || sy >= gridSize)
-            return "sector out of range";
-        return HexMap(galaxy, sx * 32, sy * 40, 32, 40);
-    }
+        var members = HexGrid.Spiral(HexGrid.CellCenter(cellCoord), HexGrid.CellRadius)
+            .Select(h => (hex: h, off: HexGrid.ToOffset(h))).ToList();
+        int minCol = members.Min(t => t.off.Col), minRow = members.Min(t => t.off.Row);
+        int width = (members.Max(t => t.off.Col) - minCol + 1) * 2;
+        int height = (members.Max(t => t.off.Row) - minRow) * 2 + 2;
+        var canvas = new char[height, width];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++) canvas[y, x] = ' ';
 
-#warning HEXMIGRATION: CellZoom bounds-checks against the placeholder square-grid radius; replaced by hex-native zoom navigation in its own task (Task 10).
-    public static string CellZoom(GalaxyContext galaxy, int cx, int cy)
-    {
-        int gridSize = galaxy.Skeleton?.Config.GalaxyRadiusCells * 2 + 1 ?? 0;
-        if (cx < 0 || cy < 0 || cx >= gridSize || cy >= gridSize)
-            return "cell out of range";
-        return HexMap(galaxy, cx * 8, cy * 10, 8, 10);
-    }
-
-    /// <summary>Hex-resolution render of any rectangular region (sector and cell zooms).</summary>
-    private static string HexMap(GalaxyContext galaxy, int x0, int y0, int width, int height)
-    {
-        var sb = new StringBuilder();
         var skeleton = galaxy.Skeleton;
-        for (int hy = y0; hy < y0 + height; hy++)
+        foreach (var (hex, off) in members)
         {
-            for (int hx = x0; hx < x0 + width; hx++)
-            {
-                var coord = new HexCoordinate(hx, hy);
-                bool anchored = skeleton != null &&
-                    skeleton.CellForHex(coord).Anchors.Any(a => a.Hex.Equals(coord));
-                var system = Generator.Generate(galaxy, coord).System;
-                char glyph = system == null ? '·'
-                    : anchored ? '@'
-                    : SystemIsSettled(system) ? 'o' : '*';
-                sb.Append(glyph).Append(glyph);
-            }
+            bool anchored = skeleton != null &&
+                skeleton.CellForHex(hex).Anchors.Any(a => a.Hex.Equals(hex));
+            var system = Generator.Generate(galaxy, hex).System;
+            char glyph = system == null ? '·'
+                : anchored ? '@'
+                : SystemIsSettled(system) ? 'o' : '*';
+            int col = off.Col - minCol, row = off.Row - minRow;
+            int y = 2 * row + (off.Col & 1);
+            canvas[y, col * 2] = glyph;
+            canvas[y, col * 2 + 1] = glyph;
+        }
+
+        var sb = new StringBuilder();
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++) sb.Append(canvas[y, x]);
             sb.AppendLine();
         }
         sb.AppendLine("·=empty *=system o=settled @=anchored");
