@@ -73,4 +73,69 @@ public class HexGridTests
         }
         Assert.Equal(HexGrid.Spiral(center, 5).ToList(), HexGrid.Spiral(center, 5).ToList());
     }
+
+    [Fact]
+    public void WorldToHex_InvertsHexToWorld()
+    {
+        for (int q = -15; q <= 15; q += 3)
+            for (int r = -15; r <= 15; r += 3)
+            {
+                var hex = new HexCoordinate(q, r);
+                var (x, y) = HexGrid.HexToWorld(hex);
+                Assert.Equal(hex, HexGrid.WorldToHex(x, y));
+                // points near the center still round to the same hex
+                Assert.Equal(hex, HexGrid.WorldToHex(x + 0.3, y - 0.3));
+            }
+    }
+
+    [Fact]
+    public void HexToWorld_NeighborsAreEquidistant()
+    {
+        var origin = new HexCoordinate(0, 0);
+        var (ox, oy) = HexGrid.HexToWorld(origin);
+        var distances = HexGrid.Neighbors(origin).Select(n =>
+        {
+            var (x, y) = HexGrid.HexToWorld(n);
+            return System.Math.Sqrt((x - ox) * (x - ox) + (y - oy) * (y - oy));
+        }).ToList();
+        Assert.All(distances, d => Assert.Equal(distances[0], d, 9));
+    }
+
+    [Fact]
+    public void OffsetConversions_RoundTrip_AndStaggerOddColumns()
+    {
+        for (int q = -9; q <= 9; q++)
+            for (int r = -9; r <= 9; r++)
+            {
+                var hex = new HexCoordinate(q, r);
+                var (col, row) = HexGrid.ToOffset(hex);
+                Assert.Equal(q, col);
+                Assert.Equal(hex, HexGrid.FromOffset(col, row));
+            }
+        // odd-q: hex (1,0) sits half a hex lower in world y than (0,0)
+        var y0 = HexGrid.HexToWorld(new HexCoordinate(0, 0)).Y;
+        var y1 = HexGrid.HexToWorld(new HexCoordinate(1, 0)).Y;
+        Assert.True(y1 > y0, "odd columns stagger downward in world space");
+    }
+
+    [Fact]
+    public void Corners_SixUnitOffsets_SharedBetweenNeighbors()
+    {
+        Assert.Equal(6, HexGrid.CornerOffsets.Length);
+        // flat-top: first corner due east at unit distance, 60° apart
+        Assert.Equal(1.0, HexGrid.CornerOffsets[0].X, 9);
+        Assert.Equal(0.0, HexGrid.CornerOffsets[0].Y, 9);
+        foreach (var (x, y) in HexGrid.CornerOffsets)
+            Assert.Equal(1.0, System.Math.Sqrt(x * x + y * y), 9);
+        // adjacent hexes share exactly two corner positions
+        var a = HexGrid.HexToWorld(new HexCoordinate(0, 0));
+        var b = HexGrid.HexToWorld(new HexCoordinate(1, 0));
+        int shared = 0;
+        foreach (var ca in HexGrid.CornerOffsets)
+            foreach (var cb in HexGrid.CornerOffsets)
+                if (System.Math.Abs(a.X + ca.X - (b.X + cb.X)) < 1e-9
+                    && System.Math.Abs(a.Y + ca.Y - (b.Y + cb.Y)) < 1e-9)
+                    shared++;
+        Assert.Equal(2, shared);
+    }
 }
