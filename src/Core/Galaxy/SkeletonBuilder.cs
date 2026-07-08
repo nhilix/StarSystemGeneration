@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Model;
+using StarGen.Core.Rng;
 
 namespace StarGen.Core.Galaxy;
 
@@ -11,7 +12,7 @@ public static class SkeletonBuilder
         var skeleton = new GalaxySkeleton(config);
         PassDensitySummary(skeleton);
         // PASSES (later tasks append here, in order):
-        // PassStellarPopulation(skeleton);
+        PassStellarPopulation(skeleton);
         // PassResourceAnchors(skeleton);
         // PassHomeworlds(skeleton);
         // EpochSim.Run(skeleton);
@@ -95,5 +96,24 @@ public static class SkeletonBuilder
         }
 
         for (int i = 0; i < n; i++) s.Cells[i].IsChokepoint = articulation[i];
+    }
+
+    /// <summary>Spec §5 pass 2: stellar-population & metallicity leans. Never paints
+    /// body kinds — world character emerges via the star->band->body causality.</summary>
+    internal static void PassStellarPopulation(GalaxySkeleton s)
+    {
+        var config = s.Config;
+        foreach (var cell in s.Cells)
+        {
+            double hx = cell.Cx * 8 + 4, hy = cell.Cy * 10 + 5;
+            double stellar = ValueNoise.Sample(config.MasterSeed,
+                RollChannel.NoiseStellarLattice, hx, hy, 2, 0.02);
+            cell.Lean = stellar < 0.12 ? StellarLean.RemnantGraveyard
+                      : stellar < 0.40 ? StellarLean.OldDim
+                      : stellar > 0.72 ? StellarLean.YoungBright
+                      : StellarLean.Balanced;
+            cell.Metallicity = ValueNoise.Sample(config.MasterSeed,
+                RollChannel.NoiseMetalLattice, hx, hy, 2, 0.015);
+        }
     }
 }
