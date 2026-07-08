@@ -19,6 +19,8 @@ public sealed class RegionContext
         if (galaxy.IsFlatspace || galaxy.Skeleton == null) return null;
         var s = galaxy.Skeleton;
         if (!DensityField.InGalaxy(galaxy.Config, hex)) return null;
+#warning HEXMIGRATION - placeholder rectangular cell store cannot index negative-coordinate hexes; Task 5 replaces the store and Task 8 rewrites this method
+        if (hex.Q < 0 || hex.R < 0) return null;   // defensive until the hex-lattice store lands
         var cell = s.CellForHex(hex);
 
         var region = new RegionContext

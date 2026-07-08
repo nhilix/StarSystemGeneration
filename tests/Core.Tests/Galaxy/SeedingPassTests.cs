@@ -6,7 +6,7 @@ namespace StarGen.Core.Tests.Galaxy;
 
 public class SeedingPassTests
 {
-    // SizeSectors = 4 keeps builds fast (16x16 cells) while big enough for structure.
+    // small GalaxyRadiusCells keeps builds fast while big enough for structure.
     private static GalaxySkeleton Build(ulong seed = 42) =>
         SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
 
