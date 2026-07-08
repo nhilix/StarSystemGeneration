@@ -46,11 +46,8 @@ public class ValueNoiseTests
     public void GalaxyConfig_Defaults()
     {
         var config = new GalaxyConfig { MasterSeed = 42 };
-        Assert.Equal(10, config.SizeSectors);
-        Assert.Equal(320, config.WidthHexes);
-        Assert.Equal(400, config.HeightHexes);
-        Assert.Equal(40, config.CellsX);
-        Assert.Equal(40, config.CellsY);
+        Assert.Equal(21, config.GalaxyRadiusCells);
+        Assert.Equal(0.02, config.HomeworldRatePerCell);
         Assert.Equal(0.5, config.MeanDensityTarget);
         Assert.Equal(12, config.EpochCount);
     }

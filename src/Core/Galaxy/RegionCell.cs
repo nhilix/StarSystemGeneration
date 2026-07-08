@@ -19,5 +19,6 @@ public sealed class RegionCell
     public bool Contested { get; set; }
     public bool WarScarred { get; set; }
 
-    public int LinearIndex(GalaxyConfig config) => Cy * config.CellsX + Cx;
+#warning HEXMIGRATION: LinearIndex uses the placeholder square-grid width; real hex-lattice indexing lands with the GalaxySkeleton cell-store rewrite.
+    public int LinearIndex(GalaxyConfig config) => Cy * GalaxySkeleton.GridSizeFor(config) + Cx;
 }

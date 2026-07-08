@@ -10,7 +10,7 @@ public class RegionIntegrationTests
 {
     private static GalaxyContext Galaxy(ulong seed = 42)
     {
-        var config = new GalaxyConfig { MasterSeed = seed, SizeSectors = 4 };
+        var config = new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 };
         return new GalaxyContext(config) { Skeleton = SkeletonBuilder.Build(config) };
     }
 

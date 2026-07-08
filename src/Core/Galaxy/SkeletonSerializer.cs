@@ -24,11 +24,11 @@ public static class SkeletonSerializer
         var c = s.Config;
         w.WriteLine($"STARGEN-SKELETON|{GalaxySkeleton.SchemaVersion}");
         w.WriteLine(string.Join("|", "CONFIG",
-            c.MasterSeed.ToString(Inv), c.SizeSectors.ToString(Inv),
+            c.MasterSeed.ToString(Inv), c.GalaxyRadiusCells.ToString(Inv),
             c.MeanDensityTarget.ToString("R", Inv), c.ArmCount.ToString(Inv),
             c.ArmTightness.ToString("R", Inv), c.ArmWidth.ToString("R", Inv),
             c.EpochCount.ToString(Inv), c.YearsPerEpoch.ToString(Inv),
-            c.HomeworldRatePerSector.ToString("R", Inv),
+            c.HomeworldRatePerCell.ToString("R", Inv),
             c.TraversabilityThreshold.ToString("R", Inv)));
         foreach (var sp in s.Species)
             w.WriteLine(string.Join("|", "SPECIES", sp.Id.ToString(Inv), sp.Name,
@@ -89,11 +89,11 @@ public static class SkeletonSerializer
                     case "CONFIG":
                         s = new GalaxySkeleton(new GalaxyConfig
                         {
-                            MasterSeed = ulong.Parse(f[1], Inv), SizeSectors = int.Parse(f[2], Inv),
+                            MasterSeed = ulong.Parse(f[1], Inv), GalaxyRadiusCells = int.Parse(f[2], Inv),
                             MeanDensityTarget = double.Parse(f[3], Inv), ArmCount = int.Parse(f[4], Inv),
                             ArmTightness = double.Parse(f[5], Inv), ArmWidth = double.Parse(f[6], Inv),
                             EpochCount = int.Parse(f[7], Inv), YearsPerEpoch = int.Parse(f[8], Inv),
-                            HomeworldRatePerSector = double.Parse(f[9], Inv),
+                            HomeworldRatePerCell = double.Parse(f[9], Inv),
                             TraversabilityThreshold = double.Parse(f[10], Inv),
                         });
                         break;

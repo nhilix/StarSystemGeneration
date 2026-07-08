@@ -7,7 +7,7 @@ namespace StarGen.Core.Tests.Galaxy;
 public class EpochSimTests
 {
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, SizeSectors = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
 
     [Fact]
     public void Sim_IsDeterministic()
@@ -69,8 +69,8 @@ public class EpochSimTests
             Assert.True(e.Epoch >= lastEpoch, "event log must be chronological");
             lastEpoch = e.Epoch;
             Assert.Contains(s.Polities, p => p.Id == e.ActorPolityId);
-            Assert.InRange(e.Cx, 0, s.Config.CellsX - 1);
-            Assert.InRange(e.Cy, 0, s.Config.CellsY - 1);
+            Assert.InRange(e.Cx, 0, s.GridSize - 1);
+            Assert.InRange(e.Cy, 0, s.GridSize - 1);
         }
     }
 

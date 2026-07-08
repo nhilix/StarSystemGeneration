@@ -43,10 +43,10 @@ public static class SkeletonBuilder
     }
 
     /// <summary>Articulation points of the traversability graph (spec §5 pass 1).</summary>
+#warning HEXMIGRATION: chokepoint graph walks the placeholder square grid; the articulation-point pass moves onto real hex-cell adjacency in its own task.
     private static void MarkChokepoints(GalaxySkeleton s)
     {
-        var config = s.Config;
-        int w = config.CellsX, h = config.CellsY, n = w * h;
+        int w = s.GridSize, h = s.GridSize, n = w * h;
         int[] disc = new int[n], low = new int[n], parent = new int[n];
         bool[] visited = new bool[n], articulation = new bool[n];
         for (int i = 0; i < n; i++) parent[i] = -1;
@@ -171,12 +171,13 @@ public static class SkeletonBuilder
     }
 
     /// <summary>Spec §5 pass 4 + §6: homeworlds, species profiles, founding polities.</summary>
+#warning HEXMIGRATION: homeworld target/spacing sized off the placeholder square grid (cell count, GridSize); the hex-lattice-native capacity model lands with the homeworld-placement rewrite.
     internal static void PassHomeworlds(GalaxySkeleton s)
     {
         var config = s.Config;
         int target = Math.Max(2, (int)Math.Round(
-            config.HomeworldRatePerSector * config.SizeSectors * config.SizeSectors));
-        int minSpacing = Math.Max(2, config.CellsX / (2 * target) + 2);
+            config.HomeworldRatePerCell * s.Cells.Length));
+        int minSpacing = Math.Max(2, s.GridSize / (2 * target) + 2);
 
         var candidates = s.Cells.Where(c => !c.IsVoid)
             .Select(c => (cell: c,
@@ -247,13 +248,14 @@ public static class SkeletonBuilder
         _ => true,
     };
 
+#warning HEXMIGRATION: precursor-neighborhood scan walks the placeholder square grid; replaced with real hex adjacency in its own task.
     private static bool NeighborhoodHasPrecursor(GalaxySkeleton s, RegionCell cell)
     {
         for (int dx = -1; dx <= 1; dx++)
             for (int dy = -1; dy <= 1; dy++)
             {
                 int cx = cell.Cx + dx, cy = cell.Cy + dy;
-                if (cx < 0 || cy < 0 || cx >= s.Config.CellsX || cy >= s.Config.CellsY) continue;
+                if (cx < 0 || cy < 0 || cx >= s.GridSize || cy >= s.GridSize) continue;
                 if (s.CellAt(cx, cy).Anchors.Any(a => a.Type == AnchorType.PrecursorSite)) return true;
             }
         return false;

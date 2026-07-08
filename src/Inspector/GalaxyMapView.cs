@@ -14,12 +14,13 @@ public static class GalaxyMapView
 {
     private const string DensityRamp = " .:-=+*#%@";
 
+#warning HEXMIGRATION: CellMap renders the placeholder square grid; replaced by a real hex-lattice atlas render in its own task.
     public static string CellMap(GalaxySkeleton s, string layer)
     {
         var sb = new StringBuilder();
-        for (int cy = 0; cy < s.Config.CellsY; cy++)
+        for (int cy = 0; cy < s.GridSize; cy++)
         {
-            for (int cx = 0; cx < s.Config.CellsX; cx++)
+            for (int cx = 0; cx < s.GridSize; cx++)
             {
                 char glyph = CellChar(s, s.CellAt(cx, cy), layer);
                 sb.Append(glyph).Append(glyph);
@@ -61,16 +62,20 @@ public static class GalaxyMapView
         _ => "density: ' " + DensityRamp + " ' low->high",
     };
 
+#warning HEXMIGRATION: SectorMap bounds-checks against the placeholder square grid (old SizeSectors sectorization); replaced by hex-native zoom navigation in its own task.
     public static string SectorMap(GalaxyContext galaxy, int sx, int sy)
     {
-        if (sx < 0 || sy < 0 || sx >= galaxy.Config.SizeSectors || sy >= galaxy.Config.SizeSectors)
+        int gridSize = galaxy.Skeleton?.GridSize ?? 0;
+        if (sx < 0 || sy < 0 || sx >= gridSize || sy >= gridSize)
             return "sector out of range";
         return HexMap(galaxy, sx * 32, sy * 40, 32, 40);
     }
 
+#warning HEXMIGRATION: CellZoom bounds-checks against the placeholder square grid; replaced by hex-native zoom navigation in its own task.
     public static string CellZoom(GalaxyContext galaxy, int cx, int cy)
     {
-        if (cx < 0 || cy < 0 || cx >= galaxy.Config.CellsX || cy >= galaxy.Config.CellsY)
+        int gridSize = galaxy.Skeleton?.GridSize ?? 0;
+        if (cx < 0 || cy < 0 || cx >= gridSize || cy >= gridSize)
             return "cell out of range";
         return HexMap(galaxy, cx * 8, cy * 10, 8, 10);
     }

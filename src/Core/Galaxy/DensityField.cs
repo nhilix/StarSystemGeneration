@@ -7,21 +7,35 @@ namespace StarGen.Core.Galaxy;
 /// <summary>Tier 1 (spec §4): pure density field = galactic shape × local noise.</summary>
 public static class DensityField
 {
+    private static readonly HexCoordinate Origin = new(0, 0);
+
+    public static bool InGalaxy(GalaxyConfig config, HexCoordinate hex) =>
+        HexGrid.Distance(HexGrid.CellOf(hex), Origin) <= config.GalaxyRadiusCells;
+
+    /// <summary>World radius used to normalize the shape function: one cell ring
+    /// beyond the lattice, so density falls smoothly toward the membership rim.</summary>
+    public static double WorldRimRadius(GalaxyConfig config)
+    {
+        var (x, y) = HexGrid.HexToWorld(
+            HexGrid.CellCenter(new HexCoordinate(config.GalaxyRadiusCells + 1, 0)));
+        return Math.Sqrt(x * x + y * y);
+    }
+
     public static double At(GalaxyConfig config, HexCoordinate hex)
     {
-        double nx = (hex.Q - config.WidthHexes / 2.0) / (config.WidthHexes / 2.0);
-        double ny = (hex.R - config.HeightHexes / 2.0) / (config.HeightHexes / 2.0);
-        double shape = ShapeAt(config, nx, ny);
+        if (!InGalaxy(config, hex)) return 0.0;
+
+        var (wx, wy) = HexGrid.HexToWorld(hex);
+        double rim = WorldRimRadius(config);
+        double shape = ShapeAt(config, wx / rim, wy / rim);
         if (shape <= 0) return 0.0;
 
         double noise = ValueNoise.Warped(config.MasterSeed,
             RollChannel.NoiseDensityLattice, RollChannel.NoiseWarpLattice,
-            hex.Q, hex.R, octaves: 3, frequency: 0.035, warpStrength: 18.0);
+            wx, wy, octaves: 3, frequency: 0.02, warpStrength: 30.0);
 
-        // Shape sets the envelope; noise carves clumps/filaments/voids inside it.
-        // 0.25 + 1.5*noise spans [0.25, 1.75]: voids suppress, ridges overshoot (clamped).
         double v = shape * (0.25 + 1.5 * noise);
-        v *= config.MeanDensityTarget / 0.5;   // shape's disc mean is calibrated to ~0.5
+        v *= config.MeanDensityTarget / 0.5;
         return Math.Clamp(v, 0.0, 1.0);
     }
 

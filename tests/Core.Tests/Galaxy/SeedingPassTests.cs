@@ -8,7 +8,7 @@ public class SeedingPassTests
 {
     // SizeSectors = 4 keeps builds fast (16x16 cells) while big enough for structure.
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, SizeSectors = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
 
     [Fact]
     public void Build_IsDeterministic()
@@ -98,7 +98,7 @@ public class SeedingPassTests
     {
         var s = Build();
         int expected = System.Math.Max(2, (int)System.Math.Round(
-            s.Config.HomeworldRatePerSector * s.Config.SizeSectors * s.Config.SizeSectors));
+            s.Config.HomeworldRatePerCell * s.Cells.Length));
         Assert.InRange(s.Polities.Count, 2, expected);   // spacing may reject a few below target
         Assert.True(s.Polities.Count >= expected / 2, $"got {s.Polities.Count}, want >= {expected / 2}");
         var capitals = s.Polities.Select(p => (p.CapitalCx, p.CapitalCy)).ToList();

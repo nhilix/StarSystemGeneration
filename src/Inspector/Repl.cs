@@ -41,8 +41,8 @@ public sealed class Repl
                     Show(); break;
                 case "galaxy" when parts.Length >= 2 && ulong.TryParse(parts[1], out var gseed):
                 {
-                    int size = parts.Length >= 3 && int.TryParse(parts[2], out var sz) ? sz : 10;
-                    var config = new GalaxyConfig { MasterSeed = gseed, SizeSectors = size };
+                    int size = parts.Length >= 3 && int.TryParse(parts[2], out var sz) ? sz : 21;
+                    var config = new GalaxyConfig { MasterSeed = gseed, GalaxyRadiusCells = size };
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     var skeleton = SkeletonBuilder.Build(config);
                     sw.Stop();
@@ -66,7 +66,8 @@ public sealed class Repl
                 case "cell" when parts.Length == 3 && _galaxy?.Skeleton is { } sk
                         && int.TryParse(parts[1], out var qcx) && int.TryParse(parts[2], out var qcy):
                 {
-                    if (qcx < 0 || qcy < 0 || qcx >= _galaxy.Config.CellsX || qcy >= _galaxy.Config.CellsY)
+#warning HEXMIGRATION: 'cell' command bounds-checks against the placeholder square grid; replaced once the REPL addresses real hex cells.
+                    if (qcx < 0 || qcy < 0 || qcx >= sk.GridSize || qcy >= sk.GridSize)
                     { Console.WriteLine("cell out of range"); break; }
                     var cell = sk.CellAt(qcx, qcy);
                     string owner = cell.OwnerPolityId >= 0 ? sk.Polities[cell.OwnerPolityId].Name : "unclaimed";
@@ -134,7 +135,8 @@ public sealed class Repl
     /// <summary>Row width for the linear hex walk: full galaxy width when a galaxy is
     /// loaded (find/stats would otherwise only ever sample the leftmost sector band),
     /// classic 32-hex sector width in flatspace.</summary>
-    private int WalkWidth => _galaxy?.Config.WidthHexes ?? SectorWidth;
+#warning HEXMIGRATION: WalkWidth approximates the old rectangular WidthHexes from GalaxyRadiusCells so goto/next/prev/find/stats keep compiling; the linear x,y walk itself is replaced by a hex-native walk (e.g. HexGrid.Spiral) in its own task.
+    private int WalkWidth => _galaxy != null ? _galaxy.Config.GalaxyRadiusCells * 2 + 1 : SectorWidth;
 
     private void Step(int dir)
     {

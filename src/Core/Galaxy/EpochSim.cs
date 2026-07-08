@@ -28,12 +28,13 @@ public static class EpochSim
     private static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
         s.Cells.Where(c => c.OwnerPolityId == p.Id).ToList();
 
+#warning HEXMIGRATION: adjacency walks the placeholder square grid (4-neighbor rectangular), not the hex lattice; replaced when the sim moves onto real hex cells.
     private static IEnumerable<RegionCell> Adjacent(GalaxySkeleton s, RegionCell cell)
     {
         if (cell.Cx > 0) yield return s.CellAt(cell.Cx - 1, cell.Cy);
-        if (cell.Cx < s.Config.CellsX - 1) yield return s.CellAt(cell.Cx + 1, cell.Cy);
+        if (cell.Cx < s.GridSize - 1) yield return s.CellAt(cell.Cx + 1, cell.Cy);
         if (cell.Cy > 0) yield return s.CellAt(cell.Cx, cell.Cy - 1);
-        if (cell.Cy < s.Config.CellsY - 1) yield return s.CellAt(cell.Cx, cell.Cy + 1);
+        if (cell.Cy < s.GridSize - 1) yield return s.CellAt(cell.Cx, cell.Cy + 1);
     }
 
     internal static double Affinity(SpeciesProfile species, RegionCell cell)

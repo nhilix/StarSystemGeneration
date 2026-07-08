@@ -9,7 +9,7 @@ namespace StarGen.Core.Tests.Galaxy;
 public class SerializerTests
 {
     private static GalaxySkeleton Build(ulong seed = 42) =>
-        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, SizeSectors = 4 });
+        SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = 4 });
 
     [Fact]
     public void SameConfig_ByteIdenticalSerialization()
@@ -73,7 +73,7 @@ public class SerializerTests
     {
         // Golden guard against unintended drift (spec §10). If this fails because of an
         // INTENTIONAL generation change, update the literal and say so in the commit.
-        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, SizeSectors = 2 });
+        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 2 });
         var lines = SkeletonSerializer.ToText(s).Split('\n');
         Assert.Equal("STARGEN-SKELETON|1", lines[0].TrimEnd('\r'));
         // Golden facts recorded at implementation time — fill the two literals with the

@@ -1,3 +1,4 @@
+using System.Linq;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 using Xunit;
@@ -12,9 +13,8 @@ public class DensityFieldTests
     public void At_IsDeterministic_AndBounded()
     {
         var config = Config();
-        for (int i = 0; i < 500; i++)
+        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 40).Where((_, i) => i % 7 == 0))
         {
-            var hex = new HexCoordinate((i * 13) % config.WidthHexes, (i * 29) % config.HeightHexes);
             var v = DensityField.At(config, hex);
             Assert.Equal(v, DensityField.At(config, hex));
             Assert.InRange(v, 0.0, 1.0);
@@ -22,28 +22,25 @@ public class DensityFieldTests
     }
 
     [Fact]
-    public void BeyondRim_IsZero()
+    public void OutsideGalaxy_IsZero_AndNotInGalaxy()
     {
-        var config = Config();
-        Assert.Equal(0.0, DensityField.At(config, new HexCoordinate(0, 0)));
-        Assert.Equal(0.0, DensityField.At(config, new HexCoordinate(config.WidthHexes - 1, 0)));
+        var config = Config();   // radius 21 cells -> rim well inside |q| ~ 250
+        var far = new HexCoordinate(400, 0);
+        Assert.False(DensityField.InGalaxy(config, far));
+        Assert.Equal(0.0, DensityField.At(config, far));
+        Assert.True(DensityField.InGalaxy(config, new HexCoordinate(0, 0)));
     }
 
     [Fact]
     public void Core_IsDenserThanMidDisc()
     {
         var config = Config();
-        var center = new HexCoordinate(config.WidthHexes / 2, config.HeightHexes / 2);
-        double Avg(HexCoordinate c, int radius)
-        {
-            double sum = 0; int n = 0;
-            for (int dx = -radius; dx <= radius; dx += 2)
-                for (int dy = -radius; dy <= radius; dy += 2)
-                { sum += DensityField.At(config, new HexCoordinate(c.Q + dx, c.R + dy)); n++; }
-            return sum / n;
-        }
-        double coreAvg = Avg(center, 8);
-        double midAvg = Avg(new HexCoordinate(center.Q + config.WidthHexes / 3, center.R), 8);
+        double Avg(HexCoordinate center) =>
+            HexGrid.Spiral(center, 6).Average(h => DensityField.At(config, h));
+        // mid-disc reference: a hex roughly 60% of the way to the rim along +q
+        int midQ = (int)(0.6 * 2.0 / 3.0 * DensityField.WorldRimRadius(config));
+        double coreAvg = Avg(new HexCoordinate(0, 0));
+        double midAvg = Avg(new HexCoordinate(midQ, -midQ / 2));
         Assert.True(coreAvg > midAvg, $"core {coreAvg:F3} should exceed mid-disc {midAvg:F3}");
     }
 
@@ -51,16 +48,17 @@ public class DensityFieldTests
     public void MeanInsideDisc_NearTarget()
     {
         var config = Config();
+        double rim = DensityField.WorldRimRadius(config);
         double sum = 0; int count = 0;
-        for (int x = 0; x < config.WidthHexes; x += 4)
-            for (int y = 0; y < config.HeightHexes; y += 4)
-            {
-                double nx = (x - config.WidthHexes / 2.0) / (config.WidthHexes / 2.0);
-                double ny = (y - config.HeightHexes / 2.0) / (config.HeightHexes / 2.0);
-                if (nx * nx + ny * ny > 0.81) continue;   // inside the disc only
-                sum += DensityField.At(config, new HexCoordinate(x, y));
-                count++;
-            }
+        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 230).Where((_, i) => i % 16 == 0))
+        {
+            var (wx, wy) = HexGrid.HexToWorld(hex);
+            if (System.Math.Sqrt(wx * wx + wy * wy) > 0.9 * rim) continue;
+            if (!DensityField.InGalaxy(config, hex)) continue;
+            sum += DensityField.At(config, hex);
+            count++;
+        }
+        Assert.True(count > 3000, $"sample too small: {count}");
         Assert.InRange(sum / count, config.MeanDensityTarget - 0.12, config.MeanDensityTarget + 0.12);
     }
 }

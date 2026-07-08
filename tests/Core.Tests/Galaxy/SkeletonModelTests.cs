@@ -10,9 +10,9 @@ public class SkeletonModelTests
     [Fact]
     public void Skeleton_CellLookups_Work()
     {
-        var config = new GalaxyConfig { MasterSeed = 1, SizeSectors = 2 };  // 8x8 cells
+        var config = new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 2 };  // placeholder 5x5 grid
         var skeleton = new GalaxySkeleton(config);
-        Assert.Equal(config.CellsX * config.CellsY, skeleton.Cells.Length);
+        Assert.Equal(skeleton.GridSize * skeleton.GridSize, skeleton.Cells.Length);
         var cell = skeleton.CellAt(3, 5);
         Assert.Equal(3, cell.Cx);
         Assert.Equal(5, cell.Cy);

@@ -18,9 +18,7 @@ public sealed class RegionContext
     {
         if (galaxy.IsFlatspace || galaxy.Skeleton == null) return null;
         var s = galaxy.Skeleton;
-        if (hex.Q < 0 || hex.R < 0
-            || hex.Q >= galaxy.Config.WidthHexes || hex.R >= galaxy.Config.HeightHexes)
-            return null;
+        if (!DensityField.InGalaxy(galaxy.Config, hex)) return null;
         var cell = s.CellForHex(hex);
 
         var region = new RegionContext
@@ -62,10 +60,11 @@ public sealed class RegionContext
     /// <summary>Bilinear over the 4 nearest cell centers (spec §8 smoothing).</summary>
     private static double InterpolatedSettlementScale(GalaxySkeleton s, HexCoordinate hex)
     {
+#warning HEXMIGRATION: bilinear neighbor-cell clamp uses the placeholder square grid; the hex-native settlement-scale lookup lands with the RegionContext rewrite.
         double CellScale(int cx, int cy)
         {
-            cx = Math.Clamp(cx, 0, s.Config.CellsX - 1);
-            cy = Math.Clamp(cy, 0, s.Config.CellsY - 1);
+            cx = Math.Clamp(cx, 0, s.GridSize - 1);
+            cy = Math.Clamp(cy, 0, s.GridSize - 1);
             var cell = s.CellAt(cx, cy);
             if (cell.OwnerPolityId >= 0) return 1.0 + 0.8 * cell.DevelopmentTier;
             return cell.WarScarred ? 0.4 : 1.0;
