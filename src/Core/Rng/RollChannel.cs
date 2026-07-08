@@ -40,7 +40,7 @@ public enum RollChannel : ulong
     HomeworldPlacement = 30,
     SpeciesEmbodiment = 31,
     SpeciesTemperament = 32,   // subIndex = temperament axis ordinal
-    SimExpansion = 33,         // index = epoch, subIndex = polity id
+    SimExpansion = 33,         // reserved - stage-1 expansion is roll-free; value must not be reused
     SimDevelopment = 34,       // index = epoch, subIndex = cell linear index
     SimWar = 35,               // index = epoch, subIndex = polity id
 }
