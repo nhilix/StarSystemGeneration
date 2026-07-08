@@ -150,14 +150,27 @@ come from read-time interpolation, never finer sim resolution.
    configurable traversability density threshold; **chokepoints are articulation
    cells** of that graph (removing them disconnects regions). Their strategic value
    feeds the sim (§7.1).
-2. **Climate & composition summary** — noise-driven cell-level leans over world
-   character: ice-heavy, ocean-rich, mineral-dense, biosphere-fertile, etc. (own
-   noise channels, same hash machinery as Tier 1). This layer exists because
-   species-relative terrain (§6.1) and Provisions production (§7.1) both require
-   world composition to *vary spatially* — Phase 1's uniform body tables would
-   otherwise make every cell look identical to every species. It is consumed twice:
-   by the sim as terrain, and by hex generation as **natural modifier bundles** that
-   bias body-kind/biosphere rolls per cell (§8).
+2. **Stellar-population & metallicity summary** — noise-driven cell-level leans
+   (own noise channels, same hash machinery as Tier 1) over two physically-grounded
+   axes: **stellar population** (young/bright regions, old/dim regions,
+   remnant-heavy graveyards — biases on the star-type table's weights) and
+   **metallicity** (biases on mineral-anchor placement and planetoid-belt weights;
+   metal-poor regions are resource deserts). This layer exists because
+   species-relative terrain (§6.1) and Provisions production (§7.1) require world
+   composition to *vary spatially* — but it deliberately does **not** paint body
+   kinds or biospheres directly. World character *emerges* through Phase 1's
+   existing causality: star type → orbit slots and habitable-band placement → band-
+   modified body/ice/atmosphere/biosphere odds. Dim-star cells really are icier,
+   remnant graveyards really are dead, bright main-sequence cells really do produce
+   more habitable-band ocean worlds — the fudge is only "stellar populations
+   cluster spatially," which is true astrophysics (arms, cores, star-forming
+   clouds). Consumed twice: by the sim as species-relative terrain (each
+   embodiment's expansion costs read the cell's expected world mix — aquatics favor
+   bright-star cells, cryophiles the dim reaches, lithics the metal-rich belts),
+   and by hex generation as the natural modifier bundle biasing star-type and
+   belt/anchor rolls per cell (§8). Biosphere fertility gets no dial of its own —
+   it falls out of habitable-band frequency; add one only if the sim proves to need
+   more Provisions variance.
 3. **Resource anchors** — strategic features placed as **anchored hexes**: the
    skeleton picks a specific hex in a cell (hash-draw from cell coordinates) and
    records what must be true there. Anchor types are a closed, versioned vocabulary —
@@ -294,7 +307,8 @@ Three strategic goods plus abstract wealth, each map-legible:
 | **Ore** | mineral anchors, asteroid-dense cells | development slows, military stockpile decays |
 | **Exotics** | precursor sites, anomaly cells | tech stagnation; the scarcest and most fought-over |
 
-Each cell's production profile (from the climate & composition summary, §5 pass 2) +
+Each cell's production profile (derived from the stellar-population & metallicity
+summary, §5 pass 2 — expected world mix → provisions/ore/exotics potential) +
 **route throughput** + strategic position (chokepoint status) composes its **system
 value** — and value is what wars are about. Income phase: surpluses flow along the
 trade graph to deficits; complementary economies mechanically strengthen relations
@@ -457,10 +471,13 @@ Hex generation resolves its region cell (+ neighbors) into a **RegionContext**:
 
 1. **Modifier bundle (soft influence)** — pure functions of cell state, in two
    strictly separated groups:
-   - **Natural modifiers** (from the climate & composition summary, §5 pass 2):
-     body-kind and biosphere roll biases per cell — ice-heavy cells roll more ice
-     worlds, fertile cells richer biospheres. This is nature varying spatially, and
-     it is what makes the sim's species-relative terrain visible on the ground.
+   - **Natural modifiers** (from the stellar-population & metallicity summary, §5
+     pass 2): star-type table biases and belt/mineral-anchor biases per cell —
+     never direct body-kind or biosphere painting. Downstream world character
+     (icier dim-star cells, dead remnant graveyards, ocean-world-rich bright cells)
+     emerges through the existing star → band → body causality. This is nature
+     varying spatially, and it is what makes the sim's species-relative terrain
+     visible on the ground.
    - **Political modifiers** (from sim state):
      - *Settlement odds* scale with development tier and polity presence (heartland
        ↑↑, unclaimed wilds ≈ baseline frontier rates, dead zones ≈ 0).
