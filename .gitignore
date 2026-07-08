@@ -482,6 +482,11 @@ $RECYCLE.BIN/
 *.swp
 
 # --- Unity project (unity/) ---
+# un-ignore Unity meta files (the dotnet template's *.meta above would
+# swallow them; Unity needs them committed - they carry asset GUIDs)
+!unity/**/*.meta
+!src/Core/**/*.meta
+
 unity/Library/
 unity/Temp/
 unity/Logs/
