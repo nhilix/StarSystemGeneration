@@ -253,7 +253,7 @@ public static class HexGrid
 - Test: append to `tests/Core.Tests/Galaxy/HexGridTests.cs`
 
 **Interfaces:**
-- Produces: `static (double X, double Y) HexToWorld(HexCoordinate h)` — flat-top unit-size matrix `x = 1.5*q`, `y = sqrt(3)*(r + q/2.0)`; `static HexCoordinate WorldToHex(double x, double y)` — inverse via fractional axial + cube rounding; `static (int Col, int Row) ToOffset(HexCoordinate h)` — odd-q: `col = q`, `row = r + (q - (q & 1)) / 2`; `static HexCoordinate FromOffset(int col, int row)` — inverse. (Offset is presentation-only, spec §2.)
+- Produces: `static (double X, double Y) HexToWorld(HexCoordinate h)` — flat-top unit-size matrix `x = 1.5*q`, `y = sqrt(3)*(r + q/2.0)`; `static HexCoordinate WorldToHex(double x, double y)` — inverse via fractional axial + cube rounding; `static (int Col, int Row) ToOffset(HexCoordinate h)` — odd-q: `col = q`, `row = r + (q - (q & 1)) / 2`; `static HexCoordinate FromOffset(int col, int row)` — inverse. (Offset is presentation-only, spec §2.) Also `static readonly (double X, double Y)[] CornerOffsets` — six flat-top unit-hex corner offsets (corner 0 due east, CCW), the atlas's mesh-vertex source.
 
 - [ ] **Step 1: Write the failing tests** — append to `HexGridTests`:
 
@@ -301,9 +301,30 @@ public static class HexGrid
         var y1 = HexGrid.HexToWorld(new HexCoordinate(1, 0)).Y;
         Assert.True(y1 > y0, "odd columns stagger downward in world space");
     }
+
+    [Fact]
+    public void Corners_SixUnitOffsets_SharedBetweenNeighbors()
+    {
+        Assert.Equal(6, HexGrid.CornerOffsets.Length);
+        // flat-top: first corner due east at unit distance, 60° apart
+        Assert.Equal(1.0, HexGrid.CornerOffsets[0].X, 9);
+        Assert.Equal(0.0, HexGrid.CornerOffsets[0].Y, 9);
+        foreach (var (x, y) in HexGrid.CornerOffsets)
+            Assert.Equal(1.0, System.Math.Sqrt(x * x + y * y), 9);
+        // adjacent hexes share exactly two corner positions
+        var a = HexGrid.HexToWorld(new HexCoordinate(0, 0));
+        var b = HexGrid.HexToWorld(new HexCoordinate(1, 0));
+        int shared = 0;
+        foreach (var ca in HexGrid.CornerOffsets)
+            foreach (var cb in HexGrid.CornerOffsets)
+                if (System.Math.Abs(a.X + ca.X - (b.X + cb.X)) < 1e-9
+                    && System.Math.Abs(a.Y + ca.Y - (b.Y + cb.Y)) < 1e-9)
+                    shared++;
+        Assert.Equal(2, shared);
+    }
 ```
 
-- [ ] **Step 2: Run** — `dotnet test --filter HexGridTests` — Expected: 3 new FAIL.
+- [ ] **Step 2: Run** — `dotnet test --filter HexGridTests` — Expected: 4 new FAIL.
 
 - [ ] **Step 3: Implement** — append to `HexGrid`:
 
@@ -338,12 +359,29 @@ public static class HexGrid
 
     public static HexCoordinate FromOffset(int col, int row) =>
         new(col, row - (col - (col & 1)) / 2);
+
+    /// <summary>The six corner offsets of a flat-top unit hex, corner 0 due east,
+    /// counter-clockwise 60° apart. Add to HexToWorld(hex) for mesh vertices —
+    /// the atlas builds its triangulation from exactly these (single geometry
+    /// authority, atlas spec §2).</summary>
+    public static readonly (double X, double Y)[] CornerOffsets = BuildCorners();
+
+    private static (double X, double Y)[] BuildCorners()
+    {
+        var corners = new (double X, double Y)[6];
+        for (int i = 0; i < 6; i++)
+        {
+            double angle = Math.PI / 3.0 * i;   // flat-top: corner 0 at 0°
+            corners[i] = (Math.Cos(angle), Math.Sin(angle));
+        }
+        return corners;
+    }
 ```
 
 Note on `(q & 1)` with negative q in C#: `-3 & 1 == 1`, so odd negative columns
 stagger identically to odd positive ones — the round-trip test covers negatives.
 
-- [ ] **Step 4: Run** — `dotnet test --filter HexGridTests` — Expected: PASS (8 tests). Full suite green.
+- [ ] **Step 4: Run** — `dotnet test --filter HexGridTests` — Expected: PASS (9 tests). Full suite green.
 
 - [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: hex world transforms and odd-q offset conversions"`
 
@@ -440,7 +478,7 @@ stagger identically to odd positive ones — the round-trip test covers negative
     }
 ```
 
-- [ ] **Step 4: Run** — `dotnet test --filter HexGridTests` — Expected: PASS (11 tests). Full suite green.
+- [ ] **Step 4: Run** — `dotnet test --filter HexGridTests` — Expected: PASS (12 tests). Full suite green.
 
 - [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: 91-hex superhex cluster assignment"`
 
