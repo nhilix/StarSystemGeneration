@@ -148,4 +148,23 @@ public class SeedingPassTests
         Assert.True(Count(rich, AnchorType.MineralRich) > Count(stock, AnchorType.MineralRich));
         Assert.True(Count(rich, AnchorType.PrecursorSite) > Count(stock, AnchorType.PrecursorSite));
     }
+
+    [Fact]
+    public void BuildShape_MatchesFullBuildDensities_AndSkipsSim()
+    {
+        var config = new GalaxyConfig { MasterSeed = 5, GalaxyRadiusCells = 8 };
+        var shape = SkeletonBuilder.BuildShape(config);
+        var full = SkeletonBuilder.Build(config);
+
+        Assert.Equal(full.Cells.Count, shape.Cells.Count);
+        for (int i = 0; i < full.Cells.Count; i++)
+        {
+            Assert.Equal(full.Cells[i].MeanDensity, shape.Cells[i].MeanDensity);
+            Assert.Equal(full.Cells[i].IsVoid, shape.Cells[i].IsVoid);
+        }
+        Assert.Empty(shape.Species);
+        Assert.Empty(shape.Polities);
+        Assert.Empty(shape.Events);
+        Assert.All(shape.Cells, c => Assert.Empty(c.Anchors));
+    }
 }

@@ -14,13 +14,22 @@ public static class SkeletonBuilder
 {
     public static GalaxySkeleton Build(GalaxyConfig config)
     {
-        var skeleton = new GalaxySkeleton(config);
-        PassDensitySummary(skeleton);
-        // PASSES (later tasks append here, in order):
+        var skeleton = BuildShape(config);
         PassStellarPopulation(skeleton);
         PassResourceAnchors(skeleton);
         PassHomeworlds(skeleton);
         EpochSim.Run(skeleton);
+        return skeleton;
+    }
+
+    /// <summary>Skeleton with cell densities/void/chokepoint marks only — no anchors,
+    /// homeworlds, or history. The cheap path behind the atlas setup live preview;
+    /// PassDensitySummary here is the same pass Build runs, so a preview's density
+    /// layer is pixel-identical to the same config's full build (setup-knobs spec §4.1).</summary>
+    public static GalaxySkeleton BuildShape(GalaxyConfig config)
+    {
+        var skeleton = new GalaxySkeleton(config);
+        PassDensitySummary(skeleton);
         return skeleton;
     }
 
