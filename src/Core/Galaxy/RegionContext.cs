@@ -17,18 +17,15 @@ public sealed class RegionContext
     public static RegionContext? For(GalaxyContext galaxy, HexCoordinate hex)
     {
         if (galaxy.IsFlatspace || galaxy.Skeleton == null) return null;
-        var s = galaxy.Skeleton;
         if (!DensityField.InGalaxy(galaxy.Config, hex)) return null;
-        // The dictionary-backed cell store (Task 5) indexes negative-coordinate hexes
-        // fine, so the old defensive early-return is gone: InGalaxy already guarantees
-        // CellForHex resolves to a cell that exists.
+        var s = galaxy.Skeleton;
         var cell = s.CellForHex(hex);
 
         var region = new RegionContext
         {
             StarTypeModifier = LeanModifier(cell.Lean),
             BeltModifier = k => k == BodyKind.PlanetoidBelt ? 0.5 + cell.Metallicity : 1.0,
-            SettlementScale = InterpolatedSettlementScale(s, hex),
+            SettlementScale = SmoothedSettlementScale(s, hex, cell),
             OwnerPolityId = cell.OwnerPolityId,
             WarScarred = cell.WarScarred,
         };
@@ -60,11 +57,28 @@ public sealed class RegionContext
         _ => _ => 1.0,
     };
 
-#warning HEXMIGRATION: bilinear 4-neighbor-cell smoothing removed pending hex-native geometry (the old square-grid cell-center math no longer applies); settlement scale currently reads only the hex's own cell, no interpolation, until the RegionContext rewrite (Task 8).
-    private static double InterpolatedSettlementScale(GalaxySkeleton s, HexCoordinate hex)
+    /// <summary>Inverse-distance weighting over the hex's own cell + its existing
+    /// lattice neighbors (spec §5) — smoother than bilinear, no corner cases.</summary>
+    private static double SmoothedSettlementScale(GalaxySkeleton s, HexCoordinate hex, RegionCell own)
     {
-        var cell = s.CellForHex(hex);
-        if (cell.OwnerPolityId >= 0) return 1.0 + 0.8 * cell.DevelopmentTier;
-        return cell.WarScarred ? 0.4 : 1.0;
+        var (hx, hy) = HexGrid.HexToWorld(hex);
+        double weightSum = 0, scaleSum = 0;
+
+        void Accumulate(RegionCell cell)
+        {
+            var (cx, cy) = HexGrid.HexToWorld(HexGrid.CellCenter(cell.Coord));
+            double dist = Math.Sqrt((hx - cx) * (hx - cx) + (hy - cy) * (hy - cy));
+            double weight = 1.0 / (1.0 + dist);
+            double cellScale = cell.OwnerPolityId >= 0 ? 1.0 + 0.8 * cell.DevelopmentTier
+                : cell.WarScarred ? 0.4 : 1.0;
+            weightSum += weight;
+            scaleSum += weight * cellScale;
+        }
+
+        Accumulate(own);
+        foreach (var neighborCoord in HexGrid.Neighbors(own.Coord))
+            if (s.TryGetCell(neighborCoord, out var neighbor))
+                Accumulate(neighbor);
+        return scaleSum / weightSum;
     }
 }

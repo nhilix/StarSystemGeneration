@@ -47,5 +47,5 @@ public class PresenceTests
 
     [Fact]
     public void Designation_Format() =>
-        Assert.Equal("SGC 0012-0034", Designation.For(new HexCoordinate(12, 34)));
+        Assert.Equal("SGC 2060-2082", Designation.For(new HexCoordinate(12, 34)));
 }
