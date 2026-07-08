@@ -74,9 +74,7 @@ TODO: diagram of Core ↔ Presentation data flow once the interface shape is dec
 Hierarchy (top to bottom): **Galaxy → Sector → Subsector → Hex (System) → Star →
 Orbit → Body (World / Gas Giant / Planetoid Belt) → Satellite**.
 
-The galaxy/sector/subsector/hex spatial layer mirrors Traveller's canonical sector
-structure (a sector is 32×40 hexes, divided into sixteen 8×10 subsectors) as a spatial
-convention only. The star/orbit/body/satellite layer's fields are defined in the
+The spatial layer is hexagonal at every level (hex geometry spec): star hexes on an axial flat-top grid with 6-neighbor adjacency, aggregated into 91-hex hexagonal region cells whose centers form a coarser hex lattice, composing an origin-centered hexagonal galaxy disc (GalaxyRadiusCells, default 21 ≈ 126k hexes). The earlier Traveller sector/subsector convention is retired; the zoom ladder is galaxy → cell → hex. The star/orbit/body/satellite layer's fields are defined in the
 generation rules spec below, using original terminology (no Traveller UWP codes).
 
 Field-level detail for System / Star / Orbit slot / Body / Society stats / Satellite:
@@ -110,9 +108,8 @@ ratings, trade-route data, and region-varying stellar density.
    *Done when:* any `(seed, coordinate)` shown in the REPL renders identically-
    structured in Unity — same bodies, same stats in the inspect panel — with no
    generation logic in the Unity project.
-3. **Sector/subsector map** — hex grid navigation, lazy per-hex generation, system
-   summary icons, drill-down into system view. Proves on-demand generation + caching.
-   *Done when:* panning a full sector (1,280 hexes) is smooth on first visit
+3. **Cell map** — hex-lattice navigation, lazy per-hex generation, system summary icons, drill-down into system view (delivered with the Unity atlas). Proves on-demand generation + caching.
+   *Done when:* panning a full cell neighborhood (~1,000 hexes) is smooth on first visit
    (generation is lazy and fast enough) and revisiting hexes is visibly identical.
 4. **Galaxy scale** — multiple sectors, camera/LOD across galaxy → sector → system,
    persistence of GalaxyConfig + the galaxy structure artifact + deltas (regional spec §3.1).
