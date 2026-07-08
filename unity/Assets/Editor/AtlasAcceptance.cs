@@ -85,7 +85,9 @@ namespace StarGen.UnityEditorTools
 
         private static void SetLayer(int index)
         {
-            var toggles = UiRoot().Query<Toggle>().ToList();
+            // Scoped to the HUD row: Foldout headers elsewhere in the tree are
+            // also Toggles, so an unscoped query would index the wrong controls.
+            var toggles = UiRoot().Q("layer-toggle-row").Query<Toggle>().ToList();
             toggles[index].value = true;
             Debug.Log($"[Acceptance] layer -> {toggles[index].label}");
         }

@@ -18,8 +18,9 @@ history are tweakable at generation time. The setup screen additionally shows a
 the full seeding + epoch simulation still runs only when Generate is clicked.
 
 **Invariant:** all new config fields default to the exact values of today's
-constants — a default-config galaxy is bit-identical to one generated before
-this change (same seed → same skeleton artifact text).
+constants — a default-config galaxy's generated content is bit-identical to one
+generated before this change (same seed → same cells, polities, anchors, and
+events; the artifact's header and CONFIG line are necessarily extended per §5).
 
 ## 2. Goals / Non-Goals
 
