@@ -1,3 +1,4 @@
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 using StarGen.Core.Naming;
 using StarGen.Core.Overlays;
@@ -7,18 +8,24 @@ namespace StarGen.Core.Generation;
 
 public static class Generator
 {
-    /// <summary>Baseline stellar density (spec §4 stage 0). Tunable.</summary>
+    /// <summary>Flatspace stellar density (spec §4 stage 0 of the Phase 1 spec). Tunable.</summary>
     public const double StellarDensity = 0.5;
 
-    public static HexResult Generate(ulong masterSeed, HexCoordinate coord)
-    {
-        var ctx = new RollContext(masterSeed, coord);
+    /// <summary>Legacy Phase 1 signature — exactly flatspace (regional spec §8).</summary>
+    public static HexResult Generate(ulong masterSeed, HexCoordinate coord) =>
+        Generate(GalaxyContext.Flatspace(masterSeed), coord);
 
-        if (ctx.NextDouble(RollChannel.Presence) >= StellarDensity)
+    public static HexResult Generate(GalaxyContext galaxy, HexCoordinate coord)
+    {
+        var ctx = new RollContext(galaxy.Config.MasterSeed, coord);
+
+        double presenceThreshold = galaxy.IsFlatspace
+            ? StellarDensity
+            : DensityField.At(galaxy.Config, coord);
+        if (ctx.NextDouble(RollChannel.Presence) >= presenceThreshold)
             return new HexResult(coord, null);
 
         var system = new StarSystem(Designation.For(coord));
-        // PIPELINE (later tasks append stages here, in order):
         StarGenerator.Generate(ctx, system);
         BodyGenerator.Generate(ctx, system);
         SocietyGenerator.Generate(ctx, system);
