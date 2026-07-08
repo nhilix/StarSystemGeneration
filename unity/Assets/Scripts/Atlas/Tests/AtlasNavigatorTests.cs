@@ -64,5 +64,62 @@ namespace StarGen.Atlas.Tests
             Assert.AreEqual(new HexCoordinate(0, 1), nav.SelectedCell);
             Assert.IsNull(nav.SelectedHex);
         }
+
+        [Test]
+        public void EnterSystem_FromCellWithHex_LandsOnSystemScreen()
+        {
+            var nav = new AtlasNavigator();
+            nav.EnterGalaxy();
+            nav.DrillToCell(new HexCoordinate(1, 0));
+            nav.SelectHex(new HexCoordinate(11, -5));
+            nav.EnterSystem();
+            Assert.AreEqual(AtlasScreen.System, nav.Screen);
+            Assert.AreEqual(new HexCoordinate(11, -5), nav.SelectedHex);
+            Assert.AreEqual(new HexCoordinate(1, 0), nav.SelectedCell);
+        }
+
+        [Test]
+        public void EnterSystem_Throws_OffCellOrWithoutHex()
+        {
+            var nav = new AtlasNavigator();
+            Assert.Throws<System.InvalidOperationException>(() => nav.EnterSystem());
+            nav.EnterGalaxy();
+            Assert.Throws<System.InvalidOperationException>(() => nav.EnterSystem());
+            nav.DrillToCell(new HexCoordinate(1, 0));
+            Assert.Throws<System.InvalidOperationException>(() => nav.EnterSystem());   // no hex
+            nav.SelectHex(new HexCoordinate(11, -5));
+            nav.EnterSystem();
+            Assert.Throws<System.InvalidOperationException>(() => nav.EnterSystem());   // already there
+        }
+
+        [Test]
+        public void Back_FromSystem_ReturnsToCell_KeepingHexSelection()
+        {
+            var nav = new AtlasNavigator();
+            nav.EnterGalaxy();
+            nav.DrillToCell(new HexCoordinate(1, 0));
+            nav.SelectHex(new HexCoordinate(11, -5));
+            nav.EnterSystem();
+            nav.Back();
+            Assert.AreEqual(AtlasScreen.Cell, nav.Screen);
+            Assert.AreEqual(new HexCoordinate(11, -5), nav.SelectedHex);   // panel context survives
+            nav.Back();   // now clears the hex, per existing behavior
+            Assert.IsNull(nav.SelectedHex);
+            Assert.AreEqual(AtlasScreen.Cell, nav.Screen);
+        }
+
+        [Test]
+        public void DrillToCell_FromSystem_ClearsHex_AndLandsOnCell()
+        {
+            var nav = new AtlasNavigator();
+            nav.EnterGalaxy();
+            nav.DrillToCell(new HexCoordinate(1, 0));
+            nav.SelectHex(new HexCoordinate(11, -5));
+            nav.EnterSystem();
+            nav.DrillToCell(new HexCoordinate(1, 0));   // breadcrumb "Cell" crumb path
+            Assert.AreEqual(AtlasScreen.Cell, nav.Screen);
+            Assert.IsNull(nav.SelectedHex);
+            Assert.AreEqual(new HexCoordinate(1, 0), nav.SelectedCell);
+        }
     }
 }

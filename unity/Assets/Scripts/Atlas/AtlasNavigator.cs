@@ -3,7 +3,7 @@ using StarGen.Core.Model;
 
 namespace StarGen.Atlas
 {
-    public enum AtlasScreen { Setup, Galaxy, Cell }
+    public enum AtlasScreen { Setup, Galaxy, Cell, System }
 
     /// <summary>Pure drill-down state (atlas spec §3): Setup → Galaxy → Cell (+ hex
     /// selection). No Unity types — fully edit-mode testable.</summary>
@@ -24,7 +24,8 @@ namespace StarGen.Atlas
 
         public void DrillToCell(HexCoordinate cellCoord)
         {
-            if (Screen != AtlasScreen.Galaxy && Screen != AtlasScreen.Cell)
+            if (Screen != AtlasScreen.Galaxy && Screen != AtlasScreen.Cell
+                && Screen != AtlasScreen.System)
                 throw new InvalidOperationException($"cannot drill to a cell from {Screen}");
             Screen = AtlasScreen.Cell;
             SelectedCell = cellCoord;
@@ -40,6 +41,14 @@ namespace StarGen.Atlas
             Changed?.Invoke();
         }
 
+        public void EnterSystem()
+        {
+            if (Screen != AtlasScreen.Cell || SelectedHex == null)
+                throw new InvalidOperationException($"cannot enter a system from {Screen}");
+            Screen = AtlasScreen.System;
+            Changed?.Invoke();
+        }
+
         public void ClearHexSelection()
         {
             SelectedHex = null;
@@ -48,7 +57,8 @@ namespace StarGen.Atlas
 
         public void Back()
         {
-            if (SelectedHex != null) { SelectedHex = null; }
+            if (Screen == AtlasScreen.System) { Screen = AtlasScreen.Cell; }   // hex survives
+            else if (SelectedHex != null) { SelectedHex = null; }
             else if (Screen == AtlasScreen.Cell) { Screen = AtlasScreen.Galaxy; SelectedCell = null; }
             else if (Screen == AtlasScreen.Galaxy) { Screen = AtlasScreen.Setup; }
             else return;   // Setup: no-op, no event
