@@ -130,7 +130,7 @@ public static class SkeletonBuilder
 
             if (!cell.IsVoid)
             {
-                double mineralChance = 0.10 + 0.25 * cell.Metallicity;
+                double mineralChance = (0.10 + 0.25 * cell.Metallicity) * config.MineralAnchorMultiplier;
                 if (ctx.NextDouble(RollChannel.AnchorKind, 0) < mineralChance)
                     cell.Anchors.Add(new Anchor
                     {
@@ -140,7 +140,8 @@ public static class SkeletonBuilder
             }
 
             // Precursor sites roll everywhere — a site deep in a void is a story (spec §5).
-            double precursorChance = 0.02 + (cell.Lean == StellarLean.RemnantGraveyard ? 0.02 : 0.0);
+            double precursorChance = (0.02 + (cell.Lean == StellarLean.RemnantGraveyard ? 0.02 : 0.0))
+                                     * config.PrecursorAnchorMultiplier;
             if (ctx.NextDouble(RollChannel.AnchorKind, 1) < precursorChance)
                 cell.Anchors.Add(new Anchor
                 {

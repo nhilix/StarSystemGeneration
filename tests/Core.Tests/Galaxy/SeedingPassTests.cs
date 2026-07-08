@@ -122,4 +122,30 @@ public class SeedingPassTests
             Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);
         }
     }
+
+    [Fact]
+    public void AnchorMultipliers_ScaleAnchorCounts()
+    {
+        static GalaxySkeleton BuildWith(double mineral, double precursor) =>
+            SkeletonBuilder.Build(new GalaxyConfig
+            {
+                MasterSeed = 99, GalaxyRadiusCells = 8,
+                MineralAnchorMultiplier = mineral,
+                PrecursorAnchorMultiplier = precursor,
+            });
+
+        static int Count(GalaxySkeleton s, AnchorType type) =>
+            s.Cells.Sum(c => c.Anchors.Count(a => a.Type == type));
+
+        var stock = BuildWith(1.0, 1.0);
+        var none = BuildWith(0.0, 0.0);
+        var rich = BuildWith(3.0, 3.0);
+
+        Assert.Equal(0, Count(none, AnchorType.MineralRich));
+        Assert.Equal(0, Count(none, AnchorType.PrecursorSite));
+        // Fixed seed: a larger multiplier only raises thresholds against the
+        // same rolls, so rich anchors are a strict superset of stock's.
+        Assert.True(Count(rich, AnchorType.MineralRich) > Count(stock, AnchorType.MineralRich));
+        Assert.True(Count(rich, AnchorType.PrecursorSite) > Count(stock, AnchorType.PrecursorSite));
+    }
 }
