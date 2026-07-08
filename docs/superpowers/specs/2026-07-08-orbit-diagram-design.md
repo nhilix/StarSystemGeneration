@@ -105,12 +105,15 @@ public sealed class OrbitLayoutResult
 ```
 
 Constants (initial values; tunable during implementation, invariants below hold
-regardless): `R0 = 1.0`, `DR = 0.5` (ring spacing), primary star disc `0.28`,
-companion disc `0.16`, body disc `0.06 + 0.016 × Size`, moon disc `0.035` at
-parent radius `+ 0.09`, ring stroke `0.02`.
+regardless): `R0 = 1.0` (innermost gap), `DR = 0.5` (ring gap), primary star
+disc `0.28`, companion disc `0.16`, body disc `0.06 + 0.016 × Size`, moon disc
+`0.035` at parent radius `+ 0.09`, ring stroke `0.02`, `subDRmin = 0.11`
+(minimum companion sub-ring spacing).
 
-- **Primary** (the star with `CompanionSlotIndex == null`) sits at the origin;
-  its slot *i* ring has radius `R0 + i·DR`.
+- **Primary** (the star with `CompanionSlotIndex == null`) sits at the origin.
+  Ring radii are cumulative: ring *i* = ring *i−1* + the gap between slots
+  *i−1* and *i* (the innermost gap is `R0`). A gap is `DR` unless it is
+  adjacent to a companion slot (see below).
 - **Habitable annulus** per star spans the contiguous slots with
   `Band == Habitable`: inner = first hab ring − `0.45·DR`, outer = last hab ring
   + `0.45·DR` (companion bands use its sub-spacing). Stars with no habitable
@@ -123,11 +126,16 @@ parent radius `+ 0.09`, ring stroke `0.02`.
   no disc. Their pick target is a point on the ring at the slot angle with an
   enlarged pick radius.
 - **Companions:** a star with `CompanionSlotIndex = c` centers on the primary's
-  ring *c* at the hashed angle. Its sub-rings start outside its own disc:
-  `subDR = (0.9·DR − companionDisc) / (subSlotCount + 1)`, sub-ring *j* radius
-  `companionDisc + (j+1)·subDR` — so the innermost ring clears the star disc
-  and the outermost stays strictly under `0.9·DR`, never reaching the primary's
-  adjacent rings. Trinary = two companions, each on its own slot.
+  ring *c* at the hashed angle. Both gaps adjacent to slot *c* widen to
+  `DRc = max(2·DR, (companionDisc + (subSlotCount + 1)·subDRmin) / 0.9)` —
+  the companion's gravitational influence clears a swath of the primary's disc,
+  and the widening guarantees its sub-rings at least `subDRmin` spacing however
+  many slots it has. Sub-rings start outside the companion's disc:
+  `subDR = (0.9·DRc − companionDisc) / (subSlotCount + 1)`, sub-ring *j* radius
+  `companionDisc + (j+1)·subDR` — the innermost ring clears the star disc and
+  the outermost stays strictly under `0.9·DRc`, never reaching the primary's
+  adjacent rings. Trinary = two companions, each on its own slot, each widening
+  its own gaps.
 - **Pick targets:** every star, non-belt body, moon, and belt gets one; empty
   rings none. Pick radius = `max(discRadius × 1.6, 0.12)`.
 
@@ -214,9 +222,11 @@ automation-surface convention.
    yield element-wise identical results.
 3. *OrbitLayout geometry invariants* (hand-built systems incl. a trinary with a
    settled world, moons, a belt, and an empty slot): ring count = slot count
-   per star; primary radii strictly increasing; every body sits on its ring
+   per star; primary radii strictly increasing; non-companion gaps equal `DR`
+   and gaps adjacent to a companion slot ≥ `2·DR`; every body sits on its ring
    (|pos − center| = ring radius ± 1e-4); companion center lies on the primary's
-   `CompanionSlotIndex` ring; max companion sub-ring < `0.9·DR`; hab annulus
+   `CompanionSlotIndex` ring; max companion sub-ring < `0.9·DRc` and companion
+   sub-ring spacing ≥ `subDRmin`; hab annulus
    spans exactly the habitable rings; belt slots flagged, no belt disc; pick
    targets exist for every star/body/moon/belt and none for empty slots;
    `Bounds` contains all positions.
