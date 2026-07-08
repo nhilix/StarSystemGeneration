@@ -41,7 +41,7 @@ namespace StarGen.Atlas
         {
             try
             {
-                var service = new GalaxyService(seed, radius);
+                var service = new GalaxyService(new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = radius });
                 service.Build();
                 _service = service;
                 _seed = seed;

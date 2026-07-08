@@ -12,7 +12,7 @@ namespace StarGen.Atlas.Tests
     {
         private static GalaxyService Built()
         {
-            var service = new GalaxyService(42, 3);
+            var service = new GalaxyService(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 });
             service.Build();
             return service;
         }

@@ -13,10 +13,13 @@ namespace StarGen.Atlas
         private readonly GalaxyConfig _config;
         private GalaxyContext? _context;
 
-        public GalaxyService(ulong seed, int radiusCells) =>
-            _config = new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = radiusCells };
+        public GalaxyService(GalaxyConfig config) => _config = config;
 
         public long BuildMilliseconds { get; private set; }
+
+        /// <summary>True when the current skeleton came from BuildShapeOnly —
+        /// densities only; never ask a shape-only service for Generate/StateOf.</summary>
+        public bool IsShapeOnly { get; private set; }
 
         public GalaxyContext Context => _context
             ?? throw new InvalidOperationException("call Build() first");
@@ -29,6 +32,18 @@ namespace StarGen.Atlas
             var skeleton = SkeletonBuilder.Build(_config);
             timer.Stop();
             BuildMilliseconds = timer.ElapsedMilliseconds;
+            IsShapeOnly = false;
+            _context = new GalaxyContext(_config) { Skeleton = skeleton };
+        }
+
+        /// <summary>Cheap preview build for the setup screen (setup-knobs spec §6).</summary>
+        public void BuildShapeOnly()
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var skeleton = SkeletonBuilder.BuildShape(_config);
+            timer.Stop();
+            BuildMilliseconds = timer.ElapsedMilliseconds;
+            IsShapeOnly = true;
             _context = new GalaxyContext(_config) { Skeleton = skeleton };
         }
 

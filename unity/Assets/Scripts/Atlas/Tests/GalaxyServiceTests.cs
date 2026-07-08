@@ -9,7 +9,7 @@ namespace StarGen.Atlas.Tests
     {
         private static GalaxyService Built()
         {
-            var service = new GalaxyService(42, 3);
+            var service = new GalaxyService(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 });
             service.Build();
             return service;
         }
@@ -26,7 +26,7 @@ namespace StarGen.Atlas.Tests
         [Test]
         public void Skeleton_BeforeBuild_Throws()
         {
-            var service = new GalaxyService(42, 3);
+            var service = new GalaxyService(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 });
             Assert.Throws<System.InvalidOperationException>(() => _ = service.Skeleton);
         }
 
@@ -53,6 +53,27 @@ namespace StarGen.Atlas.Tests
             var summary = service.CellSummary(capital);
             StringAssert.Contains(polity.Name, summary);
             StringAssert.Contains(capital.Lean.ToString(), summary);
+        }
+
+        [Test]
+        public void ConfigCtor_Builds37Cells()
+        {
+            var service = new GalaxyService(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 });
+            service.Build();
+            Assert.AreEqual(37, service.Skeleton.Cells.Count);
+            Assert.IsFalse(service.IsShapeOnly);
+        }
+
+        [Test]
+        public void BuildShapeOnly_SetsFlag_AndMatchesCellCount()
+        {
+            var config = new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 3 };
+            var preview = new GalaxyService(config);
+            preview.BuildShapeOnly();
+            var full = new GalaxyService(config);
+            full.Build();
+            Assert.IsTrue(preview.IsShapeOnly);
+            Assert.AreEqual(full.Skeleton.Cells.Count, preview.Skeleton.Cells.Count);
         }
     }
 }
