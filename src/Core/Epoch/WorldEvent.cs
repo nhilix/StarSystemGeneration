@@ -25,7 +25,10 @@ public enum WorldEventType
 {
     // 0–99 cosmic · 100–199 evolutionary · 200–299 economic · 300–399 political
     // 400–499 military · 500–599 diplomatic · 600–699 corporate · 700–799 character
+    LaneOpened = 200,
+    PortTierRaised = 201,
     PolityEmerged = 300,
+    PortEstablished = 301,
 }
 
 public static class WorldEventTypes
@@ -47,6 +50,14 @@ public static class WorldEventTypes
 public abstract record EventPayload;
 
 public sealed record PolityEmergedPayload(string PolityName) : EventPayload;
+
+/// <summary>Claiming space is building a port (space-and-travel.md).</summary>
+public sealed record PortEstablishedPayload(string PolityName, int PortId) : EventPayload;
+
+/// <summary>Paired port infrastructure: the lane links two port registry ids.</summary>
+public sealed record LaneOpenedPayload(int PortAId, int PortBId) : EventPayload;
+
+public sealed record PortTierRaisedPayload(int PortId, int NewTier) : EventPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.

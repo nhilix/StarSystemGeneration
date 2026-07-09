@@ -10,6 +10,8 @@ public sealed class EpochSimConfig
     public SimKnobs Sim { get; } = new SimKnobs();
     public GenesisKnobs Genesis { get; } = new GenesisKnobs();
     public EconomyKnobs Economy { get; } = new EconomyKnobs();
+    public InfrastructureKnobs Infrastructure { get; } = new InfrastructureKnobs();
+    public ExpansionKnobs Expansion { get; } = new ExpansionKnobs();
 }
 
 /// <summary>Clock and stepping knobs (frame/time.md).</summary>
@@ -45,4 +47,45 @@ public sealed class EconomyKnobs
     public double StockpileDecayPerYear { get; set; } = 0.002;
     /// <summary>Provisions consumed per population unit per world-year — the famine dial.</summary>
     public double ProvisionsPerPopPerYear { get; set; } = 0.01;
+}
+
+/// <summary>Port/lane physical knobs (frame/space-and-travel.md). Radii and
+/// ranges in hexes; the two port growth axes — local service radius and
+/// inter-port range — step per tier, independently.</summary>
+public sealed class InfrastructureKnobs
+{
+    /// <summary>Local service radius of a tier-1 port, in hexes.</summary>
+    public int ServiceRadiusBaseHexes { get; set; } = 4;
+    /// <summary>Additional service radius per tier above 1.</summary>
+    public int ServiceRadiusPerTierHexes { get; set; } = 4;
+    /// <summary>Inter-port (lane) reach of a tier-1 port, in hexes.</summary>
+    public int InterPortRangeBaseHexes { get; set; } = 18;
+    /// <summary>Additional inter-port reach per tier above 1.</summary>
+    public int InterPortRangePerTierHexes { get; set; } = 8;
+    public int MaxPortTier { get; set; } = 3;
+    /// <summary>Homeworld ports establish at this tier at emergence — a
+    /// civilization at spaceflight is past "outpost".</summary>
+    public int HomeworldPortTier { get; set; } = 2;
+}
+
+/// <summary>Expansion/colonization dials, per world-year where a rate.
+/// StubIncomePerPortPerYear is the pre-market income placeholder that
+/// Markets (slice D) replaces.</summary>
+public sealed class ExpansionKnobs
+{
+    public double StubIncomePerPortPerYear { get; set; } = 1.0;
+    /// <summary>Expansion points consumed by one colony founding.</summary>
+    public double ColonyCost { get; set; } = 15.0;
+    /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>
+    public int ColonizationReachHexes { get; set; } = 24;
+    /// <summary>Development points to raise a port: cost = base × current tier.</summary>
+    public double PortUpgradeCostBase { get; set; } = 40.0;
+    /// <summary>Development points per lane built.</summary>
+    public double LaneCost { get; set; } = 25.0;
+    public double HomeworldSegmentSize { get; set; } = 3.0;
+    public double ColonySegmentSize { get; set; } = 0.5;
+    /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>
+    public double SegmentGrowthPerYear { get; set; } = 0.01;
+    /// <summary>Segment size cap = port tier × this.</summary>
+    public double SegmentCapPerTier { get; set; } = 2.0;
 }

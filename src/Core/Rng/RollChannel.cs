@@ -50,4 +50,7 @@ public enum RollChannel : ulong
     EpochEmergenceEntry = 37,  // stub emergence schedule: actor = polity id
     EpochStubSeat = 38,        // stub homeworld seat: actor = polity id, subIndex = axis (0 q, 1 r)
     EpochStubName = 39,        // stub polity name: actor = polity id, subIndex = syllable (0 = length)
+
+    // --- Epoch frame (slice B). ---
+    EpochEntrySchedule = 40,   // stub emergence schedule until slice F: actor = polity id
 }
