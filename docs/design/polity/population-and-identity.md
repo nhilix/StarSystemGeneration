@@ -5,11 +5,22 @@ inside a polity's politics stands on this substrate.
 
 ## The population segment
 
-Population at any hex/domain is a small set of **segments**:
+Population is a small set of **segments**:
 `(species, culture, size, standard of living, ideology distribution)`. A domain
 typically holds a dominant segment plus minorities — conquest, migration, and
 diaspora add segments rather than blending them away. People are conserved and
 their identity travels with them (P4).
+
+**Segments are domain-level sim state.** Hex-level population is a *projection*
+(Tier-3 settlement rolls plus facility staffing), never simulated — the one
+exception is wilds settlements outside any domain, which are sparse hex-anchored
+records. This pins the state model: population scales with domains (hundreds),
+not hexes (hundreds of thousands).
+
+**Segment income**: segments earn a labor share of the facilities they staff plus
+organic-baseline subsistence (see [../economy/markets.md](../economy/markets.md));
+income at local prices is what their demand bands clear, and SoL follows from
+what they can afford.
 
 ## Demographics
 

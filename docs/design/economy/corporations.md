@@ -24,6 +24,14 @@ The founding niche stamps the corporation's character:
 Lawless niches produce lawless corporations from the same rule; no special cartel
 machinery exists.
 
+**Outlaw institutions generally**: the same persistent-niche rule founds
+**pirate bands** where the profitable niche is *raiding* (lawlessness × cargo
+value sustained high) — institutions with fleets, based at ruin and haven POIs,
+chartered by no one. Cartels trade in the black books; pirate bands take from the
+lanes; both are corporations' outlaw cousins, both die when their niche dies
+(law arrives, escorts thicken, the ruins get cleared), and their leaders are the
+pirate-lord notables the chronicle names.
+
 ## The corporate controller
 
 **Policies**: investment allocation, route bids, dividend rate, lobby targets.

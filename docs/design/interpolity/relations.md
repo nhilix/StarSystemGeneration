@@ -11,6 +11,24 @@ event; the initial stance composes from each side's temperament composition,
 species/culture strangeness filtered through openness, and any reputation that
 arrived ahead of the meeting (P3).
 
+## Natives and late emergence
+
+When a domain's service area covers a **pre-spaceflight homeworld**
+([../genesis/life-and-precursors.md](../genesis/life-and-precursors.md)), the
+polity sets a **native policy** (an Intent act, ideology-weighted, reputation-
+bearing): *protectorate* (reserve the world; delays emergence; costs reach),
+*integration* (native segments join the population with rights per ideology),
+*exploitation* (labor extraction — grievance seeds and the worst press in the
+galaxy), or *uplift* (Life-tech-gated acceleration toward a client emergence).
+
+When an **emergence date fires**, the outcome depends on where: in free space, a
+new polity is born with its homeworld domain. Inside claimed space, the host's
+native policy resolves it — client-state vassal (uplift), autonomous member with
+an instant cultural faction (integration), or a suppressed emergence that hands
+every rival a standing **liberation casus belli** and the natives a graduation
+path (exploitation/protectorate-turned-cage). Late emergence is a story
+generator, not an edge case.
+
 ## Relations state per pair
 
 - **Warmth** — accumulated positive interdependence: trade volume, dynastic ties,

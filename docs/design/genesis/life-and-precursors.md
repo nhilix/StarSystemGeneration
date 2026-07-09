@@ -45,6 +45,14 @@ a claimed galaxy. Homeworlds are where and when life got there first; the old ra
 homeworld placement and flat sapient-biosphere roll are retired, leaving only rare
 genuine undiscovered pre-spaceflight natives.
 
+**Starting conditions at emergence**: a new polity enters with its homeworld domain
+(tier-1 port), seeded population segments, and base tech tiers reflecting its
+maturation quality — with a **contact bonus** for late emergers who matured under a
+sky full of foreign traffic (elevated starting Astrogation/Industrial): latecomers
+are behind, not hopeless. Emergence *inside claimed space* resolves through the
+host's native policy
+([../interpolity/relations.md](../interpolity/relations.md)).
+
 ## Precursor waves
 
 A precursor wave is a sapient origin whose spaceflight date lands in deep time. Each

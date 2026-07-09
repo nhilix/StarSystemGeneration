@@ -22,7 +22,10 @@ Per port market, fixed deterministic order:
    (price gap × quantity − fuel − tariffs − risk), execute within lane capacity
    (the fleet-capacity interface). Cross-border shipments require legality at both
    ends and non-sanctioned relations. Freight is what drags connected markets
-   together; interdiction is what splits price zones.
+   together; interdiction is what splits price zones. *P3 note:* freight runs on
+   actual lane-endpoint prices deliberately — it represents distributed local
+   traders whose information is inherently fresh because the traffic itself
+   carries it; only lane-adjacent gradients are chased, never galaxy-wide ones.
 5. **Clearing & consequences** — consumption satisfies band priority; unmet
    subsistence → famine; unmet standard-of-living → SoL decline (growth,
    legitimacy, migration pressure); unmet industry inputs → facilities
@@ -31,6 +34,18 @@ Per port market, fixed deterministic order:
 At the play clock the same state drifts continuously between clearings; an
 agent-order-matching layer can later trade against posted prices without changing
 this machinery.
+
+## Household income — how populations afford anything
+
+Purchasing power is earned, not assumed: facilities pay a **labor share** of
+revenue to the local segments that staff them (the share shrinks with automation —
+automated industry pays owners more and workers less), and the organic baseline
+yields subsistence income. Segment income at local prices is what the demand
+bands can actually clear, so **SoL derives from the real economy**: a booming
+labor-scarce domain bids up income per worker, which is the "opportunity" term
+migration reads; a domain hollowed out by automation is rich on paper and poor in
+its streets — a faction seed. This closes the loop between production, wages,
+consumption, and migration.
 
 ## Wealth and taxation
 

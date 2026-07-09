@@ -31,7 +31,7 @@ integration step, not a unit.
 | Step | one generation | days–weeks |
 | Characters | sampled at role changes: succession, founding, death | continuous individuals |
 | News (P3) | pulse arrival quantized to epochs | travels with actual ships; the player can be the news |
-| Markets | epoch-clearing | continuous drift between clearings |
+| Markets | epoch-stepped (prices adjust toward, never fully reach, clearing) | continuous drift between steps |
 | Determinism keys | (epoch, actor id) | (tick, actor id) — same hash discipline |
 
 ## Continuous pressures, discrete events

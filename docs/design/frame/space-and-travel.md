@@ -43,6 +43,17 @@ natural raster — there is no per-hex or per-cell ownership paint (P4, P5).
 overlap, the overlap is a **contested-influence zone** — border friction, dispute
 fuel, war goals. Borders are organic reach-collision shapes, not tile edges.
 
+### Colonization, end to end
+
+The chain, stitched across its owners: **decision** — an Intent act picks a
+target from price-signal valuations × terrain potentials × reach; **assembly** —
+a convoy fleet forms (colony hulls with berths, construction goods, volunteer
+population segments, escort); **journey** — off-lane legs at the convoy's
+endurance floor, at real risk; **founding** — the tier-1 port establishes, the
+domain starts small, the founder may be minted; **growth** — investment raises
+the port, migration flows in, facilities site. Every step is ordinary machinery;
+colonization is just the machinery pointed outward.
+
 ## Lanes
 
 A **lane** is paired port infrastructure linking two ports within inter-port range —

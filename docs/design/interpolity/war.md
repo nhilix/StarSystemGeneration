@@ -46,6 +46,12 @@ drain from markets; war loans finance deficits and leave overhang; **weariness i
 the interior responding** — losses and SoL decline shift population ideology,
 feed peace factions, erode legitimacy. A polity breaks when its politics break.
 
+**Allied belligerents**: defense-alliance partners join as supporting
+belligerents under the war leaders (the original attacker and defender);
+settlements are negotiated between the leaders, and allied-held objectives are
+settled through them — a supporter's gains and grievances flow through its
+leader's table, which is itself warmth-or-tension material for the alliance.
+
 ## Termination and settlement
 
 Break conditions: political collapse (legitimacy/factions), fleet/stockpile

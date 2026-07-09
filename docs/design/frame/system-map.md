@@ -25,7 +25,8 @@ Defined by the frame because every subsystem builds against them:
    kinds.
 2. **The price signal as the universal value language.** Expansion attractiveness,
    war-goal selection, migration pull, corporate investment, and infrastructure
-   siting all read the same market-price-derived valuations. One number system, and
+   siting all read the same market-price-derived valuations — priced in
+   **grade-effective units** (quantity × grade multiplier). One number system, and
    an emergent one.
 3. **Event grammar** (P4): every subsystem emits events in one schema — actor ids,
    location, world-year, magnitude, typed payload. L4 owns the grammar; emitting
