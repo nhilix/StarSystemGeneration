@@ -80,9 +80,12 @@ public class SerializerTests
         // observed values on first run, then they are frozen. Re-frozen for the economy
         // slice (schema v4): Events.Count rose from 30 to 37 because the live economy
         // (war, famine, trade) now emits additional event types the seeding-era count
-        // never saw; Polities.Count is unaffected.
+        // never saw; Polities.Count is unaffected. Re-frozen again for task 10's
+        // invariant-suite tuning (ProvisionsPerPop 1.0->0.5, IncomePhase.FamineShrink
+        // 0.8->0.45): Events.Count fell from 37 to 34 (fewer famine events at this seed);
+        // Polities.Count still unaffected.
         Assert.Equal(2, s.Polities.Count);
-        Assert.Equal(37, s.Events.Count);
+        Assert.Equal(34, s.Events.Count);
     }
 
     [Fact]
@@ -171,5 +174,19 @@ public class SerializerTests
     {
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|3\nEND\n")));
+    }
+
+    [Fact]
+    public void RoundTrip_WarWithEmptyCellLists_UsesDashSentinel()
+    {
+        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 3 });
+        s.Wars.Add(new War { Id = s.Wars.Count, AttackerId = 0, DefenderId = 1, StartEpoch = 1,
+            Goal = WarGoal.Punitive, Ended = true, Outcome = WarOutcome.WhitePeace });
+        string text = SkeletonSerializer.ToText(s);
+        Assert.Contains("|-|-", text);   // empty goal + front lists serialize as '-' sentinels
+        var loaded = SkeletonSerializer.Load(new StringReader(text));
+        var war = loaded.Wars[^1];
+        Assert.Empty(war.GoalCells);
+        Assert.Empty(war.FrontCells);
     }
 }

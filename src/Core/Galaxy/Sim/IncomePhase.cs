@@ -12,7 +12,7 @@ public static class IncomePhase
     private const double FamineEventFloor = 0.5;
     private const double TradeBlockedFloor = 2.0;
     private const double PopGrowthBase = 0.05;
-    private const double FamineShrink = 0.8;
+    private const double FamineShrink = 0.45;
     private const double ScarShrink = 0.95;
 
     public static void Run(GalaxySkeleton s, int epoch)

@@ -36,5 +36,5 @@ public sealed class GalaxyConfig
     /// <summary>Wealth gained per unit of matched cross-polity trade.</summary>
     public double TradeIncomeWeight { get; set; } = 0.5;
     /// <summary>Provisions consumed per population unit per epoch — the famine dial.</summary>
-    public double ProvisionsPerPop { get; set; } = 1.0;
+    public double ProvisionsPerPop { get; set; } = 0.5;
 }

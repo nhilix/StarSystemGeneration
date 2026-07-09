@@ -38,12 +38,16 @@ public class EpochSimTests
     {
         // Spec §10 shape band: polities should visibly expand without paving over the
         // whole galaxy. Reference config: seed 42, the small reference config (hex lattice,
-        // GalaxyRadiusCells = 8). Observed fraction at this config is ~0.654 (100/153).
+        // GalaxyRadiusCells = 8). Band finalized in task 10 to match
+        // EconomyInvariantTests.ShapeBands_ReferenceConfig's ceiling (0.8, tightened from
+        // 0.85 during claimed-fraction pressure review). Observed fraction at this config
+        // (post task-10 tuning: ProvisionsPerPop 0.5, IncomePhase.FamineShrink 0.45) is
+        // ~0.515 (84/163).
         var s = Build();
         var claimable = s.Cells.Where(c => !c.IsVoid).ToList();
         int claimed = claimable.Count(c => c.OwnerPolityId >= 0);
         double frac = (double)claimed / claimable.Count;
-        Assert.InRange(frac, 0.2, 0.85);
+        Assert.InRange(frac, 0.2, 0.8);
     }
 
     [Fact]
