@@ -7,7 +7,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
 
 ## Tasks
 
-- [ ] 1. **Config** — `EpochSimConfig` with knob families (genesis / economy /
+- [x] 1. **Config** — `EpochSimConfig` with knob families (genesis / economy /
       sim), all rates per world-year, `YearsPerEpoch = 25`, `EpochCount = 40`
       defaults. Tests: defaults sane, rates world-year-denominated.
 - [ ] 2. **Event grammar v2** — `WorldEvent` record `(id, world-year, clock
