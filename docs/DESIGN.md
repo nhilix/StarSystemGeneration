@@ -122,7 +122,7 @@ ratings, trade-route data, and region-varying stellar density.
 5. **Game-layer hooks** — ship entity, travel between systems, discovery/ownership
    state, faction data. Scoped by its own future spec; not sized here.
 
-**Regional / spatial generation** is specced in docs/superpowers/specs/2026-07-07-regional-generation-design.md (three-tier architecture: density fields, persisted galaxy skeleton with an epoch history simulation, per-hex integration) and implemented in slices — slice 1 (visible galaxy) covers Tier 1, seeding, sim stage 1, and the inspector atlas.
+**Regional / spatial generation** is specced in docs/superpowers/specs/2026-07-07-regional-generation-design.md (three-tier architecture: density fields, persisted galaxy skeleton with an epoch history simulation, per-hex integration) and implemented in slices — slice 1 (visible galaxy) covers Tier 1, seeding, sim stage 1, and the inspector atlas; slice 2 (sim economy, docs/superpowers/specs/2026-07-08-sim-economy-design.md) covers sim stages 2–3 — the income/allocation/action/resolution phase pipeline with budgets, military stockpiles, commodities/flows/blockades, tech tiers, per-cell population, and persistent wars, surfaced through new inspector layers and commands (artifact schema v4).
 
 ---
 
