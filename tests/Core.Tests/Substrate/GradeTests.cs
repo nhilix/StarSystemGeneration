@@ -97,6 +97,18 @@ public class GradeTests
     }
 
     [Fact]
+    public void TechTier_MultipliesGradeBelowTheCeiling_NotOnlyCapsIt()
+    {
+        // the design formula's fourth factor: same recipe, inputs, and
+        // facility — a higher-tech producer turns out better goods
+        var std = Goods.Get(GoodId.Machinery).Recipes.First(r => r.Kind == RecipeKind.Standard);
+        double t2 = Grades.Output(std, 0.5, facilityTier: 1, techTier: 2);
+        double t3 = Grades.Output(std, 0.5, facilityTier: 1, techTier: 3);
+        Assert.True(t3 > t2);
+        Assert.True(t3 < Grades.TechCeiling(3), "the comparison must happen below the ceiling");
+    }
+
+    [Fact]
     public void Bands_CoverTheUnitInterval_InDisplayOrder()
     {
         Assert.Equal(GradeBand.Crude, Grades.BandOf(0.0));

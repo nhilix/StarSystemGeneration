@@ -44,7 +44,7 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
 - [x] 6. **REPL surface** — `goods` / `infra` commands dumping the catalogs;
       potentials + siting evaluated for a sample cell (real cell if a galaxy
       is loaded). Piped-stdin smoke via bash printf.
-- [ ] 7. **Fresh-eyes whole-branch review** subagent + one fix wave.
+- [x] 7. **Fresh-eyes whole-branch review** subagent + one fix wave.
 - [ ] 8. **Gates**: `dotnet test` green incl. hex-tier suite · Unity `.meta`
       files for every new file/folder under `src/Core` · REPL smoke.
 - [ ] 9. **User gate: REPL eyeball acceptance** — catalog reads like the
@@ -67,3 +67,17 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
 - Demand-profile weights are normalized shares; absolute per-capita rates stay
   economy-config knobs (Slice D applies them). `SubsistenceScale` carries the
   "lithics eat little" dial.
+- Review fix wave: tech tier now *multiplies* output grade below the ceiling
+  (the design formula's fourth factor — ceiling alone made tech invisible);
+  Medicine's advanced variant draws raw Exotics per the design table (was
+  Refined Exotics); Repl cell header invariant-wrapped; `infra q r` without a
+  galaxy now says so instead of dumping the catalog; infra table columns
+  widened. Accepted as-is: automation folded into LaborFactor (substitution
+  reading of the formula, documented in Production.cs); `IReadOnlyList` over
+  backing arrays (matches WeightedTable's existing pattern); `BandOf(NaN)`
+  undefined (garbage-in).
+- **Session collision**: a parallel Slice B session shares the original
+  checkout and branched `slice-b-two-plane-state` off slice C's tip
+  (65446a5), not main. Slice C's fix wave landed from a dedicated worktree
+  (`../StarSystemGeneration-sliceC`) to avoid clobbering B's uncommitted
+  state. **Flag to user: B contains C's history; merging B implies C.**

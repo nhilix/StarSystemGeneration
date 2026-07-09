@@ -94,7 +94,7 @@ public static class Goods
         {
             R(GoodId.Medicine, RecipeKind.Standard, 0.50, 1, Q(GoodId.Organics, 1.0)),
             R(GoodId.Medicine, RecipeKind.Advanced, 0.80, 2,
-              Q(GoodId.Organics, 0.7), Q(GoodId.RefinedExotics, 0.2)),
+              Q(GoodId.Organics, 0.7), Q(GoodId.Exotics, 0.2)),   // raw exotics per the design table
         }),
         new(GoodId.Narcotics, "Narcotics", GoodTier.Processed, new[]
         {

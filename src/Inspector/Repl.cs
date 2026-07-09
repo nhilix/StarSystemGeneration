@@ -124,9 +124,12 @@ public sealed class Repl
                         ? isk.Species[icell.PopulationSpeciesId].Embodiment
                         : Embodiment.TerranAnalog;
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderSite(
-                        $"cell [{iq},{ir}]", fields, site, workforce));
+                        FormattableString.Invariant($"cell [{iq},{ir}]"), fields, site, workforce));
                     break;
                 }
+                case "infra" when parts.Length == 3:
+                    Console.WriteLine("no galaxy loaded (or coords unparseable) — build one with: galaxy <seed>");
+                    break;
                 case "infra":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderInfra());
                     break;

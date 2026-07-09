@@ -60,14 +60,14 @@ public static class SubstrateView
     {
         var sb = new StringBuilder();
         sb.AppendLine(Invariant($"infrastructure catalog — {Infrastructure.All.Count} (substrate/infrastructure.md; keystone port + 14 buildable)"));
-        sb.AppendLine(" id  name             family      produces                    build (t1)                              yrs  upkeep/yr              base/yr  labor");
+        sb.AppendLine(Invariant($" {"id",2}  {"name",-16} {"family",-11} {"produces",-27} {"build (t1)",-42} {"yrs",3}  {"upkeep/yr",-27} {"base/yr",7}  {"labor",5}"));
         foreach (var d in Infrastructure.All)
         {
             string produces = d.Produces.Count == 0
                 ? (d.Family == InfraFamily.Keystone ? "(market, lanes, reach)"
                    : d.Id == InfraTypeId.Depot ? "(storage buffering)" : "(defense, interdiction)")
                 : string.Join(", ", NamesOf(d.Produces));
-            sb.AppendLine(Invariant($" {(int)d.Id,2}  {d.Name,-16} {FamilyName(d.Family),-11} {produces,-27} {Costs(d.BuildCost),-39} {d.ConstructionYears,3:0}  {Costs(d.UpkeepPerYear),-22} {d.BaseOutputPerYear,6:0.#}  {d.LaborRequired,5:0.0}"));
+            sb.AppendLine(Invariant($" {(int)d.Id,2}  {d.Name,-16} {FamilyName(d.Family),-11} {produces,-27} {Costs(d.BuildCost),-42} {d.ConstructionYears,3:0}  {Costs(d.UpkeepPerYear),-27} {d.BaseOutputPerYear,7:0.#}  {d.LaborRequired,5:0.0}"));
         }
         sb.AppendLine(Invariant($"tier scaling: output x{Production.TierOutputFactor(1):0.#}/x{Production.TierOutputFactor(2):0.#}/x{Production.TierOutputFactor(3):0.#} · build cost x{Production.TierCostFactor(1):0.#}/x{Production.TierCostFactor(2):0.#}/x{Production.TierCostFactor(3):0.#}"));
         sb.AppendLine();

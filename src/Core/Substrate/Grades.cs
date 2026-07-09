@@ -78,15 +78,25 @@ public static class Grades
         _ => 1.2,
     };
 
+    /// <summary>Producer tech tier as a quality term below the ceiling — the
+    /// fourth factor of the design's grade formula.</summary>
+    private static double TechTierFactor(int techTier) => techTier switch
+    {
+        <= 1 => 0.85,
+        2 => 1.0,
+        _ => 1.1,
+    };
+
     /// <summary>Output grade of a production run: recipe base × input-grade
-    /// blend × facility tier, capped by the producer's tech ceiling
-    /// (commodities.md grade formula).</summary>
+    /// blend × facility tier × producer tech tier, capped by the producer's
+    /// tech ceiling (commodities.md grade formula).</summary>
     public static double Output(Recipe recipe, double meanInputGrade,
                                 int facilityTier, int techTier)
     {
         double raw = recipe.GradeBase
                      * (0.5 + meanInputGrade)
-                     * FacilityTierFactor(facilityTier);
+                     * FacilityTierFactor(facilityTier)
+                     * TechTierFactor(techTier);
         return Math.Min(TechCeiling(techTier), Math.Max(0.0, raw));
     }
 }
