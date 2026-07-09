@@ -33,7 +33,7 @@ public class SerializerTests
     public void SchemaVersionMismatch_Throws_NeverSilentlyRebuilds()
     {
         var text = SkeletonSerializer.ToText(Build());
-        var tampered = text.Replace("STARGEN-SKELETON|4", "STARGEN-SKELETON|999");
+        var tampered = text.Replace("STARGEN-SKELETON|5", "STARGEN-SKELETON|999");
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(tampered)));
     }
@@ -41,7 +41,7 @@ public class SerializerTests
     [Fact]
     public void Load_RecordBeforeConfig_Throws()
     {
-        var text = "STARGEN-SKELETON|4\nANCHOR|0|0|1|0|0|-1\nEND\n";
+        var text = "STARGEN-SKELETON|5\nANCHOR|0|0|1|0|0|-1\nEND\n";
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(text)));
     }
@@ -75,7 +75,7 @@ public class SerializerTests
         // INTENTIONAL generation change, update the literal and say so in the commit.
         var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 3 });
         var lines = SkeletonSerializer.ToText(s).Split('\n');
-        Assert.Equal("STARGEN-SKELETON|4", lines[0].TrimEnd('\r'));
+        Assert.Equal("STARGEN-SKELETON|5", lines[0].TrimEnd('\r'));
         // Golden facts recorded at implementation time — fill the two literals with the
         // observed values on first run, then they are frozen. Re-frozen for the economy
         // slice (schema v4): Events.Count rose from 30 to 37 because the live economy
@@ -84,6 +84,11 @@ public class SerializerTests
         // invariant-suite tuning (ProvisionsPerPop 1.0->0.5): Events.Count fell from 37 to 34 (fewer famine events at this seed);
         // Polities.Count still unaffected. Re-frozen once more in acceptance
         // (TechThresholdBase 10->5): two TechAdvance events now fire, 34 -> 36.
+        // Re-checked for the deferred-ticket batch (schema v5): BlockadeLoss field added
+        // to the POLITY record and blockade-loss classification, strain-as-hardship
+        // weariness, extinction-correct termination with capture restoration, famine+scar
+        // stacking, and safe capital relocation landed in the sim; none of those shift the
+        // event stream at this seed — counts unchanged at 36 events, 2 polities.
         Assert.Equal(2, s.Polities.Count);
         Assert.Equal(36, s.Events.Count);
     }
@@ -118,6 +123,7 @@ public class SerializerTests
     public void RoundTrip_PreservesEconomyState_AndWars()
     {
         var original = Build();
+        original.Polities[0].BlockadeLoss = 1.25;   // ensure a nonzero strain round-trips
         // Ensure at least one war exists to round-trip even if this seed fought none.
         if (original.Wars.Count == 0)
         {
@@ -143,6 +149,7 @@ public class SerializerTests
             Assert.Equal(original.Polities[i].MilitaryStockpile, loaded.Polities[i].MilitaryStockpile);
             Assert.Equal(original.Polities[i].TechTier, loaded.Polities[i].TechTier);
             Assert.Equal(original.Polities[i].Wealth, loaded.Polities[i].Wealth);
+            Assert.Equal(original.Polities[i].BlockadeLoss, loaded.Polities[i].BlockadeLoss);
         }
         for (int i = 0; i < original.Cells.Count; i++)
         {
@@ -174,6 +181,13 @@ public class SerializerTests
     {
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|3\nEND\n")));
+    }
+
+    [Fact]
+    public void Load_RejectsSchemaV4()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|4\nEND\n")));
     }
 
     [Fact]

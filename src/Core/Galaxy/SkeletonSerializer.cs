@@ -50,7 +50,7 @@ public static class SkeletonSerializer
                 p.MilitaryStockpile.ToString("R", Inv), p.TechTier.ToString(Inv),
                 p.ExoticsInvested.ToString("R", Inv), p.Wealth.ToString("R", Inv),
                 p.ProvisionsBalance.ToString("R", Inv), p.OreBalance.ToString("R", Inv),
-                p.ExoticsBalance.ToString("R", Inv)));
+                p.ExoticsBalance.ToString("R", Inv), p.BlockadeLoss.ToString("R", Inv)));
         foreach (var cell in s.Cells)
         {
             w.WriteLine(string.Join("|", "CELL", cell.Q.ToString(Inv), cell.R.ToString(Inv),
@@ -167,6 +167,7 @@ public static class SkeletonSerializer
                             ExoticsInvested = double.Parse(f[9], Inv), Wealth = double.Parse(f[10], Inv),
                             ProvisionsBalance = double.Parse(f[11], Inv), OreBalance = double.Parse(f[12], Inv),
                             ExoticsBalance = double.Parse(f[13], Inv),
+                            BlockadeLoss = double.Parse(f[14], Inv),
                         });
                         break;
                     case "CELL":
