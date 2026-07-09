@@ -208,7 +208,7 @@
       <span class="key"><span class="dot done"></span> Implemented</span>
       <span class="key"><span class="dot spec"></span> Specced (design approved, unbuilt)</span>
       <span class="key"><span class="dot fut"></span> Future / deferred</span>
-      <span class="stamp">2026-07-08 · main @ 3fcf370 · slice 2 shipped</span>
+      <span class="stamp">2026-07-09 · main @ 93e2ca9 · slice 2 + deferred-ticket batch shipped</span>
     </div>
   </header>
 
@@ -262,7 +262,7 @@
       <div class="tier-head">
         <span class="tier-tag">Tier 2</span>
         <h2>Galaxy Skeleton</h2>
-        <span class="nature">bounded precompute · persisted artifact · schema v4</span>
+        <span class="nature">bounded precompute · persisted artifact · schema v5</span>
       </div>
       <p class="desc">
         Region-cell lattice (spiral-ordered, circular footprint). Built once per galaxy, saved,
@@ -306,7 +306,7 @@
                 <ul>
                   <li>cell production: Provisions / Ore / Exotics</li>
                   <li>flows: BFS paths, cell throughput</li>
-                  <li>blockade = severed paths, lost surplus</li>
+                  <li>blockade = severed paths → per-polity strain (BlockadeLoss)</li>
                   <li>shortages → famine, stalls, decay</li>
                 </ul>
               </div>
@@ -334,9 +334,9 @@
                 <div class="node-head"><span class="name">4 · Resolution</span></div>
                 <ul>
                   <li>fronts contested, stockpile × tech strength</li>
-                  <li>weariness accrual → break</li>
-                  <li>victory annexes goals · white peace freezes</li>
-                  <li>capital falls, extinction (carried over)</li>
+                  <li>weariness accrual (strain counts) → break</li>
+                  <li>victory annexes · defender victory restores · white peace freezes</li>
+                  <li>extinct side loses outright; capitals flee to safe cells</li>
                 </ul>
               </div>
             </div>
@@ -468,7 +468,8 @@
     <ul>
       <li><span class="src">docs/superpowers/specs/2026-07-07-generation-rules-design.md</span> — Phase 1 system/body pipeline</li>
       <li><span class="src">docs/superpowers/specs/2026-07-07-regional-generation-design.md</span> — three tiers, sim stages 1–6</li>
-      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (shipped 2026-07-08, schema v4)</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (shipped 2026-07-08)</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-09-econ-deferred-tickets-design.md</span> — deferred-ticket batch: blockade strain, war-termination settlement (shipped 2026-07-09, schema v5)</li>
       <li><span class="src">docs/DESIGN.md §4</span> — roadmap (phases 1–2 complete, 3 delivered at cell resolution)</li>
     </ul>
   </footer>
