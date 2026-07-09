@@ -26,11 +26,9 @@ public class EpochSimConfigTests
     }
 
     [Fact]
-    public void GenesisKnobs_SeedStubEmergence()
+    public void GenesisKnobs_StaggeredEntryFitsTheHistoryWindow()
     {
         var c = new EpochSimConfig();
-        Assert.True(c.Genesis.StubPolityCount > 0);
-        // staggered entry fits inside the default history window
         Assert.True(c.Genesis.EmergenceWindowYears
                     < c.Sim.YearsPerEpoch * c.Sim.EpochCount);
     }

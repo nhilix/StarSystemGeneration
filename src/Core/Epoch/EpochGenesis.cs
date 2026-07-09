@@ -5,11 +5,11 @@ using StarGen.Core.Rng;
 namespace StarGen.Core.Epoch;
 
 /// <summary>Seeds the epoch sim from the natural raster: one polity actor per
-/// homeworld anchor the seeding passes placed (SkeletonBuilder.BuildNatural),
-/// in cell spiral order — id = ordinal, name = species name, seat = anchor
-/// hex. Entry epochs are a rolled stub schedule (EpochEntrySchedule) until
-/// slice F simulates emergence. Homeworlds are simply the first ports: the
-/// port itself is founded at entry, by the Interior phase.</summary>
+/// homeworld anchor the seeding passes placed (SkeletonBuilder.Build), in
+/// cell spiral order — id = ordinal, name = species name, seat = anchor hex.
+/// Entry epochs are a rolled stub schedule (EpochEntrySchedule) until slice F
+/// simulates emergence. Homeworlds are simply the first ports: the port
+/// itself is founded at entry, by the Interior phase.</summary>
 public static class EpochGenesis
 {
     public static SimState Seed(GalaxySkeleton skeleton, EpochSimConfig config)

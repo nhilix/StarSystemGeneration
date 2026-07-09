@@ -154,22 +154,10 @@ public sealed class AllocationPhase : ISimPhase
         return false;
     }
 
-    /// <summary>Hex-line midpoint via cube lerp at t=0.5 with standard cube
-    /// rounding — the lane-opened event's address.</summary>
-    private static HexCoordinate Midpoint(HexCoordinate a, HexCoordinate b)
-    {
-        double x = (a.Q + b.Q) * 0.5;
-        double z = (a.R + b.R) * 0.5;
-        double y = -x - z;
-        int rx = (int)System.Math.Round(x), ry = (int)System.Math.Round(y),
-            rz = (int)System.Math.Round(z);
-        double dx = System.Math.Abs(rx - x), dy = System.Math.Abs(ry - y),
-               dz = System.Math.Abs(rz - z);
-        if (dx > dy && dx > dz) rx = -ry - rz;
-        else if (dy > dz) { /* y is derived; nothing to fix for axial */ }
-        else rz = -rx - ry;
-        return new HexCoordinate(rx, rz);
-    }
+    /// <summary>Hex-line midpoint (cube lerp at t=0.5) — the lane-opened
+    /// event's address.</summary>
+    private static HexCoordinate Midpoint(HexCoordinate a, HexCoordinate b) =>
+        HexGrid.Round((a.Q + b.Q) * 0.5, (a.R + b.R) * 0.5);
 }
 
 /// <summary>Phase 4 — the one controller touchpoint (P2): every entered

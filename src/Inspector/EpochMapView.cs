@@ -95,22 +95,10 @@ public static class EpochMapView
             for (int i = 0; i <= n; i++)
             {
                 double t = n == 0 ? 0.0 : (double)i / n;
-                cells.Add(HexGrid.CellOf(HexRound(
+                cells.Add(HexGrid.CellOf(HexGrid.Round(
                     a.Q + (b.Q - a.Q) * t, a.R + (b.R - a.R) * t)));
             }
         }
         return cells;
-    }
-
-    private static HexCoordinate HexRound(double q, double r)
-    {
-        double x = q, z = r, y = -x - z;
-        int rx = (int)System.Math.Round(x), ry = (int)System.Math.Round(y),
-            rz = (int)System.Math.Round(z);
-        double dx = System.Math.Abs(rx - x), dy = System.Math.Abs(ry - y),
-               dz = System.Math.Abs(rz - z);
-        if (dx > dy && dx > dz) rx = -ry - rz;
-        else if (dz > dy) rz = -rx - ry;
-        return new HexCoordinate(rx, rz);
     }
 }

@@ -23,8 +23,6 @@ public class AllocationTests
         double income = portsOwned * state.Config.Expansion.StubIncomePerPortPerYear
                         * state.Config.Sim.YearsPerEpoch;
         var budget = PolityPolicies.Default.Budget;
-        Assert.True(state.PolityOf(actor.Id).ExpansionPoints
-                    >= expBefore + income * budget.Expansion - 1e9 * double.Epsilon);
         Assert.Equal(expBefore + income * budget.Expansion,
                      state.PolityOf(actor.Id).ExpansionPoints, 10);
         Assert.Equal(devBefore + income * budget.Development,

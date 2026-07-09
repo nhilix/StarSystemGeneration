@@ -85,14 +85,14 @@ public static class ArtifactSerializer
 
         Layer(w, "species");
         foreach (var sp in state.Skeleton.Species)
-            w.WriteLine(Join("SPECIES", sp.Id.ToString(Inv), sp.Name,
+            w.WriteLine(Join("SPECIES", sp.Id.ToString(Inv), Name(sp.Name),
                 ((int)sp.Embodiment).ToString(Inv), R(sp.Expansionism), R(sp.Cohesion),
                 R(sp.Militancy), R(sp.Openness), R(sp.Industry), R(sp.Adaptability)));
 
         Layer(w, "actors");
         foreach (var a in state.Actors)
             w.WriteLine(Join("ACTOR", a.Id.ToString(Inv), ((int)a.Kind).ToString(Inv),
-                a.Name, a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
+                Name(a.Name), a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
                 a.EntryEpoch.ToString(Inv), B(a.Entered)));
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
@@ -150,9 +150,11 @@ public static class ArtifactSerializer
         EpochSimConfig? config = null;
         SimState? state = null;
         int layerIndex = -1;
+        bool ended = false;
         string? line;
-        while ((line = reader.ReadLine()) != null && line != "END")
+        while ((line = reader.ReadLine()) != null)
         {
+            if (line == "END") { ended = true; break; }
             var f = line.Split('|');
             try
             {
@@ -331,6 +333,9 @@ public static class ArtifactSerializer
                 throw new InvalidDataException($"malformed epoch artifact at line: {line}", ex);
             }
         }
+        if (!ended || layerIndex != Layers.Length - 1)
+            throw new InvalidDataException(
+                "truncated epoch artifact: every layer and the END sentinel are required");
         if (state == null)
             throw new InvalidDataException("epoch artifact missing config/clock layers");
         return state;
@@ -346,8 +351,8 @@ public static class ArtifactSerializer
     private static string Payload(EventPayload? p) => p switch
     {
         null => "none",
-        PolityEmergedPayload e => Join("polityEmerged", e.PolityName),
-        PortEstablishedPayload e => Join("portEstablished", e.PolityName,
+        PolityEmergedPayload e => Join("polityEmerged", Name(e.PolityName)),
+        PortEstablishedPayload e => Join("portEstablished", Name(e.PolityName),
             e.PortId.ToString(Inv)),
         LaneOpenedPayload e => Join("laneOpened", e.PortAId.ToString(Inv),
             e.PortBId.ToString(Inv)),
@@ -370,6 +375,14 @@ public static class ArtifactSerializer
     };
 
     private static string Join(params string[] fields) => string.Join("|", fields);
+
+    /// <summary>Free-text fields (names) must not collide with the format's
+    /// delimiters; escape before the format admits arbitrary text.</summary>
+    private static string Name(string value) =>
+        value.IndexOf('|') >= 0 || value.IndexOf(';') >= 0 || value.IndexOf('\n') >= 0
+            ? throw new InvalidOperationException(
+                $"unserializable name '{value}': may not contain | ; or newlines")
+            : value;
     private static string R(double v) => v.ToString("R", Inv);
     private static string B(bool v) => v ? "1" : "0";
 }

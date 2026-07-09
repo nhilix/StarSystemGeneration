@@ -18,13 +18,13 @@ the prototype sim is deleted in Task 5.
       rebase, note for task 5: C's `infra` REPL command reads
       `RegionCell.DevelopmentTier`/`PopulationSpeciesId` — task 5 deletes
       those fields and must adapt that command (neutral wilds inputs).
-- [ ] 1. **Config knobs, roll channel, event types** — `InfrastructureKnobs`,
+- [x] 1. **Config knobs, roll channel, event types** — `InfrastructureKnobs`,
       `ExpansionKnobs`; `RollChannel.EpochEntrySchedule = 40`;
       `WorldEventType.{LaneOpened=200, PortTierRaised=201, PortEstablished=301}`
       + payloads. Gate: solution green.
-- [ ] 2. **Registry entry types** — Port, Lane, Facility, FleetRecord,
+- [x] 2. **Registry entry types** — Port, Lane, Facility, FleetRecord,
       PopulationSegment, PolityRecord (+ `.meta`s). Gate: structural tests.
-- [ ] 3. **Derived geography** — `PortDomains` (service radius, servicing,
+- [x] 3. **Derived geography** — `PortDomains` (service radius, servicing,
       owners-at, contested), `LaneMath` (range, capacity, speed). Territory
       computed, never stored. Gate: PortDomainTests green.
 - [x] 4. **EpochGenesis** — seed polities from homeworld anchors;

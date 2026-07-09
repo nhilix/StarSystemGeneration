@@ -70,6 +70,19 @@ public class ArtifactTests
     }
 
     [Fact]
+    public void Artifact_RefusesTruncation()
+    {
+        string text = ArtifactSerializer.ToText(Run());
+        // cut before the events layer (loses END and the tail layers)
+        string truncated = text.Substring(0, text.IndexOf("LAYER|events|1"));
+        Assert.Throws<InvalidDataException>(
+            () => ArtifactSerializer.Load(new StringReader(truncated)));
+        // even with END re-appended, missing layers must refuse
+        Assert.Throws<InvalidDataException>(
+            () => ArtifactSerializer.Load(new StringReader(truncated + "END\n")));
+    }
+
+    [Fact]
     public void Artifact_IsCultureInvariant()
     {
         var original = System.Globalization.CultureInfo.CurrentCulture;

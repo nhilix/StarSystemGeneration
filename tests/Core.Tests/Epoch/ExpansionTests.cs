@@ -19,7 +19,7 @@ public class ExpansionTests
     }
 
     [Fact]
-    public void ColonyPorts_Tier1_WithinReach_OnePortPerHex_SegmentSeeded()
+    public void ColonyPorts_WithinReach_OnePortPerHex_SegmentSeeded()
     {
         var (_, state) = EpochTestKit.Seeded();
         new EpochEngine().Run(state);

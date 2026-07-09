@@ -23,18 +23,14 @@ public sealed class SimKnobs
     public int EpochCount { get; set; } = 40;
 }
 
-/// <summary>Genesis-side knobs. Slice A carries only the stub emergence
-/// schedule; the real cosmic/evolutionary families land with Slice F.</summary>
+/// <summary>Genesis-side knobs: only the stub emergence schedule until the
+/// real cosmic/evolutionary families land with Slice F. Polity count and
+/// seats come from the seeding passes' homeworld anchors.</summary>
 public sealed class GenesisKnobs
 {
-    /// <summary>Polities entering via the placeholder emergence schedule
-    /// (Slice B replaces stub seeding; Slice F simulates emergence).</summary>
-    public int StubPolityCount { get; set; } = 6;
-    /// <summary>Latest world-year a stub polity may enter — staggered
-    /// emergence (frame/time.md §Asymmetric emergence).</summary>
+    /// <summary>Latest world-year a polity may enter — staggered emergence
+    /// (frame/time.md §Asymmetric emergence).</summary>
     public int EmergenceWindowYears { get; set; } = 500;
-    /// <summary>Scatter radius for stub homeworld seats, in hexes.</summary>
-    public int StubSeatRadiusHexes { get; set; } = 60;
 }
 
 /// <summary>Economy dials, per world-year. Defaults re-denominate the

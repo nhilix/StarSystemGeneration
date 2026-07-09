@@ -124,9 +124,14 @@ public sealed class Repl
                     break;
                 }
                 case "esave" when parts.Length == 2 && _sim != null:
-                    System.IO.File.WriteAllText(parts[1],
-                        Core.Epoch.ArtifactSerializer.ToText(_sim));
-                    Console.WriteLine($"artifact saved to {parts[1]}");
+                    try
+                    {
+                        System.IO.File.WriteAllText(parts[1],
+                            Core.Epoch.ArtifactSerializer.ToText(_sim));
+                        Console.WriteLine($"artifact saved to {parts[1]}");
+                    }
+                    catch (System.IO.IOException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
                     break;
                 case "esave":
                     Console.WriteLine("run a sim first (epoch <seed>), then: esave <path>");
@@ -148,7 +153,8 @@ public sealed class Repl
                         }
                     }
                     catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
-                    catch (System.IO.FileNotFoundException) { Console.WriteLine("file not found"); }
+                    catch (System.IO.IOException) { Console.WriteLine("file not found"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot load: {ex.Message}"); }
                     break;
                 case "goods":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
