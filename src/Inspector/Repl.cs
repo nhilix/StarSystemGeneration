@@ -142,7 +142,8 @@ public sealed class Repl
                         + $" · stockpile {p.MilitaryStockpile:F1} · wealth {p.Wealth:F1}");
                     Console.WriteLine($"  balances: provisions {p.ProvisionsBalance:F1}"
                         + $" · ore {p.OreBalance:F1} · exotics {p.ExoticsBalance:F1}"
-                        + $" (invested {p.ExoticsInvested:F1})");
+                        + $" (invested {p.ExoticsInvested:F1})"
+                        + (p.BlockadeLoss > 0 ? $" · blockade loss {p.BlockadeLoss:F1}" : ""));
                     foreach (var w in skPol.Wars)
                     {
                         if (w.AttackerId != p.Id && w.DefenderId != p.Id) continue;

@@ -27,6 +27,12 @@ public static class EconomyReport
             + $" · {s.Wars.Count(w => !w.Ended)} live"
             + $" · famines {s.Events.Count(e => e.Type == GalaxyEventType.Famine)}"
             + $" · trade blocked {s.Events.Count(e => e.Type == GalaxyEventType.TradeBlocked)}");
+        var strainedPolities = living.Where(p => p.BlockadeLoss > 0).ToList();
+        sb.AppendLine(strainedPolities.Count == 0
+            ? "blockade strain: none"
+            : $"blockade strain: {strainedPolities.Count} polities"
+              + $" · total {strainedPolities.Sum(p => p.BlockadeLoss):F1}"
+              + $" · {strainedPolities.Count(p => p.BlockadeLoss > Economy.TradeBlockedFloor)} above event floor");
         var busy = s.Cells.Where(c => c.RouteThroughput > 0).ToList();
         sb.AppendLine(busy.Count == 0
             ? "trade: no routed flows"
