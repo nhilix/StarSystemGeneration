@@ -223,4 +223,22 @@ public class ResolutionPhaseTests
         Assert.Contains(s.Events, e => e.Type == GalaxyEventType.CellTaken
             && e.ActorPolityId == 1 && e.TargetPolityId == 0 && e.Q == 1 && e.R == 0);
     }
+
+    [Fact]
+    public void CapitalRelocation_PrefersUncontestedCells()
+    {
+        var s = AtWarFixture(attackerStock: 100.0, defenderStock: 0.05);
+        // Defender's capital IS the goal cell; its other cells are a contested
+        // high-dev cell and a safe low-dev cell. A fleeing government must not
+        // relocate into an active battlefield when it has any choice.
+        s.Polities[1].CapitalQ = 1; s.Polities[1].CapitalR = 0;
+        s.CellAt(new HexCoordinate(2, 0)).Contested = true;   // dev 3 in the fixture
+        var safePoor = s.CellAt(new HexCoordinate(3, 0));
+        safePoor.OwnerPolityId = 1; safePoor.DevelopmentTier = 1;
+        safePoor.Population = 0.5; safePoor.PopulationSpeciesId = 1;
+        ResolutionPhase.Run(s, 0);   // defender stockpile 0.05 < break floor → AttackerVictory annexes the capital
+        Assert.Equal(WarOutcome.AttackerVictory, s.Wars[0].Outcome);
+        Assert.Contains(s.Events, e => e.Type == GalaxyEventType.LostCapital && e.TargetPolityId == 1);
+        Assert.Equal(new HexCoordinate(3, 0), s.Polities[1].CapitalCoord);
+    }
 }

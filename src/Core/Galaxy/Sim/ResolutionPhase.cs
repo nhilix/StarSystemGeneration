@@ -182,10 +182,12 @@ public static class ResolutionPhase
     {
         if (loser.CapitalCoord.Equals(takenCell.Coord))
         {
+            // Refuge ordering (deferred-tickets spec §6): non-contested first, then
+            // development tier, then spiral index; a battlefield cell is chosen only
+            // when everything owned is contested.
             RegionCell? best = null;
             foreach (var c in EpochSim.Owned(s, loser))
-                if (best == null || c.DevelopmentTier > best.DevelopmentTier
-                    || (c.DevelopmentTier == best.DevelopmentTier && c.SpiralIndex < best.SpiralIndex))
+                if (best == null || BetterRefuge(c, best))
                     best = c;
             if (best != null)
             {
@@ -210,4 +212,10 @@ public static class ResolutionPhase
             });
         }
     }
+
+    private static bool BetterRefuge(RegionCell c, RegionCell best) =>
+        (!c.Contested && best.Contested)
+        || (c.Contested == best.Contested
+            && (c.DevelopmentTier > best.DevelopmentTier
+                || (c.DevelopmentTier == best.DevelopmentTier && c.SpiralIndex < best.SpiralIndex)));
 }
