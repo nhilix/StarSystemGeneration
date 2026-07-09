@@ -33,29 +33,32 @@ the prototype sim is deleted in Task 5.
       `StubGenesis` (channels 37–39 retired). Gate: EpochGenesisTests green,
       solution green (267/267). REPL smoke: `epoch 42 8 10` → 7 polities
       from real anchors, staggered entry.
-- [ ] 5. **Prototype deletion + raster slim** — delete `EpochSim`, `Sim/*`,
+- [x] 5. **Prototype deletion + raster slim** — deleted `EpochSim`, `Sim/*`,
       `Polity`, `War`, `GalaxyEvent`, `SkeletonSerializer`, Inspector
-      political surface, nine prototype test files; slim `RegionCell`,
-      `RegionContext`, `GalaxySkeleton`, `GalaxyConfig`, `PassHomeworlds`.
-      Gate: solution green, hex-tier suite intact, Inspector builds.
-- [ ] 6. **Allocation stub income** — per-port world-year income × standing
+      political surface, nine prototype test files (82 tests); slimmed
+      `RegionCell`, `RegionContext`, `GalaxySkeleton`, `GalaxyConfig`,
+      `PassHomeworlds` (roll sequence unchanged). C's `infra` command adapted
+      to neutral-wilds inputs, workforce from the homeworld anchor.
+      Gate: green (186), hex-tier intact, Inspector builds. **Resumed here
+      after the C merge**: rebased onto main via the recorded command, clean.
+- [x] 6. **Allocation stub income** — per-port world-year income × standing
       budget weights → polity treasuries; `Actor.Policies` written in Intent.
-      Gate: AllocationTests green.
-- [ ] 7. **Expansion chain** — `ColonyValuation`, `PerceptionView` extension,
-      `GenesisController`, `FoundColonyAct` resolver (tier-1 ports, collision
-      order, `PortEstablished` events). Gate: ExpansionTests green.
-- [ ] 8. **Lanes + tier growth** — Allocation builds in-range same-owner
-      lanes (dist order) and raises lowest-tier ports from development
-      points; `LaneOpened`/`PortTierRaised` events. Gate: determinism asserts.
-- [ ] 9. **Segment growth** — Interior integrates logistic growth toward
-      port-tier caps. Gate: InteriorTests green.
-- [ ] 10. **Artifact format** — `ArtifactSerializer`: layer-sectioned,
-      versioned per layer, both configs stamped; `esave`/`eload`. Gates:
-      byte-identity across runs, load-vs-rebuild equivalence, culture-flip,
-      version refusal.
-- [ ] 11. **REPL surface** — `emap [domains|lanes]`, `chronicle [actorId]`,
-      trace registry summary; piped smoke
-      (`printf 'epoch 42\nemap\nemap lanes\nchronicle\nquit\n' | dotnet run --project src/Inspector`).
+- [x] 7. **Expansion chain** — `ColonyValuation`, `PerceptionView` extension,
+      `GenesisController`, `FoundColonyAct` resolver. Surprise: colony
+      targets could squat unentered polities' homeworld anchors → duplicate
+      port at entry; homeworld anchor hexes are now reserved for their
+      species' emergence.
+- [x] 8. **Lanes + tier growth** — lanes nearest-first then tier raises
+      lowest-first from development points; `LaneOpened`/`PortTierRaised`.
+- [x] 9. **Segment growth** — logistic per world-year toward port-tier caps;
+      entry-step segments start integrating the following epoch.
+- [x] 10. **Artifact format** — 11 layers, versioned per layer, both configs
+      stamped; typed payload round-trip; controllers reattach on load;
+      `esave`/`eload`. Gates all green (byte-identity, load-vs-rebuild,
+      culture-flip, version refusal).
+- [x] 11. **REPL surface** — `emap [domains|lanes]`, `chronicle [actorId]`,
+      trace registry summary; piped smoke OK. Test arithmetic:
+      268 (post-C main) − 82 prototype + 17 new = 203/203 green.
 - [ ] 12. **Gates + wrap-up** — full test run · fresh-eyes branch review
       subagent + one fix wave · **USER: REPL eyeball** (domain glows,
       organic borders, lane webs, founding chronicle) · goldens frozen
