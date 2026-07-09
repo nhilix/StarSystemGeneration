@@ -16,7 +16,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
       `EventVisibility` (public/regional/secret); append-only `EventLog` with
       per-place and per-actor **views** (computed, never stored). Tests:
       append/id order, view correctness, family mapping.
-- [ ] 3. **Controller contract** — policy/act records per
+- [x] 3. **Controller contract** — policy/act records per
       `frame/controller-contract.md` (polity, corporation, character);
       `IController.Decide(perceived) → (policies, acts)`; perfect-info
       `PerceptionView` stub; `TrivialController` default AI. Tests: trivial AI
