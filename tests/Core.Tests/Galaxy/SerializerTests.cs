@@ -82,9 +82,10 @@ public class SerializerTests
         // (war, famine, trade) now emits additional event types the seeding-era count
         // never saw; Polities.Count is unaffected. Re-frozen again for task 10's
         // invariant-suite tuning (ProvisionsPerPop 1.0->0.5): Events.Count fell from 37 to 34 (fewer famine events at this seed);
-        // Polities.Count still unaffected.
+        // Polities.Count still unaffected. Re-frozen once more in acceptance
+        // (TechThresholdBase 10->5): two TechAdvance events now fire, 34 -> 36.
         Assert.Equal(2, s.Polities.Count);
-        Assert.Equal(34, s.Events.Count);
+        Assert.Equal(36, s.Events.Count);
     }
 
     [Fact]

@@ -31,8 +31,10 @@ public sealed class GalaxyConfig
     public double WarWearinessRate { get; set; } = 0.15;
     /// <summary>Fractional military-stockpile decay per epoch.</summary>
     public double StockpileDecayRate { get; set; } = 0.10;
-    /// <summary>Exotics cost of tech tier 1; geometric ladder (×3 per tier) above.</summary>
-    public double TechThresholdBase { get; set; } = 10.0;
+    /// <summary>Exotics cost of tech tier 1; geometric ladder (×3 per tier) above.
+    /// 5 (acceptance-tuned from 10): at 10, no reference-config polity crossed
+    /// tier 1 inside the default 12 epochs — spec §9 wants visible tech spread.</summary>
+    public double TechThresholdBase { get; set; } = 5.0;
     /// <summary>Wealth gained per unit of matched cross-polity trade.</summary>
     public double TradeIncomeWeight { get; set; } = 0.5;
     /// <summary>Provisions consumed per population unit per epoch — the famine dial.</summary>

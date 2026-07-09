@@ -25,9 +25,14 @@ public static class GalaxyMapView
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++) canvas[y, x] = ' ';
 
+        // Trade shading is relative to this map's busiest cell — absolute flow
+        // magnitudes are tuning-dependent and would render near-uniform.
+        double maxThroughput = layer == "trade"
+            ? System.Math.Max(1e-9, s.Cells.Max(c => c.RouteThroughput)) : 0;
+
         foreach (var (cell, off) in offsets)
         {
-            char glyph = CellChar(s, cell, layer);
+            char glyph = CellChar(s, cell, layer, maxThroughput);
             int col = off.Col - minCol, row = off.Row - minRow;
             int y = 2 * row + (off.Col & 1);          // odd columns drop half a line
             canvas[y, col * 2] = glyph;
@@ -44,7 +49,7 @@ public static class GalaxyMapView
         return sb.ToString();
     }
 
-    private static char CellChar(GalaxySkeleton s, RegionCell c, string layer) => layer switch
+    private static char CellChar(GalaxySkeleton s, RegionCell c, string layer, double maxThroughput = 1.0) => layer switch
     {
         "polity" => c.IsVoid ? ' '
             : s.Polities.Any(p => !p.Extinct && p.CapitalQ == c.Q && p.CapitalR == c.R) ? '*'
@@ -62,7 +67,8 @@ public static class GalaxyMapView
         },
         "trade" => c.IsVoid ? ' '
             : c.RouteThroughput <= 0 ? '.'
-            : DensityRamp[System.Math.Clamp((int)(System.Math.Sqrt(c.RouteThroughput) * 3.0), 1, 9)],
+            : DensityRamp[System.Math.Clamp(
+                (int)(c.RouteThroughput / maxThroughput * 9.0), 1, 9)],
         "economy" => c.IsVoid ? ' ' : EconomyChar(s, c),
         "war" => c.IsVoid ? ' ' : c.Contested ? '!' : c.WarScarred ? 'x'
             : c.IsChokepoint ? '^' : '.',
@@ -89,9 +95,10 @@ public static class GalaxyMapView
             + $"({s.Cells.Count(c => c.OwnerPolityId == p.Id)} cells)"))
             + "   *=capital .=unclaimed",
         "zone" => "!=war-scarred ^=chokepoint ?=contested .=quiet",
-        "dev" => "0-5=development .=unclaimed",
+        "dev" => "0-9=development .=unclaimed",
         "lean" => "+=young-bright -=old-dim x=remnant-graveyard .=balanced",
-        "trade" => "route throughput: .=none " + DensityRamp.Substring(1) + " low->high",
+        "trade" => "route throughput (relative to busiest cell): .=none "
+            + DensityRamp.Substring(1) + " low->high",
         "economy" => "p/o/e=dominant production (P/O/E=anchored) provisions/ore/exotics",
         "war" => "!=contested front x=war-scarred ^=chokepoint .=quiet",
         _ => "density: ' " + DensityRamp + " ' low->high",
