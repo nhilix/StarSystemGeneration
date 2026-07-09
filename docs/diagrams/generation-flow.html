@@ -9,6 +9,7 @@
     --line: #C9D0DE;
     --accent: #3E6FD9;
     --done: #1F8A63;  --done-bg: rgba(31,138,99,.09);  --done-line: rgba(31,138,99,.45);
+    --proto: #7A4FC0; --proto-bg: rgba(122,79,192,.08);--proto-line: rgba(122,79,192,.45);
     --spec: #A06E12;  --spec-bg: rgba(176,120,24,.10); --spec-line: rgba(176,120,24,.5);
     --fut:  #6B7288;  --fut-bg:  rgba(107,114,136,.07);--fut-line: rgba(107,114,136,.45);
     --star-opacity: 0.25;
@@ -20,6 +21,7 @@
       --bg: #0B0E16; --panel: #131826; --panel2: #0F1420;
       --ink: #E6EAF5; --muted: #98A0B5; --line: #2A3247; --accent: #7FA3F0;
       --done: #4CC79A; --done-bg: rgba(76,199,154,.08); --done-line: rgba(76,199,154,.4);
+      --proto: #A98BE8; --proto-bg: rgba(169,139,232,.08); --proto-line: rgba(169,139,232,.4);
       --spec: #E0AF52; --spec-bg: rgba(224,175,82,.08); --spec-line: rgba(224,175,82,.45);
       --fut:  #8A91A8; --fut-bg:  rgba(138,145,168,.06);--fut-line: rgba(138,145,168,.4);
       --star-opacity: 1;
@@ -29,6 +31,7 @@
     --bg: #F4F6FA; --panel: #FFFFFF; --panel2: #EDF0F6;
     --ink: #1C2434; --muted: #5A6478; --line: #C9D0DE; --accent: #3E6FD9;
     --done: #1F8A63; --done-bg: rgba(31,138,99,.09); --done-line: rgba(31,138,99,.45);
+    --proto: #7A4FC0; --proto-bg: rgba(122,79,192,.08); --proto-line: rgba(122,79,192,.45);
     --spec: #A06E12; --spec-bg: rgba(176,120,24,.10); --spec-line: rgba(176,120,24,.5);
     --fut:  #6B7288; --fut-bg:  rgba(107,114,136,.07);--fut-line: rgba(107,114,136,.45);
     --star-opacity: 0.25;
@@ -37,6 +40,7 @@
     --bg: #0B0E16; --panel: #131826; --panel2: #0F1420;
     --ink: #E6EAF5; --muted: #98A0B5; --line: #2A3247; --accent: #7FA3F0;
     --done: #4CC79A; --done-bg: rgba(76,199,154,.08); --done-line: rgba(76,199,154,.4);
+    --proto: #A98BE8; --proto-bg: rgba(169,139,232,.08); --proto-line: rgba(169,139,232,.4);
     --spec: #E0AF52; --spec-bg: rgba(224,175,82,.08); --spec-line: rgba(224,175,82,.45);
     --fut:  #8A91A8; --fut-bg:  rgba(138,145,168,.06);--fut-line: rgba(138,145,168,.4);
     --star-opacity: 1;
@@ -84,6 +88,7 @@
   .legend .key { display: flex; align-items: center; gap: .45rem; }
   .dot { width: .55rem; height: .55rem; border-radius: 50%; flex: none; }
   .dot.done { background: var(--done); }
+  .dot.proto { background: var(--proto); }
   .dot.spec { background: var(--spec); }
   .dot.fut  { background: transparent; border: 1.5px dashed var(--fut); }
   .legend .stamp { margin-left: auto; color: var(--muted); }
@@ -126,6 +131,7 @@
     padding: .7rem .85rem .75rem; min-width: 0;
   }
   .node.done { border-color: var(--done-line); background: linear-gradient(var(--done-bg), var(--done-bg)) , var(--panel); }
+  .node.proto { border-color: var(--proto-line); background: linear-gradient(var(--proto-bg), var(--proto-bg)), var(--panel); }
   .node.spec { border-color: var(--spec-line); background: linear-gradient(var(--spec-bg), var(--spec-bg)), var(--panel); }
   .node.fut  { border-style: dashed; border-color: var(--fut-line); background: linear-gradient(var(--fut-bg), var(--fut-bg)), var(--panel); }
   .node-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .25rem; }
@@ -135,6 +141,7 @@
     padding: .08rem .4rem; border-radius: 2px; flex: none; margin-left: auto;
   }
   .chip.done { color: var(--done); border: 1px solid var(--done-line); }
+  .chip.proto { color: var(--proto); border: 1px solid var(--proto-line); }
   .chip.spec { color: var(--spec); border: 1px solid var(--spec-line); }
   .chip.fut  { color: var(--fut);  border: 1px dashed var(--fut-line); }
   .node p { margin: 0; font-size: .78rem; color: var(--muted); }
@@ -143,6 +150,8 @@
   .node li strong, .node p strong { color: var(--ink); font-weight: 600; }
   .node li.spec-item::marker { color: var(--spec); }
   .node li.spec-item { color: var(--spec); }
+  .node li.proto-item::marker { color: var(--proto); }
+  .node li.proto-item { color: var(--proto); }
   .node li.fut-item::marker { color: var(--fut); }
   .node li.fut-item { font-style: italic; }
 
@@ -155,10 +164,11 @@
   }
   .subgroup > h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
-  /* ---- horizontal chains (phase pipeline, hex pipeline) ---- */
+  /* ---- horizontal chains (clock stack, phase pipeline, hex pipeline) ---- */
   .chain-scroll { overflow-x: auto; padding-bottom: .35rem; }
   .chain { display: flex; align-items: stretch; gap: 0; min-width: max-content; }
   .chain .node { width: 13.5rem; flex: none; }
+  .chain .node.clock { width: 12.5rem; }
   .chain .link {
     align-self: center; color: var(--accent); font-family: var(--mono);
     padding: 0 .35rem; font-size: .85rem; flex: none;
@@ -170,6 +180,7 @@
     background: var(--panel); border-radius: 999px; padding: .22rem .65rem;
   }
   .pill.spec { border-color: var(--spec-line); color: var(--spec); }
+  .pill.fut { border-style: dashed; border-color: var(--fut-line); color: var(--fut); font-style: italic; }
   .pills .link { color: var(--accent); font-size: .75rem; }
 
   .epoch-frame {
@@ -201,14 +212,16 @@
     <h1>Generation &amp; Simulation Flow</h1>
     <p class="subtitle">
       End-to-end contract: <strong>hex&nbsp;=&nbsp;f(GalaxyConfig, coordinate)</strong> — the skeleton is a
-      memoized, persisted intermediate term. Three tiers feed two surfaces. Update this page as
-      layers deepen.
+      memoized, persisted intermediate term. The epoch simulation now sits inside a
+      <strong>four-clock master frame</strong> (cosmic → evolutionary → generational → play);
+      design-first phase — eight design passes precede further implementation.
     </p>
     <div class="legend">
       <span class="key"><span class="dot done"></span> Implemented</span>
+      <span class="key"><span class="dot proto"></span> Prototype (running; replaced as designs land)</span>
       <span class="key"><span class="dot spec"></span> Specced (design approved, unbuilt)</span>
-      <span class="key"><span class="dot fut"></span> Future / deferred</span>
-      <span class="stamp">2026-07-09 · main @ 93e2ca9 · slice 2 + deferred-ticket batch shipped</span>
+      <span class="key"><span class="dot fut"></span> Future / awaiting design pass</span>
+      <span class="stamp">2026-07-09 · main @ ed1123a · master frame adopted</span>
     </div>
   </header>
 
@@ -228,12 +241,47 @@
             <li>master seed · galaxy radius (cells)</li>
             <li>12 tuning knobs — density target, arm count/tightness/width, epochs, homeworld rate, mineral/precursor rates…</li>
             <li>5 economy knobs: weariness rate, stockpile decay, tech threshold, trade income weight, provisions/pop</li>
+            <li class="fut-item">all rates re-expressed in world-years (frame P7)</li>
           </ul>
         </div>
       </div>
     </section>
 
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+
+    <!-- CLOCK STACK -->
+    <section class="tier">
+      <div class="tier-head">
+        <span class="tier-tag">Frame</span>
+        <h2>The Four Clocks</h2>
+        <span class="nature">each hands the next a finished board + latent story material</span>
+      </div>
+      <div class="chain-scroll">
+        <div class="chain">
+          <div class="node fut clock">
+            <div class="node-head"><span class="name">Cosmic</span><span class="chip fut">PASS 0a</span></div>
+            <p>~14 Gyr, coarse steps. Structure: nebulae, coalescence, enrichment → element distribution, voids, mineral vs. gas regions. <strong>→ the physical galaxy</strong></p>
+          </div>
+          <span class="link">→</span>
+          <div class="node fut clock">
+            <div class="node-head"><span class="name">Evolutionary</span><span class="chip fut">PASS 0b</span></div>
+            <p>~Gyrs, ~Myr steps. Life: biospheres, extinctions, sapience, <strong>precursors as previous emergence waves</strong>. → living galaxy + <strong>emergence schedule</strong> + archaeology</p>
+          </div>
+          <span class="link">→</span>
+          <div class="node spec clock">
+            <div class="node-head"><span class="name">Generational</span><span class="chip spec">FRAME</span></div>
+            <p>~1,000y in ~25y epochs (a reign ≈ 1–3 epochs). History: polities, economies, wars, culture — the epoch sim below. <strong>→ world-state handoff</strong></p>
+          </div>
+          <span class="link">→</span>
+          <div class="node fut clock">
+            <div class="node-head"><span class="name">Play</span><span class="chip fut">GAME</span></div>
+            <p>Days–weeks per tick. Same rules, finer sampling; news at ship speed; the player assumes any controller slot.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">cosmic + evolutionary outputs feed the tiers below (today: analytic seeding, their degenerate form)</span></div>
 
     <!-- TIER 1 -->
     <section class="tier">
@@ -247,6 +295,7 @@
         <div class="node done">
           <div class="node-head"><span class="name">Galactic shape</span><span class="chip done">DONE</span></div>
           <p>Dense core · log-spiral arm ridges · rim falloff · hard zero past the extent.</p>
+          <ul><li class="fut-item">superseded by cosmic-genesis evolved fields (pass 0a)</li></ul>
         </div>
         <div class="node done">
           <div class="node-head"><span class="name">Value noise</span><span class="chip done">DONE</span></div>
@@ -282,100 +331,168 @@
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">3 · Resource anchors</span><span class="chip done">DONE</span></div>
-            <p>Mineral-rich systems, precursor sites as <strong>anchored hexes</strong> (one anchor per hex, collision-probed).</p>
+            <p>Mineral-rich systems, precursor sites as <strong>anchored hexes</strong>.</p>
+            <ul><li class="fut-item">precursor placement becomes evolutionary-clock residue (0b)</li></ul>
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">4 · Homeworlds &amp; species</span><span class="chip done">DONE</span></div>
-            <p>Spacing-aware sapient origins; species profiles — embodiment + temperament axes (6 scalars).</p>
+            <p>Spacing-aware sapient origins; species profiles (6 scalars).</p>
+            <ul><li class="fut-item">all-at-epoch-0 entry → staggered <strong>emergence schedule</strong> (0b)</li></ul>
           </div>
         </div>
       </div>
 
       <div class="subgroup">
-        <h3>Epoch simulation</h3>
-        <div class="epoch-frame" style="border-color: var(--done-line);">
+        <h3>Epoch simulation · master frame (2026-07-09)</h3>
+        <div class="epoch-frame">
           <div class="frame-head">
-            <span class="name">Stages 1–3 · phase pipeline (each epoch)</span>
-            <span class="chip done">DONE</span>
-            <span class="note">slice 2 shipped 2026-07-08 — full §7.3 war minus vassalage, population, pathed trade, tech; stage-1 loop absorbed</span>
+            <span class="name">Seven phases per step</span>
+            <span class="chip spec">SPEC</span>
+            <span class="note">one controller touchpoint (Intent: policies + acts) · decisions on perception, consequences on truth · prototype pipeline (income/allocation/action/resolution) maps into phases 2–5</span>
           </div>
           <div class="chain-scroll">
             <div class="chain">
-              <div class="node done">
-                <div class="node-head"><span class="name">1 · Income</span></div>
+              <div class="node spec">
+                <div class="node-head"><span class="name">1 · Perception</span></div>
                 <ul>
-                  <li>cell production: Provisions / Ore / Exotics</li>
-                  <li>flows: BFS paths, cell throughput</li>
-                  <li>blockade = severed paths → per-polity strain (BlockadeLoss)</li>
-                  <li>shortages → famine, stalls, decay</li>
+                  <li>news arrives — carried by traffic</li>
+                  <li>stances, reputations, known prices/wars update</li>
+                  <li>actors believe, not know (P3)</li>
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node done">
-                <div class="node-head"><span class="name">2 · Allocation</span></div>
+              <div class="node spec">
+                <div class="node-head"><span class="name">2 · Markets</span></div>
                 <ul>
-                  <li>4-way budget split (temperament-weighted)</li>
-                  <li>military stockpile grow / decay</li>
-                  <li>development spend, tech-tier ceiling</li>
-                  <li>exotics → tech-tier ladder</li>
+                  <li>production: cells + infrastructure</li>
+                  <li>demand by use-case → <strong>price formation</strong></li>
+                  <li>trade under freight capacity, tariffs, blockades</li>
+                  <li class="proto-item">proto: income phase — 3 goods, BFS flows, strain</li>
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node done">
-                <div class="node-head"><span class="name">3 · Action</span></div>
+              <div class="node spec">
+                <div class="node-head"><span class="name">3 · Allocation</span></div>
                 <ul>
-                  <li>expansion on frontier (affinity cost)</li>
-                  <li>war declarations → War registry</li>
-                  <li>deficit-driven goals: ore / exotics / chokepoint / punitive</li>
+                  <li>standing policies applied mechanically</li>
+                  <li>infrastructure investment · shipbuilding recipes</li>
+                  <li>upkeep, tech, dividends, faction appeasement</li>
+                  <li class="proto-item">proto: 4-way budget split, stockpile, tech ladder</li>
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node done">
-                <div class="node-head"><span class="name">4 · Resolution</span></div>
+              <div class="node spec">
+                <div class="node-head"><span class="name">4 · Intent</span></div>
                 <ul>
-                  <li>fronts contested, stockpile × tech strength</li>
-                  <li>weariness accrual (strain counts) → break</li>
-                  <li>victory annexes · defender victory restores · white peace freezes</li>
-                  <li>extinct side loses outright; capitals flee to safe cells</li>
+                  <li><strong>the controller touchpoint</strong> (AI ⇄ player)</li>
+                  <li>policies (budgets, postures, doctrine)</li>
+                  <li>acts (war, alliance, charter, colony, fleet)</li>
+                  <li class="proto-item">proto: action phase — expansion + war declarations</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">5 · Resolution</span></div>
+                <ul>
+                  <li>fleet movement · fronts · battles · blockades</li>
+                  <li>diplomacy matched (mutual consent)</li>
+                  <li>annexations, capital falls</li>
+                  <li class="proto-item">proto: resolution phase — stockpile×tech fronts, weariness</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">6 · Interior</span></div>
+                <ul>
+                  <li>cohesion, ideology drift, faction pressure</li>
+                  <li>succession · <strong>graduations</strong> (schism/coup/charter)</li>
+                  <li>demographics: growth, famine, migration</li>
+                  <li>emergence-schedule entries join</li>
+                </ul>
+              </div>
+              <span class="link">→</span>
+              <div class="node spec">
+                <div class="node-head"><span class="name">7 · Chronicle</span></div>
+                <ul>
+                  <li>events finalized with world-years</li>
+                  <li>news pulses emitted (arrive later, by traffic)</li>
+                  <li>map residue: scars, zones, throughput</li>
+                  <li class="proto-item">proto: event log, 9 types</li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="grid" style="margin-top:.7rem;">
-          <div class="node fut">
-            <div class="node-head"><span class="name">Stage 4 · relations</span><span class="chip fut">FUTURE</span></div>
-            <p>Trade → alliance → federation ladder, conquest composition, schisms, vassalage, non-deficit war causes (ideology, spark events).</p>
+      <div class="subgroup">
+        <h3>Actors — institutions &amp; characters decide · populations respond · assets are acted through</h3>
+        <div class="grid">
+          <div class="node proto">
+            <div class="node-head"><span class="name">Polity</span><span class="chip proto">PROTO</span></div>
+            <p>Territorial sovereign: cells, taxes, wars, diplomacy.</p>
+            <ul><li class="spec-item">gains an interior: factions, drifting ideology, leadership — temperament becomes species × ideology × ruler (pass 4)</li></ul>
           </div>
-          <div class="node fut">
-            <div class="node-head"><span class="name">Stage 5 · news &amp; reputation</span><span class="chip fut">FUTURE</span></div>
-            <p>News pulses over the trade graph, arrival-time stances, reputation gates on diplomacy.</p>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Corporation</span><span class="chip spec">SPEC</span></div>
+            <p>Emergent, non-territorial: owns assets across borders, exerts influence; chartered / taxed / nationalized / expelled (pass 2).</p>
           </div>
-          <div class="node fut">
-            <div class="node-head"><span class="name">Stage 6 · finalization</span><span class="chip fut">FUTURE</span></div>
-            <p>Event→POI compiler (battles → ruins), world-state handoff — the live game's initial conditions.</p>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Character</span><span class="chip spec">SPEC</span></div>
+            <p>Sparse: role-holders + event-born notables. Personality colors institutional decisions; mortality forces succession; dynasties (pass 4).</p>
+          </div>
+          <div class="node proto">
+            <div class="node-head"><span class="name">Population</span><span class="chip proto">PROTO</span></div>
+            <p>Species-tagged, cell-local; the demand side, the legitimacy base, the thing that migrates.</p>
+            <ul><li class="spec-item">mixed species/culture per cell; migration (pass 4)</li></ul>
+          </div>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Faction</span><span class="chip spec">SPEC</span></div>
+            <p>Semi-actor pressure bloc; <strong>graduates</strong> into polity (schism), corporation (charter), or the ruler role (coup) — the one factory for new institutions (pass 4).</p>
+          </div>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Assets</span><span class="chip spec">SPEC</span></div>
+            <p><strong>Infrastructure</strong> (mines, shipyards, spaceports — anchor into hexes) + <strong>fleets</strong> (freight, war, news carriage). Power concrete &amp; conserved (passes 1–3).</p>
           </div>
         </div>
       </div>
 
       <div class="subgroup">
-        <h3>Cross-cutting state</h3>
+        <h3>Cross-cutting state &amp; interfaces</h3>
         <div class="grid">
           <div class="node done">
             <div class="node-head"><span class="name">Event log</span><span class="chip done">DONE</span></div>
-            <p>Single global append-only stream.
-              <strong>9 types live</strong> incl. WarEnded, TechAdvance, Famine, TradeBlocked (+ typed Detail payload).</p>
+            <p>Single global append-only stream, 9 types live.</p>
+            <ul><li class="spec-item">formal event grammar: actor ids, location, world-year, magnitude, typed payload (pass 6)</li></ul>
           </div>
           <div class="node done">
-            <div class="node-head"><span class="name">Polity registry</span><span class="chip done">DONE</span></div>
-            <p>Id, name, species, capital, extinct-retained.
-              Plus stockpile, tech tier, wealth, per-good balances, and the persistent War registry (goals, weariness, outcomes; ended wars retained).</p>
+            <div class="node-head"><span class="name">Registries</span><span class="chip done">DONE</span></div>
+            <p>Polities (extinct-retained), wars, per-cell state — schema v5.</p>
+            <ul><li class="spec-item">gain corporations, characters, fleets, infrastructure</li></ul>
           </div>
-          <div class="node done">
-            <div class="node-head"><span class="name">Region-cell state</span><span class="chip done">DONE</span></div>
-            <p>Owner, dev tier, contested, war-scarred, anchors.
-              Plus species-tagged population and per-cell route throughput.</p>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Controller</span><span class="chip spec">SPEC</span></div>
+            <p><strong>Decide(perceived) → policies + acts.</strong> AI and player interchangeable at every scope: character ⇄ corporation ⇄ polity (P2).</p>
+          </div>
+          <div class="node spec">
+            <div class="node-head"><span class="name">Price signal</span><span class="chip spec">SPEC</span></div>
+            <p>Market prices replace hand-rolled "system value" as the one valuation everything reads: expansion, war goals, migration, investment.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="subgroup">
+        <h3>Design passes — design-first; implementation resumes after</h3>
+        <div class="chain-scroll">
+          <div class="pills">
+            <span class="pill fut">0a cosmic</span><span class="link">→</span>
+            <span class="pill fut">0b life &amp; precursors</span><span class="link">→</span>
+            <span class="pill fut">1 substrate &amp; commodities</span><span class="link">→</span>
+            <span class="pill fut">2 markets &amp; corporations</span><span class="link">→</span>
+            <span class="pill fut">3 ships &amp; fleets</span><span class="link">→</span>
+            <span class="pill fut">4 polity interior</span><span class="link">→</span>
+            <span class="pill fut">5 inter-polity</span><span class="link">→</span>
+            <span class="pill fut">6 narrative &amp; handoff</span>
           </div>
         </div>
       </div>
@@ -404,7 +521,10 @@
         </div>
         <div class="node done">
           <div class="node-head"><span class="name">Pre-commitments</span><span class="chip done">DONE</span></div>
-          <p>Anchored hexes override pinned fields (mineral-rich, precursor, homeworld → sapient major world); unpinned fields roll organically.</p>
+          <p>Anchored hexes override pinned fields (mineral-rich, precursor, homeworld); unpinned fields roll organically.</p>
+          <ul>
+            <li class="spec-item">sim-built infrastructure &amp; event POIs anchor here — the spaceport you visit is the one built in epoch 31 (P1)</li>
+          </ul>
         </div>
       </div>
       <div class="chain-scroll">
@@ -428,16 +548,15 @@
       <div class="tier-head">
         <span class="tier-tag">Surfaces</span>
         <h2>Inspection &amp; Rendering</h2>
-        <span class="nature">map-legibility rule: every sim mechanic must surface here</span>
+        <span class="nature">two-customer rule: every mechanic legible at genesis AND inhabitable at play</span>
       </div>
       <div class="grid">
         <div class="node done">
           <div class="node-head"><span class="name">Inspector REPL</span><span class="chip done">DONE</span></div>
           <ul>
-            <li>galaxy build/load · save (artifact v3)</li>
-            <li>ASCII map layers: density, polity, dev, zones</li>
+            <li>galaxy build/load · save (artifact v5)</li>
+            <li>ASCII map layers: density, polity, dev, zones, trade, economy, war</li>
             <li>cell · polity · chronicle · stats · goto/walk</li>
-            <li>trade / economy / war layers · polity &amp; chronicle commands · economy stats block</li>
           </ul>
         </div>
         <div class="node done">
@@ -446,15 +565,16 @@
             <li>Setup screen: 12 knobs, live shape preview</li>
             <li>Galaxy screen: 5 layers, hover, drill-down</li>
             <li>Cell screen: 91 hexes, system panel</li>
-            <li>System screen: orbit diagram (roadmap phase 2 ✓)</li>
+            <li>System screen: orbit diagram</li>
             <li class="fut-item">economy layer parity, smooth pan/zoom, in-diagram labels</li>
           </ul>
         </div>
         <div class="node fut">
           <div class="node-head"><span class="name">Game layer</span><span class="chip fut">FUTURE</span></div>
           <ul>
-            <li class="fut-item">live tick over the world-state handoff</li>
-            <li class="fut-item">ships, travel, discovery, player-as-news</li>
+            <li class="fut-item">generational machine at play-tick sampling (P7)</li>
+            <li class="fut-item">player assumes any controller slot: character → faction/corp → polity, and back (P2)</li>
+            <li class="fut-item">news at ship speed; the player as carrier</li>
             <li class="fut-item">delta layer over the artifact</li>
           </ul>
         </div>
@@ -464,13 +584,13 @@
   </div>
 
   <footer>
-    <span class="src">Sources of truth (specs govern; this page summarizes):</span>
+    <span class="src">Sources of truth (design tree + specs govern; this page summarizes):</span>
     <ul>
+      <li><span class="src">docs/design/</span> — the living systems design: frame (principles P1–P8, actors, clocks, flow, system map) + one section per subsystem, filled as design passes complete</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-09-epoch-sim-master-frame-design.md</span> — the frame's decision record + eight-pass roadmap</li>
       <li><span class="src">docs/superpowers/specs/2026-07-07-generation-rules-design.md</span> — Phase 1 system/body pipeline</li>
-      <li><span class="src">docs/superpowers/specs/2026-07-07-regional-generation-design.md</span> — three tiers, sim stages 1–6</li>
-      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (shipped 2026-07-08)</li>
-      <li><span class="src">docs/superpowers/specs/2026-07-09-econ-deferred-tickets-design.md</span> — deferred-ticket batch: blockade strain, war-termination settlement (shipped 2026-07-09, schema v5)</li>
-      <li><span class="src">docs/DESIGN.md §4</span> — roadmap (phases 1–2 complete, 3 delivered at cell resolution)</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-07-regional-generation-design.md</span> — three tiers (§7 epoch sim superseded by the master frame)</li>
+      <li><span class="src">docs/DESIGN.md</span> — project-level architecture, stack, roadmap</li>
     </ul>
   </footer>
 </div>
