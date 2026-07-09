@@ -27,7 +27,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
       placeholder, hash-rolled entry epochs; Slice B replaces). New
       `RollChannel` values appended, never reused. Tests: determinism of
       seeding, staggered entry.
-- [ ] 5. **Seven-phase engine** — Perception → Markets → Allocation → Intent →
+- [x] 5. **Seven-phase engine** — Perception → Markets → Allocation → Intent →
       Resolution → Interior → Chronicle; phases execute + log trace; Intent is
       the only controller touchpoint; Chronicle finalizes staged events with
       world-years. Tests: phase order, world-year advance (epoch = 25y
