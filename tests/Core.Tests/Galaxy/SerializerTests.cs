@@ -81,8 +81,7 @@ public class SerializerTests
         // slice (schema v4): Events.Count rose from 30 to 37 because the live economy
         // (war, famine, trade) now emits additional event types the seeding-era count
         // never saw; Polities.Count is unaffected. Re-frozen again for task 10's
-        // invariant-suite tuning (ProvisionsPerPop 1.0->0.5, IncomePhase.FamineShrink
-        // 0.8->0.45): Events.Count fell from 37 to 34 (fewer famine events at this seed);
+        // invariant-suite tuning (ProvisionsPerPop 1.0->0.5): Events.Count fell from 37 to 34 (fewer famine events at this seed);
         // Polities.Count still unaffected.
         Assert.Equal(2, s.Polities.Count);
         Assert.Equal(34, s.Events.Count);

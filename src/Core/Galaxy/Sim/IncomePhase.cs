@@ -12,7 +12,7 @@ public static class IncomePhase
     private const double FamineEventFloor = 0.5;
     private const double TradeBlockedFloor = 2.0;
     private const double PopGrowthBase = 0.05;
-    private const double FamineShrink = 0.45;
+    private const double FamineShrink = 0.8;
     private const double ScarShrink = 0.95;
 
     public static void Run(GalaxySkeleton s, int epoch)
@@ -201,8 +201,9 @@ public static class IncomePhase
         {
             if (cell.OwnerPolityId < 0 || starvingSet.Contains(cell)) continue;
             double cap = 1.0 + cell.DevelopmentTier;
-            cell.Population = Math.Min(cap,
-                cell.Population + PopGrowthBase * (1 + cell.DevelopmentTier) * 0.5);
+            if (cell.Population < cap)
+                cell.Population = Math.Min(cap,
+                    cell.Population + PopGrowthBase * (1 + cell.DevelopmentTier) * 0.5);
             if (cell.Contested && cell.WarScarred)
                 cell.Population = Math.Max(0, cell.Population * ScarShrink);
         }
