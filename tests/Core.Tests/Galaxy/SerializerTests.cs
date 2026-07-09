@@ -79,6 +79,7 @@ public class SerializerTests
         // Golden facts recorded at implementation time — fill the two literals with the
         // observed values on first run, then they are frozen:
         Assert.Equal(2, s.Polities.Count);
+        // ECONMIGRATION: re-freeze in serializer-v4 task
         Assert.Equal(30, s.Events.Count);
     }
 

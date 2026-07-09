@@ -95,6 +95,12 @@ public class SkeletonModelTests
         foreach (var p in s.Polities)
         {
             var cell = s.CellAt(p.CapitalCoord);
+            // ECONMIGRATION: retune in shape-band task — the live economy (IncomePhase
+            // famine shrink, ResolutionPhase war-scar shrink / capital relocation) can
+            // now drop a capital cell's population below the seed-time 3.0, or move the
+            // capital off the original homeworld cell entirely. Observed at seed 42,
+            // GalaxyRadiusCells 8: polity 0 capitalCellPop=0.616, polity 3=0.318, polity
+            // 4=0.750 (all < 3.0) after capital relocations at epochs 1, 2, and 10.
             Assert.True(cell.Population >= 3.0, "homeworld cells start populated");
             Assert.Equal(p.SpeciesId, cell.PopulationSpeciesId);
         }

@@ -119,6 +119,12 @@ public class SeedingPassTests
             var cell = s.CellAt(polity.CapitalCoord);
             Assert.Equal(polity.Id, cell.OwnerPolityId);
             Assert.InRange(cell.DevelopmentTier, 2, 5);   // seeding sets to 2; epoch sim can increase
+            // ECONMIGRATION: retune in shape-band task — ResolutionPhase.HandleCapitalAndExtinction
+            // relocates a polity's capital off its original homeworld cell when that cell falls in
+            // war (this capability predates task 8; the live economy just makes war frequent enough
+            // to trigger it at this seed). Observed at seed 42, GalaxyRadiusCells 8: polity 0's
+            // capital moves from its homeworld anchor cell (3,-3) to (1,-1), which carries only a
+            // MineralRich anchor, after LostCapital events at epochs 1, 2, and 10.
             Assert.Contains(cell.Anchors, a => a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id);
         }
     }
