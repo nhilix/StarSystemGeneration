@@ -8,7 +8,7 @@ namespace StarGen.Core.Galaxy;
 /// steps (DensityField.CellInGalaxy), in deterministic spiral order.</summary>
 public sealed class GalaxySkeleton
 {
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     public GalaxyConfig Config { get; }
     public IReadOnlyList<RegionCell> Cells => _cells;

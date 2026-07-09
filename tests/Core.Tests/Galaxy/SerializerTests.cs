@@ -33,7 +33,7 @@ public class SerializerTests
     public void SchemaVersionMismatch_Throws_NeverSilentlyRebuilds()
     {
         var text = SkeletonSerializer.ToText(Build());
-        var tampered = text.Replace("STARGEN-SKELETON|3", "STARGEN-SKELETON|999");
+        var tampered = text.Replace("STARGEN-SKELETON|4", "STARGEN-SKELETON|999");
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(tampered)));
     }
@@ -41,7 +41,7 @@ public class SerializerTests
     [Fact]
     public void Load_RecordBeforeConfig_Throws()
     {
-        var text = "STARGEN-SKELETON|3\nANCHOR|0|0|1|0|0|-1\nEND\n";
+        var text = "STARGEN-SKELETON|4\nANCHOR|0|0|1|0|0|-1\nEND\n";
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader(text)));
     }
@@ -75,12 +75,14 @@ public class SerializerTests
         // INTENTIONAL generation change, update the literal and say so in the commit.
         var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 7, GalaxyRadiusCells = 3 });
         var lines = SkeletonSerializer.ToText(s).Split('\n');
-        Assert.Equal("STARGEN-SKELETON|3", lines[0].TrimEnd('\r'));
+        Assert.Equal("STARGEN-SKELETON|4", lines[0].TrimEnd('\r'));
         // Golden facts recorded at implementation time — fill the two literals with the
-        // observed values on first run, then they are frozen:
+        // observed values on first run, then they are frozen. Re-frozen for the economy
+        // slice (schema v4): Events.Count rose from 30 to 37 because the live economy
+        // (war, famine, trade) now emits additional event types the seeding-era count
+        // never saw; Polities.Count is unaffected.
         Assert.Equal(2, s.Polities.Count);
-        // ECONMIGRATION: re-freeze in serializer-v4 task
-        Assert.Equal(30, s.Events.Count);
+        Assert.Equal(37, s.Events.Count);
     }
 
     [Fact]
@@ -107,5 +109,67 @@ public class SerializerTests
     {
         Assert.Throws<InvalidDataException>(() =>
             SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|2\nEND\n")));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesEconomyState_AndWars()
+    {
+        var original = Build();
+        // Ensure at least one war exists to round-trip even if this seed fought none.
+        if (original.Wars.Count == 0)
+        {
+            var w = new War { Id = 0, AttackerId = 0, DefenderId = 1, StartEpoch = 3,
+                Goal = WarGoal.Chokepoint, AttackerWeariness = 0.4, DefenderWeariness = 1.1,
+                AttackerCellsLost = 1, DefenderCellsLost = 2, Ended = true,
+                Outcome = WarOutcome.WhitePeace };
+            w.GoalCells.Add(original.Cells[0].Coord);
+            original.Wars.Add(w);
+        }
+        var loaded = SkeletonSerializer.Load(new StringReader(SkeletonSerializer.ToText(original)));
+        Assert.Equal(SkeletonSerializer.ToText(original), SkeletonSerializer.ToText(loaded));
+        Assert.Equal(original.Wars.Count, loaded.Wars.Count);
+        for (int i = 0; i < original.Wars.Count; i++)
+        {
+            Assert.Equal(original.Wars[i].Goal, loaded.Wars[i].Goal);
+            Assert.Equal(original.Wars[i].Outcome, loaded.Wars[i].Outcome);
+            Assert.Equal(original.Wars[i].GoalCells, loaded.Wars[i].GoalCells);
+            Assert.Equal(original.Wars[i].FrontCells, loaded.Wars[i].FrontCells);
+        }
+        for (int i = 0; i < original.Polities.Count; i++)
+        {
+            Assert.Equal(original.Polities[i].MilitaryStockpile, loaded.Polities[i].MilitaryStockpile);
+            Assert.Equal(original.Polities[i].TechTier, loaded.Polities[i].TechTier);
+            Assert.Equal(original.Polities[i].Wealth, loaded.Polities[i].Wealth);
+        }
+        for (int i = 0; i < original.Cells.Count; i++)
+        {
+            Assert.Equal(original.Cells[i].Population, loaded.Cells[i].Population);
+            Assert.Equal(original.Cells[i].PopulationSpeciesId, loaded.Cells[i].PopulationSpeciesId);
+            Assert.Equal(original.Cells[i].RouteThroughput, loaded.Cells[i].RouteThroughput);
+        }
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesEconomyKnobs()
+    {
+        var s = SkeletonBuilder.Build(new GalaxyConfig
+        {
+            MasterSeed = 11, GalaxyRadiusCells = 3,
+            WarWearinessRate = 0.2, StockpileDecayRate = 0.05,
+            TechThresholdBase = 20.0, TradeIncomeWeight = 0.8, ProvisionsPerPop = 1.5,
+        });
+        var loaded = SkeletonSerializer.Load(new StringReader(SkeletonSerializer.ToText(s)));
+        Assert.Equal(0.2, loaded.Config.WarWearinessRate);
+        Assert.Equal(0.05, loaded.Config.StockpileDecayRate);
+        Assert.Equal(20.0, loaded.Config.TechThresholdBase);
+        Assert.Equal(0.8, loaded.Config.TradeIncomeWeight);
+        Assert.Equal(1.5, loaded.Config.ProvisionsPerPop);
+    }
+
+    [Fact]
+    public void Load_RejectsSchemaV3()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            SkeletonSerializer.Load(new StringReader("STARGEN-SKELETON|3\nEND\n")));
     }
 }

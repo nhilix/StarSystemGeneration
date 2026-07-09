@@ -33,7 +33,10 @@ public static class SkeletonSerializer
             c.ArmStrength.ToString("R", Inv), c.CoreRadius.ToString("R", Inv),
             c.DiscFalloff.ToString("R", Inv),
             c.MineralAnchorMultiplier.ToString("R", Inv),
-            c.PrecursorAnchorMultiplier.ToString("R", Inv)));
+            c.PrecursorAnchorMultiplier.ToString("R", Inv),
+            c.WarWearinessRate.ToString("R", Inv), c.StockpileDecayRate.ToString("R", Inv),
+            c.TechThresholdBase.ToString("R", Inv), c.TradeIncomeWeight.ToString("R", Inv),
+            c.ProvisionsPerPop.ToString("R", Inv)));
         foreach (var sp in s.Species)
             w.WriteLine(string.Join("|", "SPECIES", sp.Id.ToString(Inv), sp.Name,
                 ((int)sp.Embodiment).ToString(Inv),
@@ -43,7 +46,11 @@ public static class SkeletonSerializer
         foreach (var p in s.Polities)
             w.WriteLine(string.Join("|", "POLITY", p.Id.ToString(Inv), p.Name,
                 p.SpeciesId.ToString(Inv), p.CapitalQ.ToString(Inv),
-                p.CapitalR.ToString(Inv), p.Extinct ? "1" : "0"));
+                p.CapitalR.ToString(Inv), p.Extinct ? "1" : "0",
+                p.MilitaryStockpile.ToString("R", Inv), p.TechTier.ToString(Inv),
+                p.ExoticsInvested.ToString("R", Inv), p.Wealth.ToString("R", Inv),
+                p.ProvisionsBalance.ToString("R", Inv), p.OreBalance.ToString("R", Inv),
+                p.ExoticsBalance.ToString("R", Inv)));
         foreach (var cell in s.Cells)
         {
             w.WriteLine(string.Join("|", "CELL", cell.Q.ToString(Inv), cell.R.ToString(Inv),
@@ -51,18 +58,47 @@ public static class SkeletonSerializer
                 cell.IsChokepoint ? "1" : "0", ((int)cell.Lean).ToString(Inv),
                 cell.Metallicity.ToString("R", Inv), cell.OwnerPolityId.ToString(Inv),
                 cell.DevelopmentTier.ToString(Inv), cell.Contested ? "1" : "0",
-                cell.WarScarred ? "1" : "0"));
+                cell.WarScarred ? "1" : "0",
+                cell.Population.ToString("R", Inv), cell.PopulationSpeciesId.ToString(Inv),
+                cell.RouteThroughput.ToString("R", Inv)));
             foreach (var a in cell.Anchors)
                 w.WriteLine(string.Join("|", "ANCHOR", cell.Q.ToString(Inv),
                     cell.R.ToString(Inv), ((int)a.Type).ToString(Inv),
                     a.Hex.Q.ToString(Inv), a.Hex.R.ToString(Inv), a.SpeciesId.ToString(Inv)));
         }
+        foreach (var war in s.Wars)
+            w.WriteLine(string.Join("|", "WAR", war.Id.ToString(Inv),
+                war.AttackerId.ToString(Inv), war.DefenderId.ToString(Inv),
+                war.StartEpoch.ToString(Inv), ((int)war.Goal).ToString(Inv),
+                war.AttackerWeariness.ToString("R", Inv), war.DefenderWeariness.ToString("R", Inv),
+                war.AttackerCellsLost.ToString(Inv), war.DefenderCellsLost.ToString(Inv),
+                war.Ended ? "1" : "0", ((int)war.Outcome).ToString(Inv),
+                CellList(war.GoalCells), CellList(war.FrontCells)));
         foreach (var e in s.Events)
             w.WriteLine(string.Join("|", "EVENT", e.Epoch.ToString(Inv),
                 ((int)e.Type).ToString(Inv), e.ActorPolityId.ToString(Inv),
                 e.TargetPolityId.ToString(Inv), e.Q.ToString(Inv), e.R.ToString(Inv),
-                e.Magnitude.ToString("R", Inv)));
+                e.Magnitude.ToString("R", Inv), e.Detail.ToString(Inv)));
         w.WriteLine("END");
+    }
+
+    private static string CellList(System.Collections.Generic.List<HexCoordinate> cells)
+    {
+        if (cells.Count == 0) return "-";
+        var parts = new string[cells.Count];
+        for (int i = 0; i < cells.Count; i++)
+            parts[i] = cells[i].Q.ToString(Inv) + ":" + cells[i].R.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseCellList(string field, System.Collections.Generic.List<HexCoordinate> into)
+    {
+        if (field == "-") return;
+        foreach (var pair in field.Split(';'))
+        {
+            var qr = pair.Split(':');
+            into.Add(new HexCoordinate(int.Parse(qr[0], Inv), int.Parse(qr[1], Inv)));
+        }
     }
 
     public static GalaxySkeleton Load(TextReader reader)
@@ -104,6 +140,11 @@ public static class SkeletonSerializer
                             DiscFalloff = double.Parse(f[13], Inv),
                             MineralAnchorMultiplier = double.Parse(f[14], Inv),
                             PrecursorAnchorMultiplier = double.Parse(f[15], Inv),
+                            WarWearinessRate = double.Parse(f[16], Inv),
+                            StockpileDecayRate = double.Parse(f[17], Inv),
+                            TechThresholdBase = double.Parse(f[18], Inv),
+                            TradeIncomeWeight = double.Parse(f[19], Inv),
+                            ProvisionsPerPop = double.Parse(f[20], Inv),
                         });
                         break;
                     case "SPECIES":
@@ -122,6 +163,10 @@ public static class SkeletonSerializer
                             Id = int.Parse(f[1], Inv), Name = f[2], SpeciesId = int.Parse(f[3], Inv),
                             CapitalQ = int.Parse(f[4], Inv), CapitalR = int.Parse(f[5], Inv),
                             Extinct = f[6] == "1",
+                            MilitaryStockpile = double.Parse(f[7], Inv), TechTier = int.Parse(f[8], Inv),
+                            ExoticsInvested = double.Parse(f[9], Inv), Wealth = double.Parse(f[10], Inv),
+                            ProvisionsBalance = double.Parse(f[11], Inv), OreBalance = double.Parse(f[12], Inv),
+                            ExoticsBalance = double.Parse(f[13], Inv),
                         });
                         break;
                     case "CELL":
@@ -135,6 +180,9 @@ public static class SkeletonSerializer
                         cell.DevelopmentTier = int.Parse(f[9], Inv);
                         cell.Contested = f[10] == "1";
                         cell.WarScarred = f[11] == "1";
+                        cell.Population = double.Parse(f[12], Inv);
+                        cell.PopulationSpeciesId = int.Parse(f[13], Inv);
+                        cell.RouteThroughput = double.Parse(f[14], Inv);
                         break;
                     case "ANCHOR":
                         s!.CellAt(new HexCoordinate(int.Parse(f[1], Inv), int.Parse(f[2], Inv))).Anchors.Add(new Anchor
@@ -144,13 +192,29 @@ public static class SkeletonSerializer
                             SpeciesId = int.Parse(f[6], Inv),
                         });
                         break;
+                    case "WAR":
+                        var war = new War
+                        {
+                            Id = int.Parse(f[1], Inv), AttackerId = int.Parse(f[2], Inv),
+                            DefenderId = int.Parse(f[3], Inv), StartEpoch = int.Parse(f[4], Inv),
+                            Goal = (WarGoal)int.Parse(f[5], Inv),
+                            AttackerWeariness = double.Parse(f[6], Inv),
+                            DefenderWeariness = double.Parse(f[7], Inv),
+                            AttackerCellsLost = int.Parse(f[8], Inv),
+                            DefenderCellsLost = int.Parse(f[9], Inv),
+                            Ended = f[10] == "1", Outcome = (WarOutcome)int.Parse(f[11], Inv),
+                        };
+                        ParseCellList(f[12], war.GoalCells);
+                        ParseCellList(f[13], war.FrontCells);
+                        s!.Wars.Add(war);
+                        break;
                     case "EVENT":
                         s!.Events.Add(new GalaxyEvent
                         {
                             Epoch = int.Parse(f[1], Inv), Type = (GalaxyEventType)int.Parse(f[2], Inv),
                             ActorPolityId = int.Parse(f[3], Inv), TargetPolityId = int.Parse(f[4], Inv),
                             Q = int.Parse(f[5], Inv), R = int.Parse(f[6], Inv),
-                            Magnitude = double.Parse(f[7], Inv),
+                            Magnitude = double.Parse(f[7], Inv), Detail = int.Parse(f[8], Inv),
                         });
                         break;
                 }

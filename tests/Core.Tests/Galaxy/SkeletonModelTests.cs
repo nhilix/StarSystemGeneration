@@ -94,15 +94,13 @@ public class SkeletonModelTests
         var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 8 });
         foreach (var p in s.Polities)
         {
-            var cell = s.CellAt(p.CapitalCoord);
-            // ECONMIGRATION: retune in shape-band task — the live economy (IncomePhase
-            // famine shrink, ResolutionPhase war-scar shrink / capital relocation) can
-            // now drop a capital cell's population below the seed-time 3.0, or move the
-            // capital off the original homeworld cell entirely. Observed at seed 42,
-            // GalaxyRadiusCells 8: polity 0 capitalCellPop=0.616, polity 3=0.318, polity
-            // 4=0.750 (all < 3.0) after capital relocations at epochs 1, 2, and 10.
-            Assert.True(cell.Population >= 3.0, "homeworld cells start populated");
-            Assert.Equal(p.SpeciesId, cell.PopulationSpeciesId);
+            // Seeding populates the homeworld anchor cell with the founding species; the
+            // sim may shrink the quantity (famine, war scarring) but the species tag is
+            // never reassigned and multiplicative shrinks never reach zero.
+            var home = s.Cells.Single(c =>
+                c.Anchors.Any(a => a.Type == AnchorType.Homeworld && a.SpeciesId == p.SpeciesId));
+            Assert.Equal(p.SpeciesId, home.PopulationSpeciesId);
+            Assert.True(home.Population > 0, "homeworld population never zeroes");
         }
     }
 
