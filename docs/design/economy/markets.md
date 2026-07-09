@@ -13,19 +13,35 @@ Per port market, fixed deterministic order:
    grade).
 2. **Demand assembles** — population bands (subsistence near-inelastic,
    standard-of-living moderate, luxury/narcotics elastic), industry inputs, polity
-   procurement, fuel for movement.
+   procurement, fuel for movement — plus **re-export demand**: bids from
+   arbitrageurs who see outbound gradients, so a transit hub's price is bid up
+   even with zero local consumption. Without this term, goods refuse to enter
+   markets that don't personally want them; with it, entrepôts emerge.
 3. **Price adjusts locally** — each (market, good) price is persistent state that
    drifts toward clearing: excess demand pushes up, glut pushes down, rate-limited.
    Elasticity derives from the band mix. Markets never perfectly clear —
    persistent gradients *are* the trade opportunities.
-4. **Freight chases gradients** — shipments plan by expected profit
-   (price gap × quantity − fuel − tariffs − risk), execute within lane capacity
-   (the fleet-capacity interface). Cross-border shipments require legality at both
-   ends and non-sanctioned relations. Freight is what drags connected markets
-   together; interdiction is what splits price zones. *P3 note:* freight runs on
-   actual lane-endpoint prices deliberately — it represents distributed local
-   traders whose information is inherently fresh because the traffic itself
-   carries it; only lane-adjacent gradients are chased, never galaxy-wide ones.
+4. **Freight moves** — three flow generators, all within lane capacity (the
+   fleet-capacity interface), all requiring legality at both ends and
+   non-sanctioned relations:
+   - **Arbitrage freight**: shipments plan by expected profit against
+     **perceived prices** (P3 — fresh at one hop, freshness-discounted with
+     distance): end-to-end gap × freshness confidence − Σ(fuel + tariffs + risk
+     per leg). Single-hop trades dominate, but **bounded multi-hop expeditions**
+     emerge wherever a large gradient clears the per-leg costs despite stale
+     information — the reach horizon is emergent, not a rule.
+   - **Contracts**: concentrated demanders (a shipyard project, a mobilizing
+     polity, a besieged reserve) post **procurement contracts** — deliver good G
+     to port Z at premium P, escrowed (P4). Contracts propagate over the news
+     graph as public events, so directed demand arrives at news speed instead of
+     diffusing one market-step per hop. Freight lines live on fulfilling them; at
+     play scope they are literally the job board.
+   - **Internal logistics**: corporations and polities move goods within their
+     own networks at cost — no market transaction at intermediate ports; markets
+     see only net buys and sells at the endpoints. Vertical integration and
+     military supply lines are this mechanism under different flags.
+   Freight is what drags connected markets together; interdiction is what splits
+   price zones.
 5. **Clearing & consequences** — consumption satisfies band priority; unmet
    subsistence → famine; unmet standard-of-living → SoL decline (growth,
    legitimacy, migration pressure); unmet industry inputs → facilities
@@ -108,6 +124,8 @@ ladder.
 
 ## Provided interface
 
+- **Contracts** (open procurement orders per port per good) — consumed by freight
+  planning, corporate route bids, and the play-clock job board.
 - **Prices** (per market per good, with mean grade) — the universal value signal
   (frame cross-cutting interface 2): expansion attractiveness, war-goal value,
   migration pull, and investment siting all read price-derived valuations.

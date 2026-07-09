@@ -27,7 +27,8 @@ list.
 found colony (target + convoy) · declare war (casus belli + objectives + demand) ·
 offer/accept/break treaty rung · sanction · settlement accept/reject ·
 nationalize · grant/revoke charter · dynastic marriage/wardship · vassalage
-offer/demand · quarantine (self-imposed lane closure).
+offer/demand · quarantine (self-imposed lane closure) · post procurement contract
+(good, destination, premium — escrowed).
 
 ## Corporation
 
@@ -36,7 +37,7 @@ dividend rate · lobby targets · risk appetite (legality margin — how far int
 black books it operates).
 
 **Acts**: charter application · major acquisition or abandonment · headquarters
-relocation.
+relocation · post procurement contract.
 
 ## Character (role-scoped + personal)
 

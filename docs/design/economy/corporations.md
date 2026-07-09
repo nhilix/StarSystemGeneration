@@ -48,6 +48,14 @@ reinvestment versus dividends (policy). **Dividends flow to host-polity elites**
 becoming faction wealth — corporate influence is internal politics, not a bolted-on
 lobbying mini-game.
 
+**Internal logistics**: a corporation moves goods within its own network at cost —
+its ore travels from its mine through intermediate ports to its refinery with no
+market transaction en route; markets see only its net buys and sells at the
+endpoints. Vertical integration is how a conglomerate owns a whole
+ore→alloys→components chain across several domains, capturing every stage's
+margin internally — and why nationalizing one facility can sever a chain that
+spans three polities.
+
 ## Influence
 
 Lobby spending nudges host-polity policies within bounds — tariff schedules,
