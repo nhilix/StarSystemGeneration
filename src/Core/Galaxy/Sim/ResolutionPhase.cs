@@ -215,6 +215,10 @@ public static class ResolutionPhase
         if (EpochSim.Owned(s, loser).Count == 0 && !loser.Extinct)
         {
             loser.Extinct = true;
+            // Spec §3: extinct polities hold zero strain. IncomePhase's reset covers
+            // the next epoch, but a final-epoch extinction would otherwise serialize
+            // strain accrued earlier this same epoch.
+            loser.BlockadeLoss = 0;
             s.Events.Add(new GalaxyEvent
             {
                 Epoch = epoch, Type = GalaxyEventType.PolityExtinct,

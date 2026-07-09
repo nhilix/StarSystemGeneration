@@ -208,7 +208,7 @@ public static class IncomePhase
             }
         }
 
-        // Growth for fed cells; war-scar shrink for ALL besieged cells — famine and
+        // Growth for fed cells; war-scar shrink for all owned besieged cells — famine and
         // siege are separate pressures and stack (deferred-tickets spec §5). The
         // growth guard is untouched: a starving cell never grows, a fed cell never
         // shrinks from feeding.

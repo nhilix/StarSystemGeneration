@@ -57,8 +57,10 @@ Older (carried): ClearHexSelection screen guard; multi-primary doc note; compani
 scaling untested; SystemPanel.Highlight no-op on unknown BodyRef; orbit-diagram §8 follow-ups
 (labels, motion, hover recolor, pan/zoom); golden v3 CONFIG-line literal test; sim-only knobs
 rebuild preview; `_setupErrorLabel` ScrollView; IsShapeOnly guard; dedupe show-preview;
-`_radiusField.isDelayed`; REPL `galaxy` knob parity; WarStarted dedup (obsolete? one live war
-per pair now enforced — verify then close); REPL goto wrap; StatsReport ignores satellites.
+`_radiusField.isDelayed`; REPL `galaxy` knob parity; REPL goto wrap; StatsReport ignores
+satellites. (WarStarted dedup verified and closed in the econ-tickets batch: the `AtWar`
+candidate gate enforces one live war per pair and `ActionPhaseTests` locks event/registry
+agreement.)
 
 ## Process conventions (established, keep following)
 

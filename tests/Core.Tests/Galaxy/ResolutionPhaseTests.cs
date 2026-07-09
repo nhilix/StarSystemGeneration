@@ -85,9 +85,13 @@ public class ResolutionPhaseTests
         var cap1 = s.CellAt(new HexCoordinate(2, 0));
         cap1.OwnerPolityId = -1; cap1.DevelopmentTier = 0; cap1.Population = 0; cap1.PopulationSpeciesId = -1;
         s.Polities[1].CapitalQ = 1; s.Polities[1].CapitalR = 0;
+        // Strain accrued this epoch must not outlive the polity (spec §3: extinct
+        // polities hold zero strain — a final-epoch extinction would serialize it).
+        s.Polities[1].BlockadeLoss = 3.0;
         for (int epoch = 0; epoch < 100 && !s.Wars[0].Ended; epoch++)
             ResolutionPhase.Run(s, epoch);
         Assert.True(s.Polities[1].Extinct);
+        Assert.Equal(0.0, s.Polities[1].BlockadeLoss);
         Assert.Contains(s.Events, e => e.Type == GalaxyEventType.PolityExtinct && e.TargetPolityId == 1);
         Assert.Contains(s.Polities, p => p.Id == 1);   // retained, flagged
     }
