@@ -45,8 +45,9 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
       potentials + siting evaluated for a sample cell (real cell if a galaxy
       is loaded). Piped-stdin smoke via bash printf.
 - [x] 7. **Fresh-eyes whole-branch review** subagent + one fix wave.
-- [ ] 8. **Gates**: `dotnet test` green incl. hex-tier suite · Unity `.meta`
-      files for every new file/folder under `src/Core` · REPL smoke.
+- [x] 8. **Gates**: `dotnet test` green incl. hex-tier suite (256/256) ·
+      Unity `.meta` files for every new file/folder under `src/Core` · REPL
+      smoke (piped stdin, goods/infra/infra-q-r).
 - [ ] 9. **User gate: REPL eyeball acceptance** — catalog reads like the
       design doc's tables.
 - [ ] 10. **Wrap-up**: merge on user nod · HANDOFF · update Slice D kickoff
