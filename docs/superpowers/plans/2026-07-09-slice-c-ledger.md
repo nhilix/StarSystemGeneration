@@ -48,11 +48,12 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
 - [x] 8. **Gates**: `dotnet test` green incl. hex-tier suite (256/256) ·
       Unity `.meta` files for every new file/folder under `src/Core` · REPL
       smoke (piped stdin, goods/infra/infra-q-r).
-- [ ] 9. **User gate: REPL eyeball acceptance** — catalog reads like the
-      design doc's tables.
-- [ ] 10. **Wrap-up**: merge on user nod · HANDOFF · update Slice D kickoff
-      expectations (D needs B+C) · flip kickoff checkbox · push on user
-      say-so.
+- [x] 9. **User gate: REPL eyeball acceptance** — catalog reads like the
+      design doc's tables. Accepted 2026-07-09.
+- [x] 10. **Wrap-up**: merged on user nod (73b1bdf) · HANDOFF updated · Slice
+      D kickoff prompt drafted (C half concrete, B half stubbed for the B
+      session) · kickoff checkbox flipped · not pushed (awaiting user
+      say-so).
 
 ## Notes / surprises
 

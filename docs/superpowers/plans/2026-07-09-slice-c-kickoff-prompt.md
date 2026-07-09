@@ -66,4 +66,4 @@ catalogs are roll-free); never renumber.
 6. Wrap-up: merge · HANDOFF · update the Slice D kickoff expectations (D needs
    B+C) · flip the box below · push only on user say-so.
 
-- [ ] Slice C complete
+- [x] Slice C complete
