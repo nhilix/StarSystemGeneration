@@ -260,6 +260,8 @@ public sealed class InteriorPhase : ISimPhase
 
     public string Run(SimState state)
     {
+        // segments founded by this step's entries integrate from the next step
+        int preexisting = state.Segments.Count;
         int entered = 0;
         foreach (var a in state.Actors)
         {
@@ -277,12 +279,30 @@ public sealed class InteriorPhase : ISimPhase
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,
                 EventVisibility.Public, new PolityEmergedPayload(a.Name)));
         }
-        return entered switch
+
+        int grown = 0;
+        var cfg = state.Config.Expansion;
+        for (int i = 0; i < preexisting; i++)             // id order (P6)
+        {
+            var seg = state.Segments[i];
+            double cap = state.Ports[seg.PortId].Tier * cfg.SegmentCapPerTier;
+            if (seg.Size <= 0 || cap <= 0) continue;
+            double step = seg.Size * cfg.SegmentGrowthPerYear
+                          * state.Config.Sim.YearsPerEpoch * (1.0 - seg.Size / cap);
+            if (step == 0) continue;
+            seg.Size = System.Math.Min(cap, seg.Size + step);
+            grown++;
+        }
+
+        string note = entered switch
         {
             0 => "quiet",
             1 => "1 polity enters",
             _ => $"{entered} polities enter",
         };
+        if (grown > 0)
+            note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
+        return note;
     }
 }
 
