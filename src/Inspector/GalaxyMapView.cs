@@ -54,14 +54,33 @@ public static class GalaxyMapView
         "zone" => c.IsVoid ? ' ' : c.WarScarred ? '!' : c.IsChokepoint ? '^'
             : c.Contested ? '?' : '.',
         "dev" => c.IsVoid ? ' ' : c.OwnerPolityId < 0 ? '.'
-            : (char)('0' + System.Math.Min(5, c.DevelopmentTier)),
+            : (char)('0' + System.Math.Min(9, c.DevelopmentTier)),
         "lean" => c.IsVoid ? ' ' : c.Lean switch
         {
             StellarLean.YoungBright => '+', StellarLean.OldDim => '-',
             StellarLean.RemnantGraveyard => 'x', _ => '.',
         },
+        "trade" => c.IsVoid ? ' '
+            : c.RouteThroughput <= 0 ? '.'
+            : DensityRamp[System.Math.Clamp((int)(System.Math.Sqrt(c.RouteThroughput) * 3.0), 1, 9)],
+        "economy" => c.IsVoid ? ' ' : EconomyChar(s, c),
+        "war" => c.IsVoid ? ' ' : c.Contested ? '!' : c.WarScarred ? 'x'
+            : c.IsChokepoint ? '^' : '.',
         _ => DensityRamp[(int)(System.Math.Clamp(c.MeanDensity, 0, 0.9999) * 10)],
     };
+
+    private static char EconomyChar(GalaxySkeleton s, RegionCell c)
+    {
+        var species = c.OwnerPolityId >= 0
+            ? s.Species[s.Polities[c.OwnerPolityId].SpeciesId]
+            : Economy.DisplayBaseline;
+        double p = Economy.ProvisionsPotential(species, c);
+        double o = Economy.OrePotential(c);
+        double e = Economy.ExoticsPotential(c);
+        bool anchored = c.Anchors.Count > 0;
+        char glyph = p >= o && p >= e ? 'p' : o >= e ? 'o' : 'e';
+        return anchored ? char.ToUpperInvariant(glyph) : glyph;
+    }
 
     private static string Legend(GalaxySkeleton s, string layer) => layer switch
     {
@@ -72,6 +91,9 @@ public static class GalaxyMapView
         "zone" => "!=war-scarred ^=chokepoint ?=contested .=quiet",
         "dev" => "0-5=development .=unclaimed",
         "lean" => "+=young-bright -=old-dim x=remnant-graveyard .=balanced",
+        "trade" => "route throughput: .=none " + DensityRamp.Substring(1) + " low->high",
+        "economy" => "p/o/e=dominant production (P/O/E=anchored) provisions/ore/exotics",
+        "war" => "!=contested front x=war-scarred ^=chokepoint .=quiet",
         _ => "density: ' " + DensityRamp + " ' low->high",
     };
 

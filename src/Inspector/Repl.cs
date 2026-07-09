@@ -28,9 +28,9 @@ public sealed class Repl
                 case "quit" or "exit": return;
                 case "help":
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
-                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
+                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r> | polity <id> | chronicle [polityId]");
                     Console.WriteLine("gsave <path> | gload <path> | quit");
-                    Console.WriteLine("map layers: density | polity | zone | dev | lean");
+                    Console.WriteLine("map layers: density | polity | zone | dev | lean | trade | economy | war");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
                     break;
                 case "seed" when parts.Length == 2 && ulong.TryParse(parts[1], out var s):
@@ -59,7 +59,8 @@ public sealed class Repl
                     Console.WriteLine($"galaxy built in {sw.ElapsedMilliseconds} ms: {skeleton.Cells.Count} cells, "
                         + $"{living} living / {skeleton.Polities.Count - living} extinct polities, "
                         + $"{skeleton.Events.Count} events, {100.0 * claimed / nonVoid:F1}% of space claimed, "
-                        + $"{chokepoints} chokepoints");
+                        + $"{chokepoints} chokepoints"
+                        + $", {skeleton.Wars.Count} wars ({skeleton.Wars.Count(w => !w.Ended)} live)");
                     break;
                 }
                 case "cell" when parts.Length == 3 && _galaxy?.Skeleton is { } sk
@@ -74,13 +75,16 @@ public sealed class Repl
                         + $" · {cell.Lean} · metallicity {cell.Metallicity:F2}");
                     Console.WriteLine($"  owner: {owner} · dev {cell.DevelopmentTier}"
                         + (cell.WarScarred ? " · war-scarred" : ""));
+                    Console.WriteLine($"  population {cell.Population:F1}"
+                        + (cell.PopulationSpeciesId >= 0 ? $" ({sk.Species[cell.PopulationSpeciesId].Name})" : "")
+                        + $" · throughput {cell.RouteThroughput:F1}"
+                        + $" · value {Economy.SystemValue(cell.OwnerPolityId >= 0 ? sk.Species[sk.Polities[cell.OwnerPolityId].SpeciesId] : Economy.DisplayBaseline, cell):F1}");
                     foreach (var a in cell.Anchors)
                         Console.WriteLine($"  anchor: {a.Type} at [{a.Hex.Q:D4}-{a.Hex.R:D4}]"
                             + (a.SpeciesId >= 0 ? $" (species {sk.Species[a.SpeciesId].Name})" : ""));
                     foreach (var e in sk.Events)
                         if (e.Q == qcx && e.R == qcy)
-                            Console.WriteLine($"  epoch {e.Epoch}: {e.Type} by {sk.Polities[e.ActorPolityId].Name}"
-                                + (e.TargetPolityId >= 0 ? $" vs {sk.Polities[e.TargetPolityId].Name}" : ""));
+                            Console.WriteLine("  " + ChronicleView.Describe(sk, e));
                     Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, cellCoord));
                     break;
                 }
@@ -112,7 +116,9 @@ public sealed class Repl
                     Console.WriteLine($"seed = {_seed}"); Show(); break;
                 case "find" when parts.Length == 2: Find(parts[1]); break;
                 case "stats" when parts.Length == 2 && int.TryParse(parts[1], out var n):
-                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _spiralIndex, n)); break;
+                    Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _spiralIndex, n));
+                    if (_galaxy?.Skeleton is { } statsSk) Console.WriteLine(EconomyReport.Build(statsSk));
+                    break;
                 case "map" when _galaxy?.Skeleton == null:
                     Console.WriteLine("build a galaxy first (galaxy <seed>)");
                     break;
@@ -120,6 +126,40 @@ public sealed class Repl
                     Console.WriteLine(GalaxyMapView.CellMap(_galaxy!.Skeleton!,
                         parts.Length >= 2 ? parts[1] : "density"));
                     break;
+                case "polity" when parts.Length == 2 && _galaxy?.Skeleton is { } skPol
+                        && int.TryParse(parts[1], out var polityId):
+                {
+                    if (polityId < 0 || polityId >= skPol.Polities.Count)
+                    { Console.WriteLine("no such polity"); break; }
+                    var p = skPol.Polities[polityId];
+                    var sp = skPol.Species[p.SpeciesId];
+                    int cells = 0; double pop = 0;
+                    foreach (var c in skPol.Cells)
+                        if (c.OwnerPolityId == p.Id) { cells++; pop += c.Population; }
+                    Console.WriteLine($"{p.Name} (id {p.Id}){(p.Extinct ? " EXTINCT" : "")}"
+                        + $" · species {sp.Name} ({sp.Embodiment}) · capital [{p.CapitalQ},{p.CapitalR}]");
+                    Console.WriteLine($"  {cells} cells · population {pop:F1} · tech tier {p.TechTier}"
+                        + $" · stockpile {p.MilitaryStockpile:F1} · wealth {p.Wealth:F1}");
+                    Console.WriteLine($"  balances: provisions {p.ProvisionsBalance:F1}"
+                        + $" · ore {p.OreBalance:F1} · exotics {p.ExoticsBalance:F1}"
+                        + $" (invested {p.ExoticsInvested:F1})");
+                    foreach (var w in skPol.Wars)
+                    {
+                        if (w.AttackerId != p.Id && w.DefenderId != p.Id) continue;
+                        string other = skPol.Polities[w.AttackerId == p.Id ? w.DefenderId : w.AttackerId].Name;
+                        double wear = w.AttackerId == p.Id ? w.AttackerWeariness : w.DefenderWeariness;
+                        Console.WriteLine(w.Ended
+                            ? $"  war vs {other}: {w.Goal}, ended epoch-started {w.StartEpoch} - {w.Outcome}"
+                            : $"  war vs {other}: {w.Goal}, since epoch {w.StartEpoch}, weariness {wear:F2}");
+                    }
+                    break;
+                }
+                case "chronicle" when _galaxy?.Skeleton is { } skChr:
+                {
+                    int filter = parts.Length >= 2 && int.TryParse(parts[1], out var pf) ? pf : -1;
+                    Console.WriteLine(ChronicleView.Build(skChr, filter));
+                    break;
+                }
                 default:
                     Console.WriteLine("unrecognized — try 'help'"); break;
             }
