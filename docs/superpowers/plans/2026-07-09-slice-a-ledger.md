@@ -10,7 +10,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
 - [x] 1. **Config** — `EpochSimConfig` with knob families (genesis / economy /
       sim), all rates per world-year, `YearsPerEpoch = 25`, `EpochCount = 40`
       defaults. Tests: defaults sane, rates world-year-denominated.
-- [ ] 2. **Event grammar v2** — `WorldEvent` record `(id, world-year, clock
+- [x] 2. **Event grammar v2** — `WorldEvent` record `(id, world-year, clock
       stratum, type, actors[], location, magnitude, valence, visibility,
       typed payload)`; enums `ClockStratum`, `EventFamily` (eight),
       `EventVisibility` (public/regional/secret); append-only `EventLog` with
