@@ -34,7 +34,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
       integration step), events finalized only in Chronicle.
 - [x] 6. **Determinism gate** — same config ⇒ byte-identical event log + trace
       text across two independent runs; different seed ⇒ diverges.
-- [ ] 7. **REPL surface** — Inspector command `epoch <seed> [epochs]`: builds
+- [x] 7. **REPL surface** — Inspector command `epoch <seed> [epochs]`: builds
       config, seeds state, steps the frame, prints phase/event trace +
       chronicle. Piped-stdin smoke check via bash printf.
 - [ ] 8. **Fresh-eyes whole-branch review** subagent + one fix wave.
