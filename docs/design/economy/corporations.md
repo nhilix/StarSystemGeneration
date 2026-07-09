@@ -1,19 +1,71 @@
 # Corporations
 
-*Status: awaiting design pass (2). This stub states scope only.*
+Emergent trans-polity economic institutions: founded by the simulation when a
+niche persists, dead when the niche or the balance sheet dies, influential in
+between.
 
-Emergent trans-polity economic institutions.
+## Founding — persistent profit niches (P5)
 
-Defines, when designed:
+The simulation watches for profit opportunities that persist several consecutive
+epochs without an incumbent: a price gradient, an unexploited deposit, an unserved
+route. When one persists and the host polity's charter policy allows, a **charter
+event** fires through the graduation mechanism
+([../frame/actors.md](../frame/actors.md)) — a merchant faction incorporates.
 
-- Founding conditions: the commodity-concentration, trade-volume, and peace
-  thresholds under which the simulation charters a corporation (never seeded — P5).
-- Asset portfolio mechanics: acquiring extraction infrastructure, freighter fleets,
-  route contracts, depots; growth and reinvestment.
-- Cross-border operation and **influence**: lobbying factions, funding development,
-  evading sanctions; relations with host polities (charters, taxation,
-  nationalization, expulsion).
-- Corporate lifecycle end states: absorption, collapse, nationalization — each a
-  legible event.
-- The corporate controller: its AI policies/acts, and what a player at corporate
-  scope controls.
+The founding niche stamps the corporation's character:
+
+| Niche | Corporate character |
+|---|---|
+| mine-rich frontier | extraction conglomerate |
+| unserved profitable lanes | freight line |
+| industrial gaps | fabricator combine |
+| profitable *prohibited* niche | **cartel** — chartered nowhere, operating through black books and off-lane freight |
+
+Lawless niches produce lawless corporations from the same rule; no special cartel
+machinery exists.
+
+## The corporate controller
+
+**Policies**: investment allocation, route bids, dividend rate, lobby targets.
+**Acts**: charter applications in new polities, major acquisitions, asset
+abandonment. The AI maximizes long-run profit filtered through founding character —
+cartels weigh enforcement risk, freight lines value lane security, conglomerates
+chase deposits. A player at corporate scope answers the same question (P2).
+
+## Portfolio and operations
+
+Corporations own facilities, freighter capacity (via the fleet interface), depots,
+and route contracts, across borders. Revenue → upkeep → debt service →
+reinvestment versus dividends (policy). **Dividends flow to host-polity elites**,
+becoming faction wealth — corporate influence is internal politics, not a bolted-on
+lobbying mini-game.
+
+## Influence
+
+Lobby spending nudges host-polity policies within bounds — tariff schedules,
+legality codes, charter openness — by strengthening aligned factions. Sanction
+evasion works by re-flagging freight through third-polity subsidiaries: visible to
+the simulation, scandalous when caught (a news event). A corporation that
+out-wealths its host is a **de facto power**; the polity's counter-move is
+**nationalization** (an Intent act): seize the assets, take the wealth, eat the
+reputation damage and the flight of other corporations from your ports. Every
+option is an event with fallout.
+
+## Death
+
+- **Bankruptcy** — default cascade → collateral seizure → dissolution.
+- **Nationalization** — assets to the state, scandal to the news.
+- **Niche death** — the deposit exhausts, the lane closes, or the prohibition
+  lifts and margins evaporate (a cartel legalized out of existence).
+
+Dead corporations leave residue: abandoned facilities, unemployed populations,
+orphaned routes, and a complete chronicle arc.
+
+## P1 evidence
+
+- **Legible residue**: corporations are named chronicle actors (founding, boom,
+  scandal, nationalization, collapse); the atlas renders corporate asset overlays;
+  their logos-worth of identity attaches to real facilities at real hexes.
+- **Inhabitable state**: the player can work for, trade with, smuggle for, sue for
+  charter under, fight, found, or *be* a corporation; its jobs, freight contracts,
+  and contraband margins are the character-scope economy.
