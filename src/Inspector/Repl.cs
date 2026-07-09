@@ -29,6 +29,7 @@ public sealed class Repl
                 case "help":
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r> | polity <id> | chronicle [polityId]");
+                    Console.WriteLine("epoch <seed> [epochs] — step the new seven-phase frame, print the phase/event trace");
                     Console.WriteLine("gsave <path> | gload <path> | quit");
                     Console.WriteLine("map layers: density | polity | zone | dev | lean | trade | economy | war");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
@@ -86,6 +87,19 @@ public sealed class Repl
                         if (e.Q == qcx && e.R == qcy)
                             Console.WriteLine("  " + ChronicleView.Describe(sk, e));
                     Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, cellCoord));
+                    break;
+                }
+                case "epoch" when parts.Length >= 2 && ulong.TryParse(parts[1], out var eseed):
+                {
+                    var econfig = new Core.Epoch.EpochSimConfig { MasterSeed = eseed };
+                    if (parts.Length >= 3 && int.TryParse(parts[2], out var epochs))
+                        econfig.Sim.EpochCount = epochs;
+                    var estate = Core.Epoch.StubGenesis.Seed(econfig);
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    new Core.Epoch.EpochEngine().Run(estate);
+                    sw.Stop();
+                    Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
+                    Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
                 case "gsave" when parts.Length == 2 && _galaxy?.Skeleton != null:

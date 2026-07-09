@@ -44,4 +44,10 @@ public enum RollChannel : ulong
     SimDevelopment = 34,       // retired with the stage-1 coin-flip loop - value must not be reused
     SimWar = 35,               // war-declaration gate: index = epoch, subIndex = polity id
     SimBattle = 36,            // front-cell contest: index = epoch, subIndex = war id (cell-keyed context)
+
+    // --- Epoch frame (slice A). Stub channels retire with Slice B/F seeding;
+    // values must not be reused. Keyed (step, actor id) per EpochRolls. ---
+    EpochEmergenceEntry = 37,  // stub emergence schedule: actor = polity id
+    EpochStubSeat = 38,        // stub homeworld seat: actor = polity id, subIndex = axis (0 q, 1 r)
+    EpochStubName = 39,        // stub polity name: actor = polity id, subIndex = syllable (0 = length)
 }
