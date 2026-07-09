@@ -6,8 +6,8 @@ others' interfaces — never their internals.
 
 | Level | Owns (state) | Provides (interface) | Reads |
 |---|---|---|---|
-| **L0 Substrate** | Commodity vocabulary (goods, use-cases, production recipes), infrastructure vocabulary & siting rules, per-cell production potentials, population stores (species/culture-tagged), connectivity graph, market geography | `Potential(cell, good)`, habitability per embodiment, demand profiles, buildable-infrastructure catalog | Deep-genesis outputs (board + emergence schedule) |
-| **L1 Economy** | Markets (price state), trade flows, wealth ledgers, corporate registry, infrastructure ownership & condition, tariffs/sanctions state | **Prices**, tax income, corporate revenue, route throughput, freight capacity, blockade strain, asset effects | L0 potentials & demand; L3 constraints (wars, blockades, borders); the fleet model; policies from Intent |
+| **L0 Substrate** | Commodity vocabulary (goods, use-cases, production recipes), infrastructure vocabulary & siting rules, per-cell production potentials (natural raster), population stores (species/culture-tagged, hex-addressed), potential lane geometry (terrain-derived), market geography | `Potential(cell, good)`, habitability per embodiment, demand profiles, buildable-infrastructure catalog | Deep-genesis outputs (board + emergence schedule) |
+| **L1 Economy** | Markets (price state), trade flows, wealth ledgers, corporate registry, infrastructure registries (ports, lanes, facilities — ownership & condition), tariffs/sanctions state | **Prices**, tax income, corporate revenue, **port domains & the lane network** (territory derives from these), route throughput, freight capacity, interdiction strain, asset effects | L0 potentials & demand; L3 constraints (wars, blockades, borders); the fleet model; policies from Intent |
 | **L2 Polity interior** | Factions, ideology state, government form, characters & roles, succession, cohesion, demographics (growth, migration) | Temperament composition (feeds Intent AI), stability/schism risk, **graduations**, leadership personality | L1 (standard of living, faction wealth); L3 (war outcomes → faction anger); L4 (news → opinion) |
 | **L3 Inter-polity** | Relations matrix, wars, treaties/federations/vassalage, military fleet postures, fronts, battles | Constraint surfaces for L1 (blockades, borders, sanctions), war outcomes for L2, contact events | L4 perception (stances); L1 prices (war-goal value); L2 composition (militancy, faction pressure); the fleet model |
 | **L4 Narrative** | Event log, news pulses, per-actor perception states, reputation, chronicle/era views, POI compiler, world-state handoff | Perceived state (Phase 1), chronicle queries, POIs to the hex tier, the handoff | Everything — via events only |
@@ -39,4 +39,7 @@ Defined by the frame because every subsystem builds against them:
 
 Each level's state is an artifact section with its own schema version; the
 simulation phases are the passes; the deep-genesis clocks are upstream artifact
-layers. The hex tier remains a pure function — never persisted.
+layers. Political state is sparse hex-addressed registries over the natural raster —
+territory derives from the port registry, never stored (see
+[space-and-travel.md](space-and-travel.md)). The hex tier remains a pure function —
+never persisted.

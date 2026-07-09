@@ -23,6 +23,7 @@ The frame first — it is the constitution every subsystem satisfies:
 | [frame/actors.md](frame/actors.md) | Actor taxonomy: institutions, characters, populations, factions, assets |
 | [frame/time.md](frame/time.md) | The four clocks: cosmic → evolutionary → generational → play |
 | [frame/simulation-flow.md](frame/simulation-flow.md) | The seven phases of a simulation step |
+| [frame/space-and-travel.md](frame/space-and-travel.md) | The two-plane space model: hexes, the natural raster, port domains, lanes |
 | [frame/system-map.md](frame/system-map.md) | The five subsystem levels and cross-cutting interfaces |
 
 Then the subsystems, in design-dependency order:

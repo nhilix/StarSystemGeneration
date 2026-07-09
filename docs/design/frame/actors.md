@@ -18,8 +18,9 @@ simulation never micro-simulates thousands of individuals.
 
 ## Population *(substrate, never an actor)*
 
-Species-tagged, cell-local quantities carrying attribute distributions: culture,
-ideology leanings, standard of living. Population is:
+Species-tagged, hex-addressed quantities (administered per port domain — see
+[space-and-travel.md](space-and-travel.md)) carrying attribute distributions:
+culture, ideology leanings, standard of living. Population is:
 
 - the **demand side** of the economy — consumption by use-case is what gives
   commodities value;
@@ -27,14 +28,15 @@ ideology leanings, standard of living. Population is:
   population segments;
 - the thing that **migrates** — pressure-driven: famine, war, opportunity gradients.
 
-Populations respond statistically to conditions; they never hold a controller. Cell
-populations are mixed: conquest, migration, and diaspora layer species and cultures
-in one place.
+Populations respond statistically to conditions; they never hold a controller.
+Local populations are mixed: conquest, migration, and diaspora layer species and
+cultures in one place.
 
 ## Polity *(territorial institution)*
 
-The sovereign actor: owns cells, taxes economic activity, budgets, expands, declares
-war, conducts diplomacy. A polity has an interior: government form, ideology (a
+The sovereign actor: its territory is the union of its ports' service domains
+(derived from the port registry, never stored); it taxes economic activity,
+budgets, expands by establishing ports, declares war, conducts diplomacy. A polity has an interior: government form, ideology (a
 drifting quantity, not a fixed seed), internal factions, and a leadership role
 occupied by a character. A polity's temperament is a **composition** — species
 disposition × ideology × current leadership — so the same nation can turn aggressive
@@ -84,13 +86,15 @@ spaceflight enters as a new polity (see [time.md](time.md)).
 
 Two families:
 
-- **Infrastructure** (anchored, immobile): mines, shipyards, spaceports, depots,
+- **Infrastructure** (anchored, immobile): the **port** — the keystone that
+  projects a polity's territory and carries its lanes (see
+  [space-and-travel.md](space-and-travel.md)) — plus mines, shipyards, depots,
   stations, fortresses. Built by polity or corporate investment, sited by rules
-  (mines want belts, spaceports want route junctions), each with mechanical effects
-  on its cell and owner (extraction multipliers, ship production, trade
-  cost/efficiency). Infrastructure anchors into per-hex generation as
-  pre-commitments: the spaceport a player visits is the one the simulation built in
-  epoch 31, not a random roll (P1).
+  (mines want belts, ports want the heart of a system cluster), each with
+  mechanical effects on its domain and owner (extraction multipliers, ship
+  production, service radius, lane capacity). Infrastructure anchors into per-hex
+  generation as pre-commitments: the port a player visits is the one the
+  simulation built in epoch 31, not a random roll (P1).
 - **Fleets** (mobile): freighters carry goods, warships project power. Everything
   abstract is physical — trade flows need hulls (freight capacity constrains
   throughput), military strength *is* fleet composition, information travels with
