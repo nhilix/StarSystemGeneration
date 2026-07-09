@@ -3,6 +3,11 @@
 Status: **draft, in progress**. This document is built up section by section as we
 work through decisions. Sections marked `TODO` are placeholders for future passes.
 
+**Simulation systems design** lives in `docs/design/` — the living product of the
+design passes (frame: principles, actors, clocks, flow, system map; plus one section
+per subsystem). This file remains the project-level document (architecture, stack,
+roadmap, decisions log); dated process specs live in `docs/superpowers/specs/`.
+
 This is a standalone project in its own repo. It was originally sketched inside the
 separate `Traveller-SystemGenerator` repo (a Python 2 prototype implementing Mongoose
 Traveller's 2D6 rules, `eSG.py`/`systemCreator.py`); that repo remains untouched as a
