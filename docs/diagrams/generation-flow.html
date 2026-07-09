@@ -206,9 +206,9 @@
     </p>
     <div class="legend">
       <span class="key"><span class="dot done"></span> Implemented</span>
-      <span class="key"><span class="dot spec"></span> Specced (sim-economy slice, plan pending)</span>
+      <span class="key"><span class="dot spec"></span> Specced (design approved, unbuilt)</span>
       <span class="key"><span class="dot fut"></span> Future / deferred</span>
-      <span class="stamp">2026-07-08 · main @ a43afdf</span>
+      <span class="stamp">2026-07-08 · main @ 3fcf370 · slice 2 shipped</span>
     </div>
   </header>
 
@@ -227,7 +227,7 @@
           <ul>
             <li>master seed · galaxy radius (cells)</li>
             <li>12 tuning knobs — density target, arm count/tightness/width, epochs, homeworld rate, mineral/precursor rates…</li>
-            <li class="spec-item">+5 economy knobs: weariness rate, stockpile decay, tech threshold, trade income weight, provisions/pop</li>
+            <li>5 economy knobs: weariness rate, stockpile decay, tech threshold, trade income weight, provisions/pop</li>
           </ul>
         </div>
       </div>
@@ -262,7 +262,7 @@
       <div class="tier-head">
         <span class="tier-tag">Tier 2</span>
         <h2>Galaxy Skeleton</h2>
-        <span class="nature">bounded precompute · persisted artifact · schema v3 → v4 (specced)</span>
+        <span class="nature">bounded precompute · persisted artifact · schema v4</span>
       </div>
       <p class="desc">
         Region-cell lattice (spiral-ordered, circular footprint). Built once per galaxy, saved,
@@ -293,24 +293,15 @@
 
       <div class="subgroup">
         <h3>Epoch simulation</h3>
-        <div class="grid" style="margin-bottom:.7rem;">
-          <div class="node done">
-            <div class="node-head"><span class="name">Stage 1 · core loop</span><span class="chip done">DONE</span></div>
-            <p>Per-polity loop, flat budgets: affinity-costed expansion, coin-flip development, one-cell skirmish wars
-               (dev-sum strength), capital relocation, flagged extinction.
-               <strong>Absorbed into the phase pipeline when the economy slice lands.</strong></p>
-          </div>
-        </div>
-
-        <div class="epoch-frame">
+        <div class="epoch-frame" style="border-color: var(--done-line);">
           <div class="frame-head">
-            <span class="name">Stages 2–3 · phase pipeline (each epoch)</span>
-            <span class="chip spec">SPECCED</span>
-            <span class="note">2026-07-08-sim-economy-design.md — full §7.3 war minus vassalage, population, pathed trade, tech</span>
+            <span class="name">Stages 1–3 · phase pipeline (each epoch)</span>
+            <span class="chip done">DONE</span>
+            <span class="note">slice 2 shipped 2026-07-08 — full §7.3 war minus vassalage, population, pathed trade, tech; stage-1 loop absorbed</span>
           </div>
           <div class="chain-scroll">
             <div class="chain">
-              <div class="node spec">
+              <div class="node done">
                 <div class="node-head"><span class="name">1 · Income</span></div>
                 <ul>
                   <li>cell production: Provisions / Ore / Exotics</li>
@@ -320,7 +311,7 @@
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node spec">
+              <div class="node done">
                 <div class="node-head"><span class="name">2 · Allocation</span></div>
                 <ul>
                   <li>4-way budget split (temperament-weighted)</li>
@@ -330,7 +321,7 @@
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node spec">
+              <div class="node done">
                 <div class="node-head"><span class="name">3 · Action</span></div>
                 <ul>
                   <li>expansion on frontier (affinity cost)</li>
@@ -339,7 +330,7 @@
                 </ul>
               </div>
               <span class="link">→</span>
-              <div class="node spec">
+              <div class="node done">
                 <div class="node-head"><span class="name">4 · Resolution</span></div>
                 <ul>
                   <li>fronts contested, stockpile × tech strength</li>
@@ -374,17 +365,17 @@
           <div class="node done">
             <div class="node-head"><span class="name">Event log</span><span class="chip done">DONE</span></div>
             <p>Single global append-only stream.
-              <strong>5 types live</strong>; <span style="color:var(--spec)">+ WarEnded, TechAdvance, Famine, TradeBlocked (specced)</span>.</p>
+              <strong>9 types live</strong> incl. WarEnded, TechAdvance, Famine, TradeBlocked (+ typed Detail payload).</p>
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">Polity registry</span><span class="chip done">DONE</span></div>
             <p>Id, name, species, capital, extinct-retained.
-              <span style="color:var(--spec)">+ stockpile, tech tier, wealth, balances, War registry (specced)</span>.</p>
+              Plus stockpile, tech tier, wealth, per-good balances, and the persistent War registry (goals, weariness, outcomes; ended wars retained).</p>
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">Region-cell state</span><span class="chip done">DONE</span></div>
             <p>Owner, dev tier, contested, war-scarred, anchors.
-              <span style="color:var(--spec)">+ population (species-tagged), route throughput (specced)</span>.</p>
+              Plus species-tagged population and per-cell route throughput.</p>
           </div>
         </div>
       </div>
@@ -446,7 +437,7 @@
             <li>galaxy build/load · save (artifact v3)</li>
             <li>ASCII map layers: density, polity, dev, zones</li>
             <li>cell · polity · chronicle · stats · goto/walk</li>
-            <li class="spec-item">+ trade / economy / war layers; enriched polity, chronicle, stats, cell</li>
+            <li>trade / economy / war layers · polity &amp; chronicle commands · economy stats block</li>
           </ul>
         </div>
         <div class="node done">
@@ -477,7 +468,7 @@
     <ul>
       <li><span class="src">docs/superpowers/specs/2026-07-07-generation-rules-design.md</span> — Phase 1 system/body pipeline</li>
       <li><span class="src">docs/superpowers/specs/2026-07-07-regional-generation-design.md</span> — three tiers, sim stages 1–6</li>
-      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (specced, plan pending)</li>
+      <li><span class="src">docs/superpowers/specs/2026-07-08-sim-economy-design.md</span> — stages 2–3 slice (shipped 2026-07-08, schema v4)</li>
       <li><span class="src">docs/DESIGN.md §4</span> — roadmap (phases 1–2 complete, 3 delivered at cell resolution)</li>
     </ul>
   </footer>
