@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
 
@@ -44,7 +45,9 @@ public sealed class MarketsPhase : ISimPhase
 /// <summary>Phase 3 — standing policies applied mechanically. Slice B:
 /// per-port stub income (Markets replaces the source in slice D) split by the
 /// actor's standing budget weights into the polity treasuries; unmodeled
-/// shares (military, research…) evaporate until their slices land.</summary>
+/// shares (military, research…) evaporate until their slices land. The
+/// development treasury then builds lanes (network first) and raises port
+/// tiers — the map's highways are somebody's investment (P5).</summary>
 public sealed class AllocationPhase : ISimPhase
 {
     public string Name => "Allocation";
@@ -52,24 +55,120 @@ public sealed class AllocationPhase : ISimPhase
     public string Run(SimState state)
     {
         var cfg = state.Config;
-        int earning = 0;
+        int earning = 0, lanesBuilt = 0, portsRaised = 0;
+        var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
         {
             var actor = state.Actors[pr.ActorId];
             if (!actor.Entered) continue;
-            int ports = 0;
+            ownPorts.Clear();
             foreach (var p in state.Ports)
-                if (p.OwnerActorId == pr.ActorId) ports++;
-            if (ports == 0) continue;
+                if (p.OwnerActorId == pr.ActorId) ownPorts.Add(p);
+            if (ownPorts.Count == 0) continue;
             earning++;
-            double income = ports * cfg.Expansion.StubIncomePerPortPerYear
+            double income = ownPorts.Count * cfg.Expansion.StubIncomePerPortPerYear
                             * cfg.Sim.YearsPerEpoch;
             var budget = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
             pr.ExpansionPoints += income * budget.Expansion;
             pr.DevelopmentPoints += income * budget.Development;
+            lanesBuilt += BuildLanes(state, pr, ownPorts);
+            portsRaised += RaisePorts(state, pr, ownPorts);
         }
-        return earning == 0 ? "quiet"
+        string note = earning == 0 ? "quiet"
             : $"income accrued for {earning} " + (earning == 1 ? "polity" : "polities");
+        if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
+        if (portsRaised > 0) note += $", {portsRaised} " + (portsRaised == 1 ? "port raised" : "ports raised");
+        return note;
+    }
+
+    /// <summary>Missing in-range same-owner pairs, nearest first (tie: lower
+    /// ids), built while the development treasury affords them.</summary>
+    private static int BuildLanes(SimState state, PolityRecord pr, List<Port> ownPorts)
+    {
+        var cfg = state.Config;
+        int built = 0;
+        while (pr.DevelopmentPoints >= cfg.Expansion.LaneCost)
+        {
+            Port? bestA = null, bestB = null;
+            int bestDist = int.MaxValue;
+            for (int i = 0; i < ownPorts.Count; i++)
+                for (int j = i + 1; j < ownPorts.Count; j++)
+                {
+                    var a = ownPorts[i]; var b = ownPorts[j];
+                    if (a.Id > b.Id) (a, b) = (b, a);
+                    if (!LaneMath.InRange(cfg, a, b)) continue;
+                    if (LaneExists(state, a.Id, b.Id)) continue;
+                    int dist = HexGrid.Distance(a.Hex, b.Hex);
+                    if (dist < bestDist
+                        || (dist == bestDist && (a.Id < bestA!.Id
+                            || (a.Id == bestA.Id && b.Id < bestB!.Id))))
+                    { bestDist = dist; bestA = a; bestB = b; }
+                }
+            if (bestA == null) break;
+            pr.DevelopmentPoints -= cfg.Expansion.LaneCost;
+            var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id, state.WorldYear);
+            state.Lanes.Add(lane);
+            built++;
+            state.Staged.Add(new StagedEvent(
+                ClockStratum.Generational, WorldEventType.LaneOpened,
+                new[] { pr.ActorId }, Midpoint(bestA.Hex, bestB.Hex),
+                Magnitude: 1.0, Valence: 1.0, EventVisibility.Regional,
+                new LaneOpenedPayload(bestA.Id, bestB.Id)));
+        }
+        return built;
+    }
+
+    /// <summary>Lowest-tier port first (tie: lowest id); cost = base × current
+    /// tier; raised while affordable.</summary>
+    private static int RaisePorts(SimState state, PolityRecord pr, List<Port> ownPorts)
+    {
+        var cfg = state.Config;
+        int raised = 0;
+        while (true)
+        {
+            Port? pick = null;
+            foreach (var p in ownPorts)
+                if (p.Tier < cfg.Infrastructure.MaxPortTier
+                    && (pick == null || p.Tier < pick.Tier
+                        || (p.Tier == pick.Tier && p.Id < pick.Id)))
+                    pick = p;
+            if (pick == null) break;
+            double cost = cfg.Expansion.PortUpgradeCostBase * pick.Tier;
+            if (pr.DevelopmentPoints < cost) break;
+            pr.DevelopmentPoints -= cost;
+            pick.Tier++;
+            raised++;
+            state.Staged.Add(new StagedEvent(
+                ClockStratum.Generational, WorldEventType.PortTierRaised,
+                new[] { pr.ActorId }, pick.Hex,
+                Magnitude: pick.Tier, Valence: 1.0, EventVisibility.Regional,
+                new PortTierRaisedPayload(pick.Id, pick.Tier)));
+        }
+        return raised;
+    }
+
+    private static bool LaneExists(SimState state, int aId, int bId)
+    {
+        foreach (var l in state.Lanes)
+            if (l.PortAId == aId && l.PortBId == bId) return true;
+        return false;
+    }
+
+    /// <summary>Hex-line midpoint via cube lerp at t=0.5 with standard cube
+    /// rounding — the lane-opened event's address.</summary>
+    private static HexCoordinate Midpoint(HexCoordinate a, HexCoordinate b)
+    {
+        double x = (a.Q + b.Q) * 0.5;
+        double z = (a.R + b.R) * 0.5;
+        double y = -x - z;
+        int rx = (int)System.Math.Round(x), ry = (int)System.Math.Round(y),
+            rz = (int)System.Math.Round(z);
+        double dx = System.Math.Abs(rx - x), dy = System.Math.Abs(ry - y),
+               dz = System.Math.Abs(rz - z);
+        if (dx > dy && dx > dz) rx = -ry - rz;
+        else if (dy > dz) { /* y is derived; nothing to fix for axial */ }
+        else rz = -rx - ry;
+        return new HexCoordinate(rx, rz);
     }
 }
 

@@ -45,6 +45,38 @@ public class AllocationTests
     }
 
     [Fact]
+    public void FullRun_BuildsLanes_RaisesTiers_Deterministically()
+    {
+        var (_, s1) = EpochTestKit.Seeded();
+        var (_, s2) = EpochTestKit.Seeded();
+        new EpochEngine().Run(s1);
+        new EpochEngine().Run(s2);
+
+        Assert.True(s1.Lanes.Count > 0, "no lanes built in 40 epochs");
+        Assert.Equal(s1.Lanes.Count,
+                     s1.Lanes.Select(l => (l.PortAId, l.PortBId)).Distinct().Count());
+        foreach (var lane in s1.Lanes)
+        {
+            Assert.True(lane.PortAId < lane.PortBId);
+            var a = s1.Ports[lane.PortAId];
+            var b = s1.Ports[lane.PortBId];
+            // same polity's paired infrastructure, in range at current tiers
+            Assert.Equal(a.OwnerActorId, b.OwnerActorId);
+            Assert.True(LaneMath.InRange(s1.Config, a, b), "lane endpoints out of range");
+        }
+        // development raised some colony port above its founding tier
+        Assert.Contains(s1.Ports, p => p.Tier > 1 && p.FoundedYear > 0);
+        Assert.All(s1.Ports, p => Assert.InRange(p.Tier, 1, s1.Config.Infrastructure.MaxPortTier));
+        Assert.Contains(s1.Log.Events, e => e.Type == WorldEventType.LaneOpened);
+        Assert.Contains(s1.Log.Events, e => e.Type == WorldEventType.PortTierRaised);
+
+        Assert.Equal(s1.Lanes.Select(l => (l.Id, l.PortAId, l.PortBId, l.BuiltYear)),
+                     s2.Lanes.Select(l => (l.Id, l.PortAId, l.PortBId, l.BuiltYear)));
+        Assert.Equal(s1.Ports.Select(p => (p.Id, p.OwnerActorId, p.Hex, p.Tier, p.FoundedYear)),
+                     s2.Ports.Select(p => (p.Id, p.OwnerActorId, p.Hex, p.Tier, p.FoundedYear)));
+    }
+
+    [Fact]
     public void Intent_StoresStandingPolicies_OnTheActor()
     {
         var (_, state) = EpochTestKit.Seeded();

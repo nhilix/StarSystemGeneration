@@ -46,7 +46,9 @@ public class EpochGenesisTests
         {
             var home = state.Ports.First(p => p.OwnerActorId == a.Id);
             Assert.Equal(a.Seat, home.Hex);
-            Assert.Equal(state.Config.Infrastructure.HomeworldPortTier, home.Tier);
+            // founded at HomeworldPortTier; development may have raised it since
+            Assert.InRange(home.Tier, state.Config.Infrastructure.HomeworldPortTier,
+                           state.Config.Infrastructure.MaxPortTier);
             Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, home.FoundedYear);
             var seg = Assert.Single(state.Segments, s => s.PortId == home.Id);
             Assert.Equal(state.PolityOf(a.Id).SpeciesId, seg.SpeciesId);
