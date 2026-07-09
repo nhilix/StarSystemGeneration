@@ -61,4 +61,4 @@ the new frame and prints the phase/event trace.
    grounded in the real interfaces and file paths Slice A just created · flip
    the checkbox below · push only when the user says.
 
-- [ ] Slice A complete
+- [x] Slice A complete

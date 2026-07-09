@@ -41,11 +41,11 @@ the resumability record. New code lives in `src/Core/Epoch/`
 - [x] 9. **Gates**: `dotnet test` green incl. hex-tier suite (206/206) ·
       determinism byte-identity (incl. culture-flip) · REPL surface works
       (`epoch 42` piped smoke, 2 ms full run).
-- [ ] 10. **User gate: REPL eyeball acceptance** (phase/event trace of a
-      stepped galaxy looks right).
-- [ ] 11. **Wrap-up**: merge on user nod · update `docs/HANDOFF.md` · write
-      Slice B kickoff prompt (+ Slice C if useful) · flip kickoff checkbox ·
-      push only on user say-so.
+- [x] 10. **User gate: REPL eyeball acceptance** (phase/event trace of a
+      stepped galaxy looks right). Accepted 2026-07-09.
+- [x] 11. **Wrap-up**: merged on user nod · `docs/HANDOFF.md` updated · Slice B
+      **and** C kickoff prompts written · kickoff checkbox flipped · not
+      pushed (awaiting user say-so).
 
 ## Notes / surprises
 
