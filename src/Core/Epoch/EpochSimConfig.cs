@@ -31,6 +31,8 @@ public sealed class GenesisKnobs
     /// <summary>Latest world-year a stub polity may enter — staggered
     /// emergence (frame/time.md §Asymmetric emergence).</summary>
     public int EmergenceWindowYears { get; set; } = 500;
+    /// <summary>Scatter radius for stub homeworld seats, in hexes.</summary>
+    public int StubSeatRadiusHexes { get; set; } = 60;
 }
 
 /// <summary>Economy dials, per world-year. Defaults re-denominate the

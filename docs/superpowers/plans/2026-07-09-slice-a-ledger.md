@@ -21,7 +21,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
       `IController.Decide(perceived) → (policies, acts)`; perfect-info
       `PerceptionView` stub; `TrivialController` default AI. Tests: trivial AI
       returns default policies + no acts; contract types round-trip.
-- [ ] 4. **Sim state + stub seeding** — `SimState` container (config, epoch
+- [x] 4. **Sim state + stub seeding** — `SimState` container (config, epoch
       index, world-year clock, actor registry, event log, phase trace);
       deterministic stub polity seeding from config (emergence-schedule
       placeholder, hash-rolled entry epochs; Slice B replaces). New
