@@ -27,7 +27,7 @@ public static class EpochGenesis
                     0, windowEpochs + 1);
                 state.Actors.Add(new Actor(id, ActorKind.Polity,
                     skeleton.Species[anchor.SpeciesId].Name, anchor.Hex, entry,
-                    new TrivialController()));
+                    new GenesisController(config)));
                 state.Polities.Add(new PolityRecord(id, anchor.SpeciesId));
             }
         return state;

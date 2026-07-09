@@ -7,8 +7,10 @@ namespace StarGen.Core.Tests.Epoch;
 
 public class ControllerContractTests
 {
-    private static PerceptionView View(int selfId = 0) =>
-        new PerceptionView(selfId, worldYear: 100, knownPolityIds: new[] { 0, 1 });
+    private static PerceptionView View(int selfId = 0, double expansionPoints = 0,
+                                       params ColonyCandidate[] candidates) =>
+        new PerceptionView(selfId, worldYear: 100, knownPolityIds: new[] { 0, 1 },
+                           expansionPoints, candidates);
 
     [Fact]
     public void TrivialController_ReturnsDefaultPolicies_AndNoActs()
@@ -17,6 +19,25 @@ public class ControllerContractTests
         Assert.Empty(decision.Acts);
         var policies = Assert.IsType<PolityPolicies>(decision.Policies);
         Assert.Equal(PolityPolicies.Default, policies);
+    }
+
+    [Fact]
+    public void GenesisController_FoundsTowardTheTopCandidate_WhenAffordable()
+    {
+        var cfg = new EpochSimConfig();
+        var controller = new GenesisController(cfg);
+        var top = new ColonyCandidate(new HexCoordinate(9, -4), 1.4);
+        var second = new ColonyCandidate(new HexCoordinate(2, 2), 1.1);
+
+        var affordable = controller.Decide(View(3, cfg.Expansion.ColonyCost, top, second));
+        var act = Assert.IsType<FoundColonyAct>(Assert.Single(affordable.Acts));
+        Assert.Equal(3, act.ActorId);
+        Assert.Equal(top.Target, act.Target);
+
+        Assert.Empty(controller.Decide(
+            View(3, cfg.Expansion.ColonyCost - 0.01, top)).Acts);   // broke
+        Assert.Empty(controller.Decide(
+            View(3, cfg.Expansion.ColonyCost * 2)).Acts);           // no candidates
     }
 
     [Fact]

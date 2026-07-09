@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using StarGen.Core.Galaxy;
 
 namespace StarGen.Core.Epoch;
 
@@ -20,7 +21,12 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
         {
             if (!a.Entered) continue;
-            a.Perception = new PerceptionView(a.Id, state.WorldYear, known);
+            double expansion = a.Kind == ActorKind.Polity
+                ? state.PolityOf(a.Id).ExpansionPoints : 0.0;
+            var candidates = a.Kind == ActorKind.Polity
+                ? ColonyValuation.CandidatesFor(state, a.Id) : null;
+            a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
+                                              expansion, candidates);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -90,19 +96,58 @@ public sealed class IntentPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 5 — acts collide and resolve deterministically. Slice A has
-/// no resolvers (the trivial AI emits no acts); expansion arrives in Slice B
-/// (convoyless until Slice E), war in Slice H.</summary>
+/// <summary>Phase 5 — acts collide and resolve deterministically. Slice B
+/// resolves FoundColonyAct: claiming space is building a port
+/// (space-and-travel.md) — convoyless until slice E gives the journey hulls.
+/// Collisions on one hex resolve in actor-id order; losers are not charged.</summary>
 public sealed class ResolutionPhase : ISimPhase
 {
     public string Name => "Resolution";
 
     public string Run(SimState state)
     {
-        int acts = 0;
-        foreach (var d in state.Decisions)
-            acts += d.Decision.Acts.Count;
-        return $"{acts} acts, 0 resolved (no resolvers yet)";
+        int acts = 0, founded = 0;
+        foreach (var d in state.Decisions)               // actor-id order
+            foreach (var act in d.Decision.Acts)
+            {
+                acts++;
+                if (act is FoundColonyAct f && TryFound(state, f)) founded++;
+            }
+        return founded == 0 ? $"{acts} acts, 0 resolved"
+            : $"{acts} acts, {founded} " + (founded == 1 ? "port established" : "ports established");
+    }
+
+    /// <summary>Every check runs against truth: consequences on truth, even
+    /// though the decision ran on perception (Move 2).</summary>
+    private static bool TryFound(SimState state, FoundColonyAct act)
+    {
+        var cfg = state.Config;
+        var actor = state.Actors[act.ActorId];
+        if (!actor.Entered || actor.Kind != ActorKind.Polity) return false;
+        var record = state.PolityOf(act.ActorId);
+        if (record.ExpansionPoints < cfg.Expansion.ColonyCost) return false;
+        if (!state.Skeleton.TryGetCell(HexGrid.CellOf(act.Target), out var cell)
+            || cell.IsVoid) return false;
+        foreach (var p in state.Ports)
+            if (p.Hex.Equals(act.Target)) return false;   // hex taken (or lost the collision)
+        bool inReach = false;
+        foreach (var p in state.Ports)
+            if (p.OwnerActorId == act.ActorId
+                && HexGrid.Distance(p.Hex, act.Target) <= cfg.Expansion.ColonizationReachHexes)
+            { inReach = true; break; }
+        if (!inReach) return false;
+
+        record.ExpansionPoints -= cfg.Expansion.ColonyCost;
+        var port = new Port(state.Ports.Count, act.ActorId, act.Target,
+                            tier: 1, state.WorldYear);
+        state.Ports.Add(port);
+        state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+            record.SpeciesId, cfg.Expansion.ColonySegmentSize));
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.PortEstablished,
+            new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
+            EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
+        return true;
     }
 }
 
