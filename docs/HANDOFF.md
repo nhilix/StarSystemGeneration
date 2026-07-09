@@ -42,16 +42,17 @@ they form** (salvage niches, claim anchors).
 
 ## Next up
 
-1. **User review of the specs** (all marked "awaiting user review" — approved
-   conversationally section-by-section during the session, but a read-through of
-   the spec files themselves hasn't happened).
-2. **Implementation re-planning across the whole design** (master frame §7:
-   design-first, then re-slice). The old stage-4/5/6 numbering is retired; slices
-   should be planned against the design tree. Big early items: world-year rate
-   conversion, the raster/registry state-model inversion (per-cell political
-   state → sparse port/facility/fleet registries), deep-genesis clocks.
-3. Unity atlas economy parity + polish items (carried from previous sessions,
-   unchanged — see git history for the older handoff ledger).
+1. **Slice A (Foundations)** — start a fresh session and point it at
+   `docs/superpowers/plans/2026-07-09-slice-a-kickoff-prompt.md`; it contains the
+   full reading list, scope, rules, and definition of done. The governing
+   meta-plan is `docs/superpowers/plans/2026-07-09-implementation-roadmap.md`
+   (11 greenfield slices A–K; prototype sim + atlas are reference-only PoC,
+   hex-tier pipeline stays green).
+2. **User review of the design specs** (approved conversationally
+   section-by-section; a read-through of the files themselves hasn't happened —
+   can proceed in parallel with Slice A).
+3. Unity atlas: superseded as PoC — rebuild is roadmap Slice K (batched late,
+   post-H). The old parity/polish ticket list is retired with it.
 
 ## Carried process conventions (unchanged)
 
