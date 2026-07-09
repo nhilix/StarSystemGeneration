@@ -99,4 +99,46 @@ public class AllocationPhaseTests
         Assert.True(sWar.Polities[0].MilitaryStockpile > sPeace.Polities[0].MilitaryStockpile,
             "doubled militancy weight grows the at-war stockpile faster");
     }
+
+    [Fact]
+    public void LandlessPolity_WealthZeroed_NotStale()
+    {
+        var s = Fixture();
+        var p = s.Polities[0];
+        p.Wealth = 7.5;
+        foreach (var c in s.Cells) c.OwnerPolityId = -1;
+        AllocationPhase.Run(s, 0);
+        Assert.Equal(0.0, p.Wealth);
+    }
+
+    [Fact]
+    public void OreDeficit_DoublesStockpileDecay()
+    {
+        var starved = Fixture();
+        var fed = Fixture();
+        starved.Polities[0].OreBalance = -1.0;
+        fed.Polities[0].OreBalance = 0.0;
+        starved.Polities[0].MilitaryStockpile = fed.Polities[0].MilitaryStockpile = 100.0;
+        AllocationPhase.Run(starved, 0);
+        AllocationPhase.Run(fed, 0);
+        // Identical income and budget splits; only the decay multiplier differs:
+        // ×2 vs ×1 on a 100 stockpile at StockpileDecayRate 0.10 → exactly 10 apart.
+        Assert.Equal(10.0,
+            fed.Polities[0].MilitaryStockpile - starved.Polities[0].MilitaryStockpile, 10);
+    }
+
+    [Fact]
+    public void UnpaidUpkeep_DoublesStockpileDecay()
+    {
+        var broke = Fixture();
+        var solvent = Fixture();
+        foreach (var c in broke.Cells) c.OwnerPolityId = -1;     // no income → cannot pay
+        foreach (var c in solvent.Cells) c.OwnerPolityId = -1;   // no income, but no war either
+        broke.Wars.Add(new War { Id = 0, AttackerId = 0, DefenderId = 99 });
+        broke.Polities[0].MilitaryStockpile = solvent.Polities[0].MilitaryStockpile = 100.0;
+        AllocationPhase.Run(broke, 0);
+        AllocationPhase.Run(solvent, 0);
+        Assert.Equal(80.0, broke.Polities[0].MilitaryStockpile, 10);     // ×(1 − 0.20)
+        Assert.Equal(90.0, solvent.Polities[0].MilitaryStockpile, 10);   // ×(1 − 0.10)
+    }
 }

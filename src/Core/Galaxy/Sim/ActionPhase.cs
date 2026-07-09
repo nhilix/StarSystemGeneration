@@ -96,11 +96,12 @@ public static class ActionPhase
         { goal = WarGoal.Punitive; score = c => Economy.SystemValue(species, c); }
 
         RegionCell? best = null;
-        double bestScore = double.MinValue;
+        double bestScore = 0.0;
         foreach (var c in candidates)
         {
             double v = score(c);
-            if (v > bestScore || (v == bestScore && best != null && c.SpiralIndex < best.SpiralIndex))
+            if (best == null || v > bestScore
+                || (v == bestScore && c.SpiralIndex < best.SpiralIndex))
             { best = c; bestScore = v; }
         }
         if (best == null) return;

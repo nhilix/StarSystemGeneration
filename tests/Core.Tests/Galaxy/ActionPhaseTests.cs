@@ -75,6 +75,8 @@ public class ActionPhaseTests
         for (int epoch = 0; epoch < 80; epoch++)
             ActionPhase.Run(s, epoch, new Dictionary<int, double> { [0] = 0.0, [1] = 0.0 });
         Assert.True(s.Wars.Count(w => !w.Ended) <= 1, "one live war per polity pair");
+        Assert.Equal(s.Wars.Count,
+            s.Events.Count(e => e.Type == GalaxyEventType.WarStarted));
     }
 
     [Fact]

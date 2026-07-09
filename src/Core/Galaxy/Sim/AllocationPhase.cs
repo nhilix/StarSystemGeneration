@@ -46,6 +46,9 @@ public static class AllocationPhase
             if (owned.Count == 0)
             {
                 polity.MilitaryStockpile = Math.Max(0, polity.MilitaryStockpile * (1.0 - decay));
+                // Landless polities hold no treasury — a stale Wealth would serialize
+                // and display forever (deferred-tickets spec §8).
+                polity.Wealth = 0;
                 expansionBudgets[polity.Id] = 0;
                 continue;
             }
