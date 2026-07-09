@@ -12,6 +12,7 @@ public sealed class Repl
     private ulong _seed = 42;
     private int _spiralIndex;
     private GalaxyContext? _galaxy;
+    private Core.Epoch.SimState? _sim;
 
     public void Run()
     {
@@ -30,6 +31,7 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
+                    Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
                     Console.WriteLine("map layers: density | lean");
@@ -89,10 +91,40 @@ public sealed class Repl
                     var estate = Core.Epoch.EpochGenesis.Seed(eskeleton, econfig);
                     new Core.Epoch.EpochEngine().Run(estate);
                     sw.Stop();
+                    _sim = estate;
+                    _seed = eseed;
+                    _galaxy = new GalaxyContext(eskeleton.Config) { Skeleton = eskeleton };
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
+                case "esave" when parts.Length == 2 && _sim != null:
+                    System.IO.File.WriteAllText(parts[1],
+                        Core.Epoch.ArtifactSerializer.ToText(_sim));
+                    Console.WriteLine($"artifact saved to {parts[1]}");
+                    break;
+                case "esave":
+                    Console.WriteLine("run a sim first (epoch <seed>), then: esave <path>");
+                    break;
+                case "eload" when parts.Length == 2:
+                    try
+                    {
+                        using (var reader = new System.IO.StreamReader(parts[1]))
+                        {
+                            var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
+                            _sim = loaded;
+                            _seed = loaded.Skeleton.Config.MasterSeed;
+                            _galaxy = new GalaxyContext(loaded.Skeleton.Config)
+                            { Skeleton = loaded.Skeleton };
+                            Console.WriteLine($"artifact loaded: seed {_seed}, "
+                                + $"epoch {loaded.EpochIndex} (y{loaded.WorldYear}), "
+                                + $"{loaded.Ports.Count} ports, {loaded.Lanes.Count} lanes, "
+                                + $"{loaded.Log.Events.Count} events");
+                        }
+                    }
+                    catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
+                    catch (System.IO.FileNotFoundException) { Console.WriteLine("file not found"); }
+                    break;
                 case "goods":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
                     break;
