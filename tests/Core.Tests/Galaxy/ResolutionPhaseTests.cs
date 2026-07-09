@@ -164,6 +164,7 @@ public class ResolutionPhaseTests
         Assert.True(s.Polities[1].Extinct, "A must go extinct losing its only cell");
         Assert.True(s.Wars[1].Ended, "war 1 (A attacks C) must terminate the same epoch A goes extinct");
         Assert.NotEqual(WarOutcome.AttackerVictory, s.Wars[1].Outcome);
+        Assert.Equal(WarOutcome.DefenderVictory, s.Wars[1].Outcome);
         Assert.DoesNotContain(s.Cells, c => c.OwnerPolityId == 1);
     }
 
@@ -178,5 +179,48 @@ public class ResolutionPhaseTests
         // Identical seeds → identical battle rolls; only the 1.5× hardship multiplier differs.
         Assert.Equal(relaxed.Wars[0].AttackerWeariness * 1.5, strained.Wars[0].AttackerWeariness, 10);
         Assert.Equal(relaxed.Wars[0].DefenderWeariness, strained.Wars[0].DefenderWeariness, 10);
+    }
+
+    [Fact]
+    public void DefenderExtinct_LabelsAttackerVictory_NotWhitePeace()
+    {
+        var s = AtWarFixture(attackerStock: 100.0, defenderStock: 50.0);
+        // Defender annihilated before this war resolves (e.g. a lower-id war this
+        // epoch) while the attacker is simultaneously past its own breaking point:
+        // extinction must dominate the label (old rules said WhitePeace).
+        foreach (var c in s.Cells.Where(c => c.OwnerPolityId == 1)) c.OwnerPolityId = 0;
+        s.Polities[1].Extinct = true;
+        s.Wars[0].AttackerWeariness = 5.0;
+        ResolutionPhase.Run(s, 0);
+        Assert.True(s.Wars[0].Ended);
+        Assert.Equal(WarOutcome.AttackerVictory, s.Wars[0].Outcome);
+        // Skip-front: a war with an extinct side fights no battles and accrues no weariness.
+        Assert.Equal(5.0, s.Wars[0].AttackerWeariness, 10);
+    }
+
+    [Fact]
+    public void BothSidesExtinct_LabelsWhitePeace()
+    {
+        var s = AtWarFixture();
+        foreach (var c in s.Cells.Where(c => c.OwnerPolityId >= 0)) c.OwnerPolityId = -1;
+        s.Polities[0].Extinct = true;
+        s.Polities[1].Extinct = true;
+        ResolutionPhase.Run(s, 0);
+        Assert.True(s.Wars[0].Ended);
+        Assert.Equal(WarOutcome.WhitePeace, s.Wars[0].Outcome);
+    }
+
+    [Fact]
+    public void DefenderVictory_RestoresCapturedFrontCells()
+    {
+        var s = AtWarFixture(attackerStock: 0.2, defenderStock: 50.0);
+        var goal = s.CellAt(new HexCoordinate(1, 0));
+        goal.OwnerPolityId = 0;              // attacker captured the goal in an earlier epoch
+        s.Wars[0].AttackerWeariness = 5.0;   // attacker breaks now; defender is healthy
+        ResolutionPhase.Run(s, 0);
+        Assert.Equal(WarOutcome.DefenderVictory, s.Wars[0].Outcome);
+        Assert.Equal(1, goal.OwnerPolityId);   // capture returned to the defender
+        Assert.Contains(s.Events, e => e.Type == GalaxyEventType.CellTaken
+            && e.ActorPolityId == 1 && e.TargetPolityId == 0 && e.Q == 1 && e.R == 0);
     }
 }
