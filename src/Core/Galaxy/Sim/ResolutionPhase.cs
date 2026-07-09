@@ -126,7 +126,11 @@ public static class ResolutionPhase
                 }
             // WhitePeace: uti possidetis — you keep what you hold.
 
-            foreach (var fc in war.FrontCells) s.CellAt(fc).Contested = false;
+            // Demilitarize the front — except cells another live war still fights over
+            // (deferred-tickets spec §7, final-review M-1).
+            foreach (var fc in war.FrontCells)
+                if (!InAnotherLiveFront(s, war, fc))
+                    s.CellAt(fc).Contested = false;
             war.Ended = true;
             war.Outcome = outcome;
             var origin = s.CellAt(war.GoalCells[0]);
@@ -172,6 +176,13 @@ public static class ResolutionPhase
         foreach (var w in s.Wars)
             if (!w.Ended && (w.AttackerId == polityId || w.DefenderId == polityId)) n++;
         return n;
+    }
+
+    private static bool InAnotherLiveFront(GalaxySkeleton s, War ending, HexCoordinate fc)
+    {
+        foreach (var w in s.Wars)
+            if (!w.Ended && w.Id != ending.Id && w.FrontCells.Contains(fc)) return true;
+        return false;
     }
 
     private static double Clamp(double v, double lo, double hi) => v < lo ? lo : v > hi ? hi : v;

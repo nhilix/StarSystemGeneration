@@ -241,4 +241,41 @@ public class ResolutionPhaseTests
         Assert.Contains(s.Events, e => e.Type == GalaxyEventType.LostCapital && e.TargetPolityId == 1);
         Assert.Equal(new HexCoordinate(3, 0), s.Polities[1].CapitalCoord);
     }
+
+    /// <summary>Two wars against the same defender share a front cell; the ENDING war
+    /// has the HIGHER id, so it resolves after the live war re-marked the cell this
+    /// epoch — its unconditional demilitarize used to un-contest a cell the live war
+    /// still fights over (final-review M-1).</summary>
+    [Fact]
+    public void SharedFrontCell_StaysContested_WhileAnotherWarIsLive()
+    {
+        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
+        foreach (var c in s.Cells) { c.MeanDensity = 0.5; c.IsVoid = false; }
+        for (int i = 0; i < 3; i++)
+            s.Species.Add(new SpeciesProfile { Id = i, Name = $"S{i}", Embodiment = Embodiment.TerranAnalog,
+                Expansionism = 0.5, Cohesion = 0.5, Militancy = 0.5, Openness = 0.5, Industry = 0.5, Adaptability = 0.5 });
+        s.Polities.Add(new Polity { Id = 0, Name = "A", SpeciesId = 0, CapitalQ = 1, CapitalR = 0, MilitaryStockpile = 50.0 });
+        s.Polities.Add(new Polity { Id = 1, Name = "C", SpeciesId = 1, CapitalQ = -2, CapitalR = 0, MilitaryStockpile = 50.0 });
+        s.Polities.Add(new Polity { Id = 2, Name = "B", SpeciesId = 2, CapitalQ = 3, CapitalR = 0, MilitaryStockpile = 0.05 });
+        var aCap = s.CellAt(new HexCoordinate(1, 0));
+        aCap.OwnerPolityId = 0; aCap.DevelopmentTier = 3; aCap.Population = 2; aCap.PopulationSpeciesId = 0;
+        var shared = s.CellAt(new HexCoordinate(0, 0));
+        shared.OwnerPolityId = 0; shared.DevelopmentTier = 2; shared.Population = 1; shared.PopulationSpeciesId = 0;
+        var cCap = s.CellAt(new HexCoordinate(-2, 0));
+        cCap.OwnerPolityId = 1; cCap.DevelopmentTier = 3; cCap.Population = 2; cCap.PopulationSpeciesId = 1;
+        var bCap = s.CellAt(new HexCoordinate(3, 0));
+        bCap.OwnerPolityId = 2; bCap.DevelopmentTier = 3; bCap.Population = 2; bCap.PopulationSpeciesId = 2;
+
+        var live = new War { Id = 0, AttackerId = 1, DefenderId = 0, StartEpoch = 0, Goal = WarGoal.Punitive };
+        live.GoalCells.Add(shared.Coord); live.FrontCells.Add(shared.Coord);
+        var ending = new War { Id = 1, AttackerId = 2, DefenderId = 0, StartEpoch = 0, Goal = WarGoal.Punitive };
+        ending.GoalCells.Add(shared.Coord); ending.FrontCells.Add(shared.Coord);
+        shared.Contested = true;
+        s.Wars.Add(live); s.Wars.Add(ending);
+
+        ResolutionPhase.Run(s, 0);
+        Assert.True(s.Wars[1].Ended, "war 1's attacker starts below the stockpile break floor");
+        Assert.False(s.Wars[0].Ended, "war 0 is healthy and must survive epoch 0");
+        Assert.True(shared.Contested, "the live war still fights over the shared front cell (M-1)");
+    }
 }
