@@ -240,4 +240,17 @@ public class IncomePhaseTests
         Assert.Equal(1.5, s.Polities[1].BlockadeLoss, 10);
         Assert.DoesNotContain(s.Events, e => e.Type == GalaxyEventType.TradeBlocked);
     }
+
+    [Fact]
+    public void FamineAndWarScar_StackOnTheSameCell()
+    {
+        var s = Fixture();
+        var e = s.CellAt(new HexCoordinate(2, 0));
+        e.Population = 10.0; e.DevelopmentTier = 1;   // starving, as in the famine test
+        e.Contested = true; e.WarScarred = true;      // and besieged
+        IncomePhase.Run(s, 0);
+        // Famine ×0.8 then war-scar ×0.95: separate population pressures compound
+        // (deferred-tickets spec §5).
+        Assert.Equal(10.0 * 0.8 * 0.95, e.Population, 10);
+    }
 }

@@ -208,16 +208,22 @@ public static class IncomePhase
             }
         }
 
-        // Growth + war-scar shrink for all owned cells not starving this epoch.
+        // Growth for fed cells; war-scar shrink for ALL besieged cells — famine and
+        // siege are separate pressures and stack (deferred-tickets spec §5). The
+        // growth guard is untouched: a starving cell never grows, a fed cell never
+        // shrinks from feeding.
         var starvingSet = new HashSet<RegionCell>();
         foreach (var list in unfed.Values) foreach (var (cell, _) in list) starvingSet.Add(cell);
         foreach (var cell in s.Cells)
         {
-            if (cell.OwnerPolityId < 0 || starvingSet.Contains(cell)) continue;
-            double cap = 1.0 + cell.DevelopmentTier;
-            if (cell.Population < cap)
-                cell.Population = Math.Min(cap,
-                    cell.Population + PopGrowthBase * (1 + cell.DevelopmentTier) * 0.5);
+            if (cell.OwnerPolityId < 0) continue;
+            if (!starvingSet.Contains(cell))
+            {
+                double cap = 1.0 + cell.DevelopmentTier;
+                if (cell.Population < cap)
+                    cell.Population = Math.Min(cap,
+                        cell.Population + PopGrowthBase * (1 + cell.DevelopmentTier) * 0.5);
+            }
             if (cell.Contested && cell.WarScarred)
                 cell.Population = Math.Max(0, cell.Population * ScarShrink);
         }
