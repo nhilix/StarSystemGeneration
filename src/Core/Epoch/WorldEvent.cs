@@ -30,9 +30,17 @@ public enum WorldEventType
 
 public static class WorldEventTypes
 {
-    /// <summary>Family from the type's stable 100-block.</summary>
-    public static EventFamily FamilyOf(WorldEventType type) =>
-        (EventFamily)((int)type / 100);
+    /// <summary>Family from the type's stable 100-block. Throws on values
+    /// outside the eight blocks — a mis-numbered type must fail loudly, not
+    /// map to a phantom family.</summary>
+    public static EventFamily FamilyOf(WorldEventType type)
+    {
+        int block = (int)type / 100;
+        if ((int)type < 0 || block > (int)EventFamily.Character)
+            throw new System.ArgumentOutOfRangeException(nameof(type), type,
+                "event type outside the eight stable family blocks");
+        return (EventFamily)block;
+    }
 }
 
 /// <summary>Type-specific payload root; one derived record per event type.</summary>

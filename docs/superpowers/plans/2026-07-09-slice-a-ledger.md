@@ -37,9 +37,10 @@ the resumability record. New code lives in `src/Core/Epoch/`
 - [x] 7. **REPL surface** — Inspector command `epoch <seed> [epochs]`: builds
       config, seeds state, steps the frame, prints phase/event trace +
       chronicle. Piped-stdin smoke check via bash printf.
-- [ ] 8. **Fresh-eyes whole-branch review** subagent + one fix wave.
-- [ ] 9. **Gates**: `dotnet test` green incl. hex-tier suite · determinism
-      byte-identity · REPL surface works.
+- [x] 8. **Fresh-eyes whole-branch review** subagent + one fix wave.
+- [x] 9. **Gates**: `dotnet test` green incl. hex-tier suite (206/206) ·
+      determinism byte-identity (incl. culture-flip) · REPL surface works
+      (`epoch 42` piped smoke, 2 ms full run).
 - [ ] 10. **User gate: REPL eyeball acceptance** (phase/event trace of a
       stepped galaxy looks right).
 - [ ] 11. **Wrap-up**: merge on user nod · update `docs/HANDOFF.md` · write
@@ -48,4 +49,16 @@ the resumability record. New code lives in `src/Core/Epoch/`
 
 ## Notes / surprises
 
-- (running log — append as encountered)
+- Engine class is named `EpochEngine`, not `EpochSim`, to avoid ambiguity with
+  the still-in-tree prototype `StarGen.Core.Galaxy.EpochSim` (deleted in B).
+- Records on netstandard2.1 need the `IsExternalInit` shim
+  (`src/Core/Epoch/IsExternalInit.cs`).
+- Review fix wave: invariant-culture rendering in `SimTraceView` (sv-SE U+2212
+  negative sign broke byte-identity — culture-flip test added); `FamilyOf`
+  range guard; trace pluralization ("1 polity enters" / "1 event finalized");
+  Unity `.meta` files for `src/Core/Epoch` (src/Core is a live Unity package —
+  metas are committed everywhere else, so new folders need them too).
+- Actors entering during Interior get their first PerceptionView the *next*
+  step (Perception runs first); their first Intent follows it. Tested.
+- RollChannels 37–39 are slice-A stubs (emergence entry, seat, name); retire —
+  never reuse — when B/F replace stub seeding.

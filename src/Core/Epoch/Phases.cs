@@ -65,8 +65,8 @@ public sealed class IntentPhase : ISimPhase
 }
 
 /// <summary>Phase 5 — acts collide and resolve deterministically. Slice A has
-/// no resolvers (the trivial AI emits no acts); expansion arrives in Slice B,
-/// war in Slice H.</summary>
+/// no resolvers (the trivial AI emits no acts); expansion arrives in Slice B
+/// (convoyless until Slice E), war in Slice H.</summary>
 public sealed class ResolutionPhase : ISimPhase
 {
     public string Name => "Resolution";
@@ -100,7 +100,12 @@ public sealed class InteriorPhase : ISimPhase
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,
                 EventVisibility.Public, new PolityEmergedPayload(a.Name)));
         }
-        return entered > 0 ? $"{entered} polities enter" : "quiet";
+        return entered switch
+        {
+            0 => "quiet",
+            1 => "1 polity enters",
+            _ => $"{entered} polities enter",
+        };
     }
 }
 
@@ -119,6 +124,6 @@ public sealed class ChroniclePhase : ISimPhase
                              e.Payload);
         int count = state.Staged.Count;
         state.Staged.Clear();
-        return $"{count} events finalized";
+        return count == 1 ? "1 event finalized" : $"{count} events finalized";
     }
 }

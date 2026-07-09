@@ -13,7 +13,8 @@ public abstract record Act(int ActorId);
 // --- Polity acts ---
 
 public sealed record FoundColonyAct(int ActorId, HexCoordinate Target) : Act(ActorId);
-// convoy composition attaches in Slice E (fleets)
+// Slice B resolves this convoyless (port established directly); the
+// contract's convoy component attaches in Slice E (fleets)
 
 public sealed record DeclareWarAct(
     int ActorId, int TargetPolityId, string CasusBelli,

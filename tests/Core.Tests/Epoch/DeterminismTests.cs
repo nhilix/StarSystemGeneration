@@ -25,6 +25,28 @@ public class DeterminismTests
     }
 
     [Fact]
+    public void Render_IsCultureInvariant()
+    {
+        // negative seat coordinates must not pick up culture negative signs
+        // (e.g. sv-SE renders '-' as U+2212 under ICU)
+        var original = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture =
+                System.Globalization.CultureInfo.InvariantCulture;
+            string invariant = RunAndRender(42);
+            System.Globalization.CultureInfo.CurrentCulture =
+                new System.Globalization.CultureInfo("sv-SE");
+            string swedish = RunAndRender(42);
+            Assert.Equal(invariant, swedish);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
     public void Render_CoversTraceAndEveryLoggedEvent()
     {
         var state = StubGenesis.Seed(new EpochSimConfig { MasterSeed = 42 });

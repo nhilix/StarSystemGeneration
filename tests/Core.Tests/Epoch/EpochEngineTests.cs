@@ -97,6 +97,12 @@ public class EpochEngineTests
         Assert.Null(state.Actors[0].Perception);
         Assert.Empty(state.Decisions);
 
+        // the trace pluralizes correctly (byte-compared text: get it right now)
+        Assert.Equal("1 polity enters",
+            state.Trace.Single(t => t.Epoch == 0 && t.Phase == "Interior").Note);
+        Assert.Equal("1 event finalized",
+            state.Trace.Single(t => t.Epoch == 0 && t.Phase == "Chronicle").Note);
+
         engine.Step(state);   // epoch 1: Perception serves Early, Intent reads it
         var view = state.Actors[0].Perception;
         Assert.NotNull(view);

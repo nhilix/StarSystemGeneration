@@ -25,8 +25,9 @@ public sealed record MilitaryDoctrine(DoctrinePosture Posture, double Engagement
 /// <summary>Polity standing policies per frame/controller-contract.md.
 /// Dictionary keys are registry ids of catalogs later slices land (goods:
 /// Slice C, ship designs: Slice E, polities: actor ids) — empty by default.
-/// Research is one weight until tech domains arrive (Slice G extends;
-/// additions are frame-safe).</summary>
+/// The contract's tariff schedule is per polity/good; the per-polity
+/// dimension lands with Markets (Slice D). Research is one weight until tech
+/// domains arrive (Slice G extends; additions are frame-safe).</summary>
 public sealed record PolityPolicies(
     BudgetWeights Budget,
     double TaxRate,
@@ -64,13 +65,14 @@ public sealed record PolityPolicies(
 public sealed record InvestmentAllocation(double Facilities, double Fleet, double Depots);
 
 /// <summary>Corporation standing policies per frame/controller-contract.md.
-/// Route-bid and lobby keys are registry ids landing in Slices D/G.</summary>
+/// Route-bid and lobby keys are registry ids landing in Slices D/G.
+/// RiskAppetite is the legality margin — how far into black books it
+/// operates.</summary>
 public sealed record CorporationPolicies(
     InvestmentAllocation Investment,
     IReadOnlyDictionary<int, double> RouteBids,
     double DividendRate,
     IReadOnlyList<int> LobbyTargets,
-    /// <summary>Legality margin — how far into black books it operates.</summary>
     double RiskAppetite) : PolicySet
 {
     public static CorporationPolicies Default { get; } = new CorporationPolicies(

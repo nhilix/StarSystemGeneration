@@ -56,6 +56,17 @@ public class EventLogTests
     }
 
     [Fact]
+    public void FamilyBlocks_MapAtTheirEdges_AndRejectUnknownRanges()
+    {
+        Assert.Equal(EventFamily.Cosmic, WorldEventTypes.FamilyOf((WorldEventType)0));
+        Assert.Equal(EventFamily.Character, WorldEventTypes.FamilyOf((WorldEventType)799));
+        Assert.Throws<System.ArgumentOutOfRangeException>(
+            () => WorldEventTypes.FamilyOf((WorldEventType)800));
+        Assert.Throws<System.ArgumentOutOfRangeException>(
+            () => WorldEventTypes.FamilyOf((WorldEventType)(-1)));
+    }
+
+    [Fact]
     public void PlaceView_ReturnsOnlyEventsAtThatHex_InLogOrder()
     {
         var log = new EventLog();
