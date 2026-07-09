@@ -76,9 +76,16 @@ greenfield, slice by slice — each slice ending with a running, inspectable sim
 - Design-doc conformance: the slice's mechanics match its `docs/design/`
   section; deviations require a design-doc amendment in the same branch.
 
-## Process
+## Process (lighter protocol, adopted 2026-07-09 — full definition in /CLAUDE.md)
 
-Per slice: task-level plan (writing-plans) → subagent-driven execution →
-final whole-branch review + fix wave → finishing-a-development-branch → merge.
-The established dispatch conventions (verbatim test-summary lines, gate
-language, file lists complete per task) carry over unchanged.
+One session per slice, implemented **directly from the design tree** by a
+high-context session — no full task-level plan documents (**exception: Slice B**,
+the state-model rewrite, gets a written plan reviewed by the user before
+execution). Each session: kickoff prompt → user scope nod → direct TDD
+implementation with a committed task ledger → subagents only for genuinely
+parallel independent lanes → one fresh-eyes whole-branch review + one fix wave →
+user REPL eyeball acceptance → merge on user nod → update HANDOFF → **write the
+next slice's kickoff prompt** (each session hands off to the next, informed by
+what actually landed). User gates are exactly three: scope nod, eyeball
+acceptance, merge. Small slices may share a session (A + C-start); B stands
+alone.
