@@ -118,7 +118,10 @@ public static class ResolutionPhase
 
     private static double Weariness(GalaxySkeleton s, Polity p, int cellsLostThisEpoch)
     {
-        bool shortages = p.ProvisionsBalance < 0 || p.OreBalance < 0;
+        // Hardship: commodity deficits or blockade strain above the shared floor
+        // (deferred-tickets spec §3) — blockading an enemy hastens their breaking.
+        bool shortages = p.ProvisionsBalance < 0 || p.OreBalance < 0
+            || p.BlockadeLoss > Economy.TradeBlockedFloor;
         return s.Config.WarWearinessRate
             * (shortages ? 1.5 : 1.0) * (1.0 + 0.2 * cellsLostThisEpoch);
     }

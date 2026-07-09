@@ -166,4 +166,17 @@ public class ResolutionPhaseTests
         Assert.NotEqual(WarOutcome.AttackerVictory, s.Wars[1].Outcome);
         Assert.DoesNotContain(s.Cells, c => c.OwnerPolityId == 1);
     }
+
+    [Fact]
+    public void BlockadeStrain_CountsAsHardship_ForWeariness()
+    {
+        var strained = AtWarFixture(attackerStock: 50.0, defenderStock: 50.0);
+        var relaxed = AtWarFixture(attackerStock: 50.0, defenderStock: 50.0);
+        strained.Polities[0].BlockadeLoss = Economy.TradeBlockedFloor + 1.0;
+        ResolutionPhase.Run(strained, 0);
+        ResolutionPhase.Run(relaxed, 0);
+        // Identical seeds → identical battle rolls; only the 1.5× hardship multiplier differs.
+        Assert.Equal(relaxed.Wars[0].AttackerWeariness * 1.5, strained.Wars[0].AttackerWeariness, 10);
+        Assert.Equal(relaxed.Wars[0].DefenderWeariness, strained.Wars[0].DefenderWeariness, 10);
+    }
 }
