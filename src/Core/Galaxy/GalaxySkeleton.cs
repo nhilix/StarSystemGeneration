@@ -15,6 +15,7 @@ public sealed class GalaxySkeleton
     public List<SpeciesProfile> Species { get; } = new();
     public List<Polity> Polities { get; } = new();
     public List<GalaxyEvent> Events { get; } = new();
+    public List<War> Wars { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();
@@ -41,4 +42,14 @@ public sealed class GalaxySkeleton
         _byCoord.TryGetValue(cellCoord, out cell!);
 
     public RegionCell CellForHex(HexCoordinate hex) => CellAt(HexGrid.CellOf(hex));
+
+    /// <summary>True iff a live (non-ended) war exists between the two polities.</summary>
+    public bool AtWar(int a, int b)
+    {
+        foreach (var w in Wars)
+            if (!w.Ended && ((w.AttackerId == a && w.DefenderId == b)
+                          || (w.AttackerId == b && w.DefenderId == a)))
+                return true;
+        return false;
+    }
 }

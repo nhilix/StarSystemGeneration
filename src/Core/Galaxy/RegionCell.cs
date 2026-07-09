@@ -23,4 +23,11 @@ public sealed class RegionCell
     public int DevelopmentTier { get; set; }
     public bool Contested { get; set; }
     public bool WarScarred { get; set; }
+
+    /// <summary>Species-tagged population (economy spec §4): grows with development +
+    /// provisions surplus, shrinks under famine and war scarring.</summary>
+    public double Population { get; set; }
+    public int PopulationSpeciesId { get; set; } = -1;
+    /// <summary>Last-epoch snapshot of flow magnitude transiting this cell.</summary>
+    public double RouteThroughput { get; set; }
 }

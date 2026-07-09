@@ -71,4 +71,44 @@ public class SkeletonModelTests
         Assert.False(cell.Contested);
         Assert.False(cell.WarScarred);
     }
+
+    [Fact]
+    public void EconModel_DefaultsAreNeutral()
+    {
+        var p = new Polity();
+        Assert.Equal(0.0, p.MilitaryStockpile);
+        Assert.Equal(0, p.TechTier);
+        Assert.Equal(0.0, p.Wealth);
+        var c = new RegionCell();
+        Assert.Equal(0.0, c.Population);
+        Assert.Equal(-1, c.PopulationSpeciesId);
+        Assert.Equal(0.0, c.RouteThroughput);
+        var w = new War();
+        Assert.False(w.Ended);
+        Assert.Equal(WarOutcome.Ongoing, w.Outcome);
+    }
+
+    [Fact]
+    public void Homeworlds_SeedPopulation()
+    {
+        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 8 });
+        foreach (var p in s.Polities)
+        {
+            var cell = s.CellAt(p.CapitalCoord);
+            Assert.True(cell.Population >= 3.0, "homeworld cells start populated");
+            Assert.Equal(p.SpeciesId, cell.PopulationSpeciesId);
+        }
+    }
+
+    [Fact]
+    public void AtWar_ReadsLiveWarsOnly()
+    {
+        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
+        s.Wars.Add(new War { Id = 0, AttackerId = 0, DefenderId = 1 });
+        s.Wars.Add(new War { Id = 1, AttackerId = 2, DefenderId = 3, Ended = true });
+        Assert.True(s.AtWar(0, 1));
+        Assert.True(s.AtWar(1, 0));
+        Assert.False(s.AtWar(2, 3));
+        Assert.False(s.AtWar(0, 2));
+    }
 }

@@ -41,6 +41,7 @@ public enum RollChannel : ulong
     SpeciesEmbodiment = 31,
     SpeciesTemperament = 32,   // subIndex = temperament axis ordinal
     SimExpansion = 33,         // reserved - stage-1 expansion is roll-free; value must not be reused
-    SimDevelopment = 34,       // index = epoch, subIndex = cell linear index
-    SimWar = 35,               // index = epoch, subIndex = polity id
+    SimDevelopment = 34,       // retired with the stage-1 coin-flip loop - value must not be reused
+    SimWar = 35,               // war-declaration gate: index = epoch, subIndex = polity id
+    SimBattle = 36,            // front-cell contest: index = epoch, subIndex = war id (cell-keyed context)
 }

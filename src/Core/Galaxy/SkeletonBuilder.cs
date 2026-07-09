@@ -215,6 +215,8 @@ public static class SkeletonBuilder
             });
             cell.OwnerPolityId = id;
             cell.DevelopmentTier = 2;
+            cell.Population = 3.0;
+            cell.PopulationSpeciesId = id;
         }
     }
 
