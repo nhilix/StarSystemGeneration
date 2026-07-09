@@ -32,7 +32,7 @@ the resumability record. New code lives in `src/Core/Epoch/`
       the only controller touchpoint; Chronicle finalizes staged events with
       world-years. Tests: phase order, world-year advance (epoch = 25y
       integration step), events finalized only in Chronicle.
-- [ ] 6. **Determinism gate** — same config ⇒ byte-identical event log + trace
+- [x] 6. **Determinism gate** — same config ⇒ byte-identical event log + trace
       text across two independent runs; different seed ⇒ diverges.
 - [ ] 7. **REPL surface** — Inspector command `epoch <seed> [epochs]`: builds
       config, seeds state, steps the frame, prints phase/event trace +
