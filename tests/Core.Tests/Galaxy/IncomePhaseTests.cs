@@ -139,4 +139,105 @@ public class IncomePhaseTests
         Assert.Equal(0.0, s.Polities[0].Wealth);
         Assert.Equal(0.0, s.Polities[1].Wealth);
     }
+
+    /// <summary>Neutral-polity corridor severed by third-party contested cells (the
+    /// parent spec §5 canonical scenario): P0 fights no war, yet its producer→consumer
+    /// route is blockaded. Strain must accrue and, above the floor, fire TradeBlocked.
+    /// Arithmetic (defaults: ProvisionsPerPop 0.5, density 0.5, terran affinity 1.0):
+    /// consumer (dev 1, pop 8) nets 0.5 − 4.0 = −3.5; producer (dev 5, pop 1) nets
+    /// 2.5 − 0.5 = +2.0, reachable only through the contested q=−1 column → the whole
+    /// unfilled 3.5 classifies as blockade loss (a surplus IS reachable unblockaded).</summary>
+    private static GalaxySkeleton SeveredNeutralFixture(double consumerPop)
+    {
+        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
+        foreach (var c in s.Cells) { c.MeanDensity = 0.5; c.IsVoid = false; }
+        s.Species.Add(new SpeciesProfile
+        {
+            Id = 0, Name = "S0", Embodiment = Embodiment.TerranAnalog,
+            Expansionism = 0.5, Cohesion = 0.5, Militancy = 0.5,
+            Openness = 0.5, Industry = 0.5, Adaptability = 0.5,
+        });
+        s.Polities.Add(new Polity { Id = 0, Name = "P0", SpeciesId = 0, CapitalQ = -2, CapitalR = 0 });
+        foreach (var (q, r) in new[] { (-2, 0), (0, 0) })
+        {
+            var c = s.CellAt(new HexCoordinate(q, r));
+            c.OwnerPolityId = 0; c.PopulationSpeciesId = 0;
+        }
+        var consumer = s.CellAt(new HexCoordinate(-2, 0));
+        consumer.Population = consumerPop; consumer.DevelopmentTier = 1;
+        var producer = s.CellAt(new HexCoordinate(0, 0));
+        producer.Population = 1.0; producer.DevelopmentTier = 5;
+        // Sever the corridor with third-party contest (P0 is at war with nobody):
+        // the full q=−1 column cuts the radius-3 disc in two.
+        foreach (var c in s.Cells.Where(c => c.Q == -1)) c.Contested = true;
+        return s;
+    }
+
+    [Fact]
+    public void NeutralPolity_SeveredByThirdPartyContest_AccruesStrain_AndFiresTradeBlocked()
+    {
+        var s = SeveredNeutralFixture(consumerPop: 8.0);
+        IncomePhase.Run(s, 0);
+        Assert.True(s.Polities[0].BlockadeLoss > Economy.TradeBlockedFloor,
+            $"blockade loss {s.Polities[0].BlockadeLoss} must exceed the event floor");
+        Assert.Contains(s.Events, e => e.Type == GalaxyEventType.TradeBlocked && e.ActorPolityId == 0);
+    }
+
+    [Fact]
+    public void WarringPolity_WithNoSurplusAnywhere_AccruesNoStrain_NoEvent()
+    {
+        var s = SeveredNeutralFixture(consumerPop: 8.0);
+        // Remove the producer's output entirely and put P0 at war: scarcity while at
+        // war must NOT read as blockade (the old HasLiveWar-gated false positive).
+        var producer = s.CellAt(new HexCoordinate(0, 0));
+        producer.DevelopmentTier = 0; producer.Population = 0.0;
+        s.Polities.Add(new Polity { Id = 1, Name = "P1", SpeciesId = 0, CapitalQ = 3, CapitalR = 0 });
+        var enemyCell = s.CellAt(new HexCoordinate(3, 0));
+        enemyCell.OwnerPolityId = 1; enemyCell.DevelopmentTier = 1;
+        enemyCell.Population = 0.5; enemyCell.PopulationSpeciesId = 0;
+        var war = new War { Id = 0, AttackerId = 0, DefenderId = 1, StartEpoch = 0 };
+        war.GoalCells.Add(enemyCell.Coord);
+        war.FrontCells.Add(enemyCell.Coord);
+        s.Wars.Add(war);
+        IncomePhase.Run(s, 0);
+        Assert.Equal(0.0, s.Polities[0].BlockadeLoss);
+        Assert.DoesNotContain(s.Events, e => e.Type == GalaxyEventType.TradeBlocked);
+    }
+
+    /// <summary>Cross-polity classification: two non-belligerents with complementary
+    /// provisions positions whose capital-capital path is severed by third-party
+    /// contest. Arithmetic: P0 (0,0) dev 5 pop 1 nets +2.0 (its (1,0) dev 1 pop 1 cell
+    /// nets 0); P1 (3,0) dev 1 pop 4 nets −1.5 ((2,0) dev 0 pop 0 nets 0) →
+    /// give = 1.5, blocked by the contested q=1 column → both sides accrue 1.5
+    /// (below the 2.0 event floor: strain state without the event).</summary>
+    [Fact]
+    public void CrossPolityTrade_BlockedPath_AccruesStrainOnBothPartners()
+    {
+        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
+        foreach (var c in s.Cells) { c.MeanDensity = 0.5; c.IsVoid = false; }
+        for (int i = 0; i < 2; i++)
+            s.Species.Add(new SpeciesProfile
+            {
+                Id = i, Name = $"S{i}", Embodiment = Embodiment.TerranAnalog,
+                Expansionism = 0.5, Cohesion = 0.5, Militancy = 0.5,
+                Openness = 0.5, Industry = 0.5, Adaptability = 0.5,
+            });
+        s.Polities.Add(new Polity { Id = 0, Name = "P0", SpeciesId = 0, CapitalQ = 0, CapitalR = 0 });
+        s.Polities.Add(new Polity { Id = 1, Name = "P1", SpeciesId = 1, CapitalQ = 3, CapitalR = 0 });
+        var p0Cap = s.CellAt(new HexCoordinate(0, 0));
+        p0Cap.OwnerPolityId = 0; p0Cap.DevelopmentTier = 5; p0Cap.Population = 1.0; p0Cap.PopulationSpeciesId = 0;
+        var p0Edge = s.CellAt(new HexCoordinate(1, 0));
+        p0Edge.OwnerPolityId = 0; p0Edge.DevelopmentTier = 1; p0Edge.Population = 1.0; p0Edge.PopulationSpeciesId = 0;
+        var p1Edge = s.CellAt(new HexCoordinate(2, 0));
+        p1Edge.OwnerPolityId = 1; p1Edge.DevelopmentTier = 0; p1Edge.Population = 0.0; p1Edge.PopulationSpeciesId = 1;
+        var p1Cap = s.CellAt(new HexCoordinate(3, 0));
+        p1Cap.OwnerPolityId = 1; p1Cap.DevelopmentTier = 1; p1Cap.Population = 4.0; p1Cap.PopulationSpeciesId = 1;
+        // Sever every capital-capital path: contest the full q=1 and q=2 columns
+        // (the polities still share the (1,0)-(2,0) border, so trade is attempted).
+        foreach (var c in s.Cells.Where(c => c.Q == 1 || c.Q == 2)) c.Contested = true;
+        IncomePhase.Run(s, 0);
+        Assert.Equal(1.5, s.Polities[0].BlockadeLoss, 10);
+        Assert.Equal(1.5, s.Polities[1].BlockadeLoss, 10);
+        Assert.DoesNotContain(s.Events, e => e.Type == GalaxyEventType.TradeBlocked);
+    }
 }

@@ -22,4 +22,9 @@ public sealed class Polity
     public double ProvisionsBalance { get; set; }
     public double OreBalance { get; set; }
     public double ExoticsBalance { get; set; }
+
+    /// <summary>Last epoch's blockade-induced routing loss (deferred-tickets spec §3):
+    /// deficits/trade a blockade (not mere scarcity) denied. Reset each income phase;
+    /// feeds TradeBlocked, war-weariness hardship, and (stage 4) relations.</summary>
+    public double BlockadeLoss { get; set; }
 }

@@ -18,6 +18,10 @@ public static class Economy
         Openness = 0.5, Industry = 0.5, Adaptability = 0.5,
     };
 
+    /// <summary>Blockade-strain floor (deferred-tickets spec §3): BlockadeLoss above
+    /// this fires TradeBlocked and counts as war-weariness hardship.</summary>
+    public const double TradeBlockedFloor = 2.0;
+
     public static bool HasAnchor(RegionCell cell, AnchorType type)
     {
         foreach (var a in cell.Anchors) if (a.Type == type) return true;

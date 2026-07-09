@@ -10,21 +10,27 @@ public static class IncomePhase
 {
     private const double Eps = 1e-9;
     private const double FamineEventFloor = 0.5;
-    private const double TradeBlockedFloor = 2.0;
     private const double PopGrowthBase = 0.05;
     private const double FamineShrink = 0.8;
     private const double ScarShrink = 0.95;
 
+    /// <summary>Transit predicate ignoring blockades: used to classify a failed route
+    /// as blockade-induced (a target IS reachable unblockaded) vs. plain scarcity
+    /// (deferred-tickets spec §3). Only void is impassable.</summary>
+    private static readonly Func<RegionCell, bool> Unblockaded = c => !c.IsVoid;
+
     public static void Run(GalaxySkeleton s, int epoch)
     {
         foreach (var cell in s.Cells) cell.RouteThroughput = 0.0;
+        // Strain is a last-epoch snapshot like the balances; extinct and landless
+        // polities hold zero (deferred-tickets spec §3).
+        foreach (var polity in s.Polities) polity.BlockadeLoss = 0.0;
 
         // Per-polity, per-good remaining surplus/deficit after internal routing,
         // kept for the cross-polity pass. [polityId][good] → amount (+surplus/−deficit).
         var remaining = new Dictionary<int, double[]>();
         // Cells whose provisions deficit went unfilled (famine candidates).
         var unfed = new Dictionary<int, List<(RegionCell cell, double lack)>>();
-        var blockedLoss = new Dictionary<int, double>();
 
         foreach (var polity in s.Polities)
         {
@@ -35,7 +41,6 @@ public static class IncomePhase
             var passable = Economy.Passable(s, polity.Id);
             double[] totals = new double[3];
             unfed[polity.Id] = new List<(RegionCell, double)>();
-            blockedLoss[polity.Id] = 0.0;
 
             foreach (var good in new[] { Commodity.Provisions, Commodity.Ore })
             {
@@ -49,15 +54,18 @@ public static class IncomePhase
                 foreach (var deficit in owned)
                 {
                     double need = -net[deficit.SpiralIndex];
+                    Func<RegionCell, bool> isSurplus =
+                        c => c.OwnerPolityId == polity.Id
+                             && net.TryGetValue(c.SpiralIndex, out var v) && v > Eps;
                     while (need > Eps)
                     {
-                        var path = Economy.Route(s, deficit,
-                            c => c.OwnerPolityId == polity.Id
-                                 && net.TryGetValue(c.SpiralIndex, out var v) && v > Eps,
-                            passable);
+                        var path = Economy.Route(s, deficit, isSurplus, passable);
                         if (path == null)
                         {
-                            blockedLoss[polity.Id] += need;
+                            // Blockade-induced only if a surplus IS reachable ignoring
+                            // blockades; otherwise nothing exists for a blockade to deny.
+                            if (Economy.Route(s, deficit, isSurplus, Unblockaded) != null)
+                                polity.BlockadeLoss += need;
                             break;
                         }
                         var source = path[path.Count - 1];
@@ -89,8 +97,8 @@ public static class IncomePhase
             polity.ExoticsBalance = totals[2];
         }
 
-        CrossPolityTrade(s, remaining, blockedLoss);
-        ApplyPopulationAndEvents(s, epoch, unfed, blockedLoss);
+        CrossPolityTrade(s, remaining);
+        ApplyPopulationAndEvents(s, epoch, unfed);
     }
 
     private static double[] GetRemaining(Dictionary<int, double[]> map, int id)
@@ -106,9 +114,9 @@ public static class IncomePhase
 
     /// <summary>Matched complementary surpluses between graph-adjacent non-belligerents
     /// convert to wealth for both sides (spec §5); throughput rides the capital-capital
-    /// path passable for BOTH parties, else the trade is blocked.</summary>
-    private static void CrossPolityTrade(GalaxySkeleton s,
-        Dictionary<int, double[]> remaining, Dictionary<int, double> blockedLoss)
+    /// path passable for BOTH parties. A blocked trade (path exists unblockaded but not
+    /// under blockade rules) strains both partners.</summary>
+    private static void CrossPolityTrade(GalaxySkeleton s, Dictionary<int, double[]> remaining)
     {
         for (int a = 0; a < s.Polities.Count; a++)
         {
@@ -128,12 +136,16 @@ public static class IncomePhase
                     if (give <= Eps) continue;
                     var capA = s.CellAt(pa.CapitalCoord);
                     var capB = s.CellAt(pb.CapitalCoord);
-                    var path = Economy.Route(s, capA, c => c.SpiralIndex == capB.SpiralIndex,
+                    Func<RegionCell, bool> isCapB = c => c.SpiralIndex == capB.SpiralIndex;
+                    var path = Economy.Route(s, capA, isCapB,
                         c => Economy.Passable(s, a)(c) && Economy.Passable(s, b)(c));
                     if (path == null)
                     {
-                        blockedLoss[a] = blockedLoss.TryGetValue(a, out var la) ? la + give : give;
-                        blockedLoss[b] = blockedLoss.TryGetValue(b, out var lb) ? lb + give : give;
+                        if (Economy.Route(s, capA, isCapB, Unblockaded) != null)
+                        {
+                            pa.BlockadeLoss += give;
+                            pb.BlockadeLoss += give;
+                        }
                         continue;
                     }
                     double wealth = give * s.Config.TradeIncomeWeight;
@@ -159,8 +171,7 @@ public static class IncomePhase
     }
 
     private static void ApplyPopulationAndEvents(GalaxySkeleton s, int epoch,
-        Dictionary<int, List<(RegionCell cell, double lack)>> unfed,
-        Dictionary<int, double> blockedLoss)
+        Dictionary<int, List<(RegionCell cell, double lack)>> unfed)
     {
         foreach (var polity in s.Polities)
         {
@@ -182,14 +193,17 @@ public static class IncomePhase
                     Magnitude = famineMagnitude,
                 });
 
-            if (blockedLoss.TryGetValue(polity.Id, out var lost) && lost > TradeBlockedFloor
-                && HasLiveWar(s, polity.Id))
+            // Strain above the floor fires TradeBlocked for ANY polity — no live-war
+            // gate: a neutral bystander severed by a third-party front qualifies, a
+            // warring polity with a plain no-surplus famine does not (spec §3).
+            if (polity.BlockadeLoss > Economy.TradeBlockedFloor)
             {
                 var cap = s.CellAt(polity.CapitalCoord);
                 s.Events.Add(new GalaxyEvent
                 {
                     Epoch = epoch, Type = GalaxyEventType.TradeBlocked,
-                    ActorPolityId = polity.Id, Q = cap.Q, R = cap.R, Magnitude = lost,
+                    ActorPolityId = polity.Id, Q = cap.Q, R = cap.R,
+                    Magnitude = polity.BlockadeLoss,
                 });
             }
         }
@@ -207,12 +221,5 @@ public static class IncomePhase
             if (cell.Contested && cell.WarScarred)
                 cell.Population = Math.Max(0, cell.Population * ScarShrink);
         }
-    }
-
-    private static bool HasLiveWar(GalaxySkeleton s, int polityId)
-    {
-        foreach (var w in s.Wars)
-            if (!w.Ended && (w.AttackerId == polityId || w.DefenderId == polityId)) return true;
-        return false;
     }
 }

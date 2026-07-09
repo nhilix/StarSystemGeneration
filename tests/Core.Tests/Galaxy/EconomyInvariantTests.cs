@@ -25,6 +25,7 @@ public class EconomyInvariantTests
                 Assert.True(p.TechTier >= 0);
                 Assert.False(double.IsNaN(p.ProvisionsBalance) || double.IsNaN(p.OreBalance)
                           || double.IsNaN(p.ExoticsBalance));
+                Assert.True(p.BlockadeLoss >= 0 && !double.IsNaN(p.BlockadeLoss));
             }
             foreach (var c in s.Cells)
             {
@@ -97,6 +98,9 @@ public class EconomyInvariantTests
         double blockedPop = blocked.CellAt(new HexCoordinate(-2, 0)).Population;
         Assert.True(blockedPop < openPop,
             $"blockaded twin must starve: open {openPop} vs blocked {blockedPop}");
+        Assert.Equal(0.0, open.Polities[0].BlockadeLoss);
+        Assert.True(blocked.Polities[0].BlockadeLoss > 0,
+            "the severed twin's unfilled need classifies as blockade loss (surplus exists unblockaded)");
     }
 
     [Fact]
