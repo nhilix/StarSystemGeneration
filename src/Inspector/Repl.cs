@@ -31,6 +31,8 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
+                    Console.WriteLine("emap [domains|lanes] — port-domain / lane-network map of the stepped sim");
+                    Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
@@ -96,6 +98,29 @@ public sealed class Repl
                     _galaxy = new GalaxyContext(eskeleton.Config) { Skeleton = eskeleton };
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
+                    break;
+                }
+                case "emap" when _sim == null:
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "emap":
+                    Console.WriteLine(EpochMapView.Render(_sim!,
+                        parts.Length >= 2 ? parts[1] : "domains"));
+                    break;
+                case "chronicle" when _sim == null:
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "chronicle":
+                {
+                    int filter = parts.Length >= 2 && int.TryParse(parts[1], out var cf) ? cf : -1;
+                    var events = filter >= 0 ? _sim!.Log.ForActor(filter) : _sim!.Log.Events;
+                    int shown = 0;
+                    foreach (var e in events)
+                    {
+                        Console.WriteLine("  " + Core.Epoch.SimTraceView.Describe(e));
+                        shown++;
+                    }
+                    if (shown == 0) Console.WriteLine("  (no events)");
                     break;
                 }
                 case "esave" when parts.Length == 2 && _sim != null:
