@@ -10,19 +10,19 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
 
 ## Tasks
 
-- [ ] 1. **Goods catalog** — 17 goods, stable int ids (`GoodId`), tiers
+- [x] 1. **Goods catalog** — 17 goods, stable int ids (`GoodId`), tiers
       (raw/processed/capital), recipes with Standard/Advanced variants
       (advanced = exotics-gated, higher grade base, tech-tier gated), input
       quantities per output unit. Tests: 17 ids stable + unique, recipe
       closure (every input a catalog good), advanced variants contain
       exotics-lineage inputs, raw goods recipe-free.
-- [ ] 2. **Grade & Stock** — `Stock(good, qty, grade)`, quantity-weighted
+- [x] 2. **Grade & Stock** — `Stock(good, qty, grade)`, quantity-weighted
       blend, `Effective(useCase) = qty × GradeMultiplier`, processed-grade
       formula (recipe base × input blend × facility tier, tech-tier ceiling),
       display bands (crude → precursor-grade; precursor above every tech
       ceiling). Tests: blend math, ceiling caps, band edges, adv > std grade
       for same inputs.
-- [ ] 3. **Demand profiles** — population bands (subsistence / SoL / luxury)
+- [x] 3. **Demand profiles** — population bands (subsistence / SoL / luxury)
       per embodiment (machine pops draw Fuel/Machinery/Compute, no
       Provisions/Medicine; lithics eat little, want machinery) + institutional
       use-cases (industry, movement, military, technology) with the design's
