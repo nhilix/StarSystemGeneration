@@ -35,12 +35,36 @@ public sealed class MarketsPhase : ISimPhase
     public string Run(SimState state) => "idle (markets land in slice D)";
 }
 
-/// <summary>Phase 3 — standing policies applied mechanically: investment,
-/// shipbuilding, upkeep. Empty frame until Slice D.</summary>
+/// <summary>Phase 3 — standing policies applied mechanically. Slice B:
+/// per-port stub income (Markets replaces the source in slice D) split by the
+/// actor's standing budget weights into the polity treasuries; unmodeled
+/// shares (military, research…) evaporate until their slices land.</summary>
 public sealed class AllocationPhase : ISimPhase
 {
     public string Name => "Allocation";
-    public string Run(SimState state) => "idle (allocation lands in slice D)";
+
+    public string Run(SimState state)
+    {
+        var cfg = state.Config;
+        int earning = 0;
+        foreach (var pr in state.Polities)                    // actor-id order
+        {
+            var actor = state.Actors[pr.ActorId];
+            if (!actor.Entered) continue;
+            int ports = 0;
+            foreach (var p in state.Ports)
+                if (p.OwnerActorId == pr.ActorId) ports++;
+            if (ports == 0) continue;
+            earning++;
+            double income = ports * cfg.Expansion.StubIncomePerPortPerYear
+                            * cfg.Sim.YearsPerEpoch;
+            var budget = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
+            pr.ExpansionPoints += income * budget.Expansion;
+            pr.DevelopmentPoints += income * budget.Development;
+        }
+        return earning == 0 ? "quiet"
+            : $"income accrued for {earning} " + (earning == 1 ? "polity" : "polities");
+    }
 }
 
 /// <summary>Phase 4 — the one controller touchpoint (P2): every entered
@@ -57,6 +81,8 @@ public sealed class IntentPhase : ISimPhase
         {
             if (!a.Entered) continue;
             var decision = a.Controller.Decide(a.Perception!);
+            a.Policies = decision.Policies;   // standing policies: next step's
+                                              // Allocation applies them (Move 1)
             state.Decisions.Add(new ActorDecision(a.Id, decision));
             acts += decision.Acts.Count;
         }
