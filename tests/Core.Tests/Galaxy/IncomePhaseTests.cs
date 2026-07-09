@@ -106,4 +106,37 @@ public class IncomePhaseTests
         double t2 = s.CellAt(new HexCoordinate(-1, 0)).RouteThroughput;
         Assert.True(t2 <= t1 * 2 + 1.0, "throughput must not accumulate across epochs unboundedly");
     }
+
+    [Fact]
+    public void CrossPolityTrade_MatchedSurplus_EnrichesBothSides()
+    {
+        var s = Fixture();
+        // Relocate P1 adjacent to P0's chain end so the polities share a border.
+        var old = s.CellAt(new HexCoordinate(2, 0));
+        old.OwnerPolityId = -1; old.DevelopmentTier = 0; old.Population = 0; old.PopulationSpeciesId = -1;
+        var adj = s.CellAt(new HexCoordinate(1, 0));
+        adj.OwnerPolityId = 1; adj.DevelopmentTier = 1; adj.Population = 3.0; adj.PopulationSpeciesId = 1;
+        s.Polities[1].CapitalQ = 1; s.Polities[1].CapitalR = 0;
+        // P0 runs a provisions surplus (one high-dev cell); P1 runs a deficit (pop 3, dev 1).
+        s.CellAt(new HexCoordinate(0, 0)).DevelopmentTier = 5;
+        IncomePhase.Run(s, 0);
+        Assert.True(s.Polities[0].Wealth > 0, "exporter gains trade wealth");
+        Assert.Equal(s.Polities[0].Wealth, s.Polities[1].Wealth, 10);   // symmetric gain
+    }
+
+    [Fact]
+    public void CrossPolityTrade_SuppressedByWar()
+    {
+        var s = Fixture();
+        var old = s.CellAt(new HexCoordinate(2, 0));
+        old.OwnerPolityId = -1; old.DevelopmentTier = 0; old.Population = 0; old.PopulationSpeciesId = -1;
+        var adj = s.CellAt(new HexCoordinate(1, 0));
+        adj.OwnerPolityId = 1; adj.DevelopmentTier = 1; adj.Population = 3.0; adj.PopulationSpeciesId = 1;
+        s.Polities[1].CapitalQ = 1; s.Polities[1].CapitalR = 0;
+        s.CellAt(new HexCoordinate(0, 0)).DevelopmentTier = 5;
+        s.Wars.Add(new War { Id = 0, AttackerId = 0, DefenderId = 1 });
+        IncomePhase.Run(s, 0);
+        Assert.Equal(0.0, s.Polities[0].Wealth);
+        Assert.Equal(0.0, s.Polities[1].Wealth);
+    }
 }
