@@ -8,6 +8,16 @@ the prototype sim is deleted in Task 5.
 ## Tasks
 
 - [x] 0. **Branch + ledger** — branch `slice-b-two-plane-state`; this file.
+      **⚠ Fork anomaly**: the branch forked from in-flight
+      `slice-c-substrate-catalogs` (at 65446a5, C tasks 1–6), not main — the
+      working tree was on C's branch at checkout. **User decision (paused
+      after task 4): finish slice C first** (review · eyeball · merge to
+      main), then resume B with:
+      `git rebase --onto main 65446a5 slice-b-two-plane-state`
+      — replays f52f522..HEAD (docs + tasks 1–4) onto post-C main. After the
+      rebase, note for task 5: C's `infra` REPL command reads
+      `RegionCell.DevelopmentTier`/`PopulationSpeciesId` — task 5 deletes
+      those fields and must adapt that command (neutral wilds inputs).
 - [ ] 1. **Config knobs, roll channel, event types** — `InfrastructureKnobs`,
       `ExpansionKnobs`; `RollChannel.EpochEntrySchedule = 40`;
       `WorldEventType.{LaneOpened=200, PortTierRaised=201, PortEstablished=301}`
@@ -17,11 +27,12 @@ the prototype sim is deleted in Task 5.
 - [ ] 3. **Derived geography** — `PortDomains` (service radius, servicing,
       owners-at, contested), `LaneMath` (range, capacity, speed). Territory
       computed, never stored. Gate: PortDomainTests green.
-- [ ] 4. **EpochGenesis** — seed polities from homeworld anchors;
+- [x] 4. **EpochGenesis** — seed polities from homeworld anchors;
       `SimState(config, skeleton)` + registries; homeworld = first port
       (tier 2) at entry in Interior; `SkeletonBuilder.BuildNatural`; delete
       `StubGenesis` (channels 37–39 retired). Gate: EpochGenesisTests green,
-      solution green.
+      solution green (267/267). REPL smoke: `epoch 42 8 10` → 7 polities
+      from real anchors, staggered entry.
 - [ ] 5. **Prototype deletion + raster slim** — delete `EpochSim`, `Sim/*`,
       `Polity`, `War`, `GalaxyEvent`, `SkeletonSerializer`, Inspector
       political surface, nine prototype test files; slim `RegionCell`,
