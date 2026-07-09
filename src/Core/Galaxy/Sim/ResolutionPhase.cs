@@ -66,7 +66,7 @@ public static class ResolutionPhase
             war.AttackerWeariness += Weariness(s, attacker, aLostThisEpoch);
             war.DefenderWeariness += Weariness(s, defender, dLostThisEpoch);
 
-            bool aBroke = Broke(war.AttackerWeariness, aSpecies, attacker);
+            bool aBroke = Broke(war.AttackerWeariness, aSpecies, attacker) || attacker.Extinct;
             bool dBroke = Broke(war.DefenderWeariness, dSpecies, defender) || defender.Extinct;
             if (!aBroke && !dBroke) continue;
 
@@ -103,8 +103,9 @@ public static class ResolutionPhase
         }
     }
 
-    /// <summary>Fronts grow: goal cells plus any border cell between the belligerents
-    /// adjacent to a front cell, ordered by spiral index for determinism.</summary>
+    /// <summary>The front equals the goal cluster for the war's entire life (cells
+    /// may flip back and forth between belligerents within it, but the set itself
+    /// never grows); returned ordered by spiral index for determinism.</summary>
     private static List<HexCoordinate> FrontInOrder(GalaxySkeleton s, War war)
     {
         var cells = new List<RegionCell>();

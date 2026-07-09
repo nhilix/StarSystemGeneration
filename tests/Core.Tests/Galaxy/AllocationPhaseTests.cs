@@ -76,7 +76,7 @@ public class AllocationPhaseTests
     {
         var s = Fixture(industry: 0.9);
         var p = s.Polities[0];
-        p.ExoticsBalance = 100.0;   // >> TechThresholdBase 10
+        p.ExoticsBalance = 100.0;   // >> TechThresholdBase 5
         AllocationPhase.Run(s, 0);
         Assert.True(p.TechTier >= 1, "big exotics surplus crosses tier 1");
         Assert.Contains(s.Events, e => e.Type == GalaxyEventType.TechAdvance && e.ActorPolityId == 0);

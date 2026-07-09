@@ -101,4 +101,69 @@ public class ResolutionPhaseTests
         Assert.True(s.Polities[1].MilitaryStockpile < 50.0);
         Assert.True(s.Polities[0].MilitaryStockpile >= 0);
     }
+
+    /// <summary>Three polities, two wars, id-ordered so polity A (id 1) is resolved
+    /// as war 0's defender before war 1's attacker in the same Run() call: B (id 0)
+    /// overwhelmingly attacks A over A's one and only cell (war 0, id 0); A, still
+    /// alive at the start of the epoch, is separately the attacker against C (id 2,
+    /// overwhelmingly strong) over one of C's cells (war 1, id 1). When A loses its
+    /// last cell mid-epoch in war 0's battle it goes extinct; war 1 must then also
+    /// terminate that same epoch (ghost-attacker regression, I-1) instead of letting
+    /// the now-extinct A keep contesting and re-acquiring territory in C's war.</summary>
+    private static GalaxySkeleton GhostAttackerFixture()
+    {
+        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
+        foreach (var c in s.Cells) { c.MeanDensity = 0.5; c.IsVoid = false; }
+        for (int i = 0; i < 3; i++)
+            s.Species.Add(new SpeciesProfile { Id = i, Name = $"S{i}", Embodiment = Embodiment.TerranAnalog,
+                Expansionism = 0.5, Cohesion = 0.5, Militancy = 0.5, Openness = 0.5, Industry = 0.5, Adaptability = 0.5 });
+
+        // B (id 0): overwhelming attacker in war 0.
+        s.Polities.Add(new Polity { Id = 0, Name = "B", SpeciesId = 0, CapitalQ = -3, CapitalR = 0, MilitaryStockpile = 100.0 });
+        // A (id 1): defender in war 0 (owns ONLY the war-0 goal cell, so losing it is
+        // extinction); attacker in war 1.
+        s.Polities.Add(new Polity { Id = 1, Name = "A", SpeciesId = 1, CapitalQ = 1, CapitalR = 0, MilitaryStockpile = 1.0 });
+        // C (id 2): overwhelming defender in war 1.
+        s.Polities.Add(new Polity { Id = 2, Name = "C", SpeciesId = 2, CapitalQ = 3, CapitalR = -1, MilitaryStockpile = 1000.0 });
+
+        var bCap = s.CellAt(new HexCoordinate(-3, 0));
+        bCap.OwnerPolityId = 0; bCap.DevelopmentTier = 3; bCap.Population = 2; bCap.PopulationSpeciesId = 0;
+
+        var aOnly = s.CellAt(new HexCoordinate(1, 0));
+        aOnly.OwnerPolityId = 1; aOnly.DevelopmentTier = 2; aOnly.Population = 1; aOnly.PopulationSpeciesId = 1;
+        s.Polities[1].CapitalQ = 1; s.Polities[1].CapitalR = 0;
+
+        var cCap = s.CellAt(new HexCoordinate(3, -1));
+        cCap.OwnerPolityId = 2; cCap.DevelopmentTier = 3; cCap.Population = 2; cCap.PopulationSpeciesId = 2;
+        var cGoal = s.CellAt(new HexCoordinate(3, 0));
+        cGoal.OwnerPolityId = 2; cGoal.DevelopmentTier = 2; cGoal.Population = 1; cGoal.PopulationSpeciesId = 2;
+
+        var war0 = new War { Id = 0, AttackerId = 0, DefenderId = 1, StartEpoch = 0, Goal = WarGoal.Punitive };
+        war0.GoalCells.Add(aOnly.Coord);
+        war0.FrontCells.Add(aOnly.Coord);
+        aOnly.Contested = true;
+        s.Wars.Add(war0);
+
+        var war1 = new War { Id = 1, AttackerId = 1, DefenderId = 2, StartEpoch = 0, Goal = WarGoal.Punitive };
+        war1.GoalCells.Add(cGoal.Coord);
+        war1.FrontCells.Add(cGoal.Coord);
+        cGoal.Contested = true;
+        s.Wars.Add(war1);
+
+        return s;
+    }
+
+    [Fact]
+    public void ExtinctAttacker_CannotKeepFightingOrAnnexTerritory()
+    {
+        var s = GhostAttackerFixture();
+        for (int epoch = 0; epoch < 100 && !s.Wars[0].Ended; epoch++)
+            ResolutionPhase.Run(s, epoch);
+
+        Assert.True(s.Wars[0].Ended, "war 0 (B attacks A) must terminate");
+        Assert.True(s.Polities[1].Extinct, "A must go extinct losing its only cell");
+        Assert.True(s.Wars[1].Ended, "war 1 (A attacks C) must terminate the same epoch A goes extinct");
+        Assert.NotEqual(WarOutcome.AttackerVictory, s.Wars[1].Outcome);
+        Assert.DoesNotContain(s.Cells, c => c.OwnerPolityId == 1);
+    }
 }

@@ -139,6 +139,6 @@ public class EconomyInvariantTests
             whitePeaces += s.Wars.Count(w => w.Outcome == WarOutcome.WhitePeace);
         }
         Assert.True(victories > 0, "no war ever produced a victor across 10 seeds - resolution is broken");
-        Assert.True(whitePeaces + victories > 0, "no wars ended at all across 10 seeds");
+        Assert.True(whitePeaces > 0, "no war ended in white peace across 10 seeds - both termination paths must be exercised (spec §9)");
     }
 }

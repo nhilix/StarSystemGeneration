@@ -41,7 +41,7 @@ public class EpochSimTests
         // GalaxyRadiusCells = 8). Band finalized in task 10 to match
         // EconomyInvariantTests.ShapeBands_ReferenceConfig's ceiling (0.8, tightened from
         // 0.85 during claimed-fraction pressure review). Observed fraction at this config
-        // (post task-10 tuning: ProvisionsPerPop 0.5, IncomePhase.FamineShrink 0.45) is
+        // (post task-10 tuning: ProvisionsPerPop 0.5, IncomePhase.FamineShrink 0.8) is
         // ~0.515 (84/163).
         var s = Build();
         var claimable = s.Cells.Where(c => !c.IsVoid).ToList();

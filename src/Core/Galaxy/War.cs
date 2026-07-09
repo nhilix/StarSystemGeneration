@@ -17,7 +17,9 @@ public sealed class War
     public WarGoal Goal { get; set; }
     /// <summary>Initial target cluster (≤3 cells) the victor annexes.</summary>
     public List<HexCoordinate> GoalCells { get; } = new();
-    /// <summary>Goal cells plus cells either side took in this war; contested while live.</summary>
+    /// <summary>The front: equals GoalCells for the war's entire life (cells may flip
+    /// back and forth between belligerents within it, but the set never grows);
+    /// contested while live.</summary>
     public List<HexCoordinate> FrontCells { get; } = new();
     public double AttackerWeariness { get; set; }
     public double DefenderWeariness { get; set; }
