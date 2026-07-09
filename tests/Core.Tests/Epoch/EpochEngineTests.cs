@@ -6,8 +6,7 @@ namespace StarGen.Core.Tests.Epoch;
 
 public class EpochEngineTests
 {
-    private static SimState Seeded(ulong seed = 42) =>
-        StubGenesis.Seed(new EpochSimConfig { MasterSeed = seed });
+    private static SimState Seeded(ulong seed = 42) => EpochTestKit.Seeded(seed).State;
 
     [Fact]
     public void Step_RunsTheSevenPhases_InCanonicalOrder()
@@ -85,7 +84,12 @@ public class EpochEngineTests
     {
         // an actor entering during epoch 0's Interior gets its view at epoch 1's
         // Perception, ahead of its first Intent; a later entrant stays viewless
-        var state = new SimState(new EpochSimConfig());
+        var config = new EpochSimConfig();
+        var skeleton = StarGen.Core.Galaxy.SkeletonBuilder.BuildShape(
+            new StarGen.Core.Galaxy.GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 4 });
+        var state = new SimState(config, skeleton);
+        state.Polities.Add(new PolityRecord(0, 0));
+        state.Polities.Add(new PolityRecord(1, 0));
         state.Actors.Add(new Actor(0, ActorKind.Polity, "Early",
             new StarGen.Core.Model.HexCoordinate(0, 0), entryEpoch: 0, new TrivialController()));
         state.Actors.Add(new Actor(1, ActorKind.Polity, "Late",

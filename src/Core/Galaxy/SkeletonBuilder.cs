@@ -22,6 +22,19 @@ public static class SkeletonBuilder
         return skeleton;
     }
 
+    /// <summary>The natural raster only: shape + stellar + anchors + homeworlds,
+    /// no history. The epoch sim (StarGen.Core.Epoch) seeds its polities from
+    /// the homeworld anchors this leaves behind. Replaces Build when the
+    /// prototype sim is deleted (slice B).</summary>
+    public static GalaxySkeleton BuildNatural(GalaxyConfig config)
+    {
+        var skeleton = BuildShape(config);
+        PassStellarPopulation(skeleton);
+        PassResourceAnchors(skeleton);
+        PassHomeworlds(skeleton);
+        return skeleton;
+    }
+
     /// <summary>Skeleton with cell densities/void/chokepoint marks only — no anchors,
     /// homeworlds, or history. The cheap path behind the atlas setup live preview;
     /// PassDensitySummary here is the same pass Build runs, so a preview's density

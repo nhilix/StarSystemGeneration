@@ -7,7 +7,7 @@ public class DeterminismTests
 {
     private static string RunAndRender(ulong seed)
     {
-        var state = StubGenesis.Seed(new EpochSimConfig { MasterSeed = seed });
+        var state = EpochTestKit.Seeded(seed).State;
         new EpochEngine().Run(state);
         return SimTraceView.Render(state);
     }
@@ -49,7 +49,7 @@ public class DeterminismTests
     [Fact]
     public void Render_CoversTraceAndEveryLoggedEvent()
     {
-        var state = StubGenesis.Seed(new EpochSimConfig { MasterSeed = 42 });
+        var state = EpochTestKit.Seeded().State;
         new EpochEngine().Run(state);
         string text = SimTraceView.Render(state);
         foreach (var e in state.Log.Events)

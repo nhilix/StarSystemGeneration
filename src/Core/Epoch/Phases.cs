@@ -80,9 +80,10 @@ public sealed class ResolutionPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 6 — interiors and demographics. Slice A carries only the
-/// emergence schedule: new polities enter the simulation at their entry epoch
-/// (frame/time.md §Asymmetric emergence).</summary>
+/// <summary>Phase 6 — interiors and demographics. Slice B carries the stub
+/// emergence schedule (frame/time.md §Asymmetric emergence) and homeworld
+/// founding: a polity enters by establishing its first port at its seat —
+/// homeworlds are simply the first ports (space-and-travel.md).</summary>
 public sealed class InteriorPhase : ISimPhase
 {
     public string Name => "Interior";
@@ -95,6 +96,12 @@ public sealed class InteriorPhase : ISimPhase
             if (a.Entered || a.EntryEpoch > state.EpochIndex) continue;
             a.Entered = true;
             entered++;
+            var port = new Port(state.Ports.Count, a.Id, a.Seat,
+                state.Config.Infrastructure.HomeworldPortTier, state.WorldYear);
+            state.Ports.Add(port);
+            state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+                state.PolityOf(a.Id).SpeciesId,
+                state.Config.Expansion.HomeworldSegmentSize));
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

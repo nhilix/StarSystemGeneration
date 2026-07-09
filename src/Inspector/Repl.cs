@@ -96,8 +96,11 @@ public sealed class Repl
                     var econfig = new Core.Epoch.EpochSimConfig { MasterSeed = eseed };
                     if (parts.Length >= 3 && int.TryParse(parts[2], out var epochs))
                         econfig.Sim.EpochCount = epochs;
-                    var estate = Core.Epoch.StubGenesis.Seed(econfig);
+                    int eradius = parts.Length >= 4 && int.TryParse(parts[3], out var er) ? er : 21;
                     var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var eskeleton = SkeletonBuilder.BuildNatural(
+                        new GalaxyConfig { MasterSeed = eseed, GalaxyRadiusCells = eradius });
+                    var estate = Core.Epoch.EpochGenesis.Seed(eskeleton, econfig);
                     new Core.Epoch.EpochEngine().Run(estate);
                     sw.Stop();
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
