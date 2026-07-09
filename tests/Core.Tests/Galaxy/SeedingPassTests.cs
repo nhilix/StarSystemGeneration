@@ -95,38 +95,35 @@ public class SeedingPassTests
     public void Homeworlds_CountAndSpacing()
     {
         var s = Build();
+        var homeCells = s.Cells.Where(c =>
+            c.Anchors.Any(a => a.Type == AnchorType.Homeworld)).ToList();
         int expected = System.Math.Max(2, (int)System.Math.Round(
             s.Config.HomeworldRatePerCell * s.Cells.Count));
-        Assert.InRange(s.Polities.Count, 2, expected);   // spacing may reject a few below target
-        Assert.True(s.Polities.Count >= expected / 2, $"got {s.Polities.Count}, want >= {expected / 2}");
-        foreach (var a in s.Polities)
-            foreach (var b in s.Polities)
-                if (a.Id != b.Id)
-                    Assert.True(HexGrid.Distance(a.CapitalCoord, b.CapitalCoord) >= 2,
-                        "capitals must not be adjacent on the cell lattice");
+        Assert.InRange(homeCells.Count, 2, expected);   // spacing may reject a few below target
+        Assert.True(homeCells.Count >= expected / 2, $"got {homeCells.Count}, want >= {expected / 2}");
+        foreach (var a in homeCells)
+            foreach (var b in homeCells)
+                if (!ReferenceEquals(a, b))
+                    Assert.True(HexGrid.Distance(a.Coord, b.Coord) >= 2,
+                        "homeworld cells must not be adjacent on the cell lattice");
     }
 
     [Fact]
-    public void Homeworlds_HaveSpeciesAnchorsAndOwnership()
+    public void Homeworlds_HaveSpeciesTaggedAnchors()
     {
         var s = Build();
-        foreach (var polity in s.Polities)
+        Assert.NotEmpty(s.Species);
+        foreach (var species in s.Species)
         {
-            var species = s.Species.Single(sp => sp.Id == polity.SpeciesId);
             Assert.False(string.IsNullOrEmpty(species.Name));
             Assert.InRange(species.Cohesion, 0.0, 1.0);
             if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
-            // Seeding guarantees exactly one homeworld anchor per polity, tagged with its
-            // species. The epoch sim may relocate capitals or flip ownership in war, so
-            // assert against the anchor, not the current capital cell.
+            // seeding guarantees exactly one homeworld anchor per species — the
+            // hook EpochGenesis seeds its polity actors from
             var homeworldCells = s.Cells.Where(c => c.Anchors.Any(a =>
                 a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id)).ToList();
             var home = Assert.Single(homeworldCells);
-            Assert.InRange(home.DevelopmentTier, 2, 9);   // seeded at 2; development only raises it
-            // A living polity's capital always points at a cell it owns (relocation
-            // guarantees this); an extinct polity's stale capital may be conquered ground.
-            if (!polity.Extinct)
-                Assert.Equal(polity.Id, s.CellAt(polity.CapitalCoord).OwnerPolityId);
+            Assert.False(home.IsVoid, "homeworlds seed on traversable cells");
         }
     }
 
@@ -157,7 +154,7 @@ public class SeedingPassTests
     }
 
     [Fact]
-    public void BuildShape_MatchesFullBuildDensities_AndSkipsSim()
+    public void BuildShape_MatchesFullBuildDensities_AndSkipsSeeding()
     {
         var config = new GalaxyConfig { MasterSeed = 5, GalaxyRadiusCells = 8 };
         var shape = SkeletonBuilder.BuildShape(config);
@@ -170,8 +167,6 @@ public class SeedingPassTests
             Assert.Equal(full.Cells[i].IsVoid, shape.Cells[i].IsVoid);
         }
         Assert.Empty(shape.Species);
-        Assert.Empty(shape.Polities);
-        Assert.Empty(shape.Events);
         Assert.All(shape.Cells, c => Assert.Empty(c.Anchors));
     }
 }

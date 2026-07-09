@@ -5,6 +5,10 @@ namespace StarGen.Core.Galaxy;
 
 public enum StellarLean { Balanced, YoungBright, OldDim, RemnantGraveyard }
 
+/// <summary>One cell of the natural raster — nature's fields at fixed lattice
+/// resolution, existing before any civilization (space-and-travel.md). The
+/// lattice carries no political meaning: political and logistical geography
+/// derives from the epoch sim's port registry, never from cells.</summary>
 public sealed class RegionCell
 {
     public int Q { get; set; }
@@ -19,15 +23,4 @@ public sealed class RegionCell
     public StellarLean Lean { get; set; }
     public double Metallicity { get; set; }
     public List<Anchor> Anchors { get; } = new();
-    public int OwnerPolityId { get; set; } = -1;   // -1 = unclaimed
-    public int DevelopmentTier { get; set; }
-    public bool Contested { get; set; }
-    public bool WarScarred { get; set; }
-
-    /// <summary>Species-tagged population (economy spec §4): grows with development +
-    /// provisions surplus, shrinks under famine and war scarring.</summary>
-    public double Population { get; set; }
-    public int PopulationSpeciesId { get; set; } = -1;
-    /// <summary>Last-epoch snapshot of flow magnitude transiting this cell.</summary>
-    public double RouteThroughput { get; set; }
 }

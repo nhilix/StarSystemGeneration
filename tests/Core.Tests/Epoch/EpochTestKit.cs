@@ -11,7 +11,7 @@ public static class EpochTestKit
         ulong seed = 42, int radiusCells = 8)
     {
         var gc = new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = radiusCells };
-        var skeleton = SkeletonBuilder.BuildNatural(gc);
+        var skeleton = SkeletonBuilder.Build(gc);
         var state = EpochGenesis.Seed(skeleton, new EpochSimConfig { MasterSeed = seed });
         return (skeleton, state);
     }

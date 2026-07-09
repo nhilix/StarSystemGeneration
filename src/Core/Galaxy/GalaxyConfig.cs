@@ -21,22 +21,6 @@ public sealed class GalaxyConfig
     public double MineralAnchorMultiplier { get; set; } = 1.0;
     /// <summary>Scales precursor-site anchor chance (1 = stock, 0 = none).</summary>
     public double PrecursorAnchorMultiplier { get; set; } = 1.0;
-    public int EpochCount { get; set; } = 12;
-    public int YearsPerEpoch { get; set; } = 50;
     public double HomeworldRatePerCell { get; set; } = 0.02;     // ~28 polities at radius 21
     public double TraversabilityThreshold { get; set; } = 0.25;
-
-    // --- Economy knobs (economy spec §7). Seeded defaults, artifact-stamped. ---
-    /// <summary>Base war-weariness accrual per epoch at war.</summary>
-    public double WarWearinessRate { get; set; } = 0.15;
-    /// <summary>Fractional military-stockpile decay per epoch.</summary>
-    public double StockpileDecayRate { get; set; } = 0.10;
-    /// <summary>Exotics cost of tech tier 1; geometric ladder (×3 per tier) above.
-    /// 5 (acceptance-tuned from 10): at 10, no reference-config polity crossed
-    /// tier 1 inside the default 12 epochs — spec §9 wants visible tech spread.</summary>
-    public double TechThresholdBase { get; set; } = 5.0;
-    /// <summary>Wealth gained per unit of matched cross-polity trade.</summary>
-    public double TradeIncomeWeight { get; set; } = 0.5;
-    /// <summary>Provisions consumed per population unit per epoch — the famine dial.</summary>
-    public double ProvisionsPerPop { get; set; } = 0.5;
 }

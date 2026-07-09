@@ -80,33 +80,6 @@ public class RegionIntegrationTests
     }
 
     [Fact]
-    public void SettlementScale_RaisesSettlementInsidePolities()
-    {
-        var galaxy = Galaxy();
-        int settledOwned = 0, totalOwned = 0, settledWild = 0, totalWild = 0;
-        foreach (var cell in galaxy.Skeleton!.Cells.Where(c => !c.IsVoid))
-        {
-            bool owned = cell.OwnerPolityId >= 0 && cell.DevelopmentTier >= 3;
-            bool wild = cell.OwnerPolityId < 0;
-            if (!owned && !wild) continue;
-            int i = 0;
-            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius))
-            {
-                if (i++ % 2 != 0) continue;
-                var system = Generator.Generate(galaxy, hex).System;
-                if (system == null) continue;
-                bool settled = system.Stars.SelectMany(st => st.Slots)
-                    .Any(sl => sl.Body != null && sl.Body.Settlement != Settlement.None);
-                if (owned) { totalOwned++; if (settled) settledOwned++; }
-                else { totalWild++; if (settled) settledWild++; }
-            }
-        }
-        Assert.True(totalOwned > 20 && totalWild > 20, "need enough samples on both sides");
-        Assert.True(settledOwned / (double)totalOwned > settledWild / (double)totalWild,
-            $"developed cells ({settledOwned}/{totalOwned}) should out-settle wilds ({settledWild}/{totalWild})");
-    }
-
-    [Fact]
     public void Flatspace_RemainsBitIdentical_ToLegacy()
     {
         for (int x = 0; x < 200; x++)

@@ -49,6 +49,5 @@ public class ValueNoiseTests
         Assert.Equal(21, config.GalaxyRadiusCells);
         Assert.Equal(0.02, config.HomeworldRatePerCell);
         Assert.Equal(0.5, config.MeanDensityTarget);
-        Assert.Equal(12, config.EpochCount);
     }
 }

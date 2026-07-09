@@ -63,56 +63,17 @@ public class SkeletonModelTests
     }
 
     [Fact]
-    public void RegionCell_Defaults()
+    public void RegionCell_IsTheNaturalRasterOnly()
     {
         var cell = new RegionCell { Q = 1, R = 2 };
-        Assert.Equal(-1, cell.OwnerPolityId);
         Assert.Empty(cell.Anchors);
-        Assert.False(cell.Contested);
-        Assert.False(cell.WarScarred);
-    }
-
-    [Fact]
-    public void EconModel_DefaultsAreNeutral()
-    {
-        var p = new Polity();
-        Assert.Equal(0.0, p.MilitaryStockpile);
-        Assert.Equal(0, p.TechTier);
-        Assert.Equal(0.0, p.Wealth);
-        var c = new RegionCell();
-        Assert.Equal(0.0, c.Population);
-        Assert.Equal(-1, c.PopulationSpeciesId);
-        Assert.Equal(0.0, c.RouteThroughput);
-        var w = new War();
-        Assert.False(w.Ended);
-        Assert.Equal(WarOutcome.Ongoing, w.Outcome);
-    }
-
-    [Fact]
-    public void Homeworlds_SeedPopulation()
-    {
-        var s = SkeletonBuilder.Build(new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 8 });
-        foreach (var p in s.Polities)
-        {
-            // Seeding populates the homeworld anchor cell with the founding species; the
-            // sim may shrink the quantity (famine, war scarring) but the species tag is
-            // never reassigned and multiplicative shrinks never reach zero.
-            var home = s.Cells.Single(c =>
-                c.Anchors.Any(a => a.Type == AnchorType.Homeworld && a.SpeciesId == p.SpeciesId));
-            Assert.Equal(p.SpeciesId, home.PopulationSpeciesId);
-            Assert.True(home.Population > 0, "homeworld population never zeroes");
-        }
-    }
-
-    [Fact]
-    public void AtWar_ReadsLiveWarsOnly()
-    {
-        var s = new GalaxySkeleton(new GalaxyConfig { MasterSeed = 1, GalaxyRadiusCells = 3 });
-        s.Wars.Add(new War { Id = 0, AttackerId = 0, DefenderId = 1 });
-        s.Wars.Add(new War { Id = 1, AttackerId = 2, DefenderId = 3, Ended = true });
-        Assert.True(s.AtWar(0, 1));
-        Assert.True(s.AtWar(1, 0));
-        Assert.False(s.AtWar(2, 3));
-        Assert.False(s.AtWar(0, 2));
+        Assert.False(cell.IsVoid);
+        Assert.False(cell.IsChokepoint);
+        Assert.Equal(StellarLean.Balanced, cell.Lean);
+        // no political fields exist on the raster: political geography derives
+        // from the epoch sim's port registry (space-and-travel.md, P4/P5)
+        Assert.DoesNotContain(typeof(RegionCell).GetProperties(),
+            p => p.Name is "OwnerPolityId" or "DevelopmentTier" or "Contested"
+                        or "WarScarred" or "Population" or "RouteThroughput");
     }
 }
