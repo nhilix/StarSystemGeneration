@@ -84,16 +84,19 @@ public class AllocationPhaseTests
     }
 
     [Fact]
-    public void WarUpkeep_DrainsWealth_AndUnpaidUpkeepSteepensDecay()
+    public void WarFooting_PaysUpkeep_AndShiftsBudgetTowardMilitary()
     {
         var sPeace = Fixture();
         var sWar = Fixture();
         sWar.Wars.Add(new War { Id = 0, AttackerId = 0, DefenderId = 99 });
         sPeace.Polities[0].MilitaryStockpile = sWar.Polities[0].MilitaryStockpile = 50.0;
-        AllocationPhase.Run(sPeace, 0);
-        AllocationPhase.Run(sWar, 0);
-        // At war: upkeep paid out of wealth AND allocation shifts toward military,
-        // so the at-war polity ends with less wealth than the peaceful twin.
-        Assert.True(sWar.Polities[0].Wealth <= sPeace.Polities[0].Wealth + 1e-9);
+        var peaceBudgets = AllocationPhase.Run(sPeace, 0);
+        var warBudgets = AllocationPhase.Run(sWar, 0);
+        // Upkeep shrinks the pool and doubled militancy weight shifts shares:
+        // the at-war polity expands less and stockpiles more than its peaceful twin.
+        Assert.True(warBudgets[0] < peaceBudgets[0],
+            "war upkeep + military shift shrink the expansion budget");
+        Assert.True(sWar.Polities[0].MilitaryStockpile > sPeace.Polities[0].MilitaryStockpile,
+            "doubled militancy weight grows the at-war stockpile faster");
     }
 }

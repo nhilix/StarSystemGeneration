@@ -9,6 +9,8 @@ namespace StarGen.Core.Galaxy;
 public static class AllocationPhase
 {
     private const double DevIncomePerTier = 0.35;
+    // 5.5 (not the plan's 1.5): budgets don't carry across epochs, so the base must
+    // let a dev budget afford a tier raise at reference temperaments; tuned in shape-band task.
     private const double DevIncomeBase = 5.5;
     private const double UpkeepPerWar = 0.5;
 
