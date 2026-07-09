@@ -25,7 +25,7 @@ public static class EpochSim
     private static RollContext Ctx(GalaxySkeleton s, Polity p) =>
         new(s.Config.MasterSeed, p.CapitalCoord);
 
-    private static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
+    internal static List<RegionCell> Owned(GalaxySkeleton s, Polity p) =>
         s.Cells.Where(c => c.OwnerPolityId == p.Id).ToList();
 
     private static IEnumerable<RegionCell> Adjacent(GalaxySkeleton s, RegionCell cell)
