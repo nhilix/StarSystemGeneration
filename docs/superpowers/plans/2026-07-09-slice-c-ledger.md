@@ -28,20 +28,20 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
       use-cases (industry, movement, military, technology) with the design's
       priority order. Legality schema (`LegalityLevel` reuse + tariff pair).
       Tests: profile invariants per design table.
-- [ ] 4. **Infrastructure catalog** — 15 rows (keystone port + 14 buildable;
+- [x] 4. **Infrastructure catalog** — 15 rows (keystone port + 14 buildable;
       design-doc prose says "fourteen" — amend prose in same branch, flag to
       user), stable ids, families, tiers 1–3, build cost in real goods +
       construction time + upkeep. Production formula as pure function
       (base × terrain × labor(pop × affinity, compute automation) ×
       machineryGrade multiplier); organic baseline. Tests: id/count stability,
       cost-goods closure, formula fixtures.
-- [ ] 5. **Potentials & siting** — richness functions over raster fields
+- [x] 5. **Potentials & siting** — richness functions over raster fields
       (ore/volatiles/biosphere/exotics from density, lean, metallicity,
       anchors), embodiment affinity, raw-grade-from-terrain, per-type siting
       scores over a plain `CellSite` struct. Tests: belt cell out-scores
       garden world for Mine and vice versa for Agri, richness bounds,
       affinity fixtures.
-- [ ] 6. **REPL surface** — `goods` / `infra` commands dumping the catalogs;
+- [x] 6. **REPL surface** — `goods` / `infra` commands dumping the catalogs;
       potentials + siting evaluated for a sample cell (real cell if a galaxy
       is loaded). Piped-stdin smoke via bash printf.
 - [ ] 7. **Fresh-eyes whole-branch review** subagent + one fix wave.
@@ -59,3 +59,11 @@ as plain arguments (B runs parallel and may reshape `RegionCell`).
   five families" but the table lists 15 rows (keystone Port + 4+4+4+2).
   Reading: 14 *buildable* types plus the keystone. Implementing all 15 table
   rows; prose amended in this branch. **Flag to user at eyeball gate.**
+- The design's facility table assigns no producer to Luxuries — the corporate
+  niche good. Left producer-less on purpose (tested as such); chartered
+  production is Slice G's business. **Flag to user at eyeball gate.**
+- `CellFields`/`CellSite` are class records, not record structs: `src/Core`
+  compiles inside Unity 6000.5 as C# 9, where record structs don't exist.
+- Demand-profile weights are normalized shares; absolute per-capita rates stay
+  economy-config knobs (Slice D applies them). `SubsistenceScale` carries the
+  "lithics eat little" dial.
