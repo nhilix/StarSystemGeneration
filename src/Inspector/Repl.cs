@@ -30,6 +30,8 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r> | polity <id> | chronicle [polityId]");
                     Console.WriteLine("epoch <seed> [epochs] — step the new seven-phase frame, print the phase/event trace");
+                    Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
+                    Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
                     Console.WriteLine("gsave <path> | gload <path> | quit");
                     Console.WriteLine("map layers: density | polity | zone | dev | lean | trade | economy | war");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
@@ -102,6 +104,35 @@ public sealed class Repl
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
+                case "goods":
+                    Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
+                    break;
+                case "infra" when parts.Length == 3 && _galaxy?.Skeleton is { } isk
+                        && int.TryParse(parts[1], out var iq) && int.TryParse(parts[2], out var ir):
+                {
+                    if (!isk.TryGetCell(new HexCoordinate(iq, ir), out var icell))
+                    { Console.WriteLine("cell out of range"); break; }
+                    var fields = new Core.Substrate.CellFields(
+                        icell.MeanDensity, icell.Lean, icell.Metallicity,
+                        icell.Anchors.Any(a => a.Type == AnchorType.MineralRich),
+                        icell.Anchors.Any(a => a.Type == AnchorType.PrecursorSite));
+                    // connectivity/port context are B-owned state — neutral wilds here
+                    var site = new Core.Substrate.CellSite(fields, Connectivity: 0.3,
+                        IsPortHeart: false, PortTier: 0,
+                        DevelopmentTier: Math.Min(icell.DevelopmentTier, 3), IsChokepoint: icell.IsChokepoint);
+                    var workforce = icell.PopulationSpeciesId >= 0
+                        ? isk.Species[icell.PopulationSpeciesId].Embodiment
+                        : Embodiment.TerranAnalog;
+                    Console.WriteLine(Core.Substrate.SubstrateView.RenderSite(
+                        FormattableString.Invariant($"cell [{iq},{ir}]"), fields, site, workforce));
+                    break;
+                }
+                case "infra" when parts.Length == 3:
+                    Console.WriteLine("no galaxy loaded (or coords unparseable) — build one with: galaxy <seed>");
+                    break;
+                case "infra":
+                    Console.WriteLine(Core.Substrate.SubstrateView.RenderInfra());
+                    break;
                 case "gsave" when parts.Length == 2 && _galaxy?.Skeleton != null:
                     System.IO.File.WriteAllText(parts[1], SkeletonSerializer.ToText(_galaxy.Skeleton));
                     Console.WriteLine($"saved to {parts[1]}");

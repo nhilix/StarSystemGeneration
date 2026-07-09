@@ -1,8 +1,8 @@
 # Infrastructure Vocabulary & Production
 
 The catalog of buildable facilities, their siting rules, and how production runs
-through them. Fourteen types in five families — a closed, versioned vocabulary like
-the anchor types. Ownership, construction financing, condition, and destruction
+through them. Fifteen types in five families — the keystone port plus fourteen
+buildable types — a closed, versioned vocabulary like the anchor types. Ownership, construction financing, condition, and destruction
 lifecycles belong to the economy layer; wars make facilities objectives and
 casualties.
 
