@@ -21,7 +21,8 @@ public sealed record CorporateBrief(int CorpId, string Name, double Credits);
 public sealed record RelationBrief(
     int OtherPolityId, double Warmth, double Tension, TreatyRung Rung,
     TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
-    int LiveClaimsAgainst);
+    int LiveClaimsAgainst, double IdeologyGap, int EpochsAtRung,
+    double OtherStrength, int VassalPolityId);
 
 public sealed class PerceptionView
 {
@@ -75,6 +76,9 @@ public sealed class PerceptionView
     /// relation-registry order (empty otherwise) — what the diplomatic
     /// postures and treaty acts are written from (slice H).</summary>
     public IReadOnlyList<RelationBrief> Relations { get; }
+    /// <summary>Own headline war weight (strike + sustained, readiness-
+    /// discounted) — what vassal choices size threats against (slice H).</summary>
+    public double OwnStrength { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -87,11 +91,13 @@ public sealed class PerceptionView
                           Temperament? selfTemperament = null,
                           double ownCredits = 0,
                           IReadOnlyList<CorporateBrief>? hostedCorporations = null,
-                          IReadOnlyList<RelationBrief>? relations = null)
+                          IReadOnlyList<RelationBrief>? relations = null,
+                          double ownStrength = 0)
     {
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;
+        OwnStrength = ownStrength;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -159,29 +165,68 @@ public sealed class GenesisController : IController
             && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
             acts.Add(new FoundColonyAct(perceived.SelfId,
                                         perceived.ColonyCandidates[0].Target));
+        // vassalage's foreign-policy lock: the bound run no diplomacy of
+        // their own (interpolity/relations.md §Vassalage)
+        bool selfBound = false;
+        foreach (var rel in perceived.Relations)
+            if (rel.VassalPolityId == perceived.SelfId) selfBound = true;
         // the treaty ladder: climb toward friends one rung at a time, answer
         // standing offers, and tear up rungs with the hostile — warmth gates
         // ascent (interpolity/relations.md §Treaties)
-        foreach (var rel in perceived.Relations)
-        {
-            var stance = StanceOf(rel);
-            if (rel.Rung > TreatyRung.None && stance == DiplomaticPosture.Hostile)
+        if (!selfBound)
+            foreach (var rel in perceived.Relations)
             {
-                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
-                    (int)rel.Rung, TreatyVerb.Break));
-                continue;
+                if (rel.VassalPolityId >= 0) continue;   // bonded table is closed
+                var stance = StanceOf(rel);
+                if (rel.Rung > TreatyRung.None
+                    && stance == DiplomaticPosture.Hostile)
+                {
+                    acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                        (int)rel.Rung, TreatyVerb.Break));
+                    continue;
+                }
+                if (stance < DiplomaticPosture.Cordial) continue;
+                if (rel.OfferedRung > rel.Rung
+                    && rel.OfferedById == rel.OtherPolityId
+                    && rel.Warmth >= RelationsOps.TreatyGate(_config,
+                                                             rel.OfferedRung)
+                    && FederationTermsAgreeable(perceived, rel, rel.OfferedRung))
+                    acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                        (int)rel.OfferedRung, TreatyVerb.Accept));
+                else if (rel.OfferedRung == TreatyRung.None
+                    && rel.Rung < TreatyRung.Federation
+                    && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.Rung + 1)
+                    && FederationTermsAgreeable(perceived, rel, rel.Rung + 1))
+                    acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                        (int)(rel.Rung + 1), TreatyVerb.Offer));
             }
-            if (stance < DiplomaticPosture.Cordial) continue;
-            if (rel.OfferedRung > rel.Rung
-                && rel.OfferedById == rel.OtherPolityId
-                && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.OfferedRung))
-                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
-                    (int)rel.OfferedRung, TreatyVerb.Accept));
-            else if (rel.OfferedRung == TreatyRung.None
-                && rel.Rung < TreatyRung.DefenseAlliance
-                && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.Rung + 1))
-                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
-                    (int)(rel.Rung + 1), TreatyVerb.Offer));
+        // the protection market: a genuinely outmatched polity facing a
+        // hostile giant offers itself to its strongest friend (§Vassalage)
+        if (!selfBound && perceived.Relations.Count > 0)
+        {
+            double worstThreat = 0;
+            foreach (var rel in perceived.Relations)
+                if (StanceOf(rel) <= DiplomaticPosture.Wary
+                    && rel.OtherStrength > perceived.OwnStrength * 2
+                    && rel.OtherStrength > worstThreat)
+                    worstThreat = rel.OtherStrength;
+            if (worstThreat > 0)
+            {
+                int protector = -1;
+                double protectorStrength = 0;
+                foreach (var rel in perceived.Relations)
+                    if (rel.VassalPolityId < 0
+                        && StanceOf(rel) >= DiplomaticPosture.Cordial
+                        && rel.OtherStrength >= worstThreat
+                        && rel.OtherStrength > protectorStrength)
+                    {
+                        protector = rel.OtherPolityId;
+                        protectorStrength = rel.OtherStrength;
+                    }
+                if (protector >= 0)
+                    acts.Add(new VassalageAct(perceived.SelfId, protector,
+                                              IsDemand: false));
+            }
         }
         // a chartered corporation that out-wealths the state is a de facto
         // power; the counter-move is nationalization (corporations.md)
@@ -312,6 +357,22 @@ public sealed class GenesisController : IController
             policies = policies with { ShipbuildingPriorities = builds };
         }
         return policies;
+    }
+
+    /// <summary>Rungs below federation carry no extra conditions; the top
+    /// one asks what the controller can see of the merge gate — ideology
+    /// compatibility, a sustained alliance, its own openness (Resolution
+    /// verifies the rest on truth).</summary>
+    private bool FederationTermsAgreeable(PerceptionView perceived,
+                                          RelationBrief rel, TreatyRung rung)
+    {
+        if (rung != TreatyRung.Federation) return true;
+        var knobs = _config.Relations;
+        return rel.Rung == TreatyRung.DefenseAlliance
+               && rel.EpochsAtRung >= knobs.FederationAllianceEpochs
+               && rel.IdeologyGap <= knobs.FederationIdeologyGapMax
+               && perceived.SelfTemperament.Openness
+                  >= knobs.FederationOpennessFloor;
     }
 
     /// <summary>Net warmth − tension mapped to the five-stance scale

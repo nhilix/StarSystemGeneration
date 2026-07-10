@@ -99,7 +99,8 @@ public class GenesisShapeTests
             new EpochSimConfig { MasterSeed = 42 });
         new EpochEngine().Run(state);
 
-        Assert.All(state.Actors, a => Assert.True(a.Entered));
+        // entered on schedule — or retired since (slice H: mergers)
+        Assert.All(state.Actors, a => Assert.True(a.Entered || a.Retired));
         Assert.True(state.Ports.Count > state.Actors.Count,
             $"colonization should outrun the homeworlds "
             + $"({state.Ports.Count} ports, {state.Actors.Count} polities)");

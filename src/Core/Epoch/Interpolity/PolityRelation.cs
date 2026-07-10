@@ -46,6 +46,9 @@ public enum TreatyRung
     TradePact = 1,      // tariff cuts, lane priority
     NonAggression = 2,  // spark de-escalation, tension damping
     DefenseAlliance = 3,// join defensive wars — attackers price allied fleets
+    /// <summary>Never stored on a relation: an offer at this rung, accepted,
+    /// executes the fusion (FederationOps.Federate) and retires both.</summary>
+    Federation = 4,
 }
 
 /// <summary>Relations state per pair of polities (interpolity/relations.md):
@@ -67,6 +70,9 @@ public sealed class PolityRelation
     /// interdiction strain, agitation, ideology gap × zeal.</summary>
     public double Tension { get; set; }
     public TreatyRung Rung { get; set; } = TreatyRung.None;
+    /// <summary>Epoch the current rung was signed (−1 unsigned) — sustained
+    /// alliance is the federation gate's clock.</summary>
+    public int RungEpoch { get; set; } = -1;
     /// <summary>Pending treaty offer on the table (None = no offer).</summary>
     public TreatyRung OfferedRung { get; set; } = TreatyRung.None;
     /// <summary>Who made the standing offer; −1 none.</summary>
@@ -78,6 +84,9 @@ public sealed class PolityRelation
     /// <summary>The vassal of the pair when the bond is vassalage; −1 for
     /// peers (H3).</summary>
     public int VassalPolityId { get; set; } = -1;
+    /// <summary>Epoch the vassal bond was struck (−1 unbound) — long stable
+    /// vassalage is the absorption exit's clock.</summary>
+    public int VassalSinceEpoch { get; set; } = -1;
     public List<RelationClaim> Claims { get; } = new List<RelationClaim>();
 
     /// <summary>Last recompute's tension source terms, for the REPL's

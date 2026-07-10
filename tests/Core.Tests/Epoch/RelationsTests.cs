@@ -45,9 +45,11 @@ public class RelationsTests
     public void Contact_RequiresReach()
     {
         var state = Run();
-        // every related pair really has ports within contact reach
+        // every related pair really has ports within contact reach —
+        // checked for live pairs (mergers strip the retired of their ports)
         foreach (var r in state.Relations)
         {
+            if (!RelationsOps.BothLive(state, r)) continue;
             int minDist = int.MaxValue;
             foreach (var pa in state.Ports)
             {

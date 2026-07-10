@@ -90,4 +90,7 @@ public enum RollChannel : ulong
 
     // --- Corporations (slice G). ---
     CorpSeed = 65,             // corp name syllables: actor = corp actor id, subIndex = syllable (100 = length)
+
+    // --- Relations & war (slice H). ---
+    FederationSeed = 66,       // federation name syllables: step = new actor id, actor = -1, subIndex = syllable (100 = length)
 }

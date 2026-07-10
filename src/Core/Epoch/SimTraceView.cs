@@ -216,6 +216,19 @@ public static class SimTraceView
                 $"{p.BreakerName} tears up its "
                 + RungName((TreatyRung)p.Rung)
                 + $" with {p.OtherName} — the galaxy hears",
+            FederationFormedPayload p =>
+                $"{p.ParentAName} and {p.ParentBName} fuse: the "
+                + Invariant($"{p.NewPolityName} Federation is born ")
+                + Invariant($"(polity #{p.NewPolityId})"),
+            VassalageBoundPayload p =>
+                $"{p.VassalName} kneels to {p.OverlordName} — "
+                + "tribute for protection",
+            VassalAbsorbedPayload p =>
+                $"{p.OverlordName} quietly absorbs {p.VassalName}; "
+                + "the old flag comes down without a shot",
+            VassalSecededPayload p =>
+                $"{p.VassalName} declares independence from a weakened "
+                + p.OverlordName,
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

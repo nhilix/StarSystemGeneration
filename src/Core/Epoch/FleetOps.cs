@@ -620,4 +620,19 @@ public static class FleetOps
     /// <summary>Layer-2 vectors of one fleet, computed on demand.</summary>
     public static FleetVectors Vectors(SimState state, FleetRecord fleet) =>
         FleetMath.Vectors(Composition(state, fleet));
+
+    /// <summary>An actor's headline war weight: strike + sustained fire
+    /// across its fleets, readiness-discounted — what vassal choices and
+    /// war appetites size each other by (slice H).</summary>
+    public static double WarStrength(SimState state, int actorId)
+    {
+        double strength = 0;
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+        {
+            if (fleet.OwnerActorId != actorId || fleet.TotalHulls == 0) continue;
+            var v = Vectors(state, fleet);
+            strength += (v.Strike + v.Sustained) * fleet.Readiness;
+        }
+        return strength;
+    }
 }

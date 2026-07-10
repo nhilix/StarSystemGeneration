@@ -19,6 +19,12 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
             if (a.Entered)
                 known.Add(a.Id);
+        // headline war weights once per polity — the briefs size threats
+        // and protectors by them (perfect-info stub until slice I)
+        var strengths = new Dictionary<int, double>();
+        foreach (var a in state.Actors)
+            if (a.Entered && a.Kind == ActorKind.Polity)
+                strengths[a.Id] = FleetOps.WarStrength(state, a.Id);
         int perceiving = 0;
         foreach (var a in state.Actors)
         {
@@ -65,7 +71,8 @@ public sealed class PerceptionPhase : ISimPhase
                                                     corp.Credits));
                 foreach (var rel in state.Relations)  // creation order (P6)
                 {
-                    if (!rel.Involves(a.Id)) continue;
+                    if (!rel.Involves(a.Id)
+                        || !RelationsOps.BothLive(state, rel)) continue;
                     int held = 0, against = 0;
                     foreach (var c in rel.Claims)
                         if (!c.Released)
@@ -73,10 +80,17 @@ public sealed class PerceptionPhase : ISimPhase
                             if (c.HolderPolityId == a.Id) held++;
                             else against++;
                         }
+                    int other = rel.OtherOf(a.Id);
                     (relations ??= new List<RelationBrief>())
-                        .Add(new RelationBrief(rel.OtherOf(a.Id), rel.Warmth,
+                        .Add(new RelationBrief(other, rel.Warmth,
                             rel.Tension, rel.Rung, rel.OfferedRung,
-                            rel.OfferedById, held, against));
+                            rel.OfferedById, held, against,
+                            RelationsOps.IdeologyGap(state.PolityOf(a.Id),
+                                                     state.PolityOf(other)),
+                            rel.RungEpoch < 0 ? 0
+                                : state.EpochIndex - rel.RungEpoch,
+                            strengths.TryGetValue(other, out double os) ? os : 0,
+                            rel.VassalPolityId));
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
@@ -84,7 +98,9 @@ public sealed class PerceptionPhase : ISimPhase
                                               ownPorts, realmSubsistence, designs,
                                               FleetOps.ColonyHullsInReserve(state, a.Id),
                                               temperament, ownCredits, hosted,
-                                              relations);
+                                              relations,
+                                              strengths.TryGetValue(a.Id,
+                                                  out double own) ? own : 0);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -176,6 +192,9 @@ public sealed class AllocationPhase : ISimPhase
         int earning = 0, lanesBuilt = 0, portsRaised = 0, facilitiesBuilt = 0;
         int hullsLaid = 0, hullsLost = 0;
         int defaults = ServiceLoans(state);
+        // tribute ships up before anyone budgets: vassals allocate what
+        // remains of their receipts (interpolity/relations.md §Vassalage)
+        int tributes = FederationOps.PayTribute(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
         {
@@ -236,6 +255,7 @@ public sealed class AllocationPhase : ISimPhase
         if (advances > 0) note += $", {advances} tech " + (advances == 1 ? "advance" : "advances");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
+        if (tributes > 0) note += $", {tributes} " + (tributes == 1 ? "tribute paid" : "tributes paid");
         return note;
     }
 
@@ -709,7 +729,7 @@ public sealed class ResolutionPhase : ISimPhase
     public string Run(SimState state)
     {
         int acts = 0, founded = 0, nationalized = 0;
-        int signed = 0, broken = 0;
+        int signed = 0, broken = 0, vassalized = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
@@ -725,6 +745,8 @@ public sealed class ResolutionPhase : ISimPhase
                         case RelationsOps.TreatyOutcome.Signed: signed++; break;
                         case RelationsOps.TreatyOutcome.Broken: broken++; break;
                     }
+                if (act is VassalageAct v && FederationOps.TryBindVassal(state, v))
+                    vassalized++;
             }
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
@@ -737,6 +759,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (broken > 0)
             note += $", {broken} " + (broken == 1
                 ? "treaty broken" : "treaties broken");
+        if (vassalized > 0)
+            note += $", {vassalized} " + (vassalized == 1
+                ? "vassalage bound" : "vassalages bound");
         return note;
     }
 
@@ -911,7 +936,8 @@ public sealed class InteriorPhase : ISimPhase
         int entered = 0;
         foreach (var a in state.Actors)
         {
-            if (a.Entered || a.EntryEpoch > state.EpochIndex) continue;
+            if (a.Entered || a.Retired || a.EntryEpoch > state.EpochIndex)
+                continue;
             a.Entered = true;
             entered++;
             var port = new Port(state.Ports.Count, a.Id, a.Seat,

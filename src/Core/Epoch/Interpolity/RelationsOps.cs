@@ -25,9 +25,16 @@ public static class RelationsOps
         int contacts = Contact(state, geometry);
         int claimsRaised = KinClaims(state);
         ExpireOffers(state);
+        FederationOps.VassalExits(state);
         Recompute(state, geometry);
         return (contacts, claimsRaised);
     }
+
+    /// <summary>Both sides of a relation still on the stage — retired
+    /// (federated, absorbed, extinct) pairs are history, not diplomacy.</summary>
+    public static bool BothLive(SimState state, PolityRelation relation) =>
+        state.Actors[relation.PolityAId].Entered
+        && state.Actors[relation.PolityBId].Entered;
 
     /// <summary>Unanswered offers lapse quietly — the table clears.</summary>
     private static void ExpireOffers(SimState state)
@@ -138,6 +145,7 @@ public static class RelationsOps
         int raised = 0;
         foreach (var relation in state.Relations)             // creation order (P6)
         {
+            if (!BothLive(state, relation)) continue;
             for (int side = 0; side < 2; side++)
             {
                 int holder = side == 0 ? relation.PolityAId : relation.PolityBId;
@@ -206,6 +214,7 @@ public static class RelationsOps
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var relation in state.Relations)             // creation order (P6)
         {
+            if (!BothLive(state, relation)) continue;
             double trade = CrossTradeCapacity(state, relation);
             geometry.TryGetValue((relation.PolityAId, relation.PolityBId),
                                  out var g);
@@ -306,7 +315,7 @@ public static class RelationsOps
 
     /// <summary>Mean official-ideology axis distance (0 when either interior
     /// is unseated — shape skeletons).</summary>
-    private static double IdeologyGap(PolityRecord a, PolityRecord b)
+    public static double IdeologyGap(PolityRecord a, PolityRecord b)
     {
         if (a.Interior == null || b.Interior == null) return 0.0;
         double gap = 0;
@@ -412,12 +421,18 @@ public static class RelationsOps
             return TreatyOutcome.NoEffect;
         var relation = state.RelationOf(act.ActorId, act.TargetPolityId);
         if (relation == null) return TreatyOutcome.NoEffect;   // no table before contact
+        if (!BothLive(state, relation)) return TreatyOutcome.NoEffect;
+        // vassalage's foreign-policy lock: the bound treat with no one
+        if (FederationOps.OverlordOf(state, act.ActorId) >= 0
+            || FederationOps.OverlordOf(state, act.TargetPolityId) >= 0
+            || relation.VassalPolityId >= 0)
+            return TreatyOutcome.NoEffect;
         var rung = (TreatyRung)act.Rung;
         switch (act.Verb)
         {
             case TreatyVerb.Offer:
                 if (rung != relation.Rung + 1
-                    || rung > TreatyRung.DefenseAlliance)
+                    || rung > TreatyRung.Federation)
                     return TreatyOutcome.NoEffect;
                 if (relation.OfferedRung == rung
                     && relation.OfferedById == act.TargetPolityId)
@@ -437,6 +452,7 @@ public static class RelationsOps
                 if (relation.Rung == TreatyRung.None) return TreatyOutcome.NoEffect;
                 var broken = relation.Rung;
                 relation.Rung = TreatyRung.None;
+                relation.RungEpoch = -1;
                 relation.OfferedRung = TreatyRung.None;
                 relation.OfferedById = -1;
                 relation.OfferEpoch = -1;
@@ -461,7 +477,22 @@ public static class RelationsOps
     private static TreatyOutcome Sign(SimState state, PolityRelation relation,
                                       TreatyRung rung)
     {
+        if (rung == TreatyRung.Federation)
+        {
+            // the top rung is not held, it is executed: the fusion gate
+            // verifies on truth; a gate that fails voids the consent
+            if (!FederationOps.FederationGateHolds(state, relation))
+            {
+                relation.OfferedRung = TreatyRung.None;
+                relation.OfferedById = -1;
+                relation.OfferEpoch = -1;
+                return TreatyOutcome.NoEffect;
+            }
+            FederationOps.Federate(state, relation);
+            return TreatyOutcome.Signed;
+        }
         relation.Rung = rung;
+        relation.RungEpoch = state.EpochIndex;
         relation.OfferedRung = TreatyRung.None;
         relation.OfferedById = -1;
         relation.OfferEpoch = -1;

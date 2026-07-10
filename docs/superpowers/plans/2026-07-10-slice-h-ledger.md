@@ -73,7 +73,32 @@ surprises — updated as work lands.
   de-escalation, tension damping), defense alliance (join defensive
   wars, attackers price allied fleets). Warmth gates ascent; breaking =
   public event + warmth crash. Events 501/502.
-- [ ] **H3 — Federation + vassalage**: federation merge gate (sustained
+- [x] **H3 — Federation + vassalage** *(done: `Interpolity/
+  FederationOps.cs` — federation as TreatyRung.Federation (rung 4,
+  never held: consent executes `Federate`), gate = sustained alliance
+  (RungEpoch clock) + warmth ≥ TreatyGate(4) + ideology gap + openness
+  + cohesions + no vassal bonds; fusion births a NEW polity
+  (pop-weighted species/culture/ideology, syllable name on channel 66,
+  fresh court + entry designs, founding legitimacy 0.75 structural),
+  parents retire (`Actor.Retired`, actors layer v5 — never re-enter,
+  interior nulled); shared merge plumbing `MergeInto` (ports,
+  facilities, fleets + commanders + hull ledgers, treasuries, reserves
+  grade-blended, hosted corps, characters; open loans reissue against
+  the successor, parent-parent debt cancels); vassalage: chosen via
+  VassalageAct (truth-verified weakness ratio + consent warmth
+  structural 0.25), tribute = receipts share paid before budgeting
+  (conserved), foreign-policy lock in ResolveTreaty + controller,
+  exits: absorption (clock + warmth + healthy overlord → MergeInto) and
+  negotiated secession (overlord cohesion) leaving a LostTerritory
+  claim; events 505–508; REL gains RungEpoch/VassalSinceEpoch
+  (relations v2); RelationBrief gains IdeologyGap/EpochsAtRung/
+  OtherStrength/VassalPolityId; `FleetOps.WarStrength` +
+  PerceptionView.OwnStrength; knobs ×9 + TUNING; seed-42 r12: the
+  Belzen Federation (Nozen+Selzenvo) born y475 and coup-shaken y800,
+  4 vassalages bound late; 7 older tests amended (actors can retire,
+  sovereignty moves by merger, notable caps are mint-time valves,
+  mints counted by emergence events); golden regen; 443/443 green)*:
+  federation merge gate (sustained
   alliance + high warmth + ideology compat + openness + cohesions) →
   NEW fused polity (population-weighted composition, fresh name, form
   from combined ideology, multi-species membership); vassalage (imposed

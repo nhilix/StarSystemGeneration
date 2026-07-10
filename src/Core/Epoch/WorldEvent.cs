@@ -58,6 +58,10 @@ public enum WorldEventType
     ClaimReleased = 502,
     TreatySigned = 503,
     TreatyBroken = 504,
+    FederationFormed = 505,
+    VassalageBound = 506,
+    VassalAbsorbed = 507,
+    VassalSeceded = 508,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -231,6 +235,29 @@ public sealed record TreatySignedPayload(
 public sealed record TreatyBrokenPayload(
     int BreakerPolityId, int OtherPolityId, string BreakerName,
     string OtherName, int Rung) : EventPayload;
+
+/// <summary>Two allies fuse into a NEW polity (interpolity/relations.md
+/// §Federation) — it plays subsequent epochs as itself.</summary>
+public sealed record FederationFormedPayload(
+    int NewPolityId, string NewPolityName, int ParentAId, int ParentBId,
+    string ParentAName, string ParentBName) : EventPayload;
+
+/// <summary>The asymmetric rung binds: tribute, defensive obligation,
+/// foreign-policy lock (§Vassalage).</summary>
+public sealed record VassalageBoundPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
+
+/// <summary>Long stable vassalage completes as peaceful annexation.</summary>
+public sealed record VassalAbsorbedPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
+
+/// <summary>Overlord weakness ends the bond — an independence bid that
+/// carried (the fought variant is a war, H5+).</summary>
+public sealed record VassalSecededPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

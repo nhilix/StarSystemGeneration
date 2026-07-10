@@ -48,6 +48,9 @@ public class GraduationTests
         {
             var actor = state.Actors[s.NewPolityId];
             Assert.Equal(ActorKind.Polity, actor.Kind);
+            // a schism state may since have federated or been absorbed
+            // (slice H) — its founding story still checked out
+            if (actor.Retired) continue;
             Assert.True(actor.Entered);
             Assert.Equal(s.NewPolityName, actor.Name);
             var pr = state.PolityOf(s.NewPolityId);
@@ -64,8 +67,9 @@ public class GraduationTests
         double minted = 0, held = 0;
         var eco = state.Config.Economy;
         foreach (var a in state.Actors)
-            if (a.Entered && a.EntryEpoch >= 0
-                && state.Log.Events.Any(e =>
+            // the emergence event IS the mint record — retirement (slice H
+            // mergers) moves the credits on, never uncoins them
+            if (state.Log.Events.Any(e =>
                     e.Type == WorldEventType.PolityEmerged
                     && e.Actors.Contains(a.Id)))
                 minted += eco.InitialCreditsPerPolity
@@ -92,8 +96,10 @@ public class GraduationTests
         {
             var usurper = state.Characters[c.CharacterId];
             // still ruling, later deposed/succeeded, or dead — but the coup
-            // moment must have made them ruler of that polity
-            Assert.Equal(c.PolityId, usurper.PolityId);
+            // moment must have made them ruler of that polity. A polity that
+            // since merged away (slice H) moved its people to the successor.
+            if (!state.Actors[c.PolityId].Retired)
+                Assert.Equal(c.PolityId, usurper.PolityId);
             var faction = state.Factions[c.FactionId];
             Assert.False(faction.Active);   // graduated into government
             Assert.Equal(0.0, faction.Wealth);   // the chest funded the regime

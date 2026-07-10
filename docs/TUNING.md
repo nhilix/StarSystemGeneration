@@ -231,6 +231,12 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.TreatyGateBase` / `TreatyGateStep` | 0.40 / 0.12 | Rungs demand deep warmth (alliances rare and meaningful). | Everyone allies with everyone (seed 42: pairs reach alliance in ~3 epochs once warm). |
 | `Relations.BreakWarmthPenalty` | 0.25 | Broken treaties end friendships for good. | Rungs churn — break and re-sign. |
 | `Relations.NonAggressionDamping` | 0.30 | The second rung genuinely calms borders (fewer sparks reach powder). | Non-aggression is paper. |
+| `Relations.FederationAllianceEpochs` | 4 | Fusions need a generation of proven alliance. | Whirlwind federations. |
+| `Relations.FederationIdeologyGapMax` / `CohesionFloor` / `OpennessFloor` | 0.20 / 0.55 / 0.50 | Only aligned, healthy, open pairs merge (federations rare and durable — seed 42: one, the Belzen Federation at y475). | Everything fuses; the galaxy consolidates to a blob. |
+| `Relations.VassalStrengthRatio` | 0.35 | Only the genuinely outmatched kneel (chosen vassalage rare). | Peers vassalize on a bad epoch. |
+| `Relations.VassalTributeShare` | 0.15 | Protection is expensive; vassal economies drag. | Vassalage is symbolic. |
+| `Relations.VassalAbsorptionEpochs` / `AbsorptionWarmth` | 8 / 0.60 | Annexation takes two centuries of warm bond. | Vassals dissolve into overlords within a lifetime. |
+| `Relations.VassalSecessionCohesion` | 0.40 | Only crumbling overlords lose vassals. | Every wobble frees the periphery. |
 | `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
 
 ## Infrastructure — port physics and construction

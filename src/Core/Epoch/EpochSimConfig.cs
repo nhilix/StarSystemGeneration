@@ -95,6 +95,31 @@ public sealed class RelationsKnobs
     /// <summary>Tariff multiplier between trade-pact partners — the tariff
     /// cut that is the first rung's teeth.</summary>
     public double PactTariffFactor { get; set; } = 0.40;
+    /// <summary>Epochs a defense alliance must stand before the federation
+    /// gate opens — sustained alliance, not a fling.</summary>
+    public int FederationAllianceEpochs { get; set; } = 4;
+    /// <summary>Both cohesions must sit at or above this to fuse — troubled
+    /// realms don't merge, they fracture.</summary>
+    public double FederationCohesionFloor { get; set; } = 0.55;
+    /// <summary>Official-ideology gap above which the merge is off.</summary>
+    public double FederationIdeologyGapMax { get; set; } = 0.20;
+    /// <summary>Composed openness both sides need to contemplate fusion.</summary>
+    public double FederationOpennessFloor { get; set; } = 0.50;
+    /// <summary>Epochs of stable vassalage before the absorption exit can
+    /// fire — cultural drift takes generations.</summary>
+    public int VassalAbsorptionEpochs { get; set; } = 8;
+    /// <summary>Warmth at or above which long vassalage completes as
+    /// peaceful annexation.</summary>
+    public double VassalAbsorptionWarmth { get; set; } = 0.60;
+    /// <summary>Overlord cohesion below which vassals bid for independence
+    /// (the secession exit).</summary>
+    public double VassalSecessionCohesion { get; set; } = 0.40;
+    /// <summary>Vassal-to-overlord war-strength ratio at or below which a
+    /// chosen vassalage binds — protection is for the genuinely weaker.</summary>
+    public double VassalStrengthRatio { get; set; } = 0.35;
+    /// <summary>Income share a vassal ships up each epoch (tribute) —
+    /// conserved vassal→overlord flow before the vassal budgets.</summary>
+    public double VassalTributeShare { get; set; } = 0.15;
 }
 
 /// <summary>Corporate dials (economy/corporations.md): niche detection

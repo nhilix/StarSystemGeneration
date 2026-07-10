@@ -39,20 +39,25 @@ public class EpochEngineTests
         var engine = new EpochEngine();
         engine.Run(state);
 
-        Assert.All(state.Actors, a => Assert.True(a.Entered));
+        Assert.All(state.Actors, a => Assert.True(a.Entered || a.Retired));
         var emergences = state.Log.Events
             .Where(e => e.Type == WorldEventType.PolityEmerged).ToList();
-        // every polity actor either emerged on the schedule or seceded;
-        // corporations charter separately (slice G)
+        // every polity actor either emerged on the schedule, seceded,
+        // or fused (slice H); corporations charter separately (slice G)
         var schisms = state.Log.Events
             .Where(e => e.Type == WorldEventType.SchismDeclared)
             .Select(e => ((SchismDeclaredPayload)e.Payload!).NewPolityId)
             .ToHashSet();
+        var fusions = state.Log.Events
+            .Where(e => e.Type == WorldEventType.FederationFormed)
+            .Select(e => ((FederationFormedPayload)e.Payload!).NewPolityId)
+            .ToHashSet();
         Assert.Equal(state.Actors.Count(a => a.Kind == ActorKind.Polity),
-                     emergences.Count + schisms.Count);
+                     emergences.Count + schisms.Count + fusions.Count);
         foreach (var a in state.Actors)
         {
-            if (a.Kind != ActorKind.Polity || schisms.Contains(a.Id)) continue;
+            if (a.Kind != ActorKind.Polity || schisms.Contains(a.Id)
+                || fusions.Contains(a.Id)) continue;
             var e = Assert.Single(emergences, e => e.Actors.Contains(a.Id));
             // events carry their world-year, dated at the entering epoch
             Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, e.WorldYear);

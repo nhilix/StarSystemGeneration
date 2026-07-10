@@ -79,7 +79,8 @@ public class EpochGenesisTests
     {
         var (_, state) = EpochTestKit.Seeded();
         new EpochEngine().Run(state);
-        Assert.All(state.Actors, a => Assert.True(a.Entered));
+        // entered on schedule — or retired since (slice H: mergers)
+        Assert.All(state.Actors, a => Assert.True(a.Entered || a.Retired));
         foreach (var a in state.Actors)
         {
             // schedule entries only — schism states (slice G) are born of
