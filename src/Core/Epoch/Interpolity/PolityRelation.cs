@@ -85,6 +85,9 @@ public sealed class PolityRelation
     /// tie's generation dies out after DynasticTieLapseYears, converting
     /// into the succession claim it always carried (−1 none).</summary>
     public long LastTieYear { get; set; } = -1;
+    /// <summary>Epoch of the last border incident between the pair — the
+    /// spark's freshness window as a casus belli (−1 never).</summary>
+    public int LastIncidentEpoch { get; set; } = -1;
     /// <summary>The vassal of the pair when the bond is vassalage; −1 for
     /// peers (H3).</summary>
     public int VassalPolityId { get; set; } = -1;

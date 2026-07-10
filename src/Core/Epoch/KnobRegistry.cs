@@ -739,6 +739,7 @@ public static class KnobRegistry
           (c, v) => c.Relations.WarmthDriftPerYear = v),
 
         // ---- Tech (ladder costs, research, diffusion — slice G) ----
+        // (War family sorts after Tech — see the end of the table)
         K("Tech.AstroRadiusPerTierHexes",
           "extra port service radius per Astrogation tier above standard",
           c => c.Tech.AstroRadiusPerTierHexes,
@@ -782,6 +783,40 @@ public static class KnobRegistry
           "posted lane capacity at which trade diffusion saturates",
           c => c.Tech.TradeVolumeSaturation,
           (c, v) => c.Tech.TradeVolumeSaturation = v),
+
+        // ---- War (spark, appetite, causes — slice H) ----
+        K("War.AttackStrengthRatio",
+          "own strength per defender-coalition strength needed to declare",
+          c => c.War.AttackStrengthRatio,
+          (c, v) => c.War.AttackStrengthRatio = v),
+        K("War.CrusadeThreshold",
+          "ideology gap × ruler zeal that arms the crusade cause",
+          c => c.War.CrusadeThreshold,
+          (c, v) => c.War.CrusadeThreshold = v),
+        K("War.GrievanceDischargeFloor",
+          "military-faction strength × grievance that arms discharge",
+          c => c.War.GrievanceDischargeFloor,
+          (c, v) => c.War.GrievanceDischargeFloor = v),
+        K("War.IncidentRatePerEpoch",
+          "border-incident probability per epoch at full overlap",
+          c => c.War.IncidentRatePerEpoch,
+          (c, v) => c.War.IncidentRatePerEpoch = v),
+        K("War.IncidentTensionBump",
+          "instant tension bump per border incident",
+          c => c.War.IncidentTensionBump,
+          (c, v) => c.War.IncidentTensionBump = v),
+        K("War.PriceShockMultiple",
+          "own price over founding that arms resource seizure",
+          c => c.War.PriceShockMultiple,
+          (c, v) => c.War.PriceShockMultiple = v),
+        K("War.WarAppetiteThreshold",
+          "tension × (0.5 + militancy) needed to declare",
+          c => c.War.WarAppetiteThreshold,
+          (c, v) => c.War.WarAppetiteThreshold = v),
+        K("War.WarTensionFloor",
+          "tension below which incidents fizzle instead of escalating",
+          c => c.War.WarTensionFloor,
+          (c, v) => c.War.WarTensionFloor = v),
     };
 
     private static readonly Dictionary<string, KnobDef> ByName = Build();

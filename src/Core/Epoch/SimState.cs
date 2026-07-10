@@ -66,6 +66,9 @@ public sealed class SimState
     /// (interpolity/relations.md) — creation order (contact scans pairs
     /// ascending, P6). The pressure gauge war reads.</summary>
     public List<PolityRelation> Relations { get; } = new List<PolityRelation>();
+    /// <summary>Wars declared and fought (interpolity/war.md) — id order
+    /// (P6); ended wars stay as history.</summary>
+    public List<War> Wars { get; } = new List<War>();
     /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
     /// never serialized; slice H replaces this with real interdiction.</summary>
     public HashSet<int> SeveredLanes { get; } = new HashSet<int>();

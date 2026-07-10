@@ -16,9 +16,13 @@ public sealed record FoundColonyAct(int ActorId, HexCoordinate Target) : Act(Act
 // Slice B resolves this convoyless (port established directly); the
 // contract's convoy component attaches in Slice E (fleets)
 
+/// <summary>Declaration (interpolity/war.md): a declared goal from the
+/// casus-belli menu, an objective set, and the settlement demand carried
+/// into termination. Slice H grounds the slice-A string stubs in the
+/// war registries.</summary>
 public sealed record DeclareWarAct(
-    int ActorId, int TargetPolityId, string CasusBelli,
-    IReadOnlyList<string> Objectives, string Demand) : Act(ActorId);
+    int ActorId, int TargetPolityId, int CasusBelli, int SubjectId,
+    IReadOnlyList<WarObjectiveSpec> Objectives, int Demand) : Act(ActorId);
 
 public enum TreatyVerb { Offer, Accept, Break }
 

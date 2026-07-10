@@ -23,6 +23,38 @@ public sealed class EpochSimConfig
     public TechKnobs Tech { get; } = new TechKnobs();
     public CorporateKnobs Corporate { get; } = new CorporateKnobs();
     public RelationsKnobs Relations { get; } = new RelationsKnobs();
+    public WarKnobs War { get; } = new WarKnobs();
+}
+
+/// <summary>War dials (interpolity/war.md): the spark's incidence, the
+/// declaration appetite, casus-belli thresholds, engagement losses, siege
+/// pacing, and termination/settlement magnitudes. Slice H. Weariness's
+/// per-year rate stays on Economy.WarWearinessPerYear where slice A put it.</summary>
+public sealed class WarKnobs
+{
+    /// <summary>Border-incident probability per epoch at full contested
+    /// overlap (damped by non-aggression rungs).</summary>
+    public double IncidentRatePerEpoch { get; set; } = 0.25;
+    /// <summary>Instant tension bump per incident — sparks load the gauge
+    /// they later read.</summary>
+    public double IncidentTensionBump { get; set; } = 0.08;
+    /// <summary>Tension below which no war fires whatever the menu says —
+    /// low-tension incidents fizzle into demands and apologies.</summary>
+    public double WarTensionFloor { get; set; } = 0.55;
+    /// <summary>Declaration gate: tension × (0.5 + composed militancy)
+    /// must clear this — the escalation-∝-tension dial.</summary>
+    public double WarAppetiteThreshold { get; set; } = 0.60;
+    /// <summary>Attackers price allied fleets: own strength must be at
+    /// least this share of the defender's coalition to declare.</summary>
+    public double AttackStrengthRatio { get; set; } = 0.60;
+    /// <summary>Own-market price over founding that reads as the deficit/
+    /// price shock behind a resource-seizure casus belli.</summary>
+    public double PriceShockMultiple { get; set; } = 2.0;
+    /// <summary>Ideology gap × ruler zeal that arms the crusade cause.</summary>
+    public double CrusadeThreshold { get; set; } = 0.30;
+    /// <summary>Military-faction strength × grievance that arms the
+    /// grievance-discharge cause.</summary>
+    public double GrievanceDischargeFloor { get; set; } = 0.35;
 }
 
 /// <summary>Relations dials (interpolity/relations.md): contact reach, the

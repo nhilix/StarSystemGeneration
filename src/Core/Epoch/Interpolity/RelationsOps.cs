@@ -28,6 +28,9 @@ public static class RelationsOps
         ReleaseDeadSuccessionClaims(state);
         ExpireOffers(state);
         FederationOps.VassalExits(state);
+        // sparks roll in the freshly surveyed contested space (war.md);
+        // tension then drifts with the incident bumps already applied
+        WarOps.Incidents(state, geometry);
         Recompute(state, geometry);
         return (contacts, claimsRaised);
     }
@@ -167,13 +170,16 @@ public static class RelationsOps
             }
     }
 
-    /// <summary>Per unordered polity pair: nearest port distance and the
+    /// <summary>Per unordered polity pair: nearest port distance, the
     /// contested-overlap count (port pairs whose service areas touch — the
-    /// space model's organic borders).</summary>
-    private sealed class PairGeometry
+    /// space model's organic borders), and the closest pair's hexes (the
+    /// flashpoint incidents roll at).</summary>
+    public sealed class PairGeometry
     {
         public int MinPortDistance = int.MaxValue;
         public int OverlapPairs;
+        public HexCoordinate ClosestA;
+        public HexCoordinate ClosestB;
     }
 
     private static Dictionary<(int A, int B), PairGeometry> SurveyGeometry(
@@ -198,7 +204,12 @@ public static class RelationsOps
                 if (!geometry.TryGetValue(key, out var g))
                     geometry[key] = g = new PairGeometry();
                 int dist = HexGrid.Distance(pa.Hex, pb.Hex);
-                if (dist < g.MinPortDistance) g.MinPortDistance = dist;
+                if (dist < g.MinPortDistance)
+                {
+                    g.MinPortDistance = dist;
+                    g.ClosestA = pa.Hex;
+                    g.ClosestB = pb.Hex;
+                }
                 if (!radiusBonus.TryGetValue(pa.OwnerActorId, out int bonusA))
                     radiusBonus[pa.OwnerActorId] = bonusA =
                         TechOps.AstroRadiusBonus(state, pa.OwnerActorId);

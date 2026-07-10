@@ -29,7 +29,7 @@ public static class ArtifactSerializer
         ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
-        ("corporations", 1), ("relations", 3),
+        ("corporations", 1), ("relations", 4), ("wars", 1),
     };
 
     public static string ToText(SimState state)
@@ -301,14 +301,15 @@ public static class ArtifactSerializer
         Layer(w, "relations");
         foreach (var r in state.Relations)
         {
-            // relations v3 (slice H): rung/vassal/tie clocks ride along
+            // relations v4 (slice H): clocks + the spark's freshness window
             w.WriteLine(Join("REL", r.PolityAId.ToString(Inv),
                 r.PolityBId.ToString(Inv), r.MetEpoch.ToString(Inv),
                 R(r.Warmth), R(r.Tension), ((int)r.Rung).ToString(Inv),
                 ((int)r.OfferedRung).ToString(Inv), r.OfferedById.ToString(Inv),
                 r.OfferEpoch.ToString(Inv), r.DynasticTies.ToString(Inv),
                 r.VassalPolityId.ToString(Inv), r.RungEpoch.ToString(Inv),
-                r.VassalSinceEpoch.ToString(Inv), r.LastTieYear.ToString(Inv)));
+                r.VassalSinceEpoch.ToString(Inv), r.LastTieYear.ToString(Inv),
+                r.LastIncidentEpoch.ToString(Inv)));
             foreach (var c in r.Claims)
                 w.WriteLine(Join("CLM", r.PolityAId.ToString(Inv),
                     r.PolityBId.ToString(Inv), ((int)c.Type).ToString(Inv),
@@ -316,7 +317,42 @@ public static class ArtifactSerializer
                     c.RaisedYear.ToString(Inv), B(c.Released),
                     c.ReleasedYear.ToString(Inv)));
         }
+
+        Layer(w, "wars");
+        foreach (var war in state.Wars)
+        {
+            w.WriteLine(Join("WAR", war.Id.ToString(Inv), Name(war.Name),
+                war.AttackerId.ToString(Inv), war.DefenderId.ToString(Inv),
+                ((int)war.Cause).ToString(Inv), war.SubjectId.ToString(Inv),
+                ((int)war.Demand).ToString(Inv), war.DeclaredYear.ToString(Inv),
+                B(war.Active), war.EndedYear.ToString(Inv),
+                R(war.AttackerExhaustion), R(war.DefenderExhaustion),
+                R(war.AttackerStrengthAtStart), R(war.DefenderStrengthAtStart),
+                IntList(war.AttackerAllies), IntList(war.DefenderAllies)));
+            foreach (var o in war.Objectives)
+                w.WriteLine(Join("OBJ", war.Id.ToString(Inv),
+                    o.Id.ToString(Inv), ((int)o.Type).ToString(Inv),
+                    o.TargetId.ToString(Inv), ((int)o.Status).ToString(Inv),
+                    o.SiegeEpochs.ToString(Inv)));
+        }
         w.WriteLine("END");
+    }
+
+    /// <summary>Int list as "v;v;…"; "-" when empty.</summary>
+    private static string IntList(IReadOnlyList<int> values)
+    {
+        if (values.Count == 0) return "-";
+        var parts = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+            parts[i] = values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseIntList(string field, List<int> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+            into.Add(int.Parse(part, Inv));
     }
 
     /// <summary>Fixed-length double vector as "v;v;…"; "-" when null.</summary>
@@ -912,8 +948,48 @@ public static class ArtifactSerializer
                             RungEpoch = int.Parse(f[12], Inv),
                             VassalSinceEpoch = int.Parse(f[13], Inv),
                             LastTieYear = long.Parse(f[14], Inv),
+                            LastIncidentEpoch = int.Parse(f[15], Inv),
                         });
                         break;
+                    case "WAR":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Wars.Count)
+                            throw new InvalidDataException("war ids out of order");
+                        var war = new War(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            (CasusBelli)int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv),
+                            (WarDemand)int.Parse(f[7], Inv),
+                            long.Parse(f[8], Inv))
+                        {
+                            Active = f[9] == "1",
+                            EndedYear = long.Parse(f[10], Inv),
+                            AttackerExhaustion = double.Parse(f[11], Inv),
+                            DefenderExhaustion = double.Parse(f[12], Inv),
+                            AttackerStrengthAtStart = double.Parse(f[13], Inv),
+                            DefenderStrengthAtStart = double.Parse(f[14], Inv),
+                        };
+                        ParseIntList(f[15], war.AttackerAllies);
+                        ParseIntList(f[16], war.DefenderAllies);
+                        state.Wars.Add(war);
+                        break;
+                    }
+                    case "OBJ":
+                    {
+                        var objWar = state!.Wars[int.Parse(f[1], Inv)];
+                        if (int.Parse(f[2], Inv) != objWar.Objectives.Count)
+                            throw new InvalidDataException(
+                                "objective ids out of order");
+                        objWar.Objectives.Add(new WarObjective(
+                            int.Parse(f[2], Inv),
+                            (WarObjectiveType)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv))
+                        {
+                            Status = (ObjectiveStatus)int.Parse(f[5], Inv),
+                            SiegeEpochs = int.Parse(f[6], Inv),
+                        });
+                        break;
+                    }
                     case "CLM":
                     {
                         var rel = state!.RelationOf(int.Parse(f[1], Inv),
@@ -1092,6 +1168,14 @@ public static class ArtifactSerializer
         DynasticInstrumentPayload e => Join("dynasticInstrument",
             e.FromPolityId.ToString(Inv), e.ToPolityId.ToString(Inv),
             Name(e.FromName), Name(e.ToName), e.Instrument.ToString(Inv)),
+        WarDeclaredPayload e => Join("warDeclared", e.WarId.ToString(Inv),
+            Name(e.WarName), e.AttackerId.ToString(Inv),
+            e.DefenderId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName), e.Cause.ToString(Inv),
+            e.Demand.ToString(Inv)),
+        BorderIncidentPayload e => Join("borderIncident",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName), B(e.Loaded)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1201,6 +1285,13 @@ public static class ArtifactSerializer
         "dynasticInstrument" => new DynasticInstrumentPayload(
             int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
             f[at + 4], int.Parse(f[at + 5], Inv)),
+        "warDeclared" => new WarDeclaredPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
+            int.Parse(f[at + 8], Inv)),
+        "borderIncident" => new BorderIncidentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], f[at + 5] == "1"),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

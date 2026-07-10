@@ -23,7 +23,20 @@ public sealed record RelationBrief(
     TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
     int LiveClaimsAgainst, double IdeologyGap, int EpochsAtRung,
     double OtherStrength, int VassalPolityId, bool OtherDynastic,
-    int DynasticTies);
+    int DynasticTies, IReadOnlyList<CasusBelliOption> CasusBelli,
+    double OtherDefensiveStrength,
+    IReadOnlyList<WarObjectiveSpec> ObjectiveCandidates);
+
+/// <summary>One viable declared goal on the menu (war.md §Causes).</summary>
+public sealed record CasusBelliOption(CasusBelli Cause, int SubjectId);
+
+/// <summary>What a belligerent perceives of a war it is in — the surface
+/// settlement decisions read (perfect-info stub until slice I; wars can
+/// then run past their rational end).</summary>
+public sealed record WarBrief(
+    int WarId, string Name, int OtherLeaderId, bool OnAttackerSide,
+    bool IsLeader, double OwnSideExhaustion, double OwnSideStrengthShare,
+    int ObjectivesTaken, int ObjectivesTotal);
 
 public sealed class PerceptionView
 {
@@ -35,6 +48,7 @@ public sealed class PerceptionView
         new CorporateBrief[0];
     private static readonly IReadOnlyList<RelationBrief> NoRelations =
         new RelationBrief[0];
+    private static readonly IReadOnlyList<WarBrief> NoWars = new WarBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -83,6 +97,8 @@ public sealed class PerceptionView
     /// <summary>Own throne is a lineage — dynastic instruments bind only
     /// between such forms (slice H).</summary>
     public bool SelfDynastic { get; }
+    /// <summary>Wars this polity is in, war-id order (empty at peace).</summary>
+    public IReadOnlyList<WarBrief> Wars { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -97,13 +113,15 @@ public sealed class PerceptionView
                           IReadOnlyList<CorporateBrief>? hostedCorporations = null,
                           IReadOnlyList<RelationBrief>? relations = null,
                           double ownStrength = 0,
-                          bool selfDynastic = false)
+                          bool selfDynastic = false,
+                          IReadOnlyList<WarBrief>? wars = null)
     {
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;
         OwnStrength = ownStrength;
         SelfDynastic = selfDynastic;
+        Wars = wars ?? NoWars;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -224,6 +242,33 @@ public sealed class GenesisController : IController
                     rel.OtherPolityId, instrument));
                 break;   // one wedding a generation is plenty
             }
+        // war: tension discharges through a casus belli (war.md) — the
+        // loaded border with a viable declared goal, priced against the
+        // defender's whole coalition; one war at a time keeps a realm's
+        // story legible
+        if (!selfBound && perceived.Wars.Count == 0)
+        {
+            RelationBrief? front = null;
+            foreach (var rel in perceived.Relations)
+            {
+                if (rel.CasusBelli.Count == 0
+                    || rel.Tension < _config.War.WarTensionFloor) continue;
+                if (rel.Tension
+                    * (0.5 + perceived.SelfTemperament.Militancy)
+                    < _config.War.WarAppetiteThreshold) continue;
+                if (perceived.OwnStrength < _config.War.AttackStrengthRatio
+                    * rel.OtherDefensiveStrength) continue;
+                if (front == null || rel.Tension > front.Tension) front = rel;
+            }
+            if (front != null)
+            {
+                var pick = PickCause(front.CasusBelli);
+                acts.Add(new DeclareWarAct(perceived.SelfId,
+                    front.OtherPolityId, (int)pick.Cause, pick.SubjectId,
+                    PickObjectives(front, pick.Cause),
+                    (int)DemandFor(pick.Cause)));
+            }
+        }
         // the protection market: a genuinely outmatched polity facing a
         // hostile giant offers itself to its strongest friend (§Vassalage)
         if (!selfBound && perceived.Relations.Count > 0)
@@ -382,6 +427,67 @@ public sealed class GenesisController : IController
         }
         return policies;
     }
+
+    /// <summary>The stock AI's cause priority: dynastic and liberation
+    /// causes over economics over ideology over the bare spark.</summary>
+    private static readonly CasusBelli[] CausePriority =
+    {
+        CasusBelli.SuccessionClaim, CasusBelli.Liberation,
+        CasusBelli.VassalSecession, CasusBelli.ResourceSeizure,
+        CasusBelli.GrievanceDischarge, CasusBelli.Crusade,
+        CasusBelli.ChokepointControl, CasusBelli.PunitiveInterdiction,
+        CasusBelli.Containment, CasusBelli.BorderIncident,
+    };
+
+    private static CasusBelliOption PickCause(
+        IReadOnlyList<CasusBelliOption> menu)
+    {
+        foreach (var cause in CausePriority)
+            foreach (var option in menu)
+                if (option.Cause == cause) return option;
+        return menu[0];
+    }
+
+    /// <summary>Objectives per cause flavor: territorial causes take ports,
+    /// punitive ones cut lanes; the navy is always on the list.</summary>
+    private static IReadOnlyList<WarObjectiveSpec> PickObjectives(
+        RelationBrief front, CasusBelli cause)
+    {
+        var specs = new List<WarObjectiveSpec>();
+        bool territorial = cause is CasusBelli.ResourceSeizure
+            or CasusBelli.ChokepointControl or CasusBelli.Liberation
+            or CasusBelli.SuccessionClaim or CasusBelli.GrievanceDischarge;
+        int ports = 0;
+        foreach (var candidate in front.ObjectiveCandidates)
+            switch (candidate.Type)
+            {
+                case WarObjectiveType.CapturePort
+                    when territorial && ports < 2:
+                    specs.Add(candidate);
+                    ports++;
+                    break;
+                case WarObjectiveType.BlockadeLane
+                    when cause is CasusBelli.PunitiveInterdiction
+                        or CasusBelli.ResourceSeizure
+                        or CasusBelli.Containment:
+                    specs.Add(candidate);
+                    break;
+                case WarObjectiveType.DestroyFleet:
+                    specs.Add(candidate);
+                    break;
+            }
+        return specs;
+    }
+
+    private static WarDemand DemandFor(CasusBelli cause) => cause switch
+    {
+        CasusBelli.SuccessionClaim => WarDemand.Vassalize,
+        CasusBelli.VassalSecession => WarDemand.Independence,
+        CasusBelli.ResourceSeizure or CasusBelli.ChokepointControl
+            or CasusBelli.Liberation or CasusBelli.GrievanceDischarge
+            => WarDemand.CedeObjectives,
+        _ => WarDemand.Reparations,
+    };
 
     /// <summary>Rungs below federation carry no extra conditions; the top
     /// one asks what the controller can see of the merge gate — ideology

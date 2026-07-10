@@ -119,7 +119,28 @@ surprises — updated as work lands.
   dynastic-form polities → warmth now, succession claims later
   (claims point back as tension); rare personal-union fast path
   deferred unless cheap.
-- [ ] **H5 — Casus belli + spark + declaration**: four-category menu
+- [x] **H5 — Casus belli + spark + declaration** *(done: `Interpolity/
+  War.cs` (War/WarObjective/CasusBelli/WarDemand/WarObjectiveSpec) +
+  `WarOps.cs`; menu from real state (price-shock seizure, chokepoint,
+  punitive interdiction, crusade = gap × ruler zeal, liberation from
+  kin/liberation claims, containment = military-tier lead, succession
+  claims, lost-territory + military-faction discharge, vassal
+  secession, fresh border incident); spark: incidents roll on channel
+  67 in surveyed overlap space (NA rung de-escalates), bump tension,
+  chronicle as fizzle vs loaded (404); DeclareWarAct re-typed (ints +
+  WarObjectiveSpec list); declaration grounds objectives against truth
+  (defender ports/lanes, navy default), defender's defense allies +
+  both sides' vassals join as supporting belligerents, declaring on a
+  partner breaks the treaty publicly, wars named from their causes
+  ("the Alloys War", "the Nozen Liberation"); controller: one war at a
+  time, tension × (0.5+militancy) appetite gate, attacker prices the
+  defender's coalition (DefensiveStrength on the brief), cause
+  priority + per-cause objectives/demand; view: CasusBelli menu +
+  ObjectiveCandidates + WarBrief list; wars layer v1 (WAR/OBJ),
+  relations v4 (LastIncidentEpoch); channels 67–69 reserved; knobs
+  `War.*` ×8 + TUNING; seed-42 r12: 11 declarations across 4 cause
+  kinds, dozens of incidents mostly fizzling; 456/456 green, golden
+  regen)*: four-category menu
   computed from real state (economic: resource seizure/chokepoint/
   punitive; ideological: crusade/liberation/containment; political:
   succession claims/military-grievance discharge/vassal enforcement or

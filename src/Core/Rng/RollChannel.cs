@@ -93,4 +93,7 @@ public enum RollChannel : ulong
 
     // --- Relations & war (slice H). ---
     FederationSeed = 66,       // federation name syllables: step = new actor id, actor = -1, subIndex = syllable (100 = length)
+    WarSpark = 67,             // border-incident roll: step = epoch, actor = pair's lower polity id, subIndex = higher
+    Battle = 68,               // engagement resolution: step = epoch, actor = war id, subIndex = objective id
+    CommanderFate = 69,        // commander death on a decisive defeat: step = epoch, actor = commander character id
 }

@@ -53,6 +53,8 @@ public enum WorldEventType
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    WarDeclared = 403,
+    BorderIncident = 404,
     FirstContact = 500,
     ClaimRaised = 501,
     ClaimReleased = 502,
@@ -259,6 +261,20 @@ public sealed record VassalAbsorbedPayload(
 public sealed record VassalSecededPayload(
     int OverlordPolityId, int VassalPolityId, string OverlordName,
     string VassalName) : EventPayload;
+
+/// <summary>Tension discharges through a casus belli (interpolity/war.md):
+/// a declaration with objectives and a settlement demand.</summary>
+public sealed record WarDeclaredPayload(
+    int WarId, string WarName, int AttackerId, int DefenderId,
+    string AttackerName, string DefenderName, int Cause, int Demand)
+    : EventPayload;
+
+/// <summary>A patrol clash or enforcement killing in contested-overlap
+/// space (war.md §Causes: the spark). Loaded incidents prime the
+/// BorderIncident casus belli; the rest fizzle into demands and apologies.</summary>
+public sealed record BorderIncidentPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName,
+    bool Loaded) : EventPayload;
 
 /// <summary>A marriage or wardship between dynastic thrones
 /// (interpolity/relations.md §Dynastic instruments) — warmth this

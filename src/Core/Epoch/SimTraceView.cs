@@ -229,6 +229,14 @@ public static class SimTraceView
             VassalSecededPayload p =>
                 $"{p.VassalName} declares independence from a weakened "
                 + p.OverlordName,
+            WarDeclaredPayload p =>
+                $"{p.AttackerName} declares {p.WarName} on {p.DefenderName} ("
+                + CauseName((CasusBelli)p.Cause) + ")",
+            BorderIncidentPayload p => p.Loaded
+                ? $"a patrol clash between {p.PolityAName} and "
+                  + $"{p.PolityBName} — fleets go to alert"
+                : $"a border incident between {p.PolityAName} and "
+                  + $"{p.PolityBName} fizzles into demands and apologies",
             DynasticInstrumentPayload p =>
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"
@@ -240,6 +248,22 @@ public static class SimTraceView
         return Invariant($"{YearLabel(e.WorldYear),-9} {family,-12} {what} ")
             + Invariant($"at ({e.Location.Q},{e.Location.R}) [{vis}]");
     }
+
+    private static string CauseName(CasusBelli cause) => cause switch
+    {
+        CasusBelli.ResourceSeizure => "resource seizure",
+        CasusBelli.ChokepointControl => "chokepoint control",
+        CasusBelli.PunitiveInterdiction => "punitive response",
+        CasusBelli.Crusade => "crusade",
+        CasusBelli.Liberation => "liberation of kin",
+        CasusBelli.Containment => "containment",
+        CasusBelli.SuccessionClaim => "a claim of succession",
+        CasusBelli.GrievanceDischarge => "old grievances",
+        CasusBelli.VassalSecession => "independence",
+        CasusBelli.BorderIncident => "a border incident",
+        CasusBelli.CivilWar => "the throne itself",
+        _ => "war",
+    };
 
     private static string RungName(TreatyRung rung) => rung switch
     {

@@ -61,6 +61,7 @@ public sealed class PerceptionPhase : ISimPhase
             double ownCredits = 0;
             List<CorporateBrief>? hosted = null;
             List<RelationBrief>? relations = null;
+            List<WarBrief>? wars = null;
             if (a.Kind == ActorKind.Polity)
             {
                 ownCredits = state.PolityOf(a.Id).Credits;
@@ -69,30 +70,28 @@ public sealed class PerceptionPhase : ISimPhase
                         (hosted ??= new List<CorporateBrief>())
                             .Add(new CorporateBrief(corp.Id, corp.Name,
                                                     corp.Credits));
-                foreach (var rel in state.Relations)  // creation order (P6)
+                relations = BuildRelationBriefs(state, a.Id, strengths);
+                foreach (var war in state.Wars)   // id order (P6)
                 {
-                    if (!rel.Involves(a.Id)
-                        || !RelationsOps.BothLive(state, rel)) continue;
-                    int held = 0, against = 0;
-                    foreach (var c in rel.Claims)
-                        if (!c.Released)
-                        {
-                            if (c.HolderPolityId == a.Id) held++;
-                            else against++;
-                        }
-                    int other = rel.OtherOf(a.Id);
-                    (relations ??= new List<RelationBrief>())
-                        .Add(new RelationBrief(other, rel.Warmth,
-                            rel.Tension, rel.Rung, rel.OfferedRung,
-                            rel.OfferedById, held, against,
-                            RelationsOps.IdeologyGap(state.PolityOf(a.Id),
-                                                     state.PolityOf(other)),
-                            rel.RungEpoch < 0 ? 0
-                                : state.EpochIndex - rel.RungEpoch,
-                            strengths.TryGetValue(other, out double os) ? os : 0,
-                            rel.VassalPolityId,
-                            RelationsOps.IsDynastic(state, other),
-                            rel.DynasticTies));
+                    if (!war.Active || !war.Involves(a.Id)) continue;
+                    bool attackerSide = war.OnAttackerSide(a.Id);
+                    double atStart = attackerSide
+                        ? war.AttackerStrengthAtStart
+                        : war.DefenderStrengthAtStart;
+                    int taken = 0;
+                    foreach (var o in war.Objectives)
+                        if (o.Status == ObjectiveStatus.Taken) taken++;
+                    (wars ??= new List<WarBrief>()).Add(new WarBrief(
+                        war.Id, war.Name,
+                        attackerSide ? war.DefenderId : war.AttackerId,
+                        attackerSide,
+                        a.Id == war.AttackerId || a.Id == war.DefenderId,
+                        attackerSide ? war.AttackerExhaustion
+                            : war.DefenderExhaustion,
+                        atStart <= 0 ? 1.0
+                            : WarOps.SideStrength(state, war, attackerSide)
+                              / atStart,
+                        taken, war.Objectives.Count));
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
@@ -105,10 +104,117 @@ public sealed class PerceptionPhase : ISimPhase
                                                   out double own) ? own : 0,
                                               a.Kind == ActorKind.Polity
                                                   && RelationsOps.IsDynastic(
-                                                      state, a.Id));
+                                                      state, a.Id),
+                                              wars);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
+    }
+
+    /// <summary>One polity's relation briefs: the gauges, the table state,
+    /// the casus-belli menu, and the mechanical objective enumeration
+    /// (choosing is the controller's — P2).</summary>
+    private static List<RelationBrief>? BuildRelationBriefs(SimState state,
+        int selfId, Dictionary<int, double> strengths)
+    {
+        List<RelationBrief>? relations = null;
+        foreach (var rel in state.Relations)                  // creation order (P6)
+        {
+            if (!rel.Involves(selfId)
+                || !RelationsOps.BothLive(state, rel)) continue;
+            int held = 0, against = 0;
+            foreach (var c in rel.Claims)
+                if (!c.Released)
+                {
+                    if (c.HolderPolityId == selfId) held++;
+                    else against++;
+                }
+            int other = rel.OtherOf(selfId);
+            var menu = new List<CasusBelliOption>();
+            foreach (var (cause, subject) in WarOps.Menu(state, selfId, other))
+                menu.Add(new CasusBelliOption(cause, subject));
+            (relations ??= new List<RelationBrief>())
+                .Add(new RelationBrief(other, rel.Warmth,
+                    rel.Tension, rel.Rung, rel.OfferedRung,
+                    rel.OfferedById, held, against,
+                    RelationsOps.IdeologyGap(state.PolityOf(selfId),
+                                             state.PolityOf(other)),
+                    rel.RungEpoch < 0 ? 0
+                        : state.EpochIndex - rel.RungEpoch,
+                    strengths.TryGetValue(other, out double os) ? os : 0,
+                    rel.VassalPolityId,
+                    RelationsOps.IsDynastic(state, other),
+                    rel.DynasticTies,
+                    menu,
+                    DefensiveStrength(state, other, strengths),
+                    ObjectiveCandidates(state, selfId, other)));
+        }
+        return relations;
+    }
+
+    /// <summary>What an attacker prices: the target plus everyone bound to
+    /// defend it — defense-alliance partners, its vassals, its overlord.</summary>
+    private static double DefensiveStrength(SimState state, int polityId,
+                                            Dictionary<int, double> strengths)
+    {
+        double total = strengths.TryGetValue(polityId, out double own) ? own : 0;
+        foreach (var rel in state.Relations)                  // creation order (P6)
+        {
+            if (!rel.Involves(polityId)
+                || !RelationsOps.BothLive(state, rel)) continue;
+            int other = rel.OtherOf(polityId);
+            if (rel.Rung == TreatyRung.DefenseAlliance
+                || rel.VassalPolityId >= 0)
+                total += strengths.TryGetValue(other, out double s) ? s : 0;
+        }
+        return total;
+    }
+
+    /// <summary>Mechanical war-target enumeration: the other side's nearest
+    /// ports (chokepoints first), its busiest lane, and its navy — what a
+    /// declaration's objective set is picked from.</summary>
+    private static List<WarObjectiveSpec> ObjectiveCandidates(SimState state,
+        int selfId, int otherId)
+    {
+        var candidates = new List<WarObjectiveSpec>();
+        var ports = new List<(bool Chokepoint, int Distance, int Id)>();
+        foreach (var target in state.Ports)                   // id order (P6)
+        {
+            if (target.OwnerActorId != otherId) continue;
+            int best = int.MaxValue;
+            foreach (var own in state.Ports)
+                if (own.OwnerActorId == selfId)
+                {
+                    int d = HexGrid.Distance(own.Hex, target.Hex);
+                    if (d < best) best = d;
+                }
+            bool chokepoint = state.Skeleton.TryGetCell(
+                HexGrid.CellOf(target.Hex), out var cell) && cell.IsChokepoint;
+            ports.Add((chokepoint, best, target.Id));
+        }
+        ports.Sort((x, y) => x.Chokepoint != y.Chokepoint
+            ? (x.Chokepoint ? -1 : 1)
+            : x.Distance != y.Distance ? x.Distance.CompareTo(y.Distance)
+            : x.Id.CompareTo(y.Id));
+        for (int i = 0; i < ports.Count && i < 3; i++)
+            candidates.Add(new WarObjectiveSpec(WarObjectiveType.CapturePort,
+                                                ports[i].Id));
+        Lane? busiest = null;
+        double busiestCapacity = 0;
+        foreach (var lane in state.Lanes)                     // id order (P6)
+        {
+            if (state.Ports[lane.PortAId].OwnerActorId != otherId
+                && state.Ports[lane.PortBId].OwnerActorId != otherId) continue;
+            double capacity = FleetOps.PostedCapacity(state, lane);
+            if (capacity > busiestCapacity)
+            { busiestCapacity = capacity; busiest = lane; }
+        }
+        if (busiest != null)
+            candidates.Add(new WarObjectiveSpec(WarObjectiveType.BlockadeLane,
+                                                busiest.Id));
+        candidates.Add(new WarObjectiveSpec(WarObjectiveType.DestroyFleet,
+                                            otherId));
+        return candidates;
     }
 
     /// <summary>Current-mark designs per chassis cell, design-id order —
@@ -735,6 +841,7 @@ public sealed class ResolutionPhase : ISimPhase
     {
         int acts = 0, founded = 0, nationalized = 0;
         int signed = 0, broken = 0, vassalized = 0, instruments = 0;
+        int warsDeclared = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
@@ -755,6 +862,9 @@ public sealed class ResolutionPhase : ISimPhase
                 if (act is DynasticInstrumentAct dyn
                     && RelationsOps.ResolveDynasticInstrument(state, dyn))
                     instruments++;
+                if (act is DeclareWarAct war
+                    && WarOps.DeclareWar(state, war) != null)
+                    warsDeclared++;
             }
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
@@ -773,6 +883,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (instruments > 0)
             note += $", {instruments} dynastic "
                 + (instruments == 1 ? "instrument" : "instruments");
+        if (warsDeclared > 0)
+            note += $", {warsDeclared} " + (warsDeclared == 1
+                ? "war declared" : "wars declared");
         return note;
     }
 

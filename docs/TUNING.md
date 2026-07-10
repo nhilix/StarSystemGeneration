@@ -343,6 +343,24 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 
 ---
 
+## War — spark, appetite, causes (slice H)
+
+Tension discharges through a casus belli: the menu computes from real
+state, incidents roll in contested overlap, and the declaration gate
+prices the defender's whole coalition. The AI's cause priority order
+and the incident freshness window (2 epochs) are structural.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `War.IncidentRatePerEpoch` | 0.25 | Contested borders spark constantly (chronicle noise, more powder lit). | Quiet frontiers; wars need standing causes. |
+| `War.IncidentTensionBump` | 0.08 | Incidents themselves load the gauge (escalation spirals). | Sparks without heat. |
+| `War.WarTensionFloor` | 0.55 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
+| `War.WarAppetiteThreshold` | 0.60 | Doves need overwhelming tension; hawks still march. **The war-frequency dial** (seed 42: 11 declarations / 40 epochs). | Everyone fights at the first grievance. |
+| `War.AttackStrengthRatio` | 0.60 | Attackers need near-parity with the coalition (alliances truly deter). | Hopeless wars of principle. |
+| `War.PriceShockMultiple` | 2.0 | Only famine-grade shocks justify seizure wars. | Every price spike is a casus belli. |
+| `War.CrusadeThreshold` | 0.30 | Crusades need zealot thrones over deep doctrine gaps. | Ideology alone marches armies. |
+| `War.GrievanceDischargeFloor` | 0.35 | Military factions must be loud AND bitter to drag the state to war. | Standing armies find their own wars. |
+
 ## Structural constants (code, not knobs — deliberately)
 
 These define mechanics rather than calibrate them; promoting them would

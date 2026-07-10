@@ -60,9 +60,10 @@ public class ControllerContractTests
         Assert.Equal(new HexCoordinate(5, -3), found.Target);
 
         var war = new DeclareWarAct(ActorId: 1, TargetPolityId: 4,
-                                    CasusBelli: "border dispute",
-                                    Objectives: new[] { "seize port" },
-                                    Demand: "cede the overlap zone");
+            CasusBelli: (int)CasusBelli.BorderIncident, SubjectId: -1,
+            Objectives: new[]
+            { new WarObjectiveSpec(WarObjectiveType.CapturePort, 7) },
+            Demand: (int)WarDemand.CedeObjectives);
         Assert.Equal(4, war.TargetPolityId);
         Assert.IsAssignableFrom<Act>(war);
     }
