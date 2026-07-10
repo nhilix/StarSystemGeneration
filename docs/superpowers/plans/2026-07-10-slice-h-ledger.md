@@ -302,9 +302,22 @@ surprises — updated as work lands.
   at peace), ~50 treaty signings each, vassalizations everywhere,
   1 federation, 1 civil war, captures real. TUNING complete (Genesis/
   Relations/War tables + structural notes). Golden regen; 479/479)*.
-- [ ] **H12 — eyeball gate**: a war readable as a story (tension loading,
-  spark, declaration with casus belli, named battles, a siege, the
-  settlement ceding a port, the grudge left behind).
+- [ ] **H12 — eyeball gate — AWAITING USER**: a war readable as a story
+  (tension loading, spark, declaration with casus belli, named battles,
+  a siege, the settlement ceding a port, the grudge left behind).
+  Suggested route (seed 42, radius 12 — the golden config):
+  `dotnet run --project src/Inspector`, then `epoch 42 40 12` and:
+  `wars` (17 declared, 7 burning at end) · `war 13` (the Orrinny
+  Liberation — the siege and fall of port #70, named commanders) ·
+  `war 4` (the Provisions War — Dudrelus's six assaults, Vebel holding
+  the line, an exhausted hollow settlement) · `relations 1` (Ralili's
+  grudges: warmth/tension with live source terms, standing claims) ·
+  `emap tension` (the pressure gauge shaded) · `emap war` (borders
+  flaring) · `chronicle` (contacts → treaties → marriages → incidents
+  → declarations → battles → sieges → peaces → vassal knees; the
+  Belzen Federation at y475, the Thanymi Loyalists' civil war at
+  y750). "Looks right" = wars that END, most borders quiet most of
+  the time, and a war you can read like a story.
 - [ ] **H13 — merge + wrap-up**: merge · HANDOFF · Slice I kickoff prompt
   · flip the kickoff checkbox · golden frozen · push on user say-so.
 
