@@ -293,6 +293,10 @@ public static class FleetOps
         foreach (var fleet in state.Fleets)               // id order (P6)
         {
             if (fleet.OwnerActorId != actorId) continue;
+            // fleets on war stations keep their hulls — mobilization owns
+            // them until the settlement demobilizes (slice H)
+            if (fleet.Posture is FleetPosture.Blockade
+                or FleetPosture.Expedition) continue;
             for (int i = fleet.Hulls.Count - 1; i >= 0; i--)
             {
                 var g = fleet.Hulls[i];
@@ -524,8 +528,10 @@ public static class FleetOps
 
     /// <summary>Wreck up to <paramref name="count"/> hulls out of a fleet,
     /// design-id order: wreckage records at the fleet's hex, the ledger
-    /// moves Built → Wrecked, the chronicle carries the loss (401).</summary>
-    public static int Wreck(SimState state, FleetRecord fleet, int count)
+    /// moves Built → Wrecked, the chronicle carries the loss (401) —
+    /// unless quiet (battles stage their own richer event, slice H).</summary>
+    public static int Wreck(SimState state, FleetRecord fleet, int count,
+                            bool quiet = false)
     {
         // whoever owns the hulls owns the ledger entry — polity or
         // corporation (slice G), the loss conserves the same way
@@ -544,7 +550,7 @@ public static class FleetOps
             wrecked += loss;
             count -= loss;
         }
-        if (wrecked > 0)
+        if (wrecked > 0 && !quiet)
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.FleetAttrition,
                 new[] { fleet.OwnerActorId }, fleet.Hex, Magnitude: wrecked,

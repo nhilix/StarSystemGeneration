@@ -55,6 +55,9 @@ public enum WorldEventType
     ConvoyDispatched = 402,
     WarDeclared = 403,
     BorderIncident = 404,
+    BattleFought = 405,
+    SiegeBegun = 406,
+    PortCaptured = 407,
     FirstContact = 500,
     ClaimRaised = 501,
     ClaimReleased = 502,
@@ -275,6 +278,27 @@ public sealed record WarDeclaredPayload(
 public sealed record BorderIncidentPayload(
     int PolityAId, int PolityBId, string PolityAName, string PolityBName,
     bool Loaded) : EventPayload;
+
+/// <summary>An engagement at one objective (war.md §Conduct 2): fleet
+/// vectors × fortification × supply × competence, seeded rolls. Both
+/// commanders' biographies carry the day (EventLog.ForCharacter).</summary>
+public sealed record BattleFoughtPayload(
+    int WarId, string WarName, int ObjectiveType, int TargetId,
+    int AttackerId, int DefenderId, int Outcome, int AttackerLosses,
+    int DefenderLosses, int AttackerCommanderId, string AttackerCommanderName,
+    int DefenderCommanderId, string DefenderCommanderName) : EventPayload;
+
+/// <summary>A blockade turns to siege — the port's larder and fortress
+/// tiers set the clock (war.md §Conduct 3).</summary>
+public sealed record SiegeBegunPayload(
+    int WarId, string WarName, int PortId, string AttackerName,
+    string DefenderName) : EventPayload;
+
+/// <summary>A fallen port transfers its domain with population segments
+/// intact — conquest composition is automatic.</summary>
+public sealed record PortCapturedPayload(
+    int WarId, string WarName, int PortId, string AttackerName,
+    string DefenderName) : EventPayload;
 
 /// <summary>A marriage or wardship between dynastic thrones
 /// (interpolity/relations.md §Dynastic instruments) — warmth this

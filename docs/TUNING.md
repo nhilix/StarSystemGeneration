@@ -360,6 +360,18 @@ and the incident freshness window (2 epochs) are structural.
 | `War.PriceShockMultiple` | 2.0 | Only famine-grade shocks justify seizure wars. | Every price spike is a casus belli. |
 | `War.CrusadeThreshold` | 0.30 | Crusades need zealot thrones over deep doctrine gaps. | Ideology alone marches armies. |
 | `War.GrievanceDischargeFloor` | 0.35 | Military factions must be loud AND bitter to drag the state to war. | Standing armies find their own wars. |
+| `War.AllySupportFactor` | 0.5 | Coalitions fight near-united (deterrence and dogpiles). | Allies are moral support. |
+| `War.MobileResponseShare` | 0.3 | Defenders concentrate fast (fronts harden). | Objectives fall while the navy sits home. |
+| `War.SupplyPenaltyPerHex` | 0.01 | Deep strikes wither at the tether's end. | Distance means nothing; blitz wars. |
+| `War.FortressDefensePerTier` | 0.25 | Fortress worlds anchor whole wars. | Fortifications are decoration. |
+| `War.LossDecisiveLoser` / `Winner` / `Attrition` / `Stalemate` | 0.35 / 0.10 / 0.15 / 0.05 | Bloodier engagements: short sharp wars, fat wreckage fields (salvage tech diffusion). | Wars of maneuver; navies survive decades of fighting. |
+| `War.BattleFacilityDamage` | 0.15 | Decisive days raze the ground (postwar rebuilding decades). | Industry shrugs off the front line. |
+| `War.SiegeBaseEpochs` / `SiegeProvisionEpochsCap` | 1 / 3 | Sieges grind for generations (relief attempts matter). | Ports fall the epoch the fleet arrives. |
+| `War.BlockadeHoldEpochs` | 2 | Lane objectives need sustained interdiction. | A single patrol sweep counts as control. |
+| `War.FleetDestroyedShare` | 0.25 | The navy objective needs near-annihilation. | First blood breaks the fleet. |
+| `War.CommanderDeathOnRout` | 0.25 | Decisive days kill admirals (biographies end at the front). | Commanders always swim home. |
+| `War.RenownPerVictory` / `WarHeroRenown` | 2 / 6 | Heroes mint from a battle or two. | Only lifetime campaigners are remembered. |
+| `War.ExhaustionPerLoss` | 0.4 | Blood exhausts faster than years (losses end wars). | Only time wearies; attrition wars run forever. |
 
 ## Structural constants (code, not knobs — deliberately)
 

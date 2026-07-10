@@ -59,9 +59,17 @@ public class GraduationTests
             var ruler = state.Characters[pr.Interior!.RulerCharacterId];
             Assert.Equal(CharacterRole.Ruler, ruler.Role);
             Assert.Equal(s.NewPolityId, ruler.PolityId);
-            // it owns ports and designs (it can build and expand)
-            Assert.Contains(state.Ports, p => p.OwnerActorId == s.NewPolityId);
+            // it owns designs (they never leave), and ports unless a later
+            // war or schism stripped them (slice H: conquest moves ports)
             Assert.Contains(state.Designs, d => d.OwnerActorId == s.NewPolityId);
+            bool stripped = state.Log.Events.Any(ev =>
+                (ev.Type == WorldEventType.PortCaptured
+                 && ev.Actors.Count > 1 && ev.Actors[1] == s.NewPolityId)
+                || (ev.Type == WorldEventType.SchismDeclared
+                    && ev.Actors.Count > 0 && ev.Actors[0] == s.NewPolityId));
+            if (!stripped)
+                Assert.Contains(state.Ports,
+                                p => p.OwnerActorId == s.NewPolityId);
         }
         // credits still conserve to the mint across the split
         double minted = 0, held = 0;

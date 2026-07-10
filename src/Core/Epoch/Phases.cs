@@ -380,6 +380,7 @@ public sealed class AllocationPhase : ISimPhase
         Substrate.InfraTypeId.Fabricator, Substrate.InfraTypeId.ExoticsLab,
         Substrate.InfraTypeId.Foundry, Substrate.InfraTypeId.Shipyard,
         Substrate.InfraTypeId.Arsenal, Substrate.InfraTypeId.ComputeCore,
+        Substrate.InfraTypeId.Fortress,   // Military-tier-gated (slice H)
     };
 
     /// <summary>One facility per port per epoch, best siting score × price
@@ -422,6 +423,10 @@ public sealed class AllocationPhase : ISimPhase
                     IsChokepoint: cell.IsChokepoint);
                 foreach (var type in BuildableTypes)
                 {
+                    // fortification tiers gate on Military tech
+                    // (economy/technology.md) — tier 2 unlocks the type
+                    if (type == Substrate.InfraTypeId.Fortress
+                        && pr.TechTier[(int)TechDomain.Military] < 2) continue;
                     // only candidates the polity can actually build compete:
                     // an unaffordable high scorer must not block the port
                     // (an unbuilt shipyard is not a construction plan)
@@ -866,8 +871,14 @@ public sealed class ResolutionPhase : ISimPhase
                     && WarOps.DeclareWar(state, war) != null)
                     warsDeclared++;
             }
+        // the theater/objective model fights every active war one epoch
+        // forward — doctrine posts fleets, engagements resolve on vectors,
+        // sieges grind, captures transfer domains (war.md §Conduct)
+        int battles = WarConduct.FightWars(state);
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
+        if (battles > 0)
+            note += $", {battles} " + (battles == 1 ? "battle" : "battles");
         if (nationalized > 0)
             note += $", {nationalized} " + (nationalized == 1
                 ? "corporation nationalized" : "corporations nationalized");

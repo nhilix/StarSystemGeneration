@@ -237,6 +237,27 @@ public static class SimTraceView
                   + $"{p.PolityBName} — fleets go to alert"
                 : $"a border incident between {p.PolityAName} and "
                   + $"{p.PolityBName} fizzles into demands and apologies",
+            BattleFoughtPayload p =>
+                "battle in " + p.WarName
+                + (p.AttackerCommanderName.Length > 0
+                    ? $" — {p.AttackerCommanderName} leads the assault" : "")
+                + (BattleOutcome)p.Outcome switch
+                {
+                    BattleOutcome.DecisiveAttacker => "; the defense breaks",
+                    BattleOutcome.DecisiveDefender =>
+                        (p.DefenderCommanderName.Length > 0
+                            ? $"; {p.DefenderCommanderName} holds the line"
+                            : "; the assault is repelled"),
+                    BattleOutcome.Attrition => "; both lines bleed",
+                    _ => "; neither line yields",
+                }
+                + Invariant($" ({p.AttackerLosses}+{p.DefenderLosses} hulls lost)"),
+            SiegeBegunPayload p =>
+                Invariant($"{p.AttackerName} lays siege to port #{p.PortId} (")
+                + p.WarName + ")",
+            PortCapturedPayload p =>
+                Invariant($"port #{p.PortId} falls to {p.AttackerName}; ")
+                + $"its people wake under a new flag ({p.WarName})",
             DynasticInstrumentPayload p =>
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"

@@ -55,6 +55,50 @@ public sealed class WarKnobs
     /// <summary>Military-faction strength × grievance that arms the
     /// grievance-discharge cause.</summary>
     public double GrievanceDischargeFloor { get; set; } = 0.35;
+    /// <summary>Weight of a coalition partner's distant navy in an
+    /// engagement — support without relocation.</summary>
+    public double AllySupportFactor { get; set; } = 0.5;
+    /// <summary>Share of the defender's away-station strength that answers
+    /// an attacked objective (and bleeds there).</summary>
+    public double MobileResponseShare { get; set; } = 0.3;
+    /// <summary>Attacker power lost per hex from its supply base, floored
+    /// at half — extended lines degrade readiness (war.md).</summary>
+    public double SupplyPenaltyPerHex { get; set; } = 0.01;
+    /// <summary>Fractional defender-power bonus per fortress tier standing
+    /// at the objective.</summary>
+    public double FortressDefensePerTier { get; set; } = 0.25;
+    /// <summary>Hull-share the loser of a decisive engagement wrecks.</summary>
+    public double LossDecisiveLoser { get; set; } = 0.35;
+    /// <summary>Hull-share the winner of a decisive engagement wrecks.</summary>
+    public double LossDecisiveWinner { get; set; } = 0.10;
+    /// <summary>Hull-share both sides wreck in an attrition round.</summary>
+    public double LossAttrition { get; set; } = 0.15;
+    /// <summary>Hull-share both sides wreck in a stalemate.</summary>
+    public double LossStalemate { get; set; } = 0.05;
+    /// <summary>Facility condition lost at a port that hosts a decisive
+    /// attacker victory — battles scar the ground.</summary>
+    public double BattleFacilityDamage { get; set; } = 0.15;
+    /// <summary>Siege epochs before any larder or fortress extends it.</summary>
+    public int SiegeBaseEpochs { get; set; } = 1;
+    /// <summary>Cap on the siege epochs a full larder can add.</summary>
+    public double SiegeProvisionEpochsCap { get; set; } = 3.0;
+    /// <summary>Epochs a lane must stay cut to count the blockade
+    /// objective as taken.</summary>
+    public int BlockadeHoldEpochs { get; set; } = 2;
+    /// <summary>Defender coalition strength (as a share of its strength at
+    /// declaration) below which the fleet objective counts as taken.</summary>
+    public double FleetDestroyedShare { get; set; } = 0.25;
+    /// <summary>Chance the beaten commander of a decisive engagement dies
+    /// with the day — war is a hazard for commanders.</summary>
+    public double CommanderDeathOnRout { get; set; } = 0.25;
+    /// <summary>Renown a decisive victory mints its commander.</summary>
+    public double RenownPerVictory { get; set; } = 2.0;
+    /// <summary>Renown at which a victorious commander is hailed a war
+    /// hero (cap-gated like every notable).</summary>
+    public double WarHeroRenown { get; set; } = 6.0;
+    /// <summary>Exhaustion per fully-wrecked own warship roster — losses
+    /// weary a nation beyond the years alone.</summary>
+    public double ExhaustionPerLoss { get; set; } = 0.4;
 }
 
 /// <summary>Relations dials (interpolity/relations.md): contact reach, the

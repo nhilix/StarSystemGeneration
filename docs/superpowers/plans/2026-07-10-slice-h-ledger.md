@@ -148,7 +148,34 @@ surprises — updated as work lands.
   escalation ∝ tension, fizzles are events too); DeclareWarAct carries
   objectives + settlement demand; War registry (belligerents via
   defense alliances, war leaders, objectives). Events 403+ military.
-- [ ] **H6 — War conduct**: theater/objective model each epoch —
+- [x] **H6 — War conduct** *(done: `Interpolity/WarConduct.cs` — per
+  epoch: Reconcile (targets that changed hands are held) → Mobilize
+  (doctrine share 0.4/0.6/0.8 ± marshal boldness pools reserve+patrol
+  warships into one war fleet per contested objective; Blockade posture
+  at ports/lanes = REAL severed lanes via SeveredLaneIds, Expedition
+  for fleet hunts; FleetOps.PoolHulls now exempts war postures) →
+  Engage (power = vectors × readiness × supply-distance × commander
+  competence + ally support factor; defender = local fleets + mobile
+  response + allies, × fortress bonus; roll on channel 68 → decisive/
+  attrition/stalemate bands; losses conserve to wreckage at the hex,
+  quiet FleetOps.Wreck + warship-only defender wrecks; facilities
+  scarred on decisive days; commander death roll channel 69 clears the
+  fleet slot, victors gain renown → in-place WarHero promotion under
+  the notable cap; both commanders indexed by ForCharacter) → Progress
+  (sieges tick under superiority, threshold = base + larder (port
+  provisions + pro-rata polity reserve vs local hunger, capped) +
+  fortress tiers, relief on decisive defense resets; captures transfer
+  port + facilities with segments intact, defender fleets rebase;
+  blockades taken after held epochs; fleet objective at strength <
+  share of start); exhaustion accrues from years (the slice-A
+  WarWearinessPerYear, live at last) + loss share; events 405/406/407;
+  Fortress joins BuildableTypes gated Military ≥ 2; knobs `War.*` +16
+  + TUNING; SURPRISE: Mobilize pooled hulls before checking for
+  contested objectives — 41 hulls vanished off-ledger when a war ran
+  out of fronts (the hull-ledger test caught it); seed-42 r12: 120
+  battles, named commanders holding lines in the chronicle; wars
+  don't end yet (H7); 463/463 green, golden regen)*: theater/objective
+  model each epoch —
   assignment per doctrine + commander personality; engagement
   resolution on fleet vectors × fortification (Fortress facility joins
   BuildableTypes, Military-tier-gated) × supply reach × commander

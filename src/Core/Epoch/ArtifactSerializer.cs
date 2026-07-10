@@ -1176,6 +1176,19 @@ public static class ArtifactSerializer
         BorderIncidentPayload e => Join("borderIncident",
             e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
             Name(e.PolityAName), Name(e.PolityBName), B(e.Loaded)),
+        BattleFoughtPayload e => Join("battleFought", e.WarId.ToString(Inv),
+            Name(e.WarName), e.ObjectiveType.ToString(Inv),
+            e.TargetId.ToString(Inv), e.AttackerId.ToString(Inv),
+            e.DefenderId.ToString(Inv), e.Outcome.ToString(Inv),
+            e.AttackerLosses.ToString(Inv), e.DefenderLosses.ToString(Inv),
+            e.AttackerCommanderId.ToString(Inv), Name(e.AttackerCommanderName),
+            e.DefenderCommanderId.ToString(Inv), Name(e.DefenderCommanderName)),
+        SiegeBegunPayload e => Join("siegeBegun", e.WarId.ToString(Inv),
+            Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName)),
+        PortCapturedPayload e => Join("portCaptured", e.WarId.ToString(Inv),
+            Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1292,6 +1305,16 @@ public static class ArtifactSerializer
         "borderIncident" => new BorderIncidentPayload(
             int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
             f[at + 4], f[at + 5] == "1"),
+        "battleFought" => new BattleFoughtPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            int.Parse(f[at + 5], Inv), int.Parse(f[at + 6], Inv),
+            int.Parse(f[at + 7], Inv), int.Parse(f[at + 8], Inv),
+            int.Parse(f[at + 9], Inv), int.Parse(f[at + 10], Inv), f[at + 11],
+            int.Parse(f[at + 12], Inv), f[at + 13]),
+        "siegeBegun" => new SiegeBegunPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
+        "portCaptured" => new PortCapturedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 
