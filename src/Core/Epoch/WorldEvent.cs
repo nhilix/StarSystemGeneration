@@ -27,6 +27,10 @@ public enum WorldEventType
     // 400–499 military · 500–599 diplomatic · 600–699 corporate · 700–799 character
     LaneOpened = 200,
     PortTierRaised = 201,
+    FamineStruck = 202,
+    FacilityBuilt = 203,
+    LoanIssued = 204,
+    LoanDefaulted = 205,
     PolityEmerged = 300,
     PortEstablished = 301,
 }
@@ -58,6 +62,20 @@ public sealed record PortEstablishedPayload(string PolityName, int PortId) : Eve
 public sealed record LaneOpenedPayload(int PortAId, int PortBId) : EventPayload;
 
 public sealed record PortTierRaisedPayload(int PortId, int NewTier) : EventPayload;
+
+/// <summary>Unmet subsistence at a port market — the famine consequence
+/// (economy/markets.md §Clearing). Shortfall is the unmet fraction [0,1].</summary>
+public sealed record FamineStruckPayload(int PortId, double Shortfall) : EventPayload;
+
+public sealed record FacilityBuiltPayload(int FacilityId, int TypeId, int Tier) : EventPayload;
+
+public sealed record LoanIssuedPayload(
+    int LoanId, int LenderActorId, int BorrowerActorId, double Principal) : EventPayload;
+
+/// <summary>Unpayable obligation: reputation damage, relations hit, collateral
+/// seizure (economy/markets.md §Credit).</summary>
+public sealed record LoanDefaultedPayload(
+    int LoanId, int LenderActorId, int BorrowerActorId) : EventPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.

@@ -38,6 +38,15 @@ public sealed class SimState
     public List<Facility> Facilities { get; } = new List<Facility>();
     public List<FleetRecord> Fleets { get; } = new List<FleetRecord>();
     public List<PopulationSegment> Segments { get; } = new List<PopulationSegment>();
+    /// <summary>One market per port, parallel to Ports (market id = port id).</summary>
+    public List<Market> Markets { get; } = new List<Market>();
+    /// <summary>The slow identity layer's registry — id == species id until a
+    /// split mechanic lands.</summary>
+    public List<Culture> Cultures { get; } = new List<Culture>();
+    public List<Loan> Loans { get; } = new List<Loan>();
+    /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
+    /// never serialized; slice H replaces this with real interdiction.</summary>
+    public HashSet<int> SeveredLanes { get; } = new HashSet<int>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

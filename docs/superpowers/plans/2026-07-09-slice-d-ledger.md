@@ -37,9 +37,9 @@ Architecture decisions (made at kickoff, flag deviations):
 
 ## Tasks
 
-- [ ] 0. **Branch + ledger** — branch `slice-d-segments-markets` from main;
+- [x] 0. **Branch + ledger** — branch `slice-d-segments-markets` from main;
       this file.
-- [ ] 1. **Economy state types + knobs** — `Market` (per-good price/
+- [x] 1. **Economy state types + knobs** — `Market` (per-good price/
       inventory/grade/last-cleared/black book), `Culture` registry,
       `PopulationSegment` v2 fields (CultureId, SoL, Ideology[4], Wealth),
       `PolityRecord.Credits` + `Reserves` (stockpile) + `Loan` records,

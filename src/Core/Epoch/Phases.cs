@@ -228,8 +228,9 @@ public sealed class ResolutionPhase : ISimPhase
         var port = new Port(state.Ports.Count, act.ActorId, act.Target,
                             tier: 1, state.WorldYear);
         state.Ports.Add(port);
+        state.Markets.Add(new Market(port.Id, cfg.Economy));
         state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
-            record.SpeciesId, cfg.Expansion.ColonySegmentSize));
+            record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize));
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
@@ -259,9 +260,10 @@ public sealed class InteriorPhase : ISimPhase
             var port = new Port(state.Ports.Count, a.Id, a.Seat,
                 state.Config.Infrastructure.HomeworldPortTier, state.WorldYear);
             state.Ports.Add(port);
+            state.Markets.Add(new Market(port.Id, state.Config.Economy));
+            int species = state.PolityOf(a.Id).SpeciesId;
             state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
-                state.PolityOf(a.Id).SpeciesId,
-                state.Config.Expansion.HomeworldSegmentSize));
+                species, species, state.Config.Expansion.HomeworldSegmentSize));
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

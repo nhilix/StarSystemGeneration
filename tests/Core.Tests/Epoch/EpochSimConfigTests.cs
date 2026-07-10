@@ -20,9 +20,9 @@ public class EpochSimConfigTests
         var c = new EpochSimConfig();
         // Integrating one epoch of each dial reproduces the prototype's
         // per-epoch magnitudes at its 50y step — the rates are per-year (P7).
+        // (Demand rates are slice-D dials tested in EconomyStateTests.)
         Assert.Equal(0.15, c.Economy.WarWearinessPerYear * 50, 10);
         Assert.Equal(0.10, c.Economy.StockpileDecayPerYear * 50, 10);
-        Assert.Equal(0.50, c.Economy.ProvisionsPerPopPerYear * 50, 10);
     }
 
     [Fact]

@@ -54,7 +54,7 @@ public static class ArtifactSerializer
             ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
         w.WriteLine(Join("EGEN", ec.Genesis.EmergenceWindowYears.ToString(Inv)));
         w.WriteLine(Join("EECO", R(ec.Economy.WarWearinessPerYear),
-            R(ec.Economy.StockpileDecayPerYear), R(ec.Economy.ProvisionsPerPopPerYear)));
+            R(ec.Economy.StockpileDecayPerYear), R(ec.Economy.SubsistenceUnitsPerPopPerYear)));
         w.WriteLine(Join("EINF", ec.Infrastructure.ServiceRadiusBaseHexes.ToString(Inv),
             ec.Infrastructure.ServiceRadiusPerTierHexes.ToString(Inv),
             ec.Infrastructure.InterPortRangeBaseHexes.ToString(Inv),
@@ -204,7 +204,7 @@ public static class ArtifactSerializer
                     case "EECO":
                         config!.Economy.WarWearinessPerYear = double.Parse(f[1], Inv);
                         config.Economy.StockpileDecayPerYear = double.Parse(f[2], Inv);
-                        config.Economy.ProvisionsPerPopPerYear = double.Parse(f[3], Inv);
+                        config.Economy.SubsistenceUnitsPerPopPerYear = double.Parse(f[3], Inv);
                         break;
                     case "EINF":
                         config!.Infrastructure.ServiceRadiusBaseHexes = int.Parse(f[1], Inv);
@@ -251,6 +251,10 @@ public static class ArtifactSerializer
                         });
                         break;
                     case "SPECIES":
+                        // culture registry mirrors species (id == species id)
+                        // until the markets layer serializes CULTURE records
+                        state!.Cultures.Add(new Culture(state.Cultures.Count, f[2],
+                            int.Parse(f[1], Inv)));
                         skeleton!.Species.Add(new SpeciesProfile
                         {
                             Id = int.Parse(f[1], Inv), Name = f[2],
@@ -285,6 +289,10 @@ public static class ArtifactSerializer
                         state!.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
                             int.Parse(f[5], Inv), int.Parse(f[6], Inv)));
+                        // markets parallel ports; founded state until the
+                        // markets layer round-trips prices (slice D task 7)
+                        state.Markets.Add(new Market(state.Ports.Count - 1,
+                            state.Config.Economy));
                         break;
                     case "LANE":
                         state!.Lanes.Add(new Lane(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
@@ -303,9 +311,11 @@ public static class ArtifactSerializer
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv))));
                         break;
                     case "SEGMENT":
+                        // culture id == species id until segments layer v2
+                        // serializes the identity layers (slice D task 7)
                         state!.Segments.Add(new PopulationSegment(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
-                            double.Parse(f[4], Inv)));
+                            int.Parse(f[3], Inv), double.Parse(f[4], Inv)));
                         break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
