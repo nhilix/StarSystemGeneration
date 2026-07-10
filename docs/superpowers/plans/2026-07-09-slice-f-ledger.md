@@ -140,7 +140,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       `features`/`precursors` dumps; deep-time chronicle beneath the
       epoch chronicle; `gwatch` + `ewatch`. Gate: piped-stdin smoke via
       bash printf; watched run byte-identical to unwatched.
-- [ ] 10. **Shape acceptance + calibration** — multi-seed bands:
+- [x] 10. **Shape acceptance + calibration** — multi-seed bands:
       emergence spread, homeworld count, precursor sites bounded, void
       fraction sane, genesis budget held; TUNING consequences rows.
       Gate: full `dotnet test` green, hex tier untouched.
@@ -246,3 +246,15 @@ mechanics changes beyond genesis inputs and entry-time state.
 - Golden regen (task 7): seed 42 r12 = **8 polities** staggered epochs
   0–20; the epoch-0 elder ends with 27 ports vs 8 for the y475-entry
   latecomers — asymmetric emergence with visible compounding.
+- **Task-10 volumes** (r12, 40 epochs, Release): seed 42 — 8 polities /
+  102 ports / 313 lanes / 94 foundings / 665 famines / 2 machine
+  polities; seed 99 — 16 / 152 / 391 / 136 / 849 / 4; seed 7 — 14 /
+  155 / 445 / 141 / 689 / 1. Genesis 43–88 ms; full 40-epoch history
+  under 400 ms. Famines-per-port run ~2× the pre-F baseline — more
+  polities crowd the same disc; flagged for the eyeball (knob
+  territory: SapienceRate, era horizons, or later-slice mechanics).
+- **SapienceRate is not a clean polity-count dial** (tried 0.05→0.035:
+  seed 42 went UP 8→12): changing the rate changes *when* cells
+  register → which era band they land in. Current-era count is seed
+  personality (5–16 at r12) — crowded and sparse galaxies both real.
+  Documented in TUNING; kept 0.05.

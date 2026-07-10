@@ -47,7 +47,10 @@ public sealed class EvolutionKnobs
     public double SpreadRate { get; set; } = 0.002;
     /// <summary>Sapience-registration chance per rich stable cell per step —
     /// fast once richness allows, so dates stay causal (viability + growth
-    /// decide, not a long lottery).</summary>
+    /// decide, not a long lottery). Scales origin count overall; the
+    /// *current-era* polity count also hangs on the era horizons and varies
+    /// by seed (5–16 at radius 12) — crowded and sparse galaxies are both
+    /// real outcomes now, not roll noise around a pinned target.</summary>
     public double SapienceRate { get; set; } = 0.05;
 
     // -- precursor-wave dials (life-and-precursors.md §Precursor waves) --

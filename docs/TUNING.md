@@ -256,7 +256,7 @@ registry (artifact, REPL `knobs`, this file).
 | `Evolution.MaturationScaleGyr` | 6.0 | Longer road to spaceflight: more origins land past the horizon (fewer polities), precursors thin out. **Must exceed the abio→sapience lag (~4 Gyr) or the clamp erases causal dates.** | Everything reaches flight early: crowded precursor era. |
 | `Evolution.CatastropheFrequency` | 0.0015 | More setbacks: later, scarred emergences, richer catastrophe texture, fewer sapients. | Smooth gardens everywhere. |
 | `Evolution.SpreadRate` | 0.002 | Panspermia clusters life along habitable corridors. | Isolated abiogenesis islands. |
-| `Evolution.SapienceRate` | 0.05 | **The polity-count dial** (with the era horizons): more origins in every era. | Sparse minds; some seeds drop below 2 current polities. |
+| `Evolution.SapienceRate` | 0.05 | More origins in every era. **Not a clean polity-count dial**: current-era count also hangs on the era horizons and moves non-monotonically (changing the rate changes *when* cells register, which changes which band they land in). Expect 5–16 polities at radius 12 as seed personality. | Sparse minds; some seeds drop below 2 current polities. |
 | `Evolution.DomainBudgetFraction` | 0.5 | More galaxy claimable by precursors: bigger arcs, denser ruins, more scars shadowing the emergence map. | Precursors stay parochial; archaeology thins. |
 | `Evolution.GrandChance` / `GrandWaveLimit` | 0.15 / 3 | More elder races: galaxy-scale ruin networks, more inter-wave contact. | Grand arcs vanish; pocket rubble only. |
 | `Evolution.BioEngineeringRate` | 0.03 | More engineered gardens: anomalously rich biospheres, uplift-flavored early emergences near old territory. | Biology stays wild. |
