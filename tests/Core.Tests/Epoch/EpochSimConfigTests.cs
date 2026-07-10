@@ -44,7 +44,6 @@ public class EpochSimConfigTests
         // inter-port range is the longer, separate growth axis)
         Assert.True(c.Infrastructure.InterPortRangeBaseHexes
                     > c.Infrastructure.ServiceRadiusBaseHexes);
-        Assert.True(c.Expansion.StubIncomePerPortPerYear > 0);
         Assert.True(c.Expansion.ColonyCost > 0);
         Assert.True(c.Expansion.ColonizationReachHexes > 0);
         Assert.True(c.Expansion.PortUpgradeCostBase > 0);

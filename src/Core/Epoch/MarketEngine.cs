@@ -84,6 +84,10 @@ public static class MarketEngine
     /// <summary>Aggregate subsistence fraction below which a famine event is
     /// chronicled.</summary>
     private const double FamineThreshold = 0.95;
+    /// <summary>Supply elasticity: producers throttle toward this utilization
+    /// floor as their good's price falls under its founding price — nobody
+    /// mines ore nobody buys, so gluts clear instead of pegging the floor.</summary>
+    private const double MinUtilization = 0.15;
 
     private static readonly PopulationBand[] Bands =
     {
@@ -153,9 +157,12 @@ public static class MarketEngine
             {
                 double terrain = ExtractionPotential((InfraTypeId)f.TypeId,
                                                      good, fields);
+                double utilization = Math.Min(1.0, Math.Max(MinUtilization,
+                    market.Price[(int)good]
+                    / Market.InitialPrice(state.Config.Economy, good)));
                 double capacity = Production.Output(def, f.Tier, terrain,
                                      laborFactor, machineryGrade)
-                                  * share * years * f.Condition;
+                                  * share * years * f.Condition * utilization;
                 if (capacity <= 0) continue;
 
                 var recipes = Goods.Get(good).Recipes;
@@ -234,8 +241,11 @@ public static class MarketEngine
 
     /// <summary>Labor share to the staffing segments, pro-rata by size —
     /// household income is earned from realized revenue, not assumed
-    /// (economy/markets.md §Household income). Unsold goods pay nobody.</summary>
-    private static void PayWages(SimState state, int portId, double wage)
+    /// (economy/markets.md §Household income). Unsold goods pay nobody.
+    /// Also the construction-wage channel: treasury spending on lanes, tiers,
+    /// and facilities pays the building port's households, so investment
+    /// recycles into circulation instead of vanishing.</summary>
+    internal static void PayWages(SimState state, int portId, double wage)
     {
         if (wage <= 0) return;
         double totalSize = 0;
@@ -359,6 +369,35 @@ public static class MarketEngine
         };
         double factor = Math.Pow(market.Price[good] / basePrice, -elasticity);
         return Math.Min(ElasticCeiling, Math.Max(ElasticFloor, factor));
+    }
+
+    /// <summary>Development pulls its own materials: an under-capacity port
+    /// of a polity with a development budget registers demand for the
+    /// construction basket, so the price rises and freight hauls it in —
+    /// industry demand per the design's demand model, sized to one facility
+    /// per epoch.</summary>
+    public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
+    {
+        const double DevGate = 25.0;
+        foreach (var pr in state.Polities)                // actor-id order (P6)
+        {
+            if (!state.Actors[pr.ActorId].Entered) continue;
+            if (pr.DevelopmentPoints < DevGate) continue;
+            foreach (var port in state.Ports)             // id order (P6)
+            {
+                if (port.OwnerActorId != pr.ActorId) continue;
+                int cap = port.Tier
+                          * state.Config.Infrastructure.FacilitiesPerPortTier;
+                int attached = 0;
+                foreach (var f in state.Facilities)
+                    if (f.OwnerActorId == pr.ActorId
+                        && AttachedMarketIndex(state, f) == port.Id) attached++;
+                if (attached >= cap) continue;
+                scratch.Demand[port.Id][(int)GoodId.Alloys] += 12;
+                scratch.Demand[port.Id][(int)GoodId.Machinery] += 8;
+                scratch.Demand[port.Id][(int)GoodId.Composites] += 6;
+            }
+        }
     }
 
     /// <summary>Re-export demand (economy/markets.md §2): bids from

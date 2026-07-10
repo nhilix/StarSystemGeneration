@@ -71,7 +71,7 @@ public sealed class EconomyKnobs
     public double LaborShare { get; set; } = 0.4;
     /// <summary>Credits minted once per polity at entry; conserved
     /// thereafter (P4).</summary>
-    public double InitialCreditsPerPolity { get; set; } = 200.0;
+    public double InitialCreditsPerPolity { get; set; } = 500.0;
     /// <summary>Household credits minted per population unit when a segment
     /// is founded — the other mint; first-epoch purchasing power before any
     /// wages have been earned.</summary>
@@ -133,14 +133,17 @@ public sealed class InfrastructureKnobs
     /// <summary>Homeworld ports establish at this tier at emergence — a
     /// civilization at spaceflight is past "outpost".</summary>
     public int HomeworldPortTier { get; set; } = 2;
+    /// <summary>Facilities a port's domain supports per port tier — the
+    /// construction cap (development concentrates before it sprawls).</summary>
+    public int FacilitiesPerPortTier { get; set; } = 3;
 }
 
 /// <summary>Expansion/colonization dials, per world-year where a rate.
-/// StubIncomePerPortPerYear is the pre-market income placeholder that
-/// Markets (slice D) replaces.</summary>
+/// Treasuries fill from real market income (tax + tariffs + facility
+/// revenue) split by standing budget weights — slice D retired the slice-B
+/// stub income.</summary>
 public sealed class ExpansionKnobs
 {
-    public double StubIncomePerPortPerYear { get; set; } = 1.0;
     /// <summary>Expansion points consumed by one colony founding.</summary>
     public double ColonyCost { get; set; } = 15.0;
     /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>

@@ -61,7 +61,7 @@ public static class ArtifactSerializer
             ec.Infrastructure.InterPortRangePerTierHexes.ToString(Inv),
             ec.Infrastructure.MaxPortTier.ToString(Inv),
             ec.Infrastructure.HomeworldPortTier.ToString(Inv)));
-        w.WriteLine(Join("EEXP", R(ec.Expansion.StubIncomePerPortPerYear),
+        w.WriteLine(Join("EEXP",
             R(ec.Expansion.ColonyCost), ec.Expansion.ColonizationReachHexes.ToString(Inv),
             R(ec.Expansion.PortUpgradeCostBase), R(ec.Expansion.LaneCost),
             R(ec.Expansion.HomeworldSegmentSize), R(ec.Expansion.ColonySegmentSize),
@@ -215,15 +215,14 @@ public static class ArtifactSerializer
                         config.Infrastructure.HomeworldPortTier = int.Parse(f[6], Inv);
                         break;
                     case "EEXP":
-                        config!.Expansion.StubIncomePerPortPerYear = double.Parse(f[1], Inv);
-                        config.Expansion.ColonyCost = double.Parse(f[2], Inv);
-                        config.Expansion.ColonizationReachHexes = int.Parse(f[3], Inv);
-                        config.Expansion.PortUpgradeCostBase = double.Parse(f[4], Inv);
-                        config.Expansion.LaneCost = double.Parse(f[5], Inv);
-                        config.Expansion.HomeworldSegmentSize = double.Parse(f[6], Inv);
-                        config.Expansion.ColonySegmentSize = double.Parse(f[7], Inv);
-                        config.Expansion.SegmentGrowthPerYear = double.Parse(f[8], Inv);
-                        config.Expansion.SegmentCapPerTier = double.Parse(f[9], Inv);
+                        config!.Expansion.ColonyCost = double.Parse(f[1], Inv);
+                        config.Expansion.ColonizationReachHexes = int.Parse(f[2], Inv);
+                        config.Expansion.PortUpgradeCostBase = double.Parse(f[3], Inv);
+                        config.Expansion.LaneCost = double.Parse(f[4], Inv);
+                        config.Expansion.HomeworldSegmentSize = double.Parse(f[5], Inv);
+                        config.Expansion.ColonySegmentSize = double.Parse(f[6], Inv);
+                        config.Expansion.SegmentGrowthPerYear = double.Parse(f[7], Inv);
+                        config.Expansion.SegmentCapPerTier = double.Parse(f[8], Inv);
                         break;
                     case "CLOCK":
                         state = new SimState(config!, skeleton!)
@@ -370,6 +369,13 @@ public static class ArtifactSerializer
             e.NewTier.ToString(Inv)),
         FamineStruckPayload e => Join("famineStruck", e.PortId.ToString(Inv),
             R(e.Shortfall)),
+        FacilityBuiltPayload e => Join("facilityBuilt", e.FacilityId.ToString(Inv),
+            e.TypeId.ToString(Inv), e.Tier.ToString(Inv)),
+        LoanIssuedPayload e => Join("loanIssued", e.LoanId.ToString(Inv),
+            e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv),
+            R(e.Principal)),
+        LoanDefaultedPayload e => Join("loanDefaulted", e.LoanId.ToString(Inv),
+            e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -385,6 +391,13 @@ public static class ArtifactSerializer
             int.Parse(f[at + 2], Inv)),
         "famineStruck" => new FamineStruckPayload(int.Parse(f[at + 1], Inv),
             double.Parse(f[at + 2], Inv)),
+        "facilityBuilt" => new FacilityBuiltPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "loanIssued" => new LoanIssuedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            double.Parse(f[at + 4], Inv)),
+        "loanDefaulted" => new LoanDefaultedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

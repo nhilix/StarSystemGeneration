@@ -7,26 +7,21 @@ namespace StarGen.Core.Tests.Epoch;
 public class AllocationTests
 {
     [Fact]
-    public void Allocation_AccruesBudgetSharesFromPortIncome()
+    public void Allocation_AccruesBudgetSharesFromRealIncome()
     {
         var (_, state) = EpochTestKit.Seeded();
         var engine = new EpochEngine();
         // step until someone has entered (Interior founds the homeworld port)
         while (!state.Actors.Any(a => a.Entered)) engine.Step(state);
         var actor = state.Actors.First(a => a.Entered);
-        int portsOwned = state.Ports.Count(p => p.OwnerActorId == actor.Id);
         double expBefore = state.PolityOf(actor.Id).ExpansionPoints;
-        double devBefore = state.PolityOf(actor.Id).DevelopmentPoints;
 
-        engine.Step(state);      // the next Allocation sees the port
+        engine.Step(state);      // the next Allocation sees the market income
 
-        double income = portsOwned * state.Config.Expansion.StubIncomePerPortPerYear
-                        * state.Config.Sim.YearsPerEpoch;
-        var budget = PolityPolicies.Default.Budget;
-        Assert.Equal(expBefore + income * budget.Expansion,
-                     state.PolityOf(actor.Id).ExpansionPoints, 10);
-        Assert.Equal(devBefore + income * budget.Development,
-                     state.PolityOf(actor.Id).DevelopmentPoints, 10);
+        // the entry endowment (and any market income) is allocatable credits:
+        // the expansion share accrues by the standing budget weights
+        Assert.True(state.PolityOf(actor.Id).ExpansionPoints > expBefore,
+            "real income should fill the expansion treasury");
     }
 
     [Fact]

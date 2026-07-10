@@ -67,7 +67,7 @@ Architecture decisions (made at kickoff, flag deviations):
       premium contracts freight fulfills; internal logistics: polity moves
       own goods between own ports at cost (endpoints only touch markets).
       Gate: converge/diverge/blockade-spike tests, capacity cap test.
-- [ ] 5. **Allocation rework** — real income (tax + tariffs + facility
+- [x] 5. **Allocation rework** — real income (tax + tariffs + facility
       income) × budget weights replaces stub income (knob deleted);
       facility siting execution (C `Siting.Score` + local price signal,
       goods bought at market, construction time, `FacilityBuilt`); upkeep
@@ -152,3 +152,19 @@ Architecture decisions (made at kickoff, flag deviations):
 - Freight fuel is monetized at the source market's fuel price and pulls on
   its fuel demand (movement is never free); physical fuel drawdown awaits E's
   hulls.
+- **Macro lessons of task 5** (each found by running, not theorizing):
+  supply is price-elastic (producers throttle to 15% utilization at floor
+  prices — gluts clear instead of pegging); treasury spending pays
+  **construction wages** (lane/tier/facility budgets → the building port's
+  households) so investment recycles instead of destroying the money supply;
+  colony founding recycles the expedition cost to the settlers and seeds one
+  agri-complex (settlers farm first — expedition furniture, like the
+  homeworld starter set); development pulls its own construction basket as
+  market demand so freight hauls materials to the frontier. Money now mints
+  only at entry (endowment 500) + homeworld founding wealth.
+- Lane/tier costs stay credit-denominated (B's machinery); only facility
+  construction consumes real goods — flag if the eyeball wants port
+  infrastructure on goods too.
+- Remaining famine texture is the two kinds task 6 is designed to relieve:
+  rich-but-laneless ports (cannot import) and poor-with-food ports
+  (poverty) — migration and famine demographics redistribute both.
