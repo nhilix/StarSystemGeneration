@@ -32,6 +32,7 @@ public static class EpochMapView
         var portCells = new HashSet<HexCoordinate>();
         foreach (var p in state.Ports) portCells.Add(HexGrid.CellOf(p.Hex));
         var laneCells = layer == "lanes" ? LaneCells(state) : null;
+        var traffic = layer == "traffic" ? TrafficCells(state) : null;
 
         var owners = new List<int>();
         foreach (var (cell, off) in offsets)
@@ -43,6 +44,10 @@ public static class EpochMapView
                     : laneCells!.Contains(cell.Coord) ? '+' : '.';
             else if (layer == "price")
                 glyph = PriceGlyph(state, cell, good);
+            else if (layer == "traffic")
+                glyph = portCells.Contains(cell.Coord) ? '*'
+                    : traffic!.TryGetValue(cell.Coord, out double trips)
+                        ? TrafficGlyph(trips) : '.';
             else
             {
                 PortDomains.OwnersAt(sk, state.Config, state.Ports,
@@ -69,6 +74,9 @@ public static class EpochMapView
         sb.AppendLine(layer switch
         {
             "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
+            "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
+                         + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "
+                         + "(news rides this — busy lanes carry it fast)",
             "price" => $"{Substrate.Goods.Get(good).Name} vs founding price: "
                        + "_ glut · - cheap · = par · + dear · * scarce · # spike "
                        + "· ! famine-grade · .=wilds",
@@ -120,6 +128,40 @@ public static class EpochMapView
             parts.Add($"{OwnerLetter(a.Id)}={a.Name}({ports})");
         }
         return string.Join(" ", parts);
+    }
+
+    /// <summary>Traffic band glyph for a lane cell — a lane exists but reads
+    /// blank when no hulls are posted on it (nothing moves, no news).</summary>
+    private static char TrafficGlyph(double tripsPerYear) => tripsPerYear switch
+    {
+        <= 0 => ',',   // a lane exists, but no hulls: nothing moves, no news
+        < 0.5 => '-',
+        < 2.0 => '=',
+        < 5.0 => '+',
+        _ => '#',
+    };
+
+    /// <summary>Max posted traffic per lane cell — derived from fleet state
+    /// at render time (FleetOps.TrafficPerYear, the slice-I news-speed data).</summary>
+    private static Dictionary<HexCoordinate, double> TrafficCells(SimState state)
+    {
+        var cells = new Dictionary<HexCoordinate, double>();
+        foreach (var lane in state.Lanes)
+        {
+            double trips = FleetOps.TrafficPerYear(state, lane);
+            var a = state.Ports[lane.PortAId].Hex;
+            var b = state.Ports[lane.PortBId].Hex;
+            int n = HexGrid.Distance(a, b);
+            for (int i = 0; i <= n; i++)
+            {
+                double t = n == 0 ? 0.0 : (double)i / n;
+                var cell = HexGrid.CellOf(HexGrid.Round(
+                    a.Q + (b.Q - a.Q) * t, a.R + (b.R - a.R) * t));
+                cells.TryGetValue(cell, out double held);
+                cells[cell] = System.Math.Max(held, trips);
+            }
+        }
+        return cells;
     }
 
     /// <summary>Cells crossed by each lane's hex line (cube lerp + round).</summary>

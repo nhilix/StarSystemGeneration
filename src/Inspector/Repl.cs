@@ -32,8 +32,11 @@ public sealed class Repl
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
                     Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
-                    Console.WriteLine("emap [domains|lanes|price [good]] — political / lane / per-good price map");
+                    Console.WriteLine("emap [domains|lanes|traffic|price [good]] — political / lane / posted-traffic / price map");
                     Console.WriteLine("market <portId> — one market's prices, inventory, black book, people, industry");
+                    Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
+                    Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
+                    Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
                     Console.WriteLine("lanecut <portA> <portB> — toggle a lane cut (debug blockade until slice H)");
                     Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
@@ -104,8 +107,52 @@ public sealed class Repl
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
-                case "emap" or "estep" or "market" or "lanecut" when _sim == null:
+                case "emap" or "estep" or "market" or "lanecut" or "fleet"
+                    or "designs" or "fleetpost" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "fleet" when parts.Length >= 2 && int.TryParse(parts[1], out var fid):
+                    Console.WriteLine(FleetView.RenderOne(_sim!, fid));
+                    break;
+                case "fleet":
+                    Console.WriteLine(FleetView.RenderAll(_sim!));
+                    break;
+                case "designs":
+                {
+                    int actor = parts.Length >= 2 && int.TryParse(parts[1], out var da)
+                        ? da : -1;
+                    Console.WriteLine(FleetView.RenderDesigns(_sim!, actor));
+                    break;
+                }
+                case "fleetpost" when parts.Length >= 3
+                        && int.TryParse(parts[1], out var pfid):
+                {
+                    if (pfid < 0 || pfid >= _sim!.Fleets.Count)
+                    { Console.WriteLine($"no fleet #{pfid}"); break; }
+                    Core.Epoch.FleetPosture? posture = parts[2].ToLowerInvariant() switch
+                    {
+                        "posted" => Core.Epoch.FleetPosture.Posted,
+                        "escort" => Core.Epoch.FleetPosture.Escort,
+                        "patrol" => Core.Epoch.FleetPosture.Patrol,
+                        "blockade" => Core.Epoch.FleetPosture.Blockade,
+                        "reserve" => Core.Epoch.FleetPosture.Reserve,
+                        _ => null,
+                    };
+                    if (posture == null)
+                    { Console.WriteLine($"unknown posture '{parts[2]}'"); break; }
+                    var fl = _sim.Fleets[pfid];
+                    fl.Posture = posture.Value;
+                    fl.TargetId = parts.Length >= 4 && int.TryParse(parts[3], out var tid)
+                        ? tid : -1;
+                    Console.WriteLine($"fleet #{pfid} -> {posture}"
+                        + (fl.TargetId >= 0 ? $" (target {fl.TargetId})" : "")
+                        + " — note: the posture manager reassigns freight/escort"
+                        + " hulls next Allocation; blockade severs the port's lanes"
+                        + " next market step");
+                    break;
+                }
+                case "fleetpost":
+                    Console.WriteLine("usage: fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId]");
                     break;
                 case "emap":
                 {

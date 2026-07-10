@@ -104,11 +104,13 @@ Architecture decisions (made at kickoff, flag deviations):
       endurance floors, colony convoy resolution (event 402) gating
       founding on hulls. Gate: unsupplied-fleet decay test; convoy
       founding test; hull conservation incl. wrecks/scraps.
-- [ ] 6. **Artifact v2 complete + load gates** — WRECK records, full
+- [x] 6. **Artifact v2 complete + load gates** (landed incrementally with
+      tasks 2–5: DESIGN/FLEET/WRECK/NAVY, id==index, round-trips,
+      LoadThenContinue green over full fleet state) — WRECK records, full
       fleets-layer v2, id==index validation, version refusal,
       LoadThenContinue byte-identity with fleet state. Gate: all artifact
       tests; golden regen.
-- [ ] 7. **REPL surface** — `fleet [id]` dump (composition, posture,
+- [x] 7. **REPL surface** — `fleet [id]` dump (composition, posture,
       vectors, supply), `designs [actor]`, `emap traffic`, debug posture
       command; help text. Gate: piped-stdin smoke via bash printf.
 - [ ] 8. **Shape acceptance + calibration** — 40-epoch runs across seeds:
