@@ -75,7 +75,8 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.DistributePools(state, scratch);
         int producing = 0;
         foreach (var f in state.Facilities)
-            if (MarketEngine.IsActive(state, f)) producing++;
+            if (MarketEngine.IsActive(state, f)
+                && MarketEngine.AttachedMarketIndex(state, f) >= 0) producing++;
         string note = $"{producing} facilities supply {state.Markets.Count} markets";
         if (shipments > 0)
             note += $", {shipments} " + (shipments == 1 ? "shipment" : "shipments");

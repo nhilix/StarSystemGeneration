@@ -109,10 +109,9 @@ public sealed class PopulationKnobs
     public double IdeologyDriftPerYear { get; set; } = 0.01;
     /// <summary>Fractional segment shrink per world-year of unmet subsistence.</summary>
     public double FamineShrinkPerYear { get; set; } = 0.02;
-    /// <summary>Machine-population growth per unit of Machinery/Compute
-    /// consumed — their birth rate is fab capacity.</summary>
-    public double MachineGrowthPerGoodUnit { get; set; } = 0.1;
-    /// <summary>SoL movement toward the cleared-demand fraction per world-year.</summary>
+    /// <summary>SoL movement toward the cleared-demand fraction per world-year.
+    /// (Machine populations need no separate fab dial: their subsistence IS
+    /// fab inputs, so LastSubsistence already gates their growth.)</summary>
     public double SoLDriftPerYear { get; set; } = 0.02;
 }
 

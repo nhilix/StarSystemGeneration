@@ -188,7 +188,7 @@ public static class MarketEngine
         var market = state.Markets[mIx];
         int techTier = state.Config.Economy.TechTierStub;
         Recipe? pick = null;
-        double pickQty = 0;
+        double pickQty = 0, pickWorth = 0;
         foreach (var r in recipes)
         {
             if (r.MinTechTier > techTier) continue;
@@ -196,11 +196,12 @@ public static class MarketEngine
             foreach (var q in r.Inputs)
                 byInputs = Math.Min(byInputs,
                     market.Inventory[(int)q.Good] / q.Quantity);
-            bool better = pick == null
-                || (r.Kind == RecipeKind.Advanced && pick.Kind == RecipeKind.Standard
-                    && byInputs > 0)
-                || (r.Kind == pick.Kind && byInputs > pickQty);
-            if (better) { pick = r; pickQty = byInputs; }
+            // quantity × grade base: an advanced variant wins on quality only
+            // while its inputs allow real volume — a drop of the good stuff
+            // never beats a vat of the standard issue
+            double worth = byInputs * r.GradeBase;
+            if (pick == null || worth > pickWorth)
+            { pick = r; pickQty = byInputs; pickWorth = worth; }
         }
         if (pick == null || pickQty <= 0) return;
 
@@ -252,7 +253,14 @@ public static class MarketEngine
         double totalSize = 0;
         foreach (var s in state.Segments)
             if (s.PortId == portId) totalSize += s.Size;
-        if (totalSize <= 0) return;
+        if (totalSize <= 0)
+        {
+            // an unpeopled port has no payroll: the sum reverts to the port's
+            // polity rather than vanishing (P4 — credits are never destroyed)
+            var owner = state.PolityOf(state.Ports[portId].OwnerActorId);
+            owner.Credits += wage;
+            return;
+        }
         foreach (var s in state.Segments)
             if (s.PortId == portId)
                 s.Wealth += wage * s.Size / totalSize;
@@ -329,7 +337,6 @@ public static class MarketEngine
                         double price = market.Price[(int)good];
                         if (price > 0 && qty * price > budget)
                             qty = budget / price;         // poverty caps the want
-                        budget -= qty * price;
                         if (qty <= 0) continue;
                         double black = law.TryGetValue((int)good, out var level)
                             ? level switch
@@ -346,6 +353,9 @@ public static class MarketEngine
                         }
                         double legal = qty - black;
                         if (legal <= 0) continue;
+                        // only the legal basket spends the budget: black-book
+                        // wants go unserved until smuggling exists (H)
+                        budget -= legal * price;
                         scratch.Demand[mIx][(int)good] += legal;
                         scratch.DemandRecords.Add(new DemandRecord(
                             mIx, seg.Id, band, (int)good, legal));
@@ -558,10 +568,10 @@ public static class MarketEngine
                                      * years * (1.0 - seg.LastSubsistence);
                 if (shortfall <= 0) continue;
                 double release = Math.Min(pr.ReserveQty[g], shortfall);
+                double grade = pr.ReserveGrade[g];   // before the drain zeroes it
                 pr.ReserveQty[g] -= release;
                 if (pr.ReserveQty[g] <= 0) pr.ReserveGrade[g] = 0;
-                Deposit(state, scratch, port.Id, pr.ActorId, g, release,
-                        pr.ReserveGrade[g]);
+                Deposit(state, scratch, port.Id, pr.ActorId, g, release, grade);
                 releases++;
                 if (pr.ReserveQty[g] <= 0) break;
             }
@@ -620,7 +630,13 @@ public static class MarketEngine
                                   || dstLevel == LegalityLevel.Restricted
                     ? RestrictedFriction * pDst : 0;
                 double costPerUnit = pSrc + freight + fuel + tariff + friction;
-                if (pDst <= costPerUnit) continue;        // no profit, no hull
+                // the exporter's realized take is the post-tax owner share of
+                // the destination sale, not the sticker price — gate on that
+                double dstTax = (state.Actors[dst.OwnerActorId].Policies
+                    as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+                double expectedNet = pDst * (1.0 - dstTax)
+                                     * (1.0 - eco.LaborShare);
+                if (expectedNet <= costPerUnit) continue; // no profit, no hull
 
                 var exporter = state.PolityOf(src.OwnerActorId);
                 // ship what the destination will absorb beyond its stock —

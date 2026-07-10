@@ -94,7 +94,18 @@ Architecture decisions (made at kickoff, flag deviations):
       *exactly to the mint* across seeds (the ledger economy audits clean). — 40-epoch runs across seeds:
       prices bounded (no NaN/runaway spirals), populations bounded, credits
       conserved; hex-tier suite untouched; full `dotnet test` green.
-- [ ] 10. **Fresh-eyes whole-branch review** subagent + one fix wave.
+- [x] 10. **Fresh-eyes whole-branch review** subagent + one fix wave. No
+      blockers. Fixed: reserve grade zeroed before famine-relief deposit
+      (state corruption on full drains); unpayable wages now revert to the
+      port polity (latent P4 leak); arbitrage gates on realized net (post-tax
+      owner share), not sticker price; recipe choice weighs quantity ×
+      grade base (a drop of advanced no longer beats a vat of standard);
+      loader validates id == index for ports/segments/facilities/loans;
+      dead `MachineGrowthPerGoodUnit` knob deleted; black-book wants no
+      longer spend the legal budget; trace counts only attached facilities.
+      Accepted as documented deferrals: physical fuel drawdown (E's hulls),
+      unpaid upkeep draws (the commons convention, revisit when
+      corporations own facilities in G).
 - [ ] 11. **USER: REPL eyeball** — the taste gate: run a sim, `market` a
       hub, `lanecut` a lane, `estep`, watch the spike at the strangled port
       and the glut at the producer. Tune knobs as directed.

@@ -68,7 +68,7 @@ public static class ArtifactSerializer
             ec.Economy.TechTierStub.ToString(Inv)));
         w.WriteLine(Join("EPOP", R(ec.Population.MigrationRatePerYear),
             R(ec.Population.IdeologyDriftPerYear), R(ec.Population.FamineShrinkPerYear),
-            R(ec.Population.MachineGrowthPerGoodUnit), R(ec.Population.SoLDriftPerYear)));
+            R(ec.Population.SoLDriftPerYear)));
         w.WriteLine(Join("EINF", ec.Infrastructure.ServiceRadiusBaseHexes.ToString(Inv),
             ec.Infrastructure.ServiceRadiusPerTierHexes.ToString(Inv),
             ec.Infrastructure.InterPortRangeBaseHexes.ToString(Inv),
@@ -332,8 +332,7 @@ public static class ArtifactSerializer
                         config!.Population.MigrationRatePerYear = double.Parse(f[1], Inv);
                         config.Population.IdeologyDriftPerYear = double.Parse(f[2], Inv);
                         config.Population.FamineShrinkPerYear = double.Parse(f[3], Inv);
-                        config.Population.MachineGrowthPerGoodUnit = double.Parse(f[4], Inv);
-                        config.Population.SoLDriftPerYear = double.Parse(f[5], Inv);
+                        config.Population.SoLDriftPerYear = double.Parse(f[4], Inv);
                         break;
                     case "EINF":
                         config!.Infrastructure.ServiceRadiusBaseHexes = int.Parse(f[1], Inv);
@@ -430,11 +429,13 @@ public static class ArtifactSerializer
                         });
                         break;
                     case "PORT":
-                        state!.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Ports.Count)
+                            throw new InvalidDataException("port ids out of order");
+                        state.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
                             int.Parse(f[5], Inv), int.Parse(f[6], Inv)));
-                        // markets parallel ports; founded state until the
-                        // markets layer round-trips prices (slice D task 7)
+                        // markets parallel ports (market index == port id);
+                        // MARKET records overwrite the founded prices below
                         state.Markets.Add(new Market(state.Ports.Count - 1,
                             state.Config.Economy));
                         break;
@@ -443,7 +444,9 @@ public static class ArtifactSerializer
                             int.Parse(f[3], Inv), int.Parse(f[4], Inv)));
                         break;
                     case "FACILITY":
-                        state!.Facilities.Add(new Facility(int.Parse(f[1], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Facilities.Count)
+                            throw new InvalidDataException("facility ids out of order");
+                        state.Facilities.Add(new Facility(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
@@ -455,6 +458,8 @@ public static class ArtifactSerializer
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv))));
                         break;
                     case "SEGMENT":
+                        if (int.Parse(f[1], Inv) != state!.Segments.Count)
+                            throw new InvalidDataException("segment ids out of order");
                         var segment = new PopulationSegment(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             int.Parse(f[4], Inv), double.Parse(f[5], Inv))
@@ -492,7 +497,9 @@ public static class ArtifactSerializer
                         break;
                     }
                     case "LOAN":
-                        state!.Loans.Add(new Loan(int.Parse(f[1], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Loans.Count)
+                            throw new InvalidDataException("loan ids out of order");
+                        state.Loans.Add(new Loan(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             double.Parse(f[4], Inv), double.Parse(f[5], Inv),
                             int.Parse(f[6], Inv), int.Parse(f[7], Inv))

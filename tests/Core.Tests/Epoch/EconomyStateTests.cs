@@ -147,7 +147,6 @@ public class EconomyStateTests
         Assert.True(pop.MigrationRatePerYear > 0);
         Assert.True(pop.IdeologyDriftPerYear > 0);
         Assert.True(pop.FamineShrinkPerYear > 0);
-        Assert.True(pop.MachineGrowthPerGoodUnit > 0);
         Assert.True(pop.SoLDriftPerYear > 0);
     }
 }
