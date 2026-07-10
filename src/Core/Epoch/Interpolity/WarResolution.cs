@@ -62,6 +62,17 @@ public static class WarResolution
             var war = state.Wars[i];
             if (!war.Active) continue;
 
+            // a leader that left the stage (federated, absorbed, submitted)
+            // takes its war with it: the successor was never a party —
+            // white peace, never a victory over a ghost (review fix 7)
+            if (state.Actors[war.AttackerId].Retired
+                || state.Actors[war.DefenderId].Retired)
+            {
+                Settle(state, war, WarOutcome.WhitePeace, winner: -1);
+                settled++;
+                continue;
+            }
+
             bool attackerConcedes = concessions != null
                 && concessions.Contains((war.Id, war.AttackerId));
             bool defenderConcedes = concessions != null
@@ -156,13 +167,19 @@ public static class WarResolution
         int portsCeded = 0;
         double reparations = 0;
 
+        // fleets stand down FIRST: a submission merge or a retired leader
+        // must never strand a war fleet on a blockade station (review fix 1)
+        Demobilize(state, war);
+
         if (outcome == WarOutcome.WhitePeace)
         {
-            // status quo ante: captures return with their facilities
+            // status quo ante: captures return with their facilities — to a
+            // defender still on the stage (a retired one stays history)
             foreach (var objective in war.Objectives)
             {
                 if (objective.Type != WarObjectiveType.CapturePort
-                    || objective.Status != ObjectiveStatus.Taken) continue;
+                    || objective.Status != ObjectiveStatus.Taken
+                    || !state.Actors[war.DefenderId].Entered) continue;
                 var port = state.Ports[objective.TargetId];
                 if (port.OwnerActorId != war.AttackerId) continue;
                 foreach (var facility in state.Facilities)    // id order (P6)
@@ -236,10 +253,9 @@ public static class WarResolution
             FederationOps.Retire(state, loser);
         }
 
-        // wind-down: the war closes, fleets sail home, gauges unload
+        // wind-down: the war closes, gauges unload
         war.Active = false;
         war.EndedYear = state.WorldYear;
-        Demobilize(state, war);
         if (relation != null)
             relation.Tension *= 1.0 - knobs.SettlementTensionRelief;
 
@@ -295,7 +311,15 @@ public static class WarResolution
                         || fleet.TargetId == lane.PortBId) warStation = true;
                 }
                 if (objective.Type == WarObjectiveType.DestroyFleet
-                    && fleet.Posture == FleetPosture.Expedition)
+                    && fleet.Posture == FleetPosture.Expedition
+                    // only THIS war's fleet hunt: the squadron stands at the
+                    // defender's capital (or a port that was the defender's)
+                    && fleet.TargetId >= 0
+                    && fleet.TargetId < state.Ports.Count
+                    && (fleet.TargetId == WarConduct.CapitalPortOf(state,
+                            war.DefenderId)
+                        || state.Ports[fleet.TargetId].OwnerActorId
+                           == war.DefenderId))
                     warStation = true;
             }
             if (!warStation) continue;

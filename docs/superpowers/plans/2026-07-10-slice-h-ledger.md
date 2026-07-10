@@ -275,10 +275,33 @@ surprises — updated as work lands.
   tension/treaty/claims with sources), `wars` / `war <id>` panel
   (objectives, fronts, sieges, commanders), `emap` war/tension layers,
   chronicle prose for every new event, `watch` intact.
-- [ ] **H11 — fresh-eyes whole-branch review + one fix wave**; TUNING
-  sweep; shape bands at seeds 42/7/1234 (wars start AND end; most pairs
-  at peace most of the time; no permanent galaxy-wide war; federations/
-  vassalizations rare but present).
+- [x] **H11 — fresh-eyes whole-branch review + one fix wave** *(done:
+  one subagent reviewed the full branch diff; 7 confirmed findings,
+  all fixed in one wave: (1) war fleets stranded on Blockade stations
+  when their owner merged away before demobilization — a reunited
+  civil-war realm permanently blockaded its OWN capital; Demobilize
+  now runs before the Submission merge and MergeInto stands down
+  inherited war stations; (2) vassal bonds survived a party's
+  retirement, paralyzing orphaned vassals forever — Retire dissolves
+  bonds, OverlordOf/HasVassals require living parties; (3)
+  LostTerritory claims never released — now resolve when the holder
+  retakes the port (and portless secessions leave no −1-subject
+  claims); (4) Demobilize's fleet-hunt arm stood down EVERY attacker
+  Expedition fleet across concurrent wars — now keyed to the
+  defender's capital station; (5) the protection vassals pay tribute
+  for is now DELIVERED: an attacked vassal's overlord joins the
+  defense; (6) uplift clients no longer bind under a host that is
+  itself a vassal (no nested chains); (7) wars whose leader retires
+  mid-war settle white immediately — never a victory over a ghost,
+  never a resurrecting white-peace port return. Review explicitly
+  cleared serializer field orders (REL/CLM/WAR/OBJ/ACTOR v5/ORIGIN v2
+  + 17 payload cases), determinism keying (channels 66–69), no
+  EpochCount-derived state, conservation through merges/splits/
+  tribute/reparations/wrecks, and Inspector bounds. Shape bands at
+  42/7/1234: wars 17/31/18 declared, 7/9/4 burning at end (most pairs
+  at peace), ~50 treaty signings each, vassalizations everywhere,
+  1 federation, 1 civil war, captures real. TUNING complete (Genesis/
+  Relations/War tables + structural notes). Golden regen; 479/479)*.
 - [ ] **H12 — eyeball gate**: a war readable as a story (tension loading,
   spark, declaration with casus belli, named battles, a siege, the
   settlement ceding a port, the grudge left behind).

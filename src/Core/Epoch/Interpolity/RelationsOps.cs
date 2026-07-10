@@ -287,6 +287,19 @@ public static class RelationsOps
                     if (s.Size > 0 && s.CultureId == kinCulture
                         && state.Ports[s.PortId].OwnerActorId == other)
                         kinSize += s.Size;
+                // lost territory resolves when the holder takes it back —
+                // grudges persist until their cause does not (review fix 3)
+                foreach (var claim in relation.Claims)
+                {
+                    if (claim.Released
+                        || claim.Type != ClaimType.LostTerritory
+                        || claim.HolderPolityId != holder) continue;
+                    if (claim.SubjectId >= 0
+                        && claim.SubjectId < state.Ports.Count
+                        && state.Ports[claim.SubjectId].OwnerActorId == holder)
+                        Release(state, relation, ClaimType.LostTerritory,
+                                holder, claim.SubjectId);
+                }
                 // liberation claims (suppressed emergences, H8) release the
                 // same way kin claims do: when the people are out from
                 // under the other's rule

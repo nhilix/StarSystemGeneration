@@ -158,11 +158,13 @@ public static class FederationOps
 
     // ---- vassalage ----
 
-    /// <summary>The polity's overlord, or −1 for the free.</summary>
+    /// <summary>The polity's living overlord, or −1 for the free.</summary>
     public static int OverlordOf(SimState state, int polityId)
     {
         foreach (var rel in state.Relations)                  // creation order (P6)
-            if (rel.VassalPolityId == polityId) return rel.OtherOf(polityId);
+            if (rel.VassalPolityId == polityId
+                && state.Actors[rel.OtherOf(polityId)].Entered)
+                return rel.OtherOf(polityId);
         return -1;
     }
 
@@ -170,7 +172,8 @@ public static class FederationOps
     {
         foreach (var rel in state.Relations)
             if (rel.VassalPolityId >= 0 && rel.VassalPolityId != polityId
-                && rel.Involves(polityId)) return true;
+                && rel.Involves(polityId)
+                && state.Actors[rel.VassalPolityId].Entered) return true;
         return false;
     }
 
@@ -275,8 +278,9 @@ public static class FederationOps
                 rel.VassalSinceEpoch = -1;
                 seceded++;
                 var seatPort = SeatPortOf(state, vassalId);
-                rel.Claims.Add(new RelationClaim(ClaimType.LostTerritory,
-                    overlordId, seatPort, state.WorldYear));
+                if (seatPort >= 0)   // a portless vassal leaves no grudge target
+                    rel.Claims.Add(new RelationClaim(ClaimType.LostTerritory,
+                        overlordId, seatPort, state.WorldYear));
                 state.Staged.Add(new StagedEvent(ClockStratum.Generational,
                     WorldEventType.VassalSeceded, new[] { vassalId, overlordId },
                     state.Actors[vassalId].Seat, Magnitude: 1.0, Valence: 0.4,
@@ -333,6 +337,15 @@ public static class FederationOps
             if (fleet.OwnerActorId != fromId) continue;
             fleet.OwnerActorId = intoId;
             hulls += fleet.TotalHulls;
+            // inherited war stations stand down: the successor was never
+            // a party to the parent's wars, and a stranded blockade would
+            // sever lanes forever (review fix 1)
+            if (fleet.Posture is FleetPosture.Blockade
+                or FleetPosture.Expedition)
+            {
+                fleet.Posture = FleetPosture.Reserve;
+                fleet.TargetId = -1;
+            }
         }
         into.Credits += from.Credits;
         from.Credits = 0;
@@ -384,12 +397,21 @@ public static class FederationOps
     }
 
     /// <summary>An actor leaves the stage: entered no more, never re-enters,
-    /// court dispersed, interior gone (the record stays as history).</summary>
+    /// court dispersed, interior gone, bonds dissolved (the record stays
+    /// as history).</summary>
     public static void Retire(SimState state, int polityId)
     {
         var actor = state.Actors[polityId];
         actor.Entered = false;
         actor.Retired = true;
+        // vassal bonds die with either party — an orphaned vassal must
+        // never stay diplomatically paralyzed to a ghost (review fix 2)
+        foreach (var rel in state.Relations)                  // creation order (P6)
+            if (rel.Involves(polityId) && rel.VassalPolityId >= 0)
+            {
+                rel.VassalPolityId = -1;
+                rel.VassalSinceEpoch = -1;
+            }
         var pr = state.PolityOf(polityId);
         if (pr.Interior is { } interior && interior.RulerCharacterId >= 0)
         {

@@ -46,6 +46,10 @@ public static class WarConduct
         {
             var war = state.Wars[i];
             if (!war.Active) continue;
+            // a war whose leader left the stage fights no ghosts — the
+            // same phase's Terminate settles it white (review fix 7)
+            if (state.Actors[war.AttackerId].Retired
+                || state.Actors[war.DefenderId].Retired) continue;
             Reconcile(state, war);
             Mobilize(state, war);
             battles += Engage(state, war);
@@ -159,6 +163,11 @@ public static class WarConduct
         return state.Ports[lane.PortAId].OwnerActorId == defenderId
             ? lane.PortAId : lane.PortBId;
     }
+
+    /// <summary>The polity's capital port (its seat hex), else its lowest
+    /// port id, else −1 — the fleet hunt's station address.</summary>
+    public static int CapitalPortOf(SimState state, int polityId) =>
+        CapitalPort(state, polityId);
 
     private static int CapitalPort(SimState state, int polityId)
     {

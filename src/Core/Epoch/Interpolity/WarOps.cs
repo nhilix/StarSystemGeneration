@@ -322,6 +322,13 @@ public static class WarOps
                     && rel.VassalPolityId != attacker
                     && !war.Involves(rel.VassalPolityId))
                     war.DefenderAllies.Add(rel.VassalPolityId);
+                // and the protection bought with tribute is DELIVERED: an
+                // attacked vassal's overlord answers (review fix 5) —
+                // unless the overlord is the attacker (a secession war)
+                if (rel.VassalPolityId == defender
+                    && rel.OtherOf(defender) != attacker
+                    && !war.Involves(rel.OtherOf(defender)))
+                    war.DefenderAllies.Add(rel.OtherOf(defender));
             }
         }
         war.AttackerStrengthAtStart = SideStrength(state, war, attacker: true);

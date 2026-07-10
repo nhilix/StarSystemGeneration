@@ -191,7 +191,10 @@ public static class NativeOps
                     new FirstContactPayload(a, b, state.Actors[a].Name,
                                             state.Actors[b].Name)));
             }
-            if (relation.VassalPolityId < 0)
+            // a host that is itself a vassal can't take clients — no nested
+            // overlord chains (review fix 6); the young polity stays free
+            if (relation.VassalPolityId < 0
+                && FederationOps.OverlordOf(state, client.HostId) < 0)
                 FederationOps.Bind(state, relation, client.PolityId);
         }
     }
