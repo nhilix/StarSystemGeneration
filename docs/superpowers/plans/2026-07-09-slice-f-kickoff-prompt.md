@@ -144,4 +144,4 @@ entry-time state.
    niches; read the roadmap row before writing) · flip the box below ·
    push only on user say-so.
 
-- [ ] Slice F complete
+- [x] Slice F complete
