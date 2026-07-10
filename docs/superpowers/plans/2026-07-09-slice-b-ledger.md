@@ -59,11 +59,14 @@ the prototype sim is deleted in Task 5.
 - [x] 11. **REPL surface** — `emap [domains|lanes]`, `chronicle [actorId]`,
       trace registry summary; piped smoke OK. Test arithmetic:
       268 (post-C main) − 82 prototype + 17 new = 203/203 green.
-- [ ] 12. **Gates + wrap-up** — full test run · fresh-eyes branch review
-      subagent + one fix wave · **USER: REPL eyeball** (domain glows,
-      organic borders, lane webs, founding chronicle) · goldens frozen
-      (seed 42, radius 12) · **USER: merge decision** · HANDOFF · Slice D
-      kickoff prompt · kickoff checkbox.
+- [ ] 12. **Gates + wrap-up** — full test run ✓ (205) · fresh-eyes branch
+      review subagent + one fix wave ✓ (no blockers; truncation refusal,
+      IO hardening, dead knobs, shared hex rounding) · **USER: REPL eyeball
+      ✓ accepted 2026-07-09** after tuning HomeworldRatePerCell 0.02→0.008
+      (~13 polities — map legibility) · goldens frozen ✓
+      (`Goldens/slice-b-artifact-seed42.txt`, radius 12, GoldenTests) ·
+      **USER: merge decision** (pending) · HANDOFF · Slice D kickoff
+      prompt · kickoff checkbox.
 
 ## Notes / surprises
 
