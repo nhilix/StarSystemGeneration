@@ -104,7 +104,52 @@ public static class GraduationOps
                     s.CultureId = cultureId;
         }
         string name = state.Cultures[cultureId].Name;
+        var young = FoundSplinter(state, old, seceding, name,
+                                  species.Militancy);
+        // the movement's war chest founds the treasury (conserved flow)
+        young.Credits += faction.Wealth;
+        faction.Wealth = 0;
 
+        // the interior: popular line of its own segments, form reseated,
+        // the faction's leader on the new throne
+        var interior = new PolityInterior { FoundingCultureId = cultureId };
+        double sizeSum = 0;
+        Span<double> popular = stackalloc double[4];
+        foreach (var s in state.Segments)
+        {
+            if (s.Size <= 0 || !seceding.Contains(s.PortId)) continue;
+            sizeSum += s.Size;
+            for (int ax = 0; ax < 4; ax++) popular[ax] += s.Ideology[ax] * s.Size;
+        }
+        for (int ax = 0; ax < 4; ax++)
+            interior.OfficialIdeology[ax] =
+                sizeSum > 0 ? popular[ax] / sizeSum : 0.5;
+        interior.FormId = GovernmentForms.SeatFor(species,
+                                                  interior.OfficialIdeology);
+        young.Interior = interior;
+        SeatCourt(state, young, faction);
+
+        faction.Active = false;   // graduated
+        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+            WorldEventType.SchismDeclared, new[] { old.ActorId, newId },
+            state.Actors[newId].Seat, Magnitude: seceding.Count, Valence: -0.8,
+            EventVisibility.Public,
+            new SchismDeclaredPayload(faction.Id, faction.Name, old.ActorId,
+                                      newId, name, seceding.Count)));
+        return true;
+    }
+
+    /// <summary>The realm-splitting mechanics schisms and civil wars share
+    /// (slice H: "reuse those flows, not fork them"): a port set walks into
+    /// a NEW polity — actor seated at its biggest harbor, tech and grade
+    /// heritage copied, every treasury and reserve split by population
+    /// share, ports/facilities/fleets (with commanders and hull ledgers)
+    /// reassigned, entry designs registered. Interior and court are the
+    /// caller's (a schism crowns its faction; loyalists keep their king).</summary>
+    public static PolityRecord FoundSplinter(SimState state, PolityRecord old,
+        HashSet<int> seceding, string name, double militancy)
+    {
+        int newId = state.Actors.Count;
         // seat at the biggest seceding harbor (port-id order breaks ties —
         // never iterate the set itself, P6)
         int seatPort = -1;
@@ -158,9 +203,6 @@ public static class GraduationOps
             old.ReserveQty[g] -= young.ReserveQty[g];
             young.ReserveGrade[g] = old.ReserveGrade[g];
         }
-        // the movement's war chest founds the treasury (conserved flow)
-        young.Credits += faction.Wealth;
-        faction.Wealth = 0;
 
         foreach (var port in state.Ports)
             if (seceding.Contains(port.Id)) port.OwnerActorId = newId;
@@ -180,35 +222,8 @@ public static class GraduationOps
         }
         old.HullsBuilt -= hullsMoved;   // the ledger follows the hulls (P4)
         young.HullsBuilt += hullsMoved;
-        DesignRegistry.RegisterEntryDesigns(state, newId, species.Militancy);
-
-        // the interior: popular line of its own segments, form reseated,
-        // the faction's leader on the new throne
-        var interior = new PolityInterior { FoundingCultureId = cultureId };
-        double sizeSum = 0;
-        Span<double> popular = stackalloc double[4];
-        foreach (var s in state.Segments)
-        {
-            if (s.Size <= 0 || !seceding.Contains(s.PortId)) continue;
-            sizeSum += s.Size;
-            for (int ax = 0; ax < 4; ax++) popular[ax] += s.Ideology[ax] * s.Size;
-        }
-        for (int ax = 0; ax < 4; ax++)
-            interior.OfficialIdeology[ax] =
-                sizeSum > 0 ? popular[ax] / sizeSum : 0.5;
-        interior.FormId = GovernmentForms.SeatFor(species,
-                                                  interior.OfficialIdeology);
-        young.Interior = interior;
-        SeatCourt(state, young, faction);
-
-        faction.Active = false;   // graduated
-        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
-            WorldEventType.SchismDeclared, new[] { old.ActorId, newId },
-            seat, Magnitude: seceding.Count, Valence: -0.8,
-            EventVisibility.Public,
-            new SchismDeclaredPayload(faction.Id, faction.Name, old.ActorId,
-                                      newId, name, seceding.Count)));
-        return true;
+        DesignRegistry.RegisterEntryDesigns(state, newId, militancy);
+        return young;
     }
 
     /// <summary>Which domains walk: frontier ports for a regional schism,
@@ -273,14 +288,22 @@ public static class GraduationOps
     // ---- coup ----
 
     /// <summary>Leadership replaced, ideology lurches, the form may reseat;
-    /// a contested coup records the civil war the war machinery (H) will
-    /// fight — until then the strong side simply holds the palace.</summary>
+    /// a contested coup erupts into civil war — loyalist domains rally to
+    /// the deposed ruler as a provisional polity and fight it out through
+    /// the war machinery (slice H, CivilWarOps).</summary>
     private static void Coup(SimState state, PolityRecord pr, Faction faction)
     {
         var interior = pr.Interior!;
         var knobs = state.Config.Faction;
         var leader = state.Characters[faction.LeaderCharacterId];
 
+        // the old order, captured before the lurch — the loyalist cause
+        var preLurchIdeology = new double[4];
+        for (int ax = 0; ax < 4; ax++)
+            preLurchIdeology[ax] = interior.OfficialIdeology[ax];
+        var preCoupForm = interior.FormId;
+        double preCoupLegitimacy = interior.Legitimacy;
+        Character? deposedRuler = null;
         if (interior.RulerCharacterId >= 0)
         {
             var deposed = state.Characters[interior.RulerCharacterId];
@@ -288,6 +311,7 @@ public static class GraduationOps
             {
                 deposed.Role = CharacterRole.Notable;   // lives on, disgraced
                 deposed.InstitutionId = -1;
+                deposedRuler = deposed;
             }
         }
         leader.Role = CharacterRole.Ruler;
@@ -340,6 +364,10 @@ public static class GraduationOps
                 Magnitude: 1.0, Valence: 0.0, EventVisibility.Public,
                 new GovernmentReformedPayload(pr.ActorId, (int)oldForm,
                                               (int)newForm)));
+        // loyalists refuse the palace: the war machinery fights it out
+        if (contested && deposedRuler != null)
+            CivilWarOps.Erupt(state, pr, deposedRuler, preLurchIdeology,
+                              preCoupForm, preCoupLegitimacy);
     }
 
     // ---- revolt ----

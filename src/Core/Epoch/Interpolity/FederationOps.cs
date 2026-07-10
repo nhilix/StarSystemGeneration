@@ -122,8 +122,8 @@ public static class FederationOps
 
         // parent politics dissolve while their treasuries and ports are
         // still theirs (war chests return to their own segments)
-        DissolveFactions(state, rel.PolityAId);
-        DissolveFactions(state, rel.PolityBId);
+        DissolveFactionsOf(state, rel.PolityAId);
+        DissolveFactionsOf(state, rel.PolityBId);
         MergeInto(state, rel.PolityAId, newId);
         MergeInto(state, rel.PolityBId, newId);
         DesignRegistry.RegisterEntryDesigns(state, newId,
@@ -293,7 +293,7 @@ public static class FederationOps
                 && rel.Warmth >= knobs.VassalAbsorptionWarmth)
             {
                 // cultural drift completes: peaceful annexation
-                DissolveFactions(state, vassalId);
+                DissolveFactionsOf(state, vassalId);
                 MergeInto(state, vassalId, overlordId);
                 Retire(state, vassalId);
                 rel.VassalPolityId = -1;
@@ -403,7 +403,9 @@ public static class FederationOps
         pr.Interior = null;
     }
 
-    private static void DissolveFactions(SimState state, int polityId)
+    /// <summary>Dissolve a polity's active factions (their chests return to
+    /// its own segments) — every merger's first act.</summary>
+    public static void DissolveFactionsOf(SimState state, int polityId)
     {
         var pr = state.PolityOf(polityId);
         foreach (var faction in state.Factions)               // id order (P6)

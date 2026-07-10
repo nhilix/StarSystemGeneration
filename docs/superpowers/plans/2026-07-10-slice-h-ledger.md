@@ -240,7 +240,20 @@ surprises — updated as work lands.
   cultural faction; exploit/protectorate-cage → suppressed emergence =
   standing liberation casus belli + graduation path); free-space
   emergences found polities as slice F does.
-- [ ] **H9 — Civil wars**: G's contested coups fight through the war
+- [x] **H9 — Civil wars** *(done: `Interpolity/CivilWarOps.cs`;
+  contested coups erupt at the coup site — the realm's outer half
+  rallies to the deposed ruler as a provisional polity founded through
+  `GraduationOps.FoundSplinter` (the schism mechanics EXTRACTED into a
+  shared helper, per the kickoff's reuse-don't-fork note), keeping the
+  pre-lurch ideology, pre-coup form, and the old king; a
+  CasusBelli.CivilWar war (demand Submission, no allies — brothers'
+  wars stay in the family) fights for the capital through the ordinary
+  machinery; Submission settlements merge the loser back whole
+  (either direction) via the federation plumbing; one-port realms
+  can't split (the coup stands); EpochEngineTests polity-count amended
+  (+ splinters); seed-42 r12: the Thanymi Loyalists fight and lose the
+  Ralili Civil War at y750, merging back retired; 479/479 green,
+  golden regen)*: G's contested coups fight through the war
   machinery against a provisional polity (reuse graduation founding
   flows, no forks).
 - [ ] **H10 — REPL surfaces**: `relations [id]` panel (per-pair warmth/

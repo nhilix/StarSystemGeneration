@@ -12,6 +12,7 @@ public enum WarOutcome
     Vassalized = 2,       // the loser kneels
     WhitePeace = 3,       // status quo ante — captures return
     Independence = 4,     // a secession war carried
+    Submission = 5,       // civil wars: the loser merges back whole
 }
 
 /// <summary>Termination and settlement (interpolity/war.md §Termination):
@@ -73,6 +74,11 @@ public static class WarResolution
 
             if ((objectivesDone || defenderBroke) && !attackerBroke)
                 SettleVictory(state, war);
+            else if (war.Demand == WarDemand.Submission
+                     && attackerBroke && !defenderBroke)
+                // a failed restoration: the provisional polity submits
+                Settle(state, war, WarOutcome.Submission,
+                       winner: war.DefenderId);
             else
                 Settle(state, war, WarOutcome.WhitePeace, winner: -1);
             settled++;
@@ -125,6 +131,7 @@ public static class WarResolution
             WarDemand.Vassalize when CanVassalize(state, war)
                 => WarOutcome.Vassalized,
             WarDemand.Independence => WarOutcome.Independence,
+            WarDemand.Submission => WarOutcome.Submission,
             _ => WarOutcome.ObjectivesCeded,
         };
         Settle(state, war, outcome, winner: war.AttackerId);
@@ -218,6 +225,15 @@ public static class WarResolution
                         state.Actors[war.DefenderId].Name,
                         state.Actors[war.AttackerId].Name)));
             }
+        }
+
+        if (outcome == WarOutcome.Submission && winner >= 0 && loser >= 0)
+        {
+            // the realm reunites at gunpoint: the loser merges back whole
+            // through the same plumbing federations use
+            FederationOps.DissolveFactionsOf(state, loser);
+            FederationOps.MergeInto(state, loser, winner);
+            FederationOps.Retire(state, loser);
         }
 
         // wind-down: the war closes, fleets sail home, gauges unload

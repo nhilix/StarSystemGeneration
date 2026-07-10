@@ -52,12 +52,22 @@ public class EpochEngineTests
             .Where(e => e.Type == WorldEventType.FederationFormed)
             .Select(e => ((FederationFormedPayload)e.Payload!).NewPolityId)
             .ToHashSet();
+        // civil-war splinters (contested coups, slice H): the provisional
+        // polity is the war's attacker
+        var splinters = state.Log.Events
+            .Where(e => e.Type == WorldEventType.WarDeclared
+                && ((WarDeclaredPayload)e.Payload!).Cause
+                   == (int)CasusBelli.CivilWar)
+            .Select(e => ((WarDeclaredPayload)e.Payload!).AttackerId)
+            .ToHashSet();
         Assert.Equal(state.Actors.Count(a => a.Kind == ActorKind.Polity),
-                     emergences.Count + schisms.Count + fusions.Count);
+                     emergences.Count + schisms.Count + fusions.Count
+                     + splinters.Count);
         foreach (var a in state.Actors)
         {
             if (a.Kind != ActorKind.Polity || schisms.Contains(a.Id)
-                || fusions.Contains(a.Id)) continue;
+                || fusions.Contains(a.Id) || splinters.Contains(a.Id))
+                continue;
             var e = Assert.Single(emergences, e => e.Actors.Contains(a.Id));
             // events carry their world-year, dated at the entering epoch
             Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, e.WorldYear);

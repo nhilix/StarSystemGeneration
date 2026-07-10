@@ -34,7 +34,7 @@ public static class SimTraceView
                 + (a.Entered
                     ? Invariant($" — {ports} ") + (ports == 1 ? "port" : "ports")
                       + Invariant($", top tier {topTier}")
-                    : " [not yet entered]"));
+                    : a.Retired ? " [retired]" : " [not yet entered]"));
         }
         sb.AppendLine(Invariant($"registries: {state.Ports.Count} ports · ")
             + Invariant($"{state.Lanes.Count} lanes · {state.Segments.Count} segments"));
