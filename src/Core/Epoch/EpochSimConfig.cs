@@ -134,7 +134,7 @@ public sealed class InfrastructureKnobs
     public int HomeworldPortTier { get; set; } = 2;
     /// <summary>Facilities a port's domain supports per port tier — the
     /// construction cap (development concentrates before it sprawls).</summary>
-    public int FacilitiesPerPortTier { get; set; } = 3;
+    public int FacilitiesPerPortTier { get; set; } = 5;
 }
 
 /// <summary>Expansion/colonization dials, per world-year where a rate.

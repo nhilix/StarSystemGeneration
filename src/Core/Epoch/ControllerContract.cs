@@ -131,14 +131,26 @@ public sealed class GenesisController : IController
                 },
             };
         if (perceived.OwnPortCount > 0)
-            policies = policies with
+        {
+            // polity procurement (market-geography.md participants): food
+            // security for everyone, war materiel by temperament — strategic
+            // demand that pulls the capital chains into existence
+            var targets = new Dictionary<int, double>
             {
-                StockpileTargets = new Dictionary<int, double>
-                {
-                    [(int)Substrate.GoodId.Provisions] =
-                        ProvisionsReservePerPort * perceived.OwnPortCount,
-                },
+                [(int)Substrate.GoodId.Provisions] =
+                    ProvisionsReservePerPort * perceived.OwnPortCount,
+                // the state banks construction materials — market leftovers
+                // alone never hold a whole build basket at once
+                [(int)Substrate.GoodId.Alloys] = 3.0 * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Machinery] = 1.5 * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Composites] = perceived.OwnPortCount,
             };
+            double militancy = species?.Militancy ?? 0.5;
+            if (militancy > 0.2)
+                targets[(int)Substrate.GoodId.Armaments] =
+                    militancy * 2.0 * perceived.OwnPortCount;
+            policies = policies with { StockpileTargets = targets };
+        }
         return policies;
     }
 }

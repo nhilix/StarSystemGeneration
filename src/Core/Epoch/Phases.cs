@@ -201,8 +201,15 @@ public sealed class AllocationPhase : ISimPhase
                 {
                     var def = Substrate.Infrastructure.Get(type);
                     double signal = PriceSignal(eco, market, def);
+                    int existing = 0;
+                    foreach (var f in state.Facilities)
+                        if (f.TypeId == (int)type && f.OwnerActorId == pr.ActorId
+                            && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                            existing++;
+                    // saturation: the second of a kind must out-earn a first
+                    // of another — ports diversify their chain
                     double score = Substrate.Siting.Score(type, site, workforce)
-                                   * signal;
+                                   * signal / (1 + existing);
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -213,21 +220,33 @@ public sealed class AllocationPhase : ISimPhase
             }
             if (bestType == Substrate.InfraTypeId.Port) continue;
 
-            // full build cost must be present and affordable — a facility is
-            // a pre-commitment, not an IOU
+            // full build cost must be physically present — in the port market
+            // or the polity's banked reserves; the treasury pays administered
+            // (founding) prices — a state pre-commitment is not a spot
+            // speculator, so scarcity prices can't price out the very
+            // construction that would cure the scarcity
             var buildDef = Substrate.Infrastructure.Get(bestType);
             double value = 0;
             bool available = true;
             foreach (var q in buildDef.BuildCost)
             {
-                if (market.Inventory[(int)q.Good] < q.Quantity) available = false;
-                value += q.Quantity * market.Price[(int)q.Good];
+                if (market.Inventory[(int)q.Good]
+                    + pr.ReserveQty[(int)q.Good] < q.Quantity) available = false;
+                value += q.Quantity * Market.InitialPrice(eco, q.Good);
             }
             if (!available || pr.DevelopmentPoints < value) continue;
             foreach (var q in buildDef.BuildCost)
             {
-                market.Draw((int)q.Good, q.Quantity);
-                market.LastCleared[(int)q.Good] += q.Quantity;
+                double fromMarket = market.Draw((int)q.Good, q.Quantity);
+                market.LastCleared[(int)q.Good] += fromMarket;
+                double fromReserve = q.Quantity - fromMarket;
+                if (fromReserve > 0)
+                {
+                    pr.ReserveQty[(int)q.Good] =
+                        Math.Max(0, pr.ReserveQty[(int)q.Good] - fromReserve);
+                    if (pr.ReserveQty[(int)q.Good] <= 0)
+                        pr.ReserveGrade[(int)q.Good] = 0;
+                }
             }
             pr.DevelopmentPoints -= value;
             MarketEngine.PayWages(state, port.Id, value);  // construction wages

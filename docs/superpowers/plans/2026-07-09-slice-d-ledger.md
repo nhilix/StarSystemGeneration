@@ -123,7 +123,28 @@ Architecture decisions (made at kickoff, flag deviations):
       wealth-0/price-ceiling death spirals to wealthy young colonies
       mid-bootstrap at sane prices; industry doubled (211 facilities);
       ghost towns (~30%) remain as legible residue — proportion is the
-      remaining taste call. — the taste gate: run a sim, `market` a
+      remaining taste call.
+      **Second pass — mid-chain industrialization** (user: capital goods
+      absent, raw gluts at 0.01): Armaments/Components/Compute/Refined
+      Exotics at zero production is by design (their consumers arrive with
+      E/G/H — P4, value only from use-cases). Composites/Machinery scarcity
+      was real, four stacked causes fixed: construction now costed at
+      administered base prices (spot scarcity can't price out its own cure);
+      same-type saturation penalty in siting (no more fabricator
+      monocultures); polity procurement banks construction materials
+      (Alloys/Machinery/Composites targets; construction draws market +
+      reserves — market leftovers never hold a whole basket) and registers
+      its deficits as demand; and **no production at a loss** (a facility
+      whose inputs cost more than its output sells idles — the arsenal was
+      burning 268-credit alloys into 12-credit armaments and eating the
+      galaxy's feedstock). FacilitiesPerPortTier 3→5. After: all chains
+      active (chemworks/arsenals/shipyard exist, composites+narcotics+CG
+      flowing, alloys bank positive). Machinery stays scarce for an honest
+      reason: **C's catalog upkeep coefficients make ~200 facilities draw
+      ~1000 machinery/epoch — upkeep is the economy's dominant sink**,
+      arguably over-dominant (100 farms out-eat the foundry base).
+      Calibration question for the user: trim catalog machinery-upkeep
+      rates, or accept precious-machinery scarcity as the era's texture. — the taste gate: run a sim, `market` a
       hub, `lanecut` a lane, `estep`, watch the spike at the strangled port
       and the glut at the producer. Tune knobs as directed.
 - [ ] 12. **Golden freeze + wrap-up** — regenerate

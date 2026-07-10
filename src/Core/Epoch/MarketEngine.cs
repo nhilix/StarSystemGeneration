@@ -212,6 +212,10 @@ public static class MarketEngine
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
+        // no production at a loss: a facility whose inputs cost more than its
+        // output sells idles, freeing the feedstock for whoever values it —
+        // working capital does not fund value destruction
+        if (market.Price[(int)pick.Output] <= costPerUnit) return;
         double qty = pickQty;
 
         double gradeSum = 0, weightSum = 0;
@@ -427,13 +431,26 @@ public static class MarketEngine
     /// of a polity with a development budget registers demand for the
     /// construction basket, so the price rises and freight hauls it in —
     /// industry demand per the design's demand model, sized to one facility
-    /// per epoch.</summary>
+    /// per epoch. Unmet stockpile targets likewise register at the capital:
+    /// polity procurement is a market participant (market-geography.md).</summary>
     public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
     {
         const double DevGate = 25.0;
         foreach (var pr in state.Polities)                // actor-id order (P6)
         {
             if (!state.Actors[pr.ActorId].Entered) continue;
+            var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
+                           ?? PolityPolicies.Default).StockpileTargets;
+            if (targets.Count > 0)
+                foreach (var port in state.Ports)         // capital = first own
+                {
+                    if (port.OwnerActorId != pr.ActorId) continue;
+                    for (int g = 0; g < Goods.All.Count; g++)
+                        if (targets.TryGetValue(g, out double target)
+                            && target > pr.ReserveQty[g])
+                            scratch.Demand[port.Id][g] += target - pr.ReserveQty[g];
+                    break;
+                }
             if (pr.DevelopmentPoints < DevGate) continue;
             foreach (var port in state.Ports)             // id order (P6)
             {

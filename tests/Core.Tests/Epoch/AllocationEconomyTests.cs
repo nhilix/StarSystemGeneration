@@ -93,6 +93,40 @@ public class AllocationEconomyTests
     }
 
     [Fact]
+    public void Construction_DiversifiesAcrossTypes()
+    {
+        var (state, port) = Fixture();
+        var pr = state.PolityOf(0);
+        pr.DevelopmentPoints = 100000;
+        StockBuildGoods(state.Markets[0], 100000);
+        // every product desperately scarce: without the saturation penalty
+        // the single top scorer would repeat
+        for (int g = 0; g < Goods.All.Count; g++)
+            state.Markets[0].Price[g] = Market.InitialPrice(
+                state.Config.Economy, (GoodId)g) * 50;
+
+        for (int i = 0; i < 6; i++) new AllocationPhase().Run(state);
+
+        var types = new System.Collections.Generic.HashSet<int>();
+        foreach (var f in state.Facilities) types.Add(f.TypeId);
+        Assert.True(types.Count >= 3,
+            $"a port should grow a chain, not a monoculture ({types.Count} types)");
+    }
+
+    [Fact]
+    public void GenesisController_TargetsWarMateriel_ByTemperament()
+    {
+        var hawk = new SpeciesProfile { Id = 0, Name = "Kri", Militancy = 0.9 };
+        var view = new PerceptionView(0, 0, new int[0], selfSpecies: hawk,
+                                      ownPortCount: 4);
+        var policies = (PolityPolicies)new GenesisController(new EpochSimConfig())
+            .Decide(view).Policies;
+        Assert.True(policies.StockpileTargets.TryGetValue(
+            (int)GoodId.Armaments, out double armaments) && armaments > 0);
+        Assert.True(policies.StockpileTargets.ContainsKey((int)GoodId.Machinery));
+    }
+
+    [Fact]
     public void Construction_RespectsThePortCap()
     {
         var (state, port) = Fixture();
