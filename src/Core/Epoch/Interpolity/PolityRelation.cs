@@ -81,6 +81,10 @@ public sealed class PolityRelation
     /// <summary>Live dynastic instruments (marriages/wardships) between the
     /// pair — warmth now, succession claims later (H4).</summary>
     public int DynasticTies { get; set; }
+    /// <summary>World-year of the newest instrument — the lapse clock: a
+    /// tie's generation dies out after DynasticTieLapseYears, converting
+    /// into the succession claim it always carried (−1 none).</summary>
+    public long LastTieYear { get; set; } = -1;
     /// <summary>The vassal of the pair when the bond is vassalage; −1 for
     /// peers (H3).</summary>
     public int VassalPolityId { get; set; } = -1;

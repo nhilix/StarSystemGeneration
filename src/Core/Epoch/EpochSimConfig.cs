@@ -57,6 +57,10 @@ public sealed class RelationsKnobs
     /// <summary>Warmth per live dynastic instrument (marriage/wardship),
     /// counted up to three.</summary>
     public double DynasticTieWarmth { get; set; } = 0.10;
+    /// <summary>World-years before a dynastic tie's generation dies out —
+    /// the tie lapses into the succession claim it always carried
+    /// ("two reigns later").</summary>
+    public int DynasticTieLapseYears { get; set; } = 75;
     /// <summary>Warmth cut per point of official-ideology gap.</summary>
     public double IdeologyGapCooling { get; set; } = 0.20;
     /// <summary>Tension-target weight of saturated service-area overlap

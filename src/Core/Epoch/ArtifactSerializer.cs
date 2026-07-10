@@ -29,7 +29,7 @@ public static class ArtifactSerializer
         ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
-        ("corporations", 1), ("relations", 2),
+        ("corporations", 1), ("relations", 3),
     };
 
     public static string ToText(SimState state)
@@ -301,14 +301,14 @@ public static class ArtifactSerializer
         Layer(w, "relations");
         foreach (var r in state.Relations)
         {
-            // relations v2 (slice H task 3): rung + vassal clocks ride along
+            // relations v3 (slice H): rung/vassal/tie clocks ride along
             w.WriteLine(Join("REL", r.PolityAId.ToString(Inv),
                 r.PolityBId.ToString(Inv), r.MetEpoch.ToString(Inv),
                 R(r.Warmth), R(r.Tension), ((int)r.Rung).ToString(Inv),
                 ((int)r.OfferedRung).ToString(Inv), r.OfferedById.ToString(Inv),
                 r.OfferEpoch.ToString(Inv), r.DynasticTies.ToString(Inv),
                 r.VassalPolityId.ToString(Inv), r.RungEpoch.ToString(Inv),
-                r.VassalSinceEpoch.ToString(Inv)));
+                r.VassalSinceEpoch.ToString(Inv), r.LastTieYear.ToString(Inv)));
             foreach (var c in r.Claims)
                 w.WriteLine(Join("CLM", r.PolityAId.ToString(Inv),
                     r.PolityBId.ToString(Inv), ((int)c.Type).ToString(Inv),
@@ -911,6 +911,7 @@ public static class ArtifactSerializer
                             VassalPolityId = int.Parse(f[11], Inv),
                             RungEpoch = int.Parse(f[12], Inv),
                             VassalSinceEpoch = int.Parse(f[13], Inv),
+                            LastTieYear = long.Parse(f[14], Inv),
                         });
                         break;
                     case "CLM":
@@ -1088,6 +1089,9 @@ public static class ArtifactSerializer
         VassalSecededPayload e => Join("vassalSeceded",
             e.OverlordPolityId.ToString(Inv), e.VassalPolityId.ToString(Inv),
             Name(e.OverlordName), Name(e.VassalName)),
+        DynasticInstrumentPayload e => Join("dynasticInstrument",
+            e.FromPolityId.ToString(Inv), e.ToPolityId.ToString(Inv),
+            Name(e.FromName), Name(e.ToName), e.Instrument.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1194,6 +1198,9 @@ public static class ArtifactSerializer
             int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
         "vassalSeceded" => new VassalSecededPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "dynasticInstrument" => new DynasticInstrumentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], int.Parse(f[at + 5], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

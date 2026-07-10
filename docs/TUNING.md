@@ -220,6 +220,7 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.TradeWarmthWeight` / `TradeSaturation` | 0.30 / 10 | Trade is peace: posted cross-border freight buys real warmth. | Commerce is diplomatically inert. |
 | `Relations.TreatyWarmthWeight` | 0.25 | Honored rungs compound into trust (federation gate nears). | Treaties are paper. |
 | `Relations.DynasticTieWarmth` | 0.10 | Marriages buy real peace this generation (H4). | Dynastic instruments are ceremony. |
+| `Relations.DynasticTieLapseYears` | 75 | Marriage peace holds three reigns before the claim surfaces. | Every wedding is a war of succession in waiting (seed 42: 19 instruments → 5 succession claims). |
 | `Relations.IdeologyGapCooling` | 0.20 | Doctrinal opposites can't stay friends. | Ideology no bar to friendship. |
 | `Relations.OverlapTensionWeight` / `OverlapSaturation` | 0.35 / 4 | Contested service areas are the war engine (organic borders). | Interleaved empires coexist calmly. |
 | `Relations.ClaimTensionWeight` | 0.18 | Each standing claim keeps a border hot (grudges drive history). | Claims are legal fictions. |

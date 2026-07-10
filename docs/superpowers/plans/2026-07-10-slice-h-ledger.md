@@ -105,7 +105,17 @@ surprises — updated as work lands.
   by settlement or chosen under threat; tribute flow in Allocation,
   foreign-policy lock, defensive obligation; exits: absorption /
   secession). Events 503–50x.
-- [ ] **H4 — Dynastic instruments**: marriage/wardship acts between
+- [x] **H4 — Dynastic instruments** *(done: ResolveDynasticInstrument
+  (both thrones lineage-formed, unbound, ties < 3 → DynasticTies++ +
+  LastTieYear clock; event 509, marriage vs wardship by strength
+  ratio); lapse after `DynasticTieLapseYears` (75) converts the tie
+  into a Succession claim held by the prouder house (dynasty prestige;
+  subject = ruling dynasty), released when the line loses its own
+  throne; view: SelfDynastic + brief OtherDynastic/DynasticTies;
+  controller: one wedding per epoch among warm cordial lineages;
+  relations layer v3 (LastTieYear); seed-42 r12: 19 instruments →
+  5 succession claims across the millennium; golden regen; 448/448)*:
+  marriage/wardship acts between
   dynastic-form polities → warmth now, succession claims later
   (claims point back as tension); rare personal-union fast path
   deferred unless cheap.

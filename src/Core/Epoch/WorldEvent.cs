@@ -62,6 +62,7 @@ public enum WorldEventType
     VassalageBound = 506,
     VassalAbsorbed = 507,
     VassalSeceded = 508,
+    DynasticInstrument = 509,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -258,6 +259,13 @@ public sealed record VassalAbsorbedPayload(
 public sealed record VassalSecededPayload(
     int OverlordPolityId, int VassalPolityId, string OverlordName,
     string VassalName) : EventPayload;
+
+/// <summary>A marriage or wardship between dynastic thrones
+/// (interpolity/relations.md §Dynastic instruments) — warmth this
+/// generation, a succession claim two reigns later.</summary>
+public sealed record DynasticInstrumentPayload(
+    int FromPolityId, int ToPolityId, string FromName, string ToName,
+    int Instrument) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

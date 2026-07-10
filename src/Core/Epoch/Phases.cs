@@ -90,7 +90,9 @@ public sealed class PerceptionPhase : ISimPhase
                             rel.RungEpoch < 0 ? 0
                                 : state.EpochIndex - rel.RungEpoch,
                             strengths.TryGetValue(other, out double os) ? os : 0,
-                            rel.VassalPolityId));
+                            rel.VassalPolityId,
+                            RelationsOps.IsDynastic(state, other),
+                            rel.DynasticTies));
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
@@ -100,7 +102,10 @@ public sealed class PerceptionPhase : ISimPhase
                                               temperament, ownCredits, hosted,
                                               relations,
                                               strengths.TryGetValue(a.Id,
-                                                  out double own) ? own : 0);
+                                                  out double own) ? own : 0,
+                                              a.Kind == ActorKind.Polity
+                                                  && RelationsOps.IsDynastic(
+                                                      state, a.Id));
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -729,7 +734,7 @@ public sealed class ResolutionPhase : ISimPhase
     public string Run(SimState state)
     {
         int acts = 0, founded = 0, nationalized = 0;
-        int signed = 0, broken = 0, vassalized = 0;
+        int signed = 0, broken = 0, vassalized = 0, instruments = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
@@ -747,6 +752,9 @@ public sealed class ResolutionPhase : ISimPhase
                     }
                 if (act is VassalageAct v && FederationOps.TryBindVassal(state, v))
                     vassalized++;
+                if (act is DynasticInstrumentAct dyn
+                    && RelationsOps.ResolveDynasticInstrument(state, dyn))
+                    instruments++;
             }
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
@@ -762,6 +770,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (vassalized > 0)
             note += $", {vassalized} " + (vassalized == 1
                 ? "vassalage bound" : "vassalages bound");
+        if (instruments > 0)
+            note += $", {instruments} dynastic "
+                + (instruments == 1 ? "instrument" : "instruments");
         return note;
     }
 

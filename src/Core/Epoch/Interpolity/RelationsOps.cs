@@ -24,10 +24,128 @@ public static class RelationsOps
         var geometry = SurveyGeometry(state);
         int contacts = Contact(state, geometry);
         int claimsRaised = KinClaims(state);
+        claimsRaised += LapseDynasticTies(state);
+        ReleaseDeadSuccessionClaims(state);
         ExpireOffers(state);
         FederationOps.VassalExits(state);
         Recompute(state, geometry);
         return (contacts, claimsRaised);
+    }
+
+    /// <summary>The instrument that secured peace this generation seeds a
+    /// war of succession two reigns later: a lapsed tie (its marriage
+    /// generation dead) converts into a succession claim held by the
+    /// prouder house (interpolity/relations.md §Dynastic instruments).</summary>
+    private static int LapseDynasticTies(SimState state)
+    {
+        long lapseYears = (long)state.Config.Relations.DynasticTieLapseYears;
+        int raised = 0;
+        foreach (var relation in state.Relations)             // creation order (P6)
+        {
+            if (relation.DynasticTies <= 0 || relation.LastTieYear < 0
+                || !BothLive(state, relation)) continue;
+            if (state.WorldYear - relation.LastTieYear < lapseYears) continue;
+            relation.DynasticTies--;
+            relation.LastTieYear = relation.DynasticTies > 0
+                ? state.WorldYear : -1;
+            // the prouder house presses the claim the union created
+            int holder = ProuderSide(state, relation);
+            int dynasty = RulingDynasty(state, holder);
+            if (dynasty < 0) continue;   // the claiming line lost its throne
+            if (!relation.HasLiveClaim(ClaimType.Succession, holder, dynasty))
+            {
+                relation.Claims.Add(new RelationClaim(ClaimType.Succession,
+                    holder, dynasty, state.WorldYear));
+                raised++;
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.ClaimRaised,
+                    new[] { holder, relation.OtherOf(holder) },
+                    state.Actors[holder].Seat, Magnitude: 1.0, Valence: -0.4,
+                    EventVisibility.Public,
+                    new ClaimRaisedPayload(holder, relation.OtherOf(holder),
+                        (int)ClaimType.Succession, dynasty)));
+            }
+        }
+        return raised;
+    }
+
+    /// <summary>A succession claim dies with its line: released once the
+    /// claiming house no longer reigns at home.</summary>
+    private static void ReleaseDeadSuccessionClaims(SimState state)
+    {
+        foreach (var relation in state.Relations)             // creation order (P6)
+            foreach (var claim in relation.Claims)
+            {
+                if (claim.Released || claim.Type != ClaimType.Succession)
+                    continue;
+                if (RulingDynasty(state, claim.HolderPolityId) != claim.SubjectId)
+                    Release(state, relation, ClaimType.Succession,
+                            claim.HolderPolityId, claim.SubjectId);
+            }
+    }
+
+    /// <summary>Which side's reigning house carries more prestige — ties to
+    /// the lower actor id (P6).</summary>
+    private static int ProuderSide(SimState state, PolityRelation relation)
+    {
+        return Prestige(relation.PolityBId) > Prestige(relation.PolityAId)
+            ? relation.PolityBId : relation.PolityAId;
+        double Prestige(int polityId)
+        {
+            int dynasty = RulingDynasty(state, polityId);
+            return dynasty >= 0 ? state.Dynasties[dynasty].Prestige : -1;
+        }
+    }
+
+    /// <summary>The dynasty on a polity's throne, or −1.</summary>
+    public static int RulingDynasty(SimState state, int polityId)
+    {
+        var interior = state.PolityOf(polityId).Interior;
+        if (interior == null || interior.RulerCharacterId < 0) return -1;
+        var ruler = state.Characters[interior.RulerCharacterId];
+        return ruler.Alive ? ruler.DynastyId : -1;
+    }
+
+    /// <summary>Both thrones are lineages — the forms dynastic instruments
+    /// bind between (§Dynastic instruments).</summary>
+    public static bool IsDynastic(SimState state, int polityId)
+    {
+        var interior = state.PolityOf(polityId).Interior;
+        return interior != null
+               && GovernmentForms.Get(interior.FormId).Succession
+                   is SuccessionRule.Dynastic or SuccessionRule.RareDesignation;
+    }
+
+    /// <summary>Resolve a marriage or wardship: both thrones dynastic, the
+    /// pair met and unbound, ties below the cap — warmth now (the tie rides
+    /// the warmth target), the claim later (the lapse clock).</summary>
+    public static bool ResolveDynasticInstrument(SimState state,
+                                                 DynasticInstrumentAct act)
+    {
+        if (act.ActorId == act.TargetPolityId) return false;
+        if (act.TargetPolityId >= state.Actors.Count
+            || state.Actors[act.TargetPolityId].Kind != ActorKind.Polity)
+            return false;
+        var relation = state.RelationOf(act.ActorId, act.TargetPolityId);
+        if (relation == null || !BothLive(state, relation)) return false;
+        if (relation.VassalPolityId >= 0
+            || FederationOps.OverlordOf(state, act.ActorId) >= 0
+            || FederationOps.OverlordOf(state, act.TargetPolityId) >= 0)
+            return false;   // the bound marry at their overlord's pleasure
+        if (!IsDynastic(state, act.ActorId)
+            || !IsDynastic(state, act.TargetPolityId)) return false;
+        if (relation.DynasticTies >= 3) return false;
+        relation.DynasticTies++;
+        relation.LastTieYear = state.WorldYear;
+        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+            WorldEventType.DynasticInstrument,
+            new[] { act.ActorId, act.TargetPolityId },
+            state.Actors[act.TargetPolityId].Seat, Magnitude: 1.0,
+            Valence: 0.5, EventVisibility.Public,
+            new DynasticInstrumentPayload(act.ActorId, act.TargetPolityId,
+                state.Actors[act.ActorId].Name,
+                state.Actors[act.TargetPolityId].Name, (int)act.Instrument)));
+        return true;
     }
 
     /// <summary>Both sides of a relation still on the stage — retired

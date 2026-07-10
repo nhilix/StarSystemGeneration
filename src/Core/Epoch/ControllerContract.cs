@@ -22,7 +22,8 @@ public sealed record RelationBrief(
     int OtherPolityId, double Warmth, double Tension, TreatyRung Rung,
     TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
     int LiveClaimsAgainst, double IdeologyGap, int EpochsAtRung,
-    double OtherStrength, int VassalPolityId);
+    double OtherStrength, int VassalPolityId, bool OtherDynastic,
+    int DynasticTies);
 
 public sealed class PerceptionView
 {
@@ -79,6 +80,9 @@ public sealed class PerceptionView
     /// <summary>Own headline war weight (strike + sustained, readiness-
     /// discounted) — what vassal choices size threats against (slice H).</summary>
     public double OwnStrength { get; }
+    /// <summary>Own throne is a lineage — dynastic instruments bind only
+    /// between such forms (slice H).</summary>
+    public bool SelfDynastic { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -92,12 +96,14 @@ public sealed class PerceptionView
                           double ownCredits = 0,
                           IReadOnlyList<CorporateBrief>? hostedCorporations = null,
                           IReadOnlyList<RelationBrief>? relations = null,
-                          double ownStrength = 0)
+                          double ownStrength = 0,
+                          bool selfDynastic = false)
     {
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;
         OwnStrength = ownStrength;
+        SelfDynastic = selfDynastic;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -199,6 +205,24 @@ public sealed class GenesisController : IController
                     && FederationTermsAgreeable(perceived, rel, rel.Rung + 1))
                     acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
                         (int)(rel.Rung + 1), TreatyVerb.Offer));
+            }
+        // dynastic instruments: one warm lineage courts another — the
+        // marriage buys warmth now and seeds a claim two reigns later
+        // (interpolity/relations.md §Dynastic instruments)
+        if (!selfBound && perceived.SelfDynastic)
+            foreach (var rel in perceived.Relations)
+            {
+                if (rel.VassalPolityId >= 0 || !rel.OtherDynastic
+                    || rel.DynasticTies >= 3
+                    || StanceOf(rel) < DiplomaticPosture.Cordial
+                    || rel.Warmth < 0.45) continue;
+                var instrument = perceived.OwnStrength
+                        < rel.OtherStrength * 0.5
+                    ? DynasticInstrument.Wardship   // the weaker sends a ward
+                    : DynasticInstrument.Marriage;
+                acts.Add(new DynasticInstrumentAct(perceived.SelfId,
+                    rel.OtherPolityId, instrument));
+                break;   // one wedding a generation is plenty
             }
         // the protection market: a genuinely outmatched polity facing a
         // hostile giant offers itself to its strongest friend (§Vassalage)

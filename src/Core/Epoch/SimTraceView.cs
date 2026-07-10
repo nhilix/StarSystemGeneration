@@ -229,6 +229,10 @@ public static class SimTraceView
             VassalSecededPayload p =>
                 $"{p.VassalName} declares independence from a weakened "
                 + p.OverlordName,
+            DynasticInstrumentPayload p =>
+                (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
+                    ? $"the houses of {p.FromName} and {p.ToName} marry"
+                    : $"{p.FromName} sends a ward to the court of {p.ToName}",
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();
