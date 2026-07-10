@@ -106,7 +106,11 @@ Architecture decisions (made at kickoff, flag deviations):
       Accepted as documented deferrals: physical fuel drawdown (E's hulls),
       unpaid upkeep draws (the commons convention, revisit when
       corporations own facilities in G).
-- [~] 11. **USER: REPL eyeball** — first pass diagnosed the famine wall.
+- [x] 11. **USER: REPL eyeball — accepted 2026-07-09 ("good for now")**
+      after three passes (colonial viability · mid-chain industrialization ·
+      knob centralization). Parked tuning question: catalog machinery-upkeep
+      coefficients (upkeep is the dominant sink) — carried in TUNING.md's
+      structural-constants note. — first pass diagnosed the famine wall.
       Root cause was colonial cash-flow drain + ceiling-locked prices, NOT
       site quality or connectivity (classification: hungry ports had good
       farmland, lanes, and food on the shelf their broke households couldn't
