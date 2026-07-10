@@ -9,7 +9,11 @@ using StarGen.Core.Tables;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>Tier 2 builder: ordered seeding passes, then the epoch sim (spec §5, §7).</summary>
+/// <summary>Tier 2 builder: the ordered natural-raster seeding passes
+/// (spec §5) — shape, stellar leans, anchors, homeworlds. No history: the
+/// epoch sim (StarGen.Core.Epoch.EpochGenesis) seeds its polities from the
+/// homeworld anchors this leaves behind. The seeding passes survive until
+/// slice F derives their outputs causally.</summary>
 public static class SkeletonBuilder
 {
     public static GalaxySkeleton Build(GalaxyConfig config)
@@ -18,7 +22,6 @@ public static class SkeletonBuilder
         PassStellarPopulation(skeleton);
         PassResourceAnchors(skeleton);
         PassHomeworlds(skeleton);
-        EpochSim.Run(skeleton);
         return skeleton;
     }
 
@@ -179,7 +182,10 @@ public static class SkeletonBuilder
         return members[0];   // unreachable: a cell never carries 91 anchors
     }
 
-    /// <summary>Spec §5 pass 4 + §6: homeworlds, species profiles, founding polities.</summary>
+    /// <summary>Spec §5 pass 4 + §6: homeworld anchors + species profiles. The
+    /// roll sequence is unchanged from the founding-polity era (anchor placement
+    /// stays seed-stable); polity founding itself moved to the epoch sim, which
+    /// reads these anchors (EpochGenesis).</summary>
     internal static void PassHomeworlds(GalaxySkeleton s)
     {
         var config = s.Config;
@@ -194,29 +200,22 @@ public static class SkeletonBuilder
             .OrderBy(t => t.order).ThenBy(t => t.cell.SpiralIndex)
             .Select(t => t.cell);
 
+        var placed = new List<RegionCell>();
         foreach (var cell in candidates)
         {
-            if (s.Polities.Count >= target) break;
-            bool tooClose = s.Polities.Any(p =>
-                HexGrid.Distance(p.CapitalCoord, cell.Coord) < minSpacing);
+            if (placed.Count >= target) break;
+            bool tooClose = placed.Any(p =>
+                HexGrid.Distance(p.Coord, cell.Coord) < minSpacing);
             if (tooClose) continue;
 
-            int id = s.Polities.Count;
+            int id = placed.Count;
             var species = RollSpecies(s, cell, id);
             s.Species.Add(species);
-            s.Polities.Add(new Polity
-            {
-                Id = id, Name = species.Name, SpeciesId = id,
-                CapitalQ = cell.Q, CapitalR = cell.R,
-            });
             cell.Anchors.Add(new Anchor
             {
                 Type = AnchorType.Homeworld, Hex = PickAnchorHex(s, cell, 2), SpeciesId = id,
             });
-            cell.OwnerPolityId = id;
-            cell.DevelopmentTier = 2;
-            cell.Population = 3.0;
-            cell.PopulationSpeciesId = id;
+            placed.Add(cell);
         }
     }
 

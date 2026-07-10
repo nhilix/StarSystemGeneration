@@ -3,19 +3,17 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>The persisted Tier 2 artifact root (spec §3.1). Cells live on the hex
-/// lattice inside the circular footprint of radius GalaxyRadiusCells lattice
-/// steps (DensityField.CellInGalaxy), in deterministic spiral order.</summary>
+/// <summary>The natural-raster root: cells on the hex lattice inside the
+/// circular footprint of radius GalaxyRadiusCells lattice steps
+/// (DensityField.CellInGalaxy), in deterministic spiral order, plus the
+/// species the seeding passes rolled. Persisted as the artifact's raster and
+/// species layers (StarGen.Core.Epoch.ArtifactSerializer); versioning lives
+/// per layer there.</summary>
 public sealed class GalaxySkeleton
 {
-    public const int SchemaVersion = 5;
-
     public GalaxyConfig Config { get; }
     public IReadOnlyList<RegionCell> Cells => _cells;
     public List<SpeciesProfile> Species { get; } = new();
-    public List<Polity> Polities { get; } = new();
-    public List<GalaxyEvent> Events { get; } = new();
-    public List<War> Wars { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();
@@ -42,14 +40,4 @@ public sealed class GalaxySkeleton
         _byCoord.TryGetValue(cellCoord, out cell!);
 
     public RegionCell CellForHex(HexCoordinate hex) => CellAt(HexGrid.CellOf(hex));
-
-    /// <summary>True iff a live (non-ended) war exists between the two polities.</summary>
-    public bool AtWar(int a, int b)
-    {
-        foreach (var w in Wars)
-            if (!w.Ended && ((w.AttackerId == a && w.DefenderId == b)
-                          || (w.AttackerId == b && w.DefenderId == a)))
-                return true;
-        return false;
-    }
 }

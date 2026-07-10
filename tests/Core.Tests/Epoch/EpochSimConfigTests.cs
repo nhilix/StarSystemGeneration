@@ -26,12 +26,31 @@ public class EpochSimConfigTests
     }
 
     [Fact]
-    public void GenesisKnobs_SeedStubEmergence()
+    public void GenesisKnobs_StaggeredEntryFitsTheHistoryWindow()
     {
         var c = new EpochSimConfig();
-        Assert.True(c.Genesis.StubPolityCount > 0);
-        // staggered entry fits inside the default history window
         Assert.True(c.Genesis.EmergenceWindowYears
                     < c.Sim.YearsPerEpoch * c.Sim.EpochCount);
+    }
+
+    [Fact]
+    public void InfrastructureAndExpansionKnobs_HaveSaneDefaults()
+    {
+        var c = new EpochSimConfig();
+        Assert.True(c.Infrastructure.ServiceRadiusBaseHexes >= 1);
+        Assert.Equal(3, c.Infrastructure.MaxPortTier);
+        Assert.InRange(c.Infrastructure.HomeworldPortTier, 1, c.Infrastructure.MaxPortTier);
+        // lane reach exceeds local service reach at every tier (space-and-travel.md:
+        // inter-port range is the longer, separate growth axis)
+        Assert.True(c.Infrastructure.InterPortRangeBaseHexes
+                    > c.Infrastructure.ServiceRadiusBaseHexes);
+        Assert.True(c.Expansion.StubIncomePerPortPerYear > 0);
+        Assert.True(c.Expansion.ColonyCost > 0);
+        Assert.True(c.Expansion.ColonizationReachHexes > 0);
+        Assert.True(c.Expansion.PortUpgradeCostBase > 0);
+        Assert.True(c.Expansion.LaneCost > 0);
+        // growth is a per-world-year rate, not a per-epoch magnitude (P7)
+        Assert.InRange(c.Expansion.SegmentGrowthPerYear, 0.0001, 0.1);
+        Assert.True(c.Expansion.HomeworldSegmentSize > c.Expansion.ColonySegmentSize);
     }
 }

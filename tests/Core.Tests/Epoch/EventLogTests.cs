@@ -55,6 +55,13 @@ public class EventLogTests
         }, System.Enum.GetValues<EventFamily>());
     }
 
+    [Theory]
+    [InlineData(WorldEventType.LaneOpened, EventFamily.Economic)]
+    [InlineData(WorldEventType.PortTierRaised, EventFamily.Economic)]
+    [InlineData(WorldEventType.PortEstablished, EventFamily.Political)]
+    public void NewEventTypes_MapToStableFamilyBlocks(WorldEventType t, EventFamily f) =>
+        Assert.Equal(f, WorldEventTypes.FamilyOf(t));
+
     [Fact]
     public void FamilyBlocks_MapAtTheirEdges_AndRejectUnknownRanges()
     {

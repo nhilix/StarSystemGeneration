@@ -20,10 +20,24 @@ public static class SimTraceView
 
         sb.AppendLine(Invariant($"actors: {state.Actors.Count}"));
         foreach (var a in state.Actors)
+        {
+            int ports = 0, topTier = 0;
+            foreach (var p in state.Ports)
+                if (p.OwnerActorId == a.Id)
+                {
+                    ports++;
+                    if (p.Tier > topTier) topTier = p.Tier;
+                }
             sb.AppendLine(Invariant($"  #{a.Id} {a.Name} ({a.Kind}) — seat ")
                 + Invariant($"({a.Seat.Q},{a.Seat.R}), enters epoch {a.EntryEpoch} ")
                 + Invariant($"(y{a.EntryEpoch * sim.YearsPerEpoch})")
-                + (a.Entered ? "" : " [not yet entered]"));
+                + (a.Entered
+                    ? Invariant($" — {ports} ") + (ports == 1 ? "port" : "ports")
+                      + Invariant($", top tier {topTier}")
+                    : " [not yet entered]"));
+        }
+        sb.AppendLine(Invariant($"registries: {state.Ports.Count} ports · ")
+            + Invariant($"{state.Lanes.Count} lanes · {state.Segments.Count} segments"));
 
         int lastEpoch = -1;
         foreach (var t in state.Trace)
@@ -50,6 +64,12 @@ public static class SimTraceView
         string what = e.Payload switch
         {
             PolityEmergedPayload p => $"{p.PolityName} enters the galactic stage",
+            PortEstablishedPayload p =>
+                Invariant($"{p.PolityName} establishes a port (#{p.PortId})"),
+            LaneOpenedPayload p =>
+                Invariant($"a lane opens between ports #{p.PortAId} and #{p.PortBId}"),
+            PortTierRaisedPayload p =>
+                Invariant($"port #{p.PortId} rises to tier {p.NewTier}"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

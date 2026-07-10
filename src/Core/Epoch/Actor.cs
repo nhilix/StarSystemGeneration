@@ -21,6 +21,9 @@ public sealed class Actor
     public bool Entered { get; set; }
     /// <summary>AI or player, interchangeable (P2).</summary>
     public IController Controller { get; set; }
+    /// <summary>Standing policies, written each Intent and applied mechanically
+    /// by *other* phases on subsequent steps (frame/simulation-flow.md Move 1).</summary>
+    public PolicySet? Policies { get; set; }
     /// <summary>Believed world, rebuilt each Perception phase (P3 stub:
     /// perfect information until Slice I).</summary>
     public PerceptionView? Perception { get; set; }

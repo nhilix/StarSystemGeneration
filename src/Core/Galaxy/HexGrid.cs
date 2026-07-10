@@ -71,6 +71,10 @@ public static class HexGrid
         return CubeRound(q, r);
     }
 
+    /// <summary>Cube rounding of fractional axial coordinates — the one
+    /// rounding rule for all hex-line math (lerp midpoints, lane traces).</summary>
+    public static HexCoordinate Round(double q, double r) => CubeRound(q, r);
+
     private static HexCoordinate CubeRound(double q, double r)
     {
         double s = -q - r;

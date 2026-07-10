@@ -12,6 +12,7 @@ public sealed class Repl
     private ulong _seed = 42;
     private int _spiralIndex;
     private GalaxyContext? _galaxy;
+    private Core.Epoch.SimState? _sim;
 
     public void Run()
     {
@@ -28,12 +29,14 @@ public sealed class Repl
                 case "quit" or "exit": return;
                 case "help":
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
-                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r> | polity <id> | chronicle [polityId]");
-                    Console.WriteLine("epoch <seed> [epochs] — step the new seven-phase frame, print the phase/event trace");
+                    Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
+                    Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
+                    Console.WriteLine("emap [domains|lanes] — port-domain / lane-network map of the stepped sim");
+                    Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
+                    Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
-                    Console.WriteLine("gsave <path> | gload <path> | quit");
-                    Console.WriteLine("map layers: density | polity | zone | dev | lean | trade | economy | war");
+                    Console.WriteLine("map layers: density | lean");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
                     break;
                 case "seed" when parts.Length == 2 && ulong.TryParse(parts[1], out var s):
@@ -50,20 +53,17 @@ public sealed class Repl
                     sw.Stop();
                     _seed = gseed;
                     _galaxy = new GalaxyContext(config) { Skeleton = skeleton };
-                    int nonVoid = 0, claimed = 0, chokepoints = 0;
+                    int nonVoid = 0, chokepoints = 0, homeworlds = 0;
                     foreach (var c in skeleton.Cells)
                     {
                         if (c.IsChokepoint) chokepoints++;
-                        if (c.IsVoid) continue;
-                        nonVoid++;
-                        if (c.OwnerPolityId >= 0) claimed++;
+                        foreach (var a in c.Anchors)
+                            if (a.Type == AnchorType.Homeworld) homeworlds++;
+                        if (!c.IsVoid) nonVoid++;
                     }
-                    int living = skeleton.Polities.Count(p => !p.Extinct);
-                    Console.WriteLine($"galaxy built in {sw.ElapsedMilliseconds} ms: {skeleton.Cells.Count} cells, "
-                        + $"{living} living / {skeleton.Polities.Count - living} extinct polities, "
-                        + $"{skeleton.Events.Count} events, {100.0 * claimed / nonVoid:F1}% of space claimed, "
-                        + $"{chokepoints} chokepoints"
-                        + $", {skeleton.Wars.Count} wars ({skeleton.Wars.Count(w => !w.Ended)} live)");
+                    Console.WriteLine($"galaxy built in {sw.ElapsedMilliseconds} ms: {skeleton.Cells.Count} cells "
+                        + $"({nonVoid} non-void), {chokepoints} chokepoints, "
+                        + $"{homeworlds} homeworld anchors, {skeleton.Species.Count} species");
                     break;
                 }
                 case "cell" when parts.Length == 3 && _galaxy?.Skeleton is { } sk
@@ -72,22 +72,12 @@ public sealed class Repl
                     var cellCoord = new HexCoordinate(qcx, qcy);
                     if (!sk.TryGetCell(cellCoord, out var cell))
                     { Console.WriteLine("cell out of range"); break; }
-                    string owner = cell.OwnerPolityId >= 0 ? sk.Polities[cell.OwnerPolityId].Name : "unclaimed";
                     Console.WriteLine($"cell [{qcx},{qcy}] density {cell.MeanDensity:F2}"
                         + (cell.IsVoid ? " VOID" : "") + (cell.IsChokepoint ? " CHOKEPOINT" : "")
                         + $" · {cell.Lean} · metallicity {cell.Metallicity:F2}");
-                    Console.WriteLine($"  owner: {owner} · dev {cell.DevelopmentTier}"
-                        + (cell.WarScarred ? " · war-scarred" : ""));
-                    Console.WriteLine($"  population {cell.Population:F1}"
-                        + (cell.PopulationSpeciesId >= 0 ? $" ({sk.Species[cell.PopulationSpeciesId].Name})" : "")
-                        + $" · throughput {cell.RouteThroughput:F1}"
-                        + $" · value {Economy.SystemValue(cell.OwnerPolityId >= 0 ? sk.Species[sk.Polities[cell.OwnerPolityId].SpeciesId] : Economy.DisplayBaseline, cell):F1}");
                     foreach (var a in cell.Anchors)
                         Console.WriteLine($"  anchor: {a.Type} at [{a.Hex.Q:D4}-{a.Hex.R:D4}]"
                             + (a.SpeciesId >= 0 ? $" (species {sk.Species[a.SpeciesId].Name})" : ""));
-                    foreach (var e in sk.Events)
-                        if (e.Q == qcx && e.R == qcy)
-                            Console.WriteLine("  " + ChronicleView.Describe(sk, e));
                     Console.WriteLine(GalaxyMapView.CellZoom(_galaxy, cellCoord));
                     break;
                 }
@@ -96,14 +86,76 @@ public sealed class Repl
                     var econfig = new Core.Epoch.EpochSimConfig { MasterSeed = eseed };
                     if (parts.Length >= 3 && int.TryParse(parts[2], out var epochs))
                         econfig.Sim.EpochCount = epochs;
-                    var estate = Core.Epoch.StubGenesis.Seed(econfig);
+                    int eradius = parts.Length >= 4 && int.TryParse(parts[3], out var er) ? er : 21;
                     var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var eskeleton = SkeletonBuilder.Build(
+                        new GalaxyConfig { MasterSeed = eseed, GalaxyRadiusCells = eradius });
+                    var estate = Core.Epoch.EpochGenesis.Seed(eskeleton, econfig);
                     new Core.Epoch.EpochEngine().Run(estate);
                     sw.Stop();
+                    _sim = estate;
+                    _seed = eseed;
+                    _galaxy = new GalaxyContext(eskeleton.Config) { Skeleton = eskeleton };
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
+                case "emap" when _sim == null:
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "emap":
+                    Console.WriteLine(EpochMapView.Render(_sim!,
+                        parts.Length >= 2 ? parts[1] : "domains"));
+                    break;
+                case "chronicle" when _sim == null:
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "chronicle":
+                {
+                    int filter = parts.Length >= 2 && int.TryParse(parts[1], out var cf) ? cf : -1;
+                    var events = filter >= 0 ? _sim!.Log.ForActor(filter) : _sim!.Log.Events;
+                    int shown = 0;
+                    foreach (var e in events)
+                    {
+                        Console.WriteLine("  " + Core.Epoch.SimTraceView.Describe(e));
+                        shown++;
+                    }
+                    if (shown == 0) Console.WriteLine("  (no events)");
+                    break;
+                }
+                case "esave" when parts.Length == 2 && _sim != null:
+                    try
+                    {
+                        System.IO.File.WriteAllText(parts[1],
+                            Core.Epoch.ArtifactSerializer.ToText(_sim));
+                        Console.WriteLine($"artifact saved to {parts[1]}");
+                    }
+                    catch (System.IO.IOException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    break;
+                case "esave":
+                    Console.WriteLine("run a sim first (epoch <seed>), then: esave <path>");
+                    break;
+                case "eload" when parts.Length == 2:
+                    try
+                    {
+                        using (var reader = new System.IO.StreamReader(parts[1]))
+                        {
+                            var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
+                            _sim = loaded;
+                            _seed = loaded.Skeleton.Config.MasterSeed;
+                            _galaxy = new GalaxyContext(loaded.Skeleton.Config)
+                            { Skeleton = loaded.Skeleton };
+                            Console.WriteLine($"artifact loaded: seed {_seed}, "
+                                + $"epoch {loaded.EpochIndex} (y{loaded.WorldYear}), "
+                                + $"{loaded.Ports.Count} ports, {loaded.Lanes.Count} lanes, "
+                                + $"{loaded.Log.Events.Count} events");
+                        }
+                    }
+                    catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
+                    catch (System.IO.IOException) { Console.WriteLine("file not found"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot load: {ex.Message}"); }
+                    break;
                 case "goods":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
                     break;
@@ -116,12 +168,14 @@ public sealed class Repl
                         icell.MeanDensity, icell.Lean, icell.Metallicity,
                         icell.Anchors.Any(a => a.Type == AnchorType.MineralRich),
                         icell.Anchors.Any(a => a.Type == AnchorType.PrecursorSite));
-                    // connectivity/port context are B-owned state — neutral wilds here
+                    // connectivity/port context are epoch-sim state — neutral
+                    // wilds here; workforce from the homeworld anchor if present
                     var site = new Core.Substrate.CellSite(fields, Connectivity: 0.3,
                         IsPortHeart: false, PortTier: 0,
-                        DevelopmentTier: Math.Min(icell.DevelopmentTier, 3), IsChokepoint: icell.IsChokepoint);
-                    var workforce = icell.PopulationSpeciesId >= 0
-                        ? isk.Species[icell.PopulationSpeciesId].Embodiment
+                        DevelopmentTier: 0, IsChokepoint: icell.IsChokepoint);
+                    var homeAnchor = icell.Anchors.FirstOrDefault(a => a.Type == AnchorType.Homeworld);
+                    var workforce = homeAnchor != null && homeAnchor.SpeciesId >= 0
+                        ? isk.Species[homeAnchor.SpeciesId].Embodiment
                         : Embodiment.TerranAnalog;
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderSite(
                         FormattableString.Invariant($"cell [{iq},{ir}]"), fields, site, workforce));
@@ -132,24 +186,6 @@ public sealed class Repl
                     break;
                 case "infra":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderInfra());
-                    break;
-                case "gsave" when parts.Length == 2 && _galaxy?.Skeleton != null:
-                    System.IO.File.WriteAllText(parts[1], SkeletonSerializer.ToText(_galaxy.Skeleton));
-                    Console.WriteLine($"saved to {parts[1]}");
-                    break;
-                case "gload" when parts.Length == 2:
-                    try
-                    {
-                        using (var reader = new System.IO.StreamReader(parts[1]))
-                        {
-                            var skeleton = SkeletonSerializer.Load(reader);
-                            _galaxy = new GalaxyContext(skeleton.Config) { Skeleton = skeleton };
-                            _seed = skeleton.Config.MasterSeed;
-                            Console.WriteLine($"loaded galaxy seed {_seed}, {skeleton.Polities.Count} polities");
-                        }
-                    }
-                    catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
-                    catch (System.IO.FileNotFoundException) { Console.WriteLine("file not found"); }
                     break;
                 case "goto" when parts.Length == 3
                         && int.TryParse(parts[1], out var gx) && int.TryParse(parts[2], out var gy):
@@ -162,7 +198,6 @@ public sealed class Repl
                 case "find" when parts.Length == 2: Find(parts[1]); break;
                 case "stats" when parts.Length == 2 && int.TryParse(parts[1], out var n):
                     Console.WriteLine(StatsReport.Build(_galaxy ?? GalaxyContext.Flatspace(_seed), _spiralIndex, n));
-                    if (_galaxy?.Skeleton is { } statsSk) Console.WriteLine(EconomyReport.Build(statsSk));
                     break;
                 case "map" when _galaxy?.Skeleton == null:
                     Console.WriteLine("build a galaxy first (galaxy <seed>)");
@@ -171,41 +206,6 @@ public sealed class Repl
                     Console.WriteLine(GalaxyMapView.CellMap(_galaxy!.Skeleton!,
                         parts.Length >= 2 ? parts[1] : "density"));
                     break;
-                case "polity" when parts.Length == 2 && _galaxy?.Skeleton is { } skPol
-                        && int.TryParse(parts[1], out var polityId):
-                {
-                    if (polityId < 0 || polityId >= skPol.Polities.Count)
-                    { Console.WriteLine("no such polity"); break; }
-                    var p = skPol.Polities[polityId];
-                    var sp = skPol.Species[p.SpeciesId];
-                    int cells = 0; double pop = 0;
-                    foreach (var c in skPol.Cells)
-                        if (c.OwnerPolityId == p.Id) { cells++; pop += c.Population; }
-                    Console.WriteLine($"{p.Name} (id {p.Id}){(p.Extinct ? " EXTINCT" : "")}"
-                        + $" · species {sp.Name} ({sp.Embodiment}) · capital [{p.CapitalQ},{p.CapitalR}]");
-                    Console.WriteLine($"  {cells} cells · population {pop:F1} · tech tier {p.TechTier}"
-                        + $" · stockpile {p.MilitaryStockpile:F1} · wealth {p.Wealth:F1}");
-                    Console.WriteLine($"  balances: provisions {p.ProvisionsBalance:F1}"
-                        + $" · ore {p.OreBalance:F1} · exotics {p.ExoticsBalance:F1}"
-                        + $" (invested {p.ExoticsInvested:F1})"
-                        + (p.BlockadeLoss > 0 ? $" · blockade loss {p.BlockadeLoss:F1}" : ""));
-                    foreach (var w in skPol.Wars)
-                    {
-                        if (w.AttackerId != p.Id && w.DefenderId != p.Id) continue;
-                        string other = skPol.Polities[w.AttackerId == p.Id ? w.DefenderId : w.AttackerId].Name;
-                        double wear = w.AttackerId == p.Id ? w.AttackerWeariness : w.DefenderWeariness;
-                        Console.WriteLine(w.Ended
-                            ? $"  war vs {other}: {w.Goal}, ended epoch-started {w.StartEpoch} - {w.Outcome}"
-                            : $"  war vs {other}: {w.Goal}, since epoch {w.StartEpoch}, weariness {wear:F2}");
-                    }
-                    break;
-                }
-                case "chronicle" when _galaxy?.Skeleton is { } skChr:
-                {
-                    int filter = parts.Length >= 2 && int.TryParse(parts[1], out var pf) ? pf : -1;
-                    Console.WriteLine(ChronicleView.Build(skChr, filter));
-                    break;
-                }
                 default:
                     Console.WriteLine("unrecognized — try 'help'"); break;
             }
