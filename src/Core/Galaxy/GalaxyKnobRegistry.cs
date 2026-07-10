@@ -45,6 +45,28 @@ public static class GalaxyKnobRegistry
           "star-formation rate multiplier (higher burns gas earlier)",
           c => c.Cosmic.StarFormationEfficiency,
           (c, v) => c.Cosmic.StarFormationEfficiency = v),
+
+        // ---- Evolution (life, sapience, the emergence schedule) ----
+        K("Evolution.AbiogenesisRate",
+          "abiogenesis chance per viable cell per evolutionary step",
+          c => c.Evolution.AbiogenesisRate,
+          (c, v) => c.Evolution.AbiogenesisRate = v),
+        K("Evolution.CatastropheFrequency",
+          "mass-extinction chance per living cell per step",
+          c => c.Evolution.CatastropheFrequency,
+          (c, v) => c.Evolution.CatastropheFrequency = v),
+        K("Evolution.MaturationScaleGyr",
+          "mean abiogenesis-to-spaceflight duration in Gyr",
+          c => c.Evolution.MaturationScaleGyr,
+          (c, v) => c.Evolution.MaturationScaleGyr = v),
+        K("Evolution.SapienceRate",
+          "sapience-registration chance per rich stable cell per step",
+          c => c.Evolution.SapienceRate,
+          (c, v) => c.Evolution.SapienceRate = v),
+        K("Evolution.SpreadRate",
+          "panspermia chance per living-neighbor pair per step",
+          c => c.Evolution.SpreadRate,
+          (c, v) => c.Evolution.SpreadRate = v),
     };
 
     private static readonly Dictionary<string, GalaxyKnobDef> ByName = Build();

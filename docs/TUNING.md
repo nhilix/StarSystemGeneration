@@ -246,3 +246,13 @@ registry (artifact, REPL `knobs`, this file).
 | `Cosmic.EnrichmentRate` | 1.0 | Faster metallicity floor crossings: life viable earlier and wider (0b reads this directly). | Metal-poor galaxy: emergence compresses toward the late window. |
 | `Cosmic.GlobularCount` | 6.0 | More ancient metal-poor cluster cells (exotic terrain, own star table). | Rarer exotic terrain. |
 | `Cosmic.AgnActivity` | 1.0 | More/wider core sterilization epochs: the inner disc's life starts late, ancient-core powers vanish. | A quiet nucleus; core-adjacent early risers appear. |
+
+## Evolution — life, sapience, the emergence schedule
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Evolution.AbiogenesisRate` | 0.012 | Life starts promptly where viable: more living cells, earlier abiogenesis dates, more origins overall. | Life is precious and late; whole arms stay barren. |
+| `Evolution.MaturationScaleGyr` | 6.0 | Longer road to spaceflight: more origins land past the horizon (fewer polities), precursors thin out. **Must exceed the abio→sapience lag (~4 Gyr) or the clamp erases causal dates.** | Everything reaches flight early: crowded precursor era. |
+| `Evolution.CatastropheFrequency` | 0.0015 | More setbacks: later, scarred emergences, richer catastrophe texture, fewer sapients. | Smooth gardens everywhere. |
+| `Evolution.SpreadRate` | 0.002 | Panspermia clusters life along habitable corridors. | Isolated abiogenesis islands. |
+| `Evolution.SapienceRate` | 0.05 | **The polity-count dial** (with the era horizons): more origins in every era. | Sparse minds; some seeds drop below 2 current polities. |

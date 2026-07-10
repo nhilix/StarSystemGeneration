@@ -109,7 +109,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       habitability history scalars. Gate: hex-tier mechanics suite
       green; stub tests replaced; density invariants (voids where gas
       never gathered, `MeanDensityTarget` normalization).
-- [ ] 5. **Evolution loop + emergence schedule** — biosphere fields;
+- [x] 5. **Evolution loop + emergence schedule** — biosphere fields;
       abiogenesis/aging/catastrophe/spread/sapience steps; sapient
       origins with maturation clocks → spaceflight dates; `Evolution`
       knob family; evolutionary chronicle (events 100–199). Gate:
@@ -204,3 +204,17 @@ mechanics changes beyond genesis inputs and entry-time state.
   mean* pre-clamp; the hex-level mean inherits clamp losses (band-tested
   ±0.15). GalaxyContext without a skeleton now generates as flatspace
   (mirrors RegionContext.For's null) — documented in Generator.
+- **Task-5 emergence-schedule lessons**: (1) each pipeline stage being a
+  slow Poisson lottery (low abio rate, low sapience rate) destroys
+  causality — dates were pure roll noise and everything clustered
+  precursor. Fixed: fast registration once richness allows; dates now
+  trace to viability + growth + setbacks. (2) MaturationScaleGyr must
+  exceed the abio→sapience lag or the "never before sapience" clamp sets
+  every date. (3) The NativeHorizonGyr (0.7) re-roll trick both keeps
+  natives *rare* and pulls richer late registrations into the current
+  band. Counts: Current r8 3–7, r12 6–14, r21 21; precursors 8–86;
+  natives 4–24.
+- Era projection: precursor < −0.05 Gyr < current ≤ +0.35 Gyr < native ≤
+  0.7 Gyr (structural cuts); the current band compresses onto the
+  emergence window at EpochGenesis.Seed (task 7) — honest narrative
+  compression per frame/time.md.

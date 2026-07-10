@@ -7,6 +7,11 @@ GKNOB|Cosmic.GlobularCount|6
 GKNOB|Cosmic.MergerCount|2
 GKNOB|Cosmic.MergerScale|1
 GKNOB|Cosmic.StarFormationEfficiency|1
+GKNOB|Evolution.AbiogenesisRate|0.012
+GKNOB|Evolution.CatastropheFrequency|0.0015
+GKNOB|Evolution.MaturationScaleGyr|6
+GKNOB|Evolution.SapienceRate|0.05
+GKNOB|Evolution.SpreadRate|0.002
 ESIM|42|25|40
 KNOB|Controller.AlloysReservePerPort|3
 KNOB|Controller.ArmamentsPerPortPerMilitancy|2

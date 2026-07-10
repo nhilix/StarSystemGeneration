@@ -24,6 +24,31 @@ public sealed class GalaxyConfig
     public double HomeworldRatePerCell { get; set; } = 0.008;    // ~13 polities at radius 21
     public double TraversabilityThreshold { get; set; } = 0.25;
     public CosmicKnobs Cosmic { get; } = new CosmicKnobs();
+    public EvolutionKnobs Evolution { get; } = new EvolutionKnobs();
+}
+
+/// <summary>Evolutionary-clock dials (genesis/life-and-precursors.md
+/// §Knobs): life, sapience, and the emergence schedule. Indexed by
+/// <see cref="GalaxyKnobRegistry"/>, documented in docs/TUNING.md.
+/// Precursor-wave dials join with the arc sim.</summary>
+public sealed class EvolutionKnobs
+{
+    /// <summary>Abiogenesis chance per viable cell per evolutionary step —
+    /// how eagerly life starts where it can (mean wait ~3 Gyr at 0.012).</summary>
+    public double AbiogenesisRate { get; set; } = 0.012;
+    /// <summary>Mean abiogenesis → spaceflight duration in Gyr; richness,
+    /// hospitability, and setbacks scale it per origin. Must generally
+    /// exceed the abiogenesis→sapience lag or the sapience clamp erases
+    /// the causal date (task-5 lesson).</summary>
+    public double MaturationScaleGyr { get; set; } = 6.0;
+    /// <summary>Mass-extinction chance per living cell per step.</summary>
+    public double CatastropheFrequency { get; set; } = 0.0015;
+    /// <summary>Panspermia chance per living-neighbor pair per step (slow).</summary>
+    public double SpreadRate { get; set; } = 0.002;
+    /// <summary>Sapience-registration chance per rich stable cell per step —
+    /// fast once richness allows, so dates stay causal (viability + growth
+    /// decide, not a long lottery).</summary>
+    public double SapienceRate { get; set; } = 0.05;
 }
 
 /// <summary>Cosmic-clock dials (genesis/cosmic-genesis.md §Knobs): the deep-time

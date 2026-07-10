@@ -22,6 +22,10 @@ public sealed class GalaxySkeleton
     /// (100–199) events in the standard grammar. EpochGenesis copies them
     /// into the sim's event log so one history reads bottom-to-top.</summary>
     public List<Epoch.WorldEvent> DeepTimeEvents { get; } = new();
+    /// <summary>The emergence schedule (slice F): every sapient origin —
+    /// precursor, current, and pre-spaceflight — written by the evolution
+    /// sim, persisted as the origins layer.</summary>
+    public List<SapientOrigin> Origins { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();

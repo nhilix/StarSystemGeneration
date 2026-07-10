@@ -28,6 +28,9 @@ public enum WorldEventType
     DwarfGalaxyMerged = 0,
     AgnIgnited = 1,
     GlobularFormed = 2,
+    FirstLife = 100,
+    SapienceEmerged = 101,
+    SpaceflightReached = 102,
     LaneOpened = 200,
     PortTierRaised = 201,
     FamineStruck = 202,
@@ -73,6 +76,18 @@ public sealed record AgnIgnitedPayload(
 /// <summary>An ancient compact metal-poor cluster forms in the earliest
 /// steps — rare exotic terrain with its own hex-tier star-table bias.</summary>
 public sealed record GlobularFormedPayload(int FeatureId, string Name) : EventPayload;
+
+/// <summary>The galaxy's first abiogenesis — life exists (one event per
+/// history; everything after is spread and evolution).</summary>
+public sealed record FirstLifePayload : EventPayload;
+
+/// <summary>A sapient origin registers on the emergence schedule
+/// (life-and-precursors.md §The step loop).</summary>
+public sealed record SapienceEmergedPayload(int OriginId) : EventPayload;
+
+/// <summary>An origin reaches spaceflight in deep time — a precursor wave
+/// begins (current-era origins emerge through the epoch sim instead).</summary>
+public sealed record SpaceflightReachedPayload(int OriginId) : EventPayload;
 
 public sealed record PolityEmergedPayload(string PolityName) : EventPayload;
 

@@ -61,4 +61,11 @@ public enum RollChannel : ulong
     CosmicGlobularPlace = 44,  // globular count/cell picks: actor = globular index
     CosmicAgnTrigger = 45,     // accretion-epoch gate: step-keyed
     CosmicFeatureName = 46,    // feature name syllables: actor = feature ordinal, subIndex = syllable
+
+    // --- Evolutionary clock (slice F). Rolls keyed (step, cell spiral index). ---
+    EvoAbiogenesis = 47,       // life-starts gate per (step, cell)
+    EvoCatastrophe = 48,       // mass-extinction gate per (step, cell); subIndex 1 = full-reset roll
+    EvoSpread = 49,            // panspermia gate per (step, target cell); subIndex = neighbor ordinal
+    EvoSapience = 50,          // sapience-registration gate per (step, cell); subIndex 1 = homeworld hex pick
+    EvoMaturation = 51,        // maturation-duration variance per origin (actor = origin id)
 }

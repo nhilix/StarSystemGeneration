@@ -19,9 +19,11 @@ namespace StarGen.Core.Galaxy;
 public static class SkeletonBuilder
 {
     public static GalaxySkeleton Build(GalaxyConfig config,
-        Action<Genesis.CosmicFrame>? cosmicObserver = null)
+        Action<Genesis.CosmicFrame>? cosmicObserver = null,
+        Action<Genesis.EvoFrame>? evoObserver = null)
     {
         var skeleton = BuildShape(config, cosmicObserver);
+        Genesis.EvolutionSim.Run(skeleton, evoObserver);
         PassResourceAnchors(skeleton);
         PassHomeworlds(skeleton);
         return skeleton;

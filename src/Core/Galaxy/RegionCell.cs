@@ -46,4 +46,12 @@ public sealed class RegionCell
     /// <summary>Cosmic step of the last sterilization event (AGN wave);
     /// -1 = never. Stability-since falls out of it.</summary>
     public int LastSterilizedStep { get; set; } = -1;
+
+    // -- present-day residue of the evolutionary sim (slice F) --
+    /// <summary>Present-day biosphere richness [0,1] — 0 where lifeless or
+    /// sterilized; replaces painted biosphere/provisions potential.</summary>
+    public double BiosphereRichness { get; set; }
+    /// <summary>Age of the living biosphere in Gyr (0 where lifeless).
+    /// Older → richer, more complex.</summary>
+    public double BiosphereAgeGyr { get; set; }
 }
