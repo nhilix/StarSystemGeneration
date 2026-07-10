@@ -48,6 +48,20 @@ public static class EpochMapView
                 glyph = portCells.Contains(cell.Coord) ? '*'
                     : traffic!.TryGetValue(cell.Coord, out double trips)
                         ? TrafficGlyph(trips) : '.';
+            else if (layer == "tech")
+            {
+                // the tech gap made visible: each domain cell shows its
+                // owner's Astrogation tier — whose ports reach farther
+                PortDomains.OwnersAt(sk, state.Config, state.Ports,
+                                     HexGrid.CellCenter(cell.Coord), owners);
+                glyph = owners.Count switch
+                {
+                    0 => '.',
+                    1 => (char)('0' + System.Math.Min(9,
+                        Tech.Tier(state, owners[0], TechDomain.Astrogation))),
+                    _ => '?',
+                };
+            }
             else
             {
                 PortDomains.OwnersAt(sk, state.Config, state.Ports,
@@ -73,6 +87,8 @@ public static class EpochMapView
         }
         sb.AppendLine(layer switch
         {
+            "tech" => "owner's Astrogation tier per domain cell: digit=tier "
+                      + "?=contested .=wilds (leaders' ports reach farther)",
             "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
             "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
                          + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "

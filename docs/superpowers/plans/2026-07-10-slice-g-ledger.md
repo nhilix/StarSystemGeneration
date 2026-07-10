@@ -216,7 +216,18 @@ as work lands.
   corp flight); deaths: bankruptcy cascade, nationalization, niche
   death — residue. Events open 6xx block. Serialize (corporations
   layer), golden regen, knobs `Corporate.*`.
-- [ ] **G8 — REPL surfaces + golden freeze**: `polity <id>` panel (form,
+- [x] **G8 — REPL surfaces** *(done: `Inspector/InteriorView.cs` —
+  `polity [id]` panel (form, legitimacy/cohesion bars, official line,
+  reign with dynasty + since-year from the log, court, tech tiers,
+  factions with strength/grievance bars, hosted charters),
+  `characters [polityId]` roster, `bio <charId>` (P8: personality +
+  the life's events from `ForCharacter`), `tech` table with progress
+  percentages, `corps` registry (niche, host, credits, portfolio,
+  exec, dead-with-residue lines); `emap tech` layer (owner Astrogation
+  tier digit — the reach gap visible); help text updated; chronicle
+  prose landed with each task; watch untouched, Inspector-only change
+  — 418/418, no golden change. Golden freeze happens after the G9 fix
+  wave)*: `polity <id>` panel (form,
   legitimacy, cohesion, ruler + reign + dynasty, factions with
   strength/grievance bars, tech tiers); `characters [polityId]` +
   `bio <charId>` (biography from the log); `tech` panel + `map` tech
