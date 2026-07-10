@@ -28,7 +28,7 @@ public static class ArtifactSerializer
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 1),
     };
 
     public static string ToText(SimState state)
@@ -240,6 +240,18 @@ public static class ArtifactSerializer
                     site.Hex.Q.ToString(Inv), site.Hex.R.ToString(Inv),
                     B(site.Dormant), site.OtherWaveId.ToString(Inv)));
         }
+
+        Layer(w, "interior");
+        foreach (var p in state.Polities)
+            if (p.Interior is { } interior)
+                w.WriteLine(Join("INTR", p.ActorId.ToString(Inv),
+                    ((int)interior.FormId).ToString(Inv),
+                    R(interior.OfficialIdeology[0]), R(interior.OfficialIdeology[1]),
+                    R(interior.OfficialIdeology[2]), R(interior.OfficialIdeology[3]),
+                    R(interior.Legitimacy), R(interior.Cohesion),
+                    R(interior.Enforcement), R(interior.LastMeanSoL),
+                    interior.RulerCharacterId.ToString(Inv),
+                    interior.FoundingCultureId.ToString(Inv)));
         w.WriteLine("END");
     }
 
@@ -697,6 +709,23 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), int.Parse(f[7], Inv))
                         { Closed = f[8] == "1" });
                         break;
+                    case "INTR":
+                    {
+                        var interior = new PolityInterior
+                        {
+                            FormId = (GovernmentFormId)int.Parse(f[2], Inv),
+                            Legitimacy = double.Parse(f[7], Inv),
+                            Cohesion = double.Parse(f[8], Inv),
+                            Enforcement = double.Parse(f[9], Inv),
+                            LastMeanSoL = double.Parse(f[10], Inv),
+                            RulerCharacterId = int.Parse(f[11], Inv),
+                            FoundingCultureId = int.Parse(f[12], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            interior.OfficialIdeology[ax] = double.Parse(f[3 + ax], Inv);
+                        state!.PolityOf(int.Parse(f[1], Inv)).Interior = interior;
+                        break;
+                    }
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');

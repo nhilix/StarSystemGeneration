@@ -25,7 +25,12 @@ as work lands.
 ## Tasks
 
 - [x] **G0 — branch + ledger** (this commit).
-- [ ] **G1 — Government forms + polity interior state**: eight-form
+- [x] **G1 — Government forms + polity interior state** *(done: catalog +
+  seating in `Interior/GovernmentForm.cs`, state in `PolityInterior.cs`,
+  recompute in `InteriorOps.cs`; homeworld segments + official line seed
+  from the species ideology tilt; colony segments carry the official
+  line; interior layer v1 (INTR); knobs `Interior.*` ×12 + TUNING rows;
+  golden regen — 382/382 green)*: eight-form
   catalog (data-as-code: seat in ideology space × species, succession
   rule, policy inertia, faction tolerance, legitimacy source); polity
   interior state (government form, official ideology 4-vector,

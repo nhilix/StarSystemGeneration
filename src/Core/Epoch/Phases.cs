@@ -726,13 +726,18 @@ public sealed class ResolutionPhase : ISimPhase
                             tier: 1, state.WorldYear);
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
-        state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+        var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
             record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize)
         {
             // the expedition cost recycles to the settlers — treasury
             // spending is somebody's income, never destroyed (P4)
             Wealth = cfg.Expansion.ColonyCost,
-        });
+        };
+        // settlers sent by the state carry the official line (slice G)
+        if (record.Interior != null)
+            for (int ax = 0; ax < 4; ax++)
+                colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
+        state.Segments.Add(colonySegment);
         // the expedition ships the equipment for what it came for: the
         // founding facility matches the site's best extraction potential,
         // plus a subsistence farm when that isn't farming — the export
@@ -814,12 +819,24 @@ public sealed class InteriorPhase : ISimPhase
             state.Ports.Add(port);
             state.Markets.Add(new Market(port.Id, state.Config.Economy));
             int species = state.PolityOf(a.Id).SpeciesId;
-            state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+            var homeSegment = new PopulationSegment(state.Segments.Count, port.Id,
                 species, species, state.Config.Expansion.HomeworldSegmentSize)
             {
                 Wealth = state.Config.Expansion.HomeworldSegmentSize
                          * state.Config.Economy.InitialWealthPerPop,
-            });
+            };
+            // the founding population starts at its species' ideology tilt;
+            // the interior seats there too (popular == official at birth).
+            // Shape-only test skeletons carry no species — no interior then.
+            if (species >= 0 && species < state.Skeleton.Species.Count)
+            {
+                var tilt = GovernmentForms.SpeciesIdeologyTilt(
+                    state.Skeleton.Species[species]);
+                for (int ax = 0; ax < 4; ax++) homeSegment.Ideology[ax] = tilt[ax];
+                state.Segments.Add(homeSegment);
+                InteriorOps.SeatAtEntry(state, state.PolityOf(a.Id));
+            }
+            else state.Segments.Add(homeSegment);
             // a civilization at spaceflight arrives with industry: the
             // starter chain (raw → alloys/fuel → machinery) and the one-time
             // credit endowment — the only mint; conserved thereafter (P4)
@@ -846,6 +863,8 @@ public sealed class InteriorPhase : ISimPhase
         int migrations = Migrate(state, preexisting);
         int grown = Demographics(state, preexisting);
         DriftIdeology(state, preexisting);
+        // the polity's inside reads the settled demographics (slice G)
+        int interiors = InteriorOps.Recompute(state);
 
         string note = entered switch
         {
@@ -857,6 +876,9 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
         if (migrations > 0)
             note += $", {migrations} " + (migrations == 1 ? "flow migrates" : "flows migrate");
+        if (interiors > 0)
+            note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
+                    + " recomputed";
         return note;
     }
 

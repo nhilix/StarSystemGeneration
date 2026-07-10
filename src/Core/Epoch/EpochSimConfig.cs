@@ -17,6 +17,41 @@ public sealed class EpochSimConfig
     public ExpansionKnobs Expansion { get; } = new ExpansionKnobs();
     public ControllerKnobs Controller { get; } = new ControllerKnobs();
     public FleetKnobs Fleet { get; } = new FleetKnobs();
+    public InteriorKnobs Interior { get; } = new InteriorKnobs();
+}
+
+/// <summary>Polity-interior dials (polity/factions-and-government.md):
+/// official-ideology drift, the legitimacy term weights (form multipliers
+/// scale them — catalog data), structural strain, and enforcement. Slice G.</summary>
+public sealed class InteriorKnobs
+{
+    /// <summary>Official-ideology drift toward the popular line per
+    /// world-year at zero form inertia (forms scale it down).</summary>
+    public double OfficialDriftPerYear { get; set; } = 0.008;
+    /// <summary>How strongly the SoL *trend* (this epoch vs last) moves the
+    /// prosperity legitimacy term beyond the SoL level itself.</summary>
+    public double SoLTrendGain { get; set; } = 3.0;
+    /// <summary>Base weight of the prosperity term in legitimacy.</summary>
+    public double LegitimacyProsperityWeight { get; set; } = 0.30;
+    /// <summary>Base weight of the official-vs-popular alignment term.</summary>
+    public double LegitimacyIdeologyWeight { get; set; } = 0.25;
+    /// <summary>Base weight of the ruler-prestige term.</summary>
+    public double LegitimacyRulerWeight { get; set; } = 0.20;
+    /// <summary>Base weight of the war-outcome term (neutral until H).</summary>
+    public double LegitimacyWarWeight { get; set; } = 0.10;
+    /// <summary>Base weight of the cultural-accommodation term.</summary>
+    public double LegitimacyAccommodationWeight { get; set; } = 0.15;
+    /// <summary>Cohesion strain per owned port beyond the first — size
+    /// carries its successor states inside it.</summary>
+    public double StrainPerPort { get; set; } = 0.008;
+    /// <summary>Cohesion strain per culture beyond the founding one.</summary>
+    public double StrainPerCulture { get; set; } = 0.05;
+    /// <summary>Cohesion strain at mean port distance = colonization reach.</summary>
+    public double StrainDistanceWeight { get; set; } = 0.15;
+    /// <summary>Enforcement floor — a state with no navy still polices.</summary>
+    public double EnforcementBase { get; set; } = 0.4;
+    /// <summary>Enforcement per warship hull per owned port.</summary>
+    public double EnforcementPerWarshipPerPort { get; set; } = 0.04;
 }
 
 /// <summary>Clock and stepping knobs (frame/time.md). Structural — serialized

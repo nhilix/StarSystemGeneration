@@ -105,6 +105,27 @@ propagates: how early people die, how early they run, and how fast.
 | `Population.ProsperityIdeologyLine` | 0.7 | (Lower = comfort liberalizes sooner: Individual/Open.) | Prosperity must be extreme to matter. |
 | `Population.SoLDriftPerYear` | 0.02 | Living standards re-rate quickly with market outcomes. | SoL is a long memory. |
 
+## Interior — legitimacy, cohesion, enforcement (slice G)
+
+The polity's inside: how fast the official line chases the people, what
+makes a government legitimate, and what strains a realm apart. Form
+multipliers (catalog) scale the legitimacy weights per government form.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Interior.OfficialDriftPerYear` | 0.008 | Governments track their people (smaller ideology gaps, fewer ideological factions). | Frozen official lines; gap-driven grievance builds. |
+| `Interior.SoLTrendGain` | 3.0 | Downturns crater legitimacy immediately (volatile politics). | Only SoL *levels* matter; slow declines pass unpunished. |
+| `Interior.LegitimacyProsperityWeight` | 0.30 | Bread buys loyalty everywhere. | Prosperity politically irrelevant. |
+| `Interior.LegitimacyIdeologyWeight` | 0.25 | Alignment with the popular line dominates (assemblies/theocracies swing harder). | Doctrine gaps forgiven. |
+| `Interior.LegitimacyRulerWeight` | 0.20 | Rulers carry the state (autocracies live and die by prestige — G2). | Impersonal states. |
+| `Interior.LegitimacyWarWeight` | 0.10 | (Neutral 0.5 until H wires war outcomes.) | — |
+| `Interior.LegitimacyAccommodationWeight` | 0.15 | Minority cultures strain legitimacy hard (conquest empires wobble — H). | Multicultural realms stable by default. |
+| `Interior.StrainPerPort` | 0.008 | Big realms fray: cohesion caps empire size. | Size costs nothing. |
+| `Interior.StrainPerCulture` | 0.05 | Every absorbed culture is a future schism seed. | Homogeneous and mosaic empires equally solid. |
+| `Interior.StrainDistanceWeight` | 0.15 | Far-flung domains slip the capital's grip (frontier factions). | Distance is administrative trivia. |
+| `Interior.EnforcementBase` | 0.4 | States keep order without navies (graduations rarer). | Order rests entirely on hulls. |
+| `Interior.EnforcementPerWarshipPerPort` | 0.04 | Navies double as interior police (militant realms suppress factions). | Fleets are outward-facing only. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs
@@ -216,6 +237,13 @@ day one of them *does* need to move.
   (`InteriorPhase.StarterIndustry`): agri t2 + mine/skimmer/refinery/foundry t1.
 - **Ideology drift shape** — the prosperity comfort ×3 factor and famine
   severity scaling: `InteriorPhase.DriftIdeology`.
+- **Government form catalog** — the eight forms' ideology seats, species
+  gates, succession rules, inertia/tolerance/floor values, legitimacy
+  multipliers, and temperament-composition weights:
+  `src/Core/Epoch/Interior/GovernmentForm.cs` (slice G, chassis-catalog
+  pattern). The **species→ideology entry tilt** coefficients live beside
+  them (`SpeciesIdeologyTilt`) — they define where societies *start*, not
+  how the sim is tuned.
 - **Numerical guards** — ε = 1e-9 in the drift ratio, the 0.05 condition
   floor, hex-tier constants (`StableHash`, `ValueNoise` lattices).
 

@@ -49,6 +49,10 @@ public sealed class PolityRecord
     /// the late-emerger contact bonus — latecomers are behind, not hopeless.</summary>
     public double EntryGradeBonus { get; set; }
 
+    /// <summary>The polity's inside (slice G): form, official ideology,
+    /// legitimacy/cohesion/enforcement. Seated at entry, null before.</summary>
+    public PolityInterior? Interior { get; set; }
+
     public PolityRecord(int actorId, int speciesId)
     {
         ActorId = actorId;
