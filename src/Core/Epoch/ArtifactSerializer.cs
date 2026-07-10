@@ -25,9 +25,10 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 5), ("clock", 1), ("raster", 1), ("species", 1),
+        ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
+        ("features", 1), ("origins", 1), ("precursors", 1),
     };
 
     public static string ToText(SimState state)
@@ -70,9 +71,16 @@ public static class ArtifactSerializer
         Layer(w, "raster");
         foreach (var cell in state.Skeleton.Cells)
         {
+            // raster v2 (slice F): the simulated present-day residue rides
+            // the CELL line — genesis outputs are persisted, never re-run
             w.WriteLine(Join("CELL", cell.Q.ToString(Inv), cell.R.ToString(Inv),
                 R(cell.MeanDensity), B(cell.IsVoid), B(cell.IsChokepoint),
-                ((int)cell.Lean).ToString(Inv), R(cell.Metallicity)));
+                ((int)cell.Lean).ToString(Inv), R(cell.Metallicity),
+                R(cell.GasFraction), R(cell.CohortYoung), R(cell.CohortMid),
+                R(cell.CohortOld), R(cell.CohortRemnant), R(cell.MineralRichness),
+                R(cell.SfActivity), cell.LifeViableStep.ToString(Inv),
+                cell.LastSterilizedStep.ToString(Inv), R(cell.BiosphereRichness),
+                R(cell.BiosphereAgeGyr)));
             foreach (var a in cell.Anchors)
                 w.WriteLine(Join("ANCHOR", cell.Q.ToString(Inv), cell.R.ToString(Inv),
                     ((int)a.Type).ToString(Inv), a.Hex.Q.ToString(Inv),
@@ -193,7 +201,67 @@ public static class ArtifactSerializer
                 l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
                 R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
                 l.IssuedYear.ToString(Inv), B(l.Closed)));
+
+        Layer(w, "features");
+        foreach (var feat in state.Skeleton.Features)
+            w.WriteLine(Join("FEATURE", feat.Id.ToString(Inv),
+                ((int)feat.Type).ToString(Inv), Name(feat.Name), R(feat.DateGyr),
+                CoordList(feat.Cells)));
+
+        Layer(w, "origins");
+        foreach (var o in state.Skeleton.Origins)
+            w.WriteLine(Join("ORIGIN", o.Id.ToString(Inv),
+                o.CellCoord.Q.ToString(Inv), o.CellCoord.R.ToString(Inv),
+                o.Hex.Q.ToString(Inv), o.Hex.R.ToString(Inv),
+                o.AbiogenesisYear.ToString(Inv), o.SapienceYear.ToString(Inv),
+                o.SpaceflightYear.ToString(Inv), R(o.Richness),
+                o.Setbacks.ToString(Inv), ((int)o.Era).ToString(Inv),
+                o.DescendantOfWaveId.ToString(Inv)));
+
+        Layer(w, "precursors");
+        foreach (var wave in state.Skeleton.PrecursorWaves)
+        {
+            var lanes = new string[wave.Lanes.Count];
+            for (int i = 0; i < wave.Lanes.Count; i++)
+                lanes[i] = wave.Lanes[i].A.ToString(Inv) + ":"
+                           + wave.Lanes[i].B.ToString(Inv);
+            w.WriteLine(Join("WAVE", wave.Id.ToString(Inv),
+                wave.OriginId.ToString(Inv), Name(wave.Name),
+                ((int)wave.Class).ToString(Inv), R(wave.Vigor),
+                wave.CapitalHex.Q.ToString(Inv), wave.CapitalHex.R.ToString(Inv),
+                wave.RoseYear.ToString(Inv), wave.FellYear.ToString(Inv),
+                ((int)wave.EndCause).ToString(Inv),
+                wave.DescendantOriginId.ToString(Inv),
+                CoordList(wave.Cells), CoordList(wave.PortHexes),
+                lanes.Length == 0 ? "-" : string.Join(";", lanes)));
+            foreach (var site in wave.Sites)
+                w.WriteLine(Join("SITE", wave.Id.ToString(Inv),
+                    site.Id.ToString(Inv), ((int)site.Type).ToString(Inv),
+                    site.Hex.Q.ToString(Inv), site.Hex.R.ToString(Inv),
+                    B(site.Dormant), site.OtherWaveId.ToString(Inv)));
+        }
         w.WriteLine("END");
+    }
+
+    /// <summary>Hex coordinate list as "q:r;q:r"; "-" when empty.</summary>
+    private static string CoordList(IReadOnlyList<HexCoordinate> coords)
+    {
+        if (coords.Count == 0) return "-";
+        var parts = new string[coords.Count];
+        for (int i = 0; i < coords.Count; i++)
+            parts[i] = coords[i].Q.ToString(Inv) + ":" + coords[i].R.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseCoordList(string field, List<HexCoordinate> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(new HexCoordinate(int.Parse(part.Substring(0, colon), Inv),
+                int.Parse(part.Substring(colon + 1), Inv)));
+        }
     }
 
     /// <summary>A fleet's composition as "designId:count:grade;…" in the
@@ -347,6 +415,93 @@ public static class ArtifactSerializer
                         cell.IsChokepoint = f[5] == "1";
                         cell.Lean = (StellarLean)int.Parse(f[6], Inv);
                         cell.Metallicity = double.Parse(f[7], Inv);
+                        cell.GasFraction = double.Parse(f[8], Inv);
+                        cell.CohortYoung = double.Parse(f[9], Inv);
+                        cell.CohortMid = double.Parse(f[10], Inv);
+                        cell.CohortOld = double.Parse(f[11], Inv);
+                        cell.CohortRemnant = double.Parse(f[12], Inv);
+                        cell.MineralRichness = double.Parse(f[13], Inv);
+                        cell.SfActivity = double.Parse(f[14], Inv);
+                        cell.LifeViableStep = int.Parse(f[15], Inv);
+                        cell.LastSterilizedStep = int.Parse(f[16], Inv);
+                        cell.BiosphereRichness = double.Parse(f[17], Inv);
+                        cell.BiosphereAgeGyr = double.Parse(f[18], Inv);
+                        break;
+                    case "FEATURE":
+                        if (int.Parse(f[1], Inv) != skeleton!.Features.Count)
+                            throw new InvalidDataException("feature ids out of order");
+                        var feature = new GalacticFeature
+                        {
+                            Id = int.Parse(f[1], Inv),
+                            Type = (GalacticFeatureType)int.Parse(f[2], Inv),
+                            Name = f[3],
+                            DateGyr = double.Parse(f[4], Inv),
+                        };
+                        ParseCoordList(f[5], feature.Cells);
+                        skeleton.Features.Add(feature);
+                        break;
+                    case "ORIGIN":
+                        if (int.Parse(f[1], Inv) != skeleton!.Origins.Count)
+                            throw new InvalidDataException("origin ids out of order");
+                        skeleton.Origins.Add(new SapientOrigin
+                        {
+                            Id = int.Parse(f[1], Inv),
+                            CellCoord = new HexCoordinate(int.Parse(f[2], Inv),
+                                int.Parse(f[3], Inv)),
+                            Hex = new HexCoordinate(int.Parse(f[4], Inv),
+                                int.Parse(f[5], Inv)),
+                            AbiogenesisYear = long.Parse(f[6], Inv),
+                            SapienceYear = long.Parse(f[7], Inv),
+                            SpaceflightYear = long.Parse(f[8], Inv),
+                            Richness = double.Parse(f[9], Inv),
+                            Setbacks = int.Parse(f[10], Inv),
+                            Era = (OriginEra)int.Parse(f[11], Inv),
+                            DescendantOfWaveId = int.Parse(f[12], Inv),
+                        });
+                        break;
+                    case "WAVE":
+                        if (int.Parse(f[1], Inv) != skeleton!.PrecursorWaves.Count)
+                            throw new InvalidDataException("wave ids out of order");
+                        var wave = new PrecursorWave
+                        {
+                            Id = int.Parse(f[1], Inv),
+                            OriginId = int.Parse(f[2], Inv),
+                            Name = f[3],
+                            Class = (VigorClass)int.Parse(f[4], Inv),
+                            Vigor = double.Parse(f[5], Inv),
+                            CapitalHex = new HexCoordinate(int.Parse(f[6], Inv),
+                                int.Parse(f[7], Inv)),
+                            RoseYear = long.Parse(f[8], Inv),
+                            FellYear = long.Parse(f[9], Inv),
+                            EndCause = (WaveEndCause)int.Parse(f[10], Inv),
+                            DescendantOriginId = int.Parse(f[11], Inv),
+                        };
+                        ParseCoordList(f[12], wave.Cells);
+                        ParseCoordList(f[13], wave.PortHexes);
+                        if (f[14] != "-")
+                            foreach (var part in f[14].Split(';'))
+                            {
+                                int colon = part.IndexOf(':');
+                                wave.Lanes.Add((
+                                    int.Parse(part.Substring(0, colon), Inv),
+                                    int.Parse(part.Substring(colon + 1), Inv)));
+                            }
+                        skeleton.PrecursorWaves.Add(wave);
+                        break;
+                    case "SITE":
+                        var siteWave = skeleton!.PrecursorWaves[int.Parse(f[1], Inv)];
+                        if (int.Parse(f[2], Inv) != siteWave.Sites.Count)
+                            throw new InvalidDataException("site ids out of order");
+                        siteWave.Sites.Add(new PrecursorSite
+                        {
+                            WaveId = siteWave.Id,
+                            Id = int.Parse(f[2], Inv),
+                            Type = (PrecursorSiteType)int.Parse(f[3], Inv),
+                            Hex = new HexCoordinate(int.Parse(f[4], Inv),
+                                int.Parse(f[5], Inv)),
+                            Dormant = f[6] == "1",
+                            OtherWaveId = int.Parse(f[7], Inv),
+                        });
                         break;
                     case "ANCHOR":
                         skeleton!.CellAt(new HexCoordinate(int.Parse(f[1], Inv),

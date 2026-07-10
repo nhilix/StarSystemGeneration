@@ -130,7 +130,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       late-emerger contact bonus into entry designs/starter fleets.
       Gate: full 40-epoch histories run; staggering is causal; stub
       tests replaced.
-- [ ] 8. **Artifact complete + load gates** — raster layer v2; appended
+- [x] 8. **Artifact complete + load gates** — raster layer v2; appended
       layers (features, biospheres/origins, precursor registry);
       deep-time event payloads + `SimTraceView` cases; version refusal.
       Gate: round-trips; byte-identity; load-vs-rebuild;
