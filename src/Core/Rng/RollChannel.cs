@@ -83,4 +83,7 @@ public enum RollChannel : ulong
     CharacterName = 60,        // name syllables: step = culture id, actor = character id, subIndex = syllable (100 = length)
     CharacterTraits = 61,      // personality: step = mint epoch, actor = character id, subIndex = trait ordinal
     CharacterDeath = 62,       // per-epoch death check: step = epoch, actor = character id
+
+    // --- Factions (slice G). ---
+    FactionSeed = 63,          // faction name syllables: step = polity id, actor = faction id, subIndex = syllable (100 = length)
 }

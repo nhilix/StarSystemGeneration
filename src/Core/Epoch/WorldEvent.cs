@@ -43,6 +43,8 @@ public enum WorldEventType
     MigrationWave = 206,
     PolityEmerged = 300,
     PortEstablished = 301,
+    FactionFormed = 304,
+    FactionDissolved = 305,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
@@ -153,6 +155,15 @@ public sealed record FleetAttritionPayload(
 /// make founding physical (fleets doc §Postures, space-and-travel.md).</summary>
 public sealed record ConvoyDispatchedPayload(
     int FleetId, int FromPortId, int TargetQ, int TargetR) : EventPayload;
+
+/// <summary>An interest coalesces into a faction
+/// (factions-and-government.md §Faction formation).</summary>
+public sealed record FactionFormedPayload(
+    int FactionId, string Name, int Basis, int PolityId) : EventPayload;
+
+/// <summary>A spent interest disbands; its war chest returns to the people.</summary>
+public sealed record FactionDissolvedPayload(
+    int FactionId, string Name) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

@@ -126,6 +126,12 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            FactionFormedPayload p =>
+                Invariant($"the {p.Name} coalesces in polity #{p.PolityId} (")
+                + ((FactionBasis)p.Basis).ToString().ToLowerInvariant()
+                + " interest)",
+            FactionDissolvedPayload p =>
+                $"the {p.Name} disbands, its moment passed",
             RulerAscendedPayload p =>
                 Invariant($"{p.CharacterName} takes the seat of polity ")
                 + Invariant($"#{p.PolityId}")

@@ -151,7 +151,10 @@ public sealed class AllocationPhase : ISimPhase
                 if (p.OwnerActorId == pr.ActorId) ownPorts.Add(p);
             if (ownPorts.Count == 0) continue;
             earning++;
-            var budget = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
+            var declared = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
+            // standing weights bend toward strong factions' agendas before
+            // they spend — pressure is mechanical, bounded by form tolerance
+            var budget = FactionOps.PressedBudget(state, pr, declared);
             // budget the epoch's receipts, not the balance: development is
             // deficit-financed through downturns; credit picks up the slack
             double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
@@ -160,6 +163,10 @@ public sealed class AllocationPhase : ISimPhase
             pr.MilitaryPoints += allocatable * budget.Military;
             pr.Credits -= allocatable
                 * (budget.Expansion + budget.Development + budget.Military);
+            // the appeasement line buys factions off — a treasury→faction
+            // flow, conserved (P4); without factions the line stays liquid
+            pr.Credits -= FactionOps.SpendAppeasement(state, pr,
+                allocatable * budget.Appeasement, allocatable);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
@@ -867,9 +874,11 @@ public sealed class InteriorPhase : ISimPhase
         int migrations = Migrate(state, preexisting);
         int grown = Demographics(state, preexisting);
         DriftIdeology(state, preexisting);
-        // lives run, then the polity's inside reads the settled state
-        // (successions and prestige land before legitimacy) — slice G
+        // lives run, then interests organize, then the polity's inside
+        // reads the settled state (successions and pressure land before
+        // legitimacy) — slice G
         var (deaths, successions, crises) = CharacterOps.Step(state);
+        var (factionsFormed, factionsDissolved) = FactionOps.Step(state);
         int interiors = InteriorOps.Recompute(state);
 
         string note = entered switch
@@ -887,6 +896,12 @@ public sealed class InteriorPhase : ISimPhase
         if (successions > 0)
             note += $", {successions} " + (successions == 1 ? "succession" : "successions")
                     + (crises > 0 ? $" ({crises} contested)" : "");
+        if (factionsFormed > 0)
+            note += $", {factionsFormed} " + (factionsFormed == 1
+                ? "faction coalesces" : "factions coalesce");
+        if (factionsDissolved > 0)
+            note += $", {factionsDissolved} " + (factionsDissolved == 1
+                ? "faction disbands" : "factions disband");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

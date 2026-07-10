@@ -68,7 +68,22 @@ as work lands.
   biography derivable from the log (P8 test). Events open 7xx block.
   Channels append from 60. Serialize (characters/dynasties), golden
   regen, knobs `Character.*`.
-- [ ] **G3 — Factions**: registry; six-basis formation from real state
+- [x] **G3 — Factions** *(done: `Interior/Faction.cs`, `FactionOps.cs`;
+  events 304 FactionFormed / 305 FactionDissolved; channel 63
+  FactionSeed; one active faction per (polity, basis); leaders minted
+  as characters (sacral leaders are Prophet notables); budget pressure
+  via `PressedBudget` in Allocation (bounded by form tolerance,
+  redirects never mints); appeasement pays each faction up to
+  strength × `AppeasementDemandShare` × the allocatable base, rationed
+  pro-rata — treasury→faction-wealth flow in the conservation test;
+  grievance accrues on the unmet fraction, decays appeased;
+  dissolution returns wealth to segments; interior layer v3 (FACT);
+  knobs `Faction.*` ×13 + TUNING; golden regen — 396/396 green.
+  SURPRISE: with demand priced off receipts and decay at 0.04/yr the
+  system self-appeased to zero grievance galaxy-wide — demand now
+  prices off the same allocatable base as the pool (share 0.2) and
+  decay dropped to 0.008/yr; seed-42 grievances now range 0–5.2 and
+  differentiate polities)*: registry; six-basis formation from real state
   (ideological cluster distance, culture minority, frontier distance,
   corporate dividends [wired live in G7], veteran/commander networks,
   sacral surge); strength (pop share + wealth + patron renown), agenda

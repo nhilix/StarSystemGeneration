@@ -1,4 +1,4 @@
-namespace StarGen.Core.Epoch;
+﻿namespace StarGen.Core.Epoch;
 
 /// <summary>Epoch-sim input: identity + the calibration knob families, seeded
 /// defaults. All rates are per world-year — the epoch is an integration step,
@@ -19,6 +19,50 @@ public sealed class EpochSimConfig
     public FleetKnobs Fleet { get; } = new FleetKnobs();
     public InteriorKnobs Interior { get; } = new InteriorKnobs();
     public CharacterKnobs Character { get; } = new CharacterKnobs();
+    public FactionKnobs Faction { get; } = new FactionKnobs();
+}
+
+/// <summary>Faction dials (polity/factions-and-government.md): formation
+/// thresholds, pressure and appeasement rates, grievance. Slice G. Per-basis
+/// budget agendas are catalog data (FactionOps.BasisBudget).</summary>
+public sealed class FactionKnobs
+{
+    /// <summary>Share of the polity's epoch receipts a full-strength faction
+    /// demands as appeasement — payouts cap here (no infinite war chests),
+    /// and grievance accrues on the unmet fraction.</summary>
+    public double AppeasementDemandShare { get; set; } = 0.2;
+    /// <summary>Strength below which a faction dissolves (its trigger has
+    /// passed; wealth returns to the segments).</summary>
+    public double DissolveStrengthFloor { get; set; } = 0.05;
+    /// <summary>Population share an interest needs to coalesce (intolerant
+    /// forms raise it — hives barely factionalize).</summary>
+    public double FormMinShare { get; set; } = 0.15;
+    /// <summary>Mean port distance (as a fraction of colonization reach)
+    /// past which a domain counts as frontier.</summary>
+    public double FrontierDistanceFraction { get; set; } = 0.5;
+    /// <summary>Grievance decay per world-year when fully appeased.</summary>
+    public double GrievanceDecayPerYear { get; set; } = 0.008;
+    /// <summary>Grievance accrual per world-year of unappeased strength.</summary>
+    public double GrievancePerYear { get; set; } = 0.02;
+    /// <summary>Mean ideology-axis distance from the official line past
+    /// which segments count as dissenters.</summary>
+    public double IdeologyGapToForm { get; set; } = 0.25;
+    /// <summary>Cap on how far one faction bends the budget or the official
+    /// line in one epoch.</summary>
+    public double MaxBudgetPressure { get; set; } = 0.35;
+    /// <summary>Officer renown × species militancy needed for a military
+    /// faction to coalesce.</summary>
+    public double MilitaryRenownToForm { get; set; } = 12.0;
+    /// <summary>Faction-strength weight of a patron's renown.</summary>
+    public double PatronRenownWeight { get; set; } = 0.01;
+    /// <summary>Budget/ideology drift toward agendas per world-year at full
+    /// strength and tolerance.</summary>
+    public double PressureRatePerYear { get; set; } = 0.01;
+    /// <summary>Sacral-axis position below which segments read as a faith
+    /// movement's base.</summary>
+    public double SacralAxisLine { get; set; } = 0.35;
+    /// <summary>Faction-strength weight of its wealth share.</summary>
+    public double WealthStrengthWeight { get; set; } = 0.1;
 }
 
 /// <summary>Character dials (polity/characters.md): mortality, succession

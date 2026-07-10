@@ -145,6 +145,29 @@ cost.
 | `Character.RulerMintAgeFraction` / `HeirMintAgeFraction` | 0.45 / 0.25 | Older courts: shorter reigns, more successions. | Child-kings reign for generations. |
 | `Character.MaxNotablesPerPolity` | 6 | More chronicle color per realm. | Only the singular get remembered. |
 
+## Faction — formation, pressure, appeasement, grievance (slice G)
+
+Six bases coalesce from real state; strength presses budgets and the
+official line; the appeasement budget line buys peace priced off the same
+base it draws on; the unmet fraction compounds into the grievance that
+graduation (task 5) spends. Per-basis budget agendas are catalog data
+(`FactionOps.BasisBudget`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Faction.FormMinShare` | 0.15 | Only mass movements coalesce (fewer, bigger factions). | Every grumble organizes. |
+| `Faction.IdeologyGapToForm` | 0.25 | Dissent must be radical to organize. | Politics fragments on nuance. |
+| `Faction.FrontierDistanceFraction` | 0.5 | Only the deep frontier feels neglected. | Every suburb is a separatist. |
+| `Faction.SacralAxisLine` | 0.35 | Only the devout base faith movements. | Broad revivalist politics. |
+| `Faction.MilitaryRenownToForm` | 12 | Officer factions need storied brass (they'll mostly wait for H's wars). | Peacetime juntas everywhere. |
+| `Faction.PressureRatePerYear` | 0.01 | Budgets and doctrine bend fast to strong factions. | Standing policy shrugs off politics. |
+| `Faction.MaxBudgetPressure` | 0.35 | One faction can redirect a third of spending per epoch. | Pressure is cosmetic. |
+| `Faction.AppeasementDemandShare` | 0.2 | Peace is expensive: appeasement lines fall short, grievance compounds (more graduations). **The interior-drama dial.** | Cheap peace; factions stay bought. |
+| `Faction.GrievancePerYear` | 0.02 | Neglect radicalizes within a generation. | Long-suffering interests. |
+| `Faction.GrievanceDecayPerYear` | 0.008 | Paying late still forgives. | Grievance is forever (every polity eventually cracks). |
+| `Faction.DissolveStrengthFloor` | 0.05 | Factions need standing membership to persist. | Zombie movements linger. |
+| `Faction.PatronRenownWeight` / `WealthStrengthWeight` | 0.01 / 0.1 | Famous leaders and fat war chests carry factions past their base. | Strength is purely demographic. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs
@@ -256,6 +279,8 @@ day one of them *does* need to move.
   (`InteriorPhase.StarterIndustry`): agri t2 + mine/skimmer/refinery/foundry t1.
 - **Ideology drift shape** — the prosperity comfort ×3 factor and famine
   severity scaling: `InteriorPhase.DriftIdeology`.
+- **Faction basis agendas** — the per-basis budget-emphasis vectors and the
+  basis name suffixes: `FactionOps.BasisBudget` / `Suffix` (slice G).
 - **Species lifespans** — human-analog 80 / aquatic 90 / cryophilic 120 /
   lithic 400 / hive & machine 10,000 world-years, and the age curve's
   0.55-of-span onset: `CharacterOps.Lifespan` / `AgeHazardPerYear`

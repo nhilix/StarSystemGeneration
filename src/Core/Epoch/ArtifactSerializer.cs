@@ -28,7 +28,7 @@ public static class ArtifactSerializer
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 2),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 3),
     };
 
     public static string ToText(SimState state)
@@ -266,7 +266,33 @@ public static class ArtifactSerializer
             w.WriteLine(Join("DYNA", d.Id.ToString(Inv), Name(d.Name),
                 d.FounderCharacterId.ToString(Inv), d.PolityId.ToString(Inv),
                 R(d.Prestige)));
+        foreach (var fa in state.Factions)
+            w.WriteLine(Join("FACT", fa.Id.ToString(Inv), Name(fa.Name),
+                fa.PolityId.ToString(Inv), ((int)fa.Basis).ToString(Inv),
+                fa.FormedYear.ToString(Inv), fa.ContextId.ToString(Inv),
+                fa.LeaderCharacterId.ToString(Inv), B(fa.Active),
+                R(fa.Strength), R(fa.Militancy), R(fa.Grievance), R(fa.Wealth),
+                Vector(fa.BudgetTarget), Vector(fa.IdeologyTarget)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Fixed-length double vector as "v;v;…"; "-" when null.</summary>
+    private static string Vector(double[]? values)
+    {
+        if (values == null) return "-";
+        var parts = new string[values.Length];
+        for (int i = 0; i < values.Length; i++) parts[i] = R(values[i]);
+        return string.Join(";", parts);
+    }
+
+    private static double[]? ParseVector(string field)
+    {
+        if (field == "-" || field.Length == 0) return null;
+        var parts = field.Split(';');
+        var values = new double[parts.Length];
+        for (int i = 0; i < parts.Length; i++)
+            values[i] = double.Parse(parts[i], Inv);
+        return values;
     }
 
     /// <summary>Hex coordinate list as "q:r;q:r"; "-" when empty.</summary>
@@ -773,6 +799,24 @@ public static class ArtifactSerializer
                             int.Parse(f[3], Inv), int.Parse(f[4], Inv))
                         { Prestige = double.Parse(f[5], Inv) });
                         break;
+                    case "FACT":
+                        if (int.Parse(f[1], Inv) != state!.Factions.Count)
+                            throw new InvalidDataException("faction ids out of order");
+                        state.Factions.Add(new Faction(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), (FactionBasis)int.Parse(f[4], Inv),
+                            long.Parse(f[5], Inv))
+                        {
+                            ContextId = int.Parse(f[6], Inv),
+                            LeaderCharacterId = int.Parse(f[7], Inv),
+                            Active = f[8] == "1",
+                            Strength = double.Parse(f[9], Inv),
+                            Militancy = double.Parse(f[10], Inv),
+                            Grievance = double.Parse(f[11], Inv),
+                            Wealth = double.Parse(f[12], Inv),
+                            BudgetTarget = ParseVector(f[13]),
+                            IdeologyTarget = ParseVector(f[14]),
+                        });
+                        break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -860,6 +904,11 @@ public static class ArtifactSerializer
         ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
             e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
             e.TargetR.ToString(Inv)),
+        FactionFormedPayload e => Join("factionFormed",
+            e.FactionId.ToString(Inv), Name(e.Name), e.Basis.ToString(Inv),
+            e.PolityId.ToString(Inv)),
+        FactionDissolvedPayload e => Join("factionDissolved",
+            e.FactionId.ToString(Inv), Name(e.Name)),
         RulerAscendedPayload e => Join("rulerAscended",
             e.CharacterId.ToString(Inv), Name(e.CharacterName),
             e.PolityId.ToString(Inv), e.DynastyId.ToString(Inv)),
@@ -918,6 +967,10 @@ public static class ArtifactSerializer
         "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "factionFormed" => new FactionFormedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv)),
+        "factionDissolved" => new FactionDissolvedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
         "rulerAscended" => new RulerAscendedPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv)),
         "characterDied" => new CharacterDiedPayload(int.Parse(f[at + 1], Inv),

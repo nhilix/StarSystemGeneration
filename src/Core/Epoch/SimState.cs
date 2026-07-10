@@ -54,6 +54,10 @@ public sealed class SimState
     /// notables only, own id space, minted on demand deterministically.</summary>
     public List<Character> Characters { get; } = new List<Character>();
     public List<Dynasty> Dynasties { get; } = new List<Dynasty>();
+    /// <summary>Interest blocs inside polities — pressure without a
+    /// controller slot until graduation (frame/actors.md). Dead factions
+    /// stay as history.</summary>
+    public List<Faction> Factions { get; } = new List<Faction>();
     /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
     /// never serialized; slice H replaces this with real interdiction.</summary>
     public HashSet<int> SeveredLanes { get; } = new HashSet<int>();

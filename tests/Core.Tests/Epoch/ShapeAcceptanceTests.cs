@@ -84,6 +84,8 @@ public class ShapeAcceptanceTests
                     + p.MilitaryPoints;
         foreach (var s in state.Segments)
             held += s.Wealth;
+        foreach (var f in state.Factions)
+            held += f.Wealth;   // appeasement is a flow, not a sink (slice G)
         Assert.True(minted > 0);
         Assert.Equal(minted, held, minted * 1e-9);
     }
