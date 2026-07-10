@@ -14,6 +14,14 @@ public sealed class GalaxySkeleton
     public GalaxyConfig Config { get; }
     public IReadOnlyList<RegionCell> Cells => _cells;
     public List<SpeciesProfile> Species { get; } = new();
+    /// <summary>Discrete cosmic features (slice F): identity, date, cell
+    /// footprint — written by the cosmic sim, persisted as the features
+    /// layer.</summary>
+    public List<GalacticFeature> Features { get; } = new();
+    /// <summary>The deep-time chronicle: cosmic (0–99) and evolutionary
+    /// (100–199) events in the standard grammar. EpochGenesis copies them
+    /// into the sim's event log so one history reads bottom-to-top.</summary>
+    public List<Epoch.WorldEvent> DeepTimeEvents { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();

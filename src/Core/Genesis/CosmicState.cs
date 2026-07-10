@@ -34,9 +34,20 @@ public sealed class CosmicState
     /// <summary>Star mass formed in the recent window (exponentially decayed)
     /// — derives present-day star-formation activity.</summary>
     public double[] SfRecent { get; }
-    /// <summary>Current-step potential per cell (refreshed each step;
-    /// includes merger perturbations once features land).</summary>
+    /// <summary>Young-cohort deaths in the recent window (exponentially
+    /// decayed) — supernova-remnant candidates at finalization.</summary>
+    public double[] RecentDeaths { get; }
+    /// <summary>Current-step potential per cell: the prior plus any live
+    /// merger perturbations.</summary>
     public double[] Potential { get; }
+    /// <summary>Transient decaying potential bumps left by passing mergers.</summary>
+    public double[] PotentialPerturb { get; }
+    /// <summary>Per-step star-formation multiplier (1 everywhere except the
+    /// traveling starburst of an active merger).</summary>
+    public double[] StarburstBoost { get; }
+    /// <summary>Globular-cluster cells: near-zero gas by construction —
+    /// primordial inflow avoids them.</summary>
+    public bool[] IsGlobularCell { get; }
 
     // -- habitability history (compressed to scalars at finalization) --
     /// <summary>First step the cell's stellar metallicity crossed the
@@ -68,7 +79,9 @@ public sealed class CosmicState
         Gas = new double[n]; StarsYoung = new double[n]; StarsMid = new double[n];
         StarsOld = new double[n]; Remnants = new double[n];
         MetalsIsm = new double[n]; StarMetals = new double[n]; RemnantMetals = new double[n];
-        SfRecent = new double[n]; Potential = new double[n];
+        SfRecent = new double[n]; RecentDeaths = new double[n];
+        Potential = new double[n]; PotentialPerturb = new double[n];
+        StarburstBoost = new double[n]; IsGlobularCell = new bool[n];
         LifeViableStep = new int[n]; LastSterilizationStep = new int[n];
         for (int i = 0; i < n; i++)
         {

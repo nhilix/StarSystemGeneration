@@ -25,6 +25,9 @@ public enum WorldEventType
 {
     // 0–99 cosmic · 100–199 evolutionary · 200–299 economic · 300–399 political
     // 400–499 military · 500–599 diplomatic · 600–699 corporate · 700–799 character
+    DwarfGalaxyMerged = 0,
+    AgnIgnited = 1,
+    GlobularFormed = 2,
     LaneOpened = 200,
     PortTierRaised = 201,
     FamineStruck = 202,
@@ -56,6 +59,20 @@ public static class WorldEventTypes
 
 /// <summary>Type-specific payload root; one derived record per event type.</summary>
 public abstract record EventPayload;
+
+/// <summary>An infalling dwarf galaxy arrives — the biggest source of
+/// seed-to-seed structural variety (genesis/cosmic-genesis.md §Features).</summary>
+public sealed record DwarfGalaxyMergedPayload(
+    int FeatureId, string Name, double Mass) : EventPayload;
+
+/// <summary>An AGN accretion epoch: a sterilization/enrichment wave over an
+/// inner radius — the evolutionary clock reads it directly.</summary>
+public sealed record AgnIgnitedPayload(
+    int FeatureId, int WaveRadiusCells) : EventPayload;
+
+/// <summary>An ancient compact metal-poor cluster forms in the earliest
+/// steps — rare exotic terrain with its own hex-tier star-table bias.</summary>
+public sealed record GlobularFormedPayload(int FeatureId, string Name) : EventPayload;
 
 public sealed record PolityEmergedPayload(string PolityName) : EventPayload;
 
@@ -104,10 +121,12 @@ public sealed record ConvoyDispatchedPayload(
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.
 /// Actors are registry ids; the location is a physical hex address
-/// (space-and-travel.md: no political fact without a physical carrier).</summary>
+/// (space-and-travel.md: no political fact without a physical carrier).
+/// WorldYear is long: the deep-time strata write true world-years ("−6.2 Gyr"
+/// is −6.2e9), far past int range (frame/time.md: timescale-aware from birth).</summary>
 public sealed record WorldEvent(
     long Id,
-    int WorldYear,
+    long WorldYear,
     ClockStratum Stratum,
     WorldEventType Type,
     IReadOnlyList<int> Actors,

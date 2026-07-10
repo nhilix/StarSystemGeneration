@@ -545,7 +545,7 @@ public static class ArtifactSerializer
                         var actors = new int[actorParts.Length];
                         for (int i = 0; i < actorParts.Length; i++)
                             actors[i] = int.Parse(actorParts[i], Inv);
-                        var appended = state!.Log.Append(int.Parse(f[2], Inv),
+                        var appended = state!.Log.Append(long.Parse(f[2], Inv),
                             (ClockStratum)int.Parse(f[3], Inv),
                             (WorldEventType)int.Parse(f[4], Inv), actors,
                             new HexCoordinate(int.Parse(f[6], Inv), int.Parse(f[7], Inv)),
@@ -583,6 +583,12 @@ public static class ArtifactSerializer
     private static string Payload(EventPayload? p) => p switch
     {
         null => "none",
+        DwarfGalaxyMergedPayload e => Join("dwarfGalaxyMerged",
+            e.FeatureId.ToString(Inv), Name(e.Name), R(e.Mass)),
+        AgnIgnitedPayload e => Join("agnIgnited", e.FeatureId.ToString(Inv),
+            e.WaveRadiusCells.ToString(Inv)),
+        GlobularFormedPayload e => Join("globularFormed",
+            e.FeatureId.ToString(Inv), Name(e.Name)),
         PolityEmergedPayload e => Join("polityEmerged", Name(e.PolityName)),
         PortEstablishedPayload e => Join("portEstablished", Name(e.PolityName),
             e.PortId.ToString(Inv)),
@@ -615,6 +621,12 @@ public static class ArtifactSerializer
     private static EventPayload? ParsePayload(string[] f, int at) => f[at] switch
     {
         "none" => null,
+        "dwarfGalaxyMerged" => new DwarfGalaxyMergedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], double.Parse(f[at + 3], Inv)),
+        "agnIgnited" => new AgnIgnitedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv)),
+        "globularFormed" => new GlobularFormedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2]),
         "polityEmerged" => new PolityEmergedPayload(f[at + 1]),
         "portEstablished" => new PortEstablishedPayload(f[at + 1], int.Parse(f[at + 2], Inv)),
         "laneOpened" => new LaneOpenedPayload(int.Parse(f[at + 1], Inv),

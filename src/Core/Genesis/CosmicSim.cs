@@ -82,28 +82,38 @@ public static class CosmicSim
     /// mid-history to never (rim and early-burned cells stay barren).</summary>
     public const double LifeViableZFloor = 0.012;
 
-    /// <summary>Run the full formation history. The observer (if any) sees
-    /// each completed step; observation never changes the run.</summary>
+    /// <summary>Run the full formation history. Writes the feature registry
+    /// and deep-time chronicle onto the skeleton (replacing any previous
+    /// run's). The observer (if any) sees each completed step; observation
+    /// never changes the run.</summary>
     public static CosmicState Run(GalaxySkeleton skeleton,
                                   Action<CosmicFrame>? observer = null)
     {
+        skeleton.Features.Clear();
+        skeleton.DeepTimeEvents.Clear();
         var s = new CosmicState(skeleton);
         var config = skeleton.Config;
+        var features = new CosmicFeatureEngine(skeleton);
         int inflowSteps = (int)(Steps * InflowEndFraction);
 
         for (int step = 0; step < Steps; step++)
         {
             double t01 = step / (double)(Steps - 1);
             RefreshPotential(s, t01);
+            features.PerturbPotential(s);
+            if (step == 0) features.PlaceGlobulars(s);
             if (step < inflowSteps) Inflow(s, config, step, inflowSteps);
             Transport(s);
+            features.MergerStep(s, step);
             StarFormation(s, config, step);
             AgeCohorts(s);
             DeathAndEnrichment(s, config);
+            features.AgnStep(s, step);
             TrackHabitability(s, step);
             observer?.Invoke(new CosmicFrame(step, Steps,
                 -SpanGyr + (step + 1) * GyrPerStep, s));
         }
+        features.FinalizeEmergent(s);
         return s;
     }
 
@@ -129,6 +139,8 @@ public static class CosmicSim
                 * EpochRolls.NextDouble(config.MasterSeed,
                     RollChannel.CosmicInflowClump, step, i);
             weights[i] = Math.Pow(s.Potential[i], InflowPotentialExponent) * clump;
+            if (s.IsGlobularCell[i])
+                weights[i] *= CosmicFeatureEngine.GlobularInflowFactor;
             sum += weights[i];
         }
         if (sum <= 0) return;
@@ -156,10 +168,13 @@ public static class CosmicSim
             var neighbors = s.Neighbors[i];
             if (neighbors.Length == 0) continue;
 
-            // up-gradient drift, split proportional to the potential rise
+            // up-gradient drift, split proportional to the potential rise;
+            // gas flows around globular cells (compact halo objects don't
+            // accrete the disc), keeping them gas-starved and metal-poor
             double riseSum = 0;
             for (int k = 0; k < neighbors.Length; k++)
-                riseSum += Math.Max(0, s.Potential[neighbors[k]] - s.Potential[i]);
+                if (!s.IsGlobularCell[neighbors[k]])
+                    riseSum += Math.Max(0, s.Potential[neighbors[k]] - s.Potential[i]);
 
             double metalPerGas = s.MetalsIsm[i] / gas;
             if (riseSum > 0)
@@ -167,6 +182,7 @@ public static class CosmicSim
                 double drifted = gas * DriftRate;
                 for (int k = 0; k < neighbors.Length; k++)
                 {
+                    if (s.IsGlobularCell[neighbors[k]]) continue;
                     double rise = Math.Max(0, s.Potential[neighbors[k]] - s.Potential[i]);
                     if (rise <= 0) continue;
                     double moved = drifted * rise / riseSum;
@@ -176,10 +192,11 @@ public static class CosmicSim
                 }
             }
 
-            // slight diffusion, evenly split
+            // slight diffusion, evenly split over non-globular neighbors
             double diffused = gas * DiffusionRate / neighbors.Length;
             for (int k = 0; k < neighbors.Length; k++)
             {
+                if (s.IsGlobularCell[neighbors[k]]) continue;
                 deltaGas[i] -= diffused; deltaGas[neighbors[k]] += diffused;
                 double metals = diffused * metalPerGas;
                 deltaMetals[i] -= metals; deltaMetals[neighbors[k]] += metals;
@@ -208,7 +225,8 @@ public static class CosmicSim
             double trigger = 0.5 + EpochRolls.NextDouble(config.MasterSeed,
                 RollChannel.CosmicSfTrigger, step, i);
             double rate = efficiency
-                * Math.Pow(s.Potential[i], CompressionExponent) * trigger;
+                * Math.Pow(s.Potential[i], CompressionExponent) * trigger
+                * s.StarburstBoost[i];
             double formed = Math.Min(gas, gas * rate);
 
             double metalsLocked = formed * (s.MetalsIsm[i] / gas);
@@ -259,6 +277,7 @@ public static class CosmicSim
         for (int i = 0; i < n; i++)
         {
             double dying = s.StarsYoung[i] * YoungDeathRate;
+            s.RecentDeaths[i] = s.RecentDeaths[i] * SfRecentDecay + dying;
             if (dying <= 0) continue;
 
             double starMass = s.StarMass(i);
@@ -277,12 +296,18 @@ public static class CosmicSim
             s.MetalsCreatedTotal += created;
             double kept = created * (1 - EnrichmentSpill);
             s.MetalsIsm[i] += kept;
+            // spill skips globular cells: ejecta passes through the compact
+            // ancient cluster — its stars must stay metal-poor forever
             var neighbors = s.Neighbors[i];
-            if (neighbors.Length > 0)
+            int openNeighbors = 0;
+            for (int k = 0; k < neighbors.Length; k++)
+                if (!s.IsGlobularCell[neighbors[k]]) openNeighbors++;
+            if (openNeighbors > 0)
             {
-                double each = created * EnrichmentSpill / neighbors.Length;
+                double each = created * EnrichmentSpill / openNeighbors;
                 for (int k = 0; k < neighbors.Length; k++)
-                    spill[neighbors[k]] += each;
+                    if (!s.IsGlobularCell[neighbors[k]])
+                        spill[neighbors[k]] += each;
             }
             else
                 s.MetalsIsm[i] += created * EnrichmentSpill;

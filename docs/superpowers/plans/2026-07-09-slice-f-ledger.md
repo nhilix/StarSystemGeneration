@@ -96,7 +96,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       over ~100–150 steps; observer hook. Gate: mass/metals conservation
       (P4 ledger); determinism (identical fields for same config); runs
       in the ~1s class.
-- [ ] 3. **Discrete features** — merger schedule (trail injection,
+- [x] 3. **Discrete features** — merger schedule (trail injection,
       traveling starburst, potential perturbation, stream residue),
       early globulars, AGN accretion epochs + sterilization waves,
       emergent nebulae at finalization; feature registry; deep-time
@@ -172,3 +172,17 @@ mechanics changes beyond genesis inputs and entry-time state.
   survives. Core peaks ≈ 1.45.
 - Cosmic budget: radius 21 (1,615 cells) full run = **53 ms** Release —
   well inside the ~1s class with evolution still to come.
+- **`WorldEvent.WorldYear` is long now** (task 3): deep-time strata write
+  true world-years (−1.4e10 overflows int). EventLog.Append + the EVENT
+  load path follow; the generational clock stays int.
+- **Globulars are actively defended terrain** (task 3): staying metal-poor
+  required *three* exclusions — inflow ×0.05, transport flows around them,
+  and enrichment spill + AGN wave deposits skip them. Any future metal
+  source must skip globular cells too, or tiny gas mass concentrates it
+  into poisoned stellar Z (0.6 mass at Z 0.002 is easy to contaminate).
+- **AGN cooldown bug**: `step - int.MinValue` overflows — sentinel "never
+  fired" values near int.MinValue are a trap; use a small negative.
+- AGN feed threshold set against the *simulated* core trajectory (peaks
+  ~1.3 at radius 8, not the naive "core hoards gas" guess — the deep well
+  burns as fast as it collects); nebula membership at 1.8× mean gas so
+  arm-ridge concentrations connect instead of reading as isolated peaks.

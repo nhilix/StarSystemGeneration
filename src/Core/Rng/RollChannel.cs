@@ -57,4 +57,8 @@ public enum RollChannel : ulong
     // --- Cosmic clock (slice F). Rolls keyed (step, cell spiral index). ---
     CosmicInflowClump = 41,    // inflow clumping noise per (step, cell)
     CosmicSfTrigger = 42,      // star-formation trigger noise per (step, cell)
+    CosmicMergerSchedule = 43, // merger count/bearing/epoch/mass: actor = merger index, subIndex = field
+    CosmicGlobularPlace = 44,  // globular count/cell picks: actor = globular index
+    CosmicAgnTrigger = 45,     // accretion-epoch gate: step-keyed
+    CosmicFeatureName = 46,    // feature name syllables: actor = feature ordinal, subIndex = syllable
 }
