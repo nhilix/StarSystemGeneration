@@ -90,7 +90,8 @@ Architecture decisions (made at kickoff, flag deviations):
       `emap price [good]` layer; `lanecut <portA> <portB>` debug hook;
       `estep [n]` continuation; help text. Gate: piped-stdin smoke via bash
       printf.
-- [ ] 9. **Shape acceptance + full gates** — 40-epoch runs across seeds:
+- [x] 9. **Shape acceptance + full gates** — 276/276 green; credits conserve
+      *exactly to the mint* across seeds (the ledger economy audits clean). — 40-epoch runs across seeds:
       prices bounded (no NaN/runaway spirals), populations bounded, credits
       conserved; hex-tier suite untouched; full `dotnet test` green.
 - [ ] 10. **Fresh-eyes whole-branch review** subagent + one fix wave.
