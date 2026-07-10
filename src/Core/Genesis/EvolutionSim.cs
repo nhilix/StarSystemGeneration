@@ -56,8 +56,10 @@ public sealed class EvoState
         { AbioStep[i] = -1; LastCatastropheStep[i] = -1000; ScarPenalty[i] = 1.0; }
     }
 
-    /// <summary>Kill the biosphere at a cell (sterilization event).</summary>
-    public void Sterilize(int i, int step)
+    /// <summary>Kill the biosphere at a cell (sterilization event).
+    /// Internal: only the sims mutate — observers watch (the purity
+    /// contract).</summary>
+    internal void Sterilize(int i, int step)
     {
         Alive[i] = false;
         Richness[i] = 0.0;
@@ -141,6 +143,8 @@ public static class EvolutionSim
                 -CosmicSim.SpanGyr + (step + 1) * GyrPerStep, s));
         }
 
+        EnsureMinimumCurrentEra(s, config);
+
         // present-day biosphere residue
         for (int i = 0; i < s.Alive.Length; i++)
         {
@@ -157,6 +161,60 @@ public static class EvolutionSim
         for (int i = 0; i < skeleton.DeepTimeEvents.Count; i++)
             skeleton.DeepTimeEvents[i] = skeleton.DeepTimeEvents[i] with { Id = i };
         return s;
+    }
+
+    /// <summary>A playable galaxy needs at least two current-era polities
+    /// (the retired painted pass had the same floor). The era *stretches*
+    /// rather than rolls: first the nearest pre-spaceflight natives are
+    /// pulled in (they were on the cusp; the window's compression is
+    /// narrative anyway), then — only in a nearly-dead galaxy — the richest
+    /// living cells register late forced origins. Deterministic tie-breaks;
+    /// still causal ordering, never a fresh lottery.</summary>
+    private static void EnsureMinimumCurrentEra(EvoState s, GalaxyConfig config)
+    {
+        const int MinCurrent = 2;
+        var skeleton = s.Skeleton;
+        int Current() { int n = 0; foreach (var o in skeleton.Origins)
+            if (o.Era == OriginEra.Current) n++; return n; }
+
+        while (Current() < MinCurrent)
+        {
+            SapientOrigin? nearestNative = null;
+            foreach (var o in skeleton.Origins)
+                if (o.Era == OriginEra.PreSpaceflight
+                    && (nearestNative == null
+                        || o.SpaceflightYear < nearestNative.SpaceflightYear))
+                    nearestNative = o;
+            if (nearestNative != null) { nearestNative.Era = OriginEra.Current; continue; }
+
+            // nearly-dead galaxy: force a late origin on the richest living
+            // unregistered cell
+            int best = -1;
+            for (int i = 0; i < s.Alive.Length; i++)
+            {
+                if (!s.Alive[i] || s.OriginRegistered[i]) continue;
+                if (best < 0 || s.Richness[i] > s.Richness[best]) best = i;
+            }
+            if (best < 0) return;   // a dead galaxy stays dead
+            s.OriginRegistered[best] = true;
+            var cell = skeleton.Cells[best];
+            int id = skeleton.Origins.Count;
+            var origin = new SapientOrigin
+            {
+                Id = id,
+                CellCoord = cell.Coord,
+                Hex = PickOriginHex(skeleton, cell, Steps - 1),
+                AbiogenesisYear = GyrToYears(StepGyr(Math.Max(0, s.AbioStep[best]))),
+                SapienceYear = 0,
+                SpaceflightYear = 1_000_000 * (id + 1),   // just past present
+                Richness = s.Richness[best],
+                Setbacks = s.Setbacks[best],
+                Era = OriginEra.Current,
+            };
+            skeleton.Origins.Add(origin);
+            Chronicle(skeleton, WorldEventType.SapienceEmerged, Steps - 1,
+                cell.Coord, origin.Richness, 0.7, new SapienceEmergedPayload(id));
+        }
     }
 
     /// <summary>Viability is causal: the cosmic clock's metallicity-floor
@@ -302,12 +360,14 @@ public static class EvolutionSim
 
             long abioYear = GyrToYears(StepGyr(s.AbioStep[i]));
             long sapienceYear = GyrToYears(StepGyr(step));
+            // keyed (step, cell) — a rejected candidate must not hand its
+            // roll to whichever origin registers next
             double maturationGyr = config.Evolution.MaturationScaleGyr
                 * (MaturationRichnessBase - MaturationRichnessGain * s.Richness[i])
                 * (1 + MaturationSetbackPenalty * s.Setbacks[i])
                 * (MaturationRollBase + MaturationRollSpan
                     * EpochRolls.NextDouble(config.MasterSeed,
-                        RollChannel.EvoMaturation, 0, id));
+                        RollChannel.EvoMaturation, step, i));
             // spaceflight = abiogenesis + maturation, never before sapience
             long spaceflightYear = Math.Max(sapienceYear + 1_000_000,
                 abioYear + GyrToYears(maturationGyr));

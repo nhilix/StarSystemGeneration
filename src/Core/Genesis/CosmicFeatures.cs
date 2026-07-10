@@ -196,8 +196,10 @@ internal sealed class CosmicFeatureEngine
             {
                 plan.Feature = NewFeature(GalacticFeatureType.MergerStream,
                     -CosmicSim.SpanGyr + plan.ArrivalStep * CosmicSim.GyrPerStep);
-                Chronicle(WorldEventType.DwarfGalaxyMerged, step, cellCoord,
-                    plan.Mass, 0.0, new DwarfGalaxyMergedPayload(
+                // dated at arrival, matching the feature (the trail may
+                // spend its first steps off-lattice)
+                Chronicle(WorldEventType.DwarfGalaxyMerged, plan.ArrivalStep,
+                    cellCoord, plan.Mass, 0.0, new DwarfGalaxyMergedPayload(
                         plan.Feature.Id, plan.Feature.Name, plan.Mass));
             }
             if (plan.Feature.Cells.Count == 0

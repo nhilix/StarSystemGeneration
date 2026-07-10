@@ -56,11 +56,21 @@ public class CosmicSimTests
     public void Observation_NeverChangesTheRun()
     {
         int frames = 0;
-        var watched = CosmicSim.Run(Skeleton(), frame => frames++);
-        var unwatched = CosmicSim.Run(Skeleton());
+        var watchedSkeleton = Skeleton();
+        var watched = CosmicSim.Run(watchedSkeleton, frame => frames++);
+        var unwatchedSkeleton = Skeleton();
+        var unwatched = CosmicSim.Run(unwatchedSkeleton);
         Assert.Equal(CosmicSim.Steps, frames);
         for (int i = 0; i < watched.CellCount; i++)
+        {
             Assert.Equal(unwatched.TotalMass(i), watched.TotalMass(i));
+            Assert.Equal(unwatched.StarMetals[i], watched.StarMetals[i]);
+            Assert.Equal(unwatched.MetalsIsm[i], watched.MetalsIsm[i]);
+            Assert.Equal(unwatched.LifeViableStep[i], watched.LifeViableStep[i]);
+        }
+        Assert.Equal(unwatchedSkeleton.Features.Count, watchedSkeleton.Features.Count);
+        Assert.Equal(unwatchedSkeleton.DeepTimeEvents.Count,
+                     watchedSkeleton.DeepTimeEvents.Count);
     }
 
     [Fact]

@@ -144,7 +144,25 @@ mechanics changes beyond genesis inputs and entry-time state.
       emergence spread, homeworld count, precursor sites bounded, void
       fraction sane, genesis budget held; TUNING consequences rows.
       Gate: full `dotnet test` green, hex tier untouched.
-- [ ] 11. **Fresh-eyes whole-branch review** subagent + one fix wave.
+- [x] 11. **Fresh-eyes whole-branch review** subagent + one fix wave.
+      Reviewer verified clean: conservation ledgers through every feature
+      path, determinism (channel keying, no dictionary-order leaks,
+      invariant culture, long years end to end), serializer field
+      symmetry + refusals, registry discipline. Findings fixed: the
+      (−70 My, −50 My) activation dead zone (era-cutoff sweep — every
+      deep-time origin waves, degenerate capital arcs at the era's
+      edge); capital-vs-live-owner collisions (no ownership overwrite,
+      End never cross-releases); globular cache invalidated on re-run;
+      EvoState.Sterilize internal (observer purity); maturation roll
+      re-keyed (step, cell) — a rejected candidate no longer hands its
+      roll to the next registrant; merger chronicle dated at arrival;
+      BOM stripped; observation test widened to metals/features/events.
+      **Fix-wave addition: the playable floor** — a galaxy must field ≥2
+      current polities; the era stretches over the nearest natives (or,
+      in a nearly-dead galaxy, forces late origins on the richest living
+      cells) — deterministic, causal ordering preserved, never touches
+      precursors. Golden regen: seed 42 r12 now 10 polities, epochs
+      0–20.
 - [ ] 12. **USER: REPL eyeball** — maps that visibly tell the formation
       story (a pointable merger stream, metal-rich arms vs burned-out
       core, life clustered where stability allowed) and a precursor arc

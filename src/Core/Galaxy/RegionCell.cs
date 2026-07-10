@@ -44,7 +44,10 @@ public sealed class RegionCell
     /// life-viable floor; -1 = never (habitability history scalar).</summary>
     public int LifeViableStep { get; set; } = -1;
     /// <summary>Cosmic step of the last sterilization event (AGN wave);
-    /// -1 = never. Stability-since falls out of it.</summary>
+    /// -1 = never. Stability-since falls out of it. Deliberately a single
+    /// scalar (habitability history "compressed to scalars"): only the
+    /// final wave bites the evolutionary clock even though the chronicle
+    /// records every outburst.</summary>
     public int LastSterilizedStep { get; set; } = -1;
 
     // -- present-day residue of the evolutionary sim (slice F) --

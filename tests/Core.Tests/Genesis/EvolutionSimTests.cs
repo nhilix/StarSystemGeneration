@@ -75,6 +75,10 @@ public class EvolutionSimTests
                     : o.SpaceflightYear <= (long)(EvolutionSim.CurrentHorizonGyr * 1e9)
                         ? OriginEra.Current
                     : OriginEra.PreSpaceflight;
+                // the playable floor may stretch the era over a native
+                // (never over a precursor — those already waved)
+                if (era == OriginEra.PreSpaceflight && o.Era == OriginEra.Current)
+                    continue;
                 Assert.Equal(era, o.Era);
                 Assert.Equal(o.CellCoord, HexGrid.CellOf(o.Hex));
             }
@@ -132,12 +136,16 @@ public class EvolutionSimTests
     }
 
     [Fact]
-    public void SapienceRateZero_MeansAnEmptySchedule()
+    public void SapienceRateZero_LeavesOnlyThePlayableFloor()
     {
         var config = new GalaxyConfig { MasterSeed = 42, GalaxyRadiusCells = 8 };
         config.Evolution.SapienceRate = 0.0;
         var s = SkeletonBuilder.Build(config);
-        Assert.Empty(s.Origins);
+        // no rolled sapience anywhere — the floor forces exactly two
+        // current-era origins on the richest living cells (a playable
+        // galaxy needs opponents; the retired painted pass had max(2,…))
+        Assert.Equal(2, s.Origins.Count);
+        Assert.All(s.Origins, o => Assert.Equal(OriginEra.Current, o.Era));
         Assert.Contains(s.Cells, c => c.BiosphereRichness > 0);   // life still happens
     }
 }

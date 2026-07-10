@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 using Xunit;

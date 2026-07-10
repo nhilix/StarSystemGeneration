@@ -70,6 +70,10 @@ public sealed class GalaxySkeleton
         return _globularCells.Contains(cellCoord);
     }
 
+    /// <summary>Drop feature-derived caches — called wherever Features is
+    /// rebuilt (a re-run cosmic sim must never serve stale overrides).</summary>
+    internal void InvalidateFeatureCaches() => _globularCells = null;
+
     public bool TryGetCell(HexCoordinate cellCoord, out RegionCell cell) =>
         _byCoord.TryGetValue(cellCoord, out cell!);
 

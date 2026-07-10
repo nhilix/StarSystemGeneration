@@ -86,7 +86,6 @@ internal sealed class PrecursorArcEngine
     private readonly HashSet<(int, int)> _partitioned = new();
     private int _grandCount;
     private int _budgetCellsLeft;
-    private int _nextOriginToCheck;
 
     public PrecursorArcEngine(GalaxySkeleton skeleton, EvoState evo)
     {
@@ -105,7 +104,11 @@ internal sealed class PrecursorArcEngine
         double nowGyr = -CosmicSim.SpanGyr + step * EvolutionSim.GyrPerStep;
         bool eraOver = nowGyr >= -EvolutionSim.PrecursorGapGyr;
 
-        if (!eraOver) ActivateWaves(step, nowGyr);
+        // when the era closes, sweep with the era cutoff instead of step
+        // time: origins dated inside the final step's window still wave
+        // (degenerate capital arcs, force-ended below) — every deep-time
+        // origin waves, no dead zone between step grid and era cut
+        ActivateWaves(step, eraOver ? -EvolutionSim.PrecursorGapGyr : nowGyr);
         foreach (var wave in _live)
         {
             if (wave.Phase == Phase.Ended) continue;
@@ -115,22 +118,21 @@ internal sealed class PrecursorArcEngine
         }
     }
 
-    /// <summary>Origins whose deep-time spaceflight date falls in this step
-    /// plant their capital and begin the arc.</summary>
-    private void ActivateWaves(int step, double nowGyr)
+    /// <summary>Origins whose deep-time spaceflight date has arrived plant
+    /// their capital and begin the arc. Re-scans from 0 every step: the
+    /// origins list grows mid-run (machine descendants append) and the
+    /// not-yet-waved check stays authoritative.</summary>
+    private void ActivateWaves(int step, double cutoffGyr)
     {
         var origins = _skeleton.Origins;
-        for (int i = _nextOriginToCheck; i < origins.Count; i++)
+        for (int i = 0; i < origins.Count; i++)
         {
             var origin = origins[i];
             if (origin.Era != OriginEra.Precursor) continue;
-            if (origin.SpaceflightYear > (long)(nowGyr * 1e9)) continue;
+            if (origin.SpaceflightYear > (long)(cutoffGyr * 1e9)) continue;
             if (AlreadyWaved(origin.Id)) continue;
             Activate(origin, step);
         }
-        // origins list grows (machine descendants append); re-scan from 0 is
-        // cheap and keeps the "not yet waved" check authoritative
-        _nextOriginToCheck = 0;
     }
 
     private bool AlreadyWaved(int originId)
@@ -181,7 +183,10 @@ internal sealed class PrecursorArcEngine
         var capitalCell = _skeleton.CellForHex(origin.Hex);
         wave.Cells.Add(capitalCell.Coord);
         wave.PortHexes.Add(origin.Hex);
-        _owner[capitalCell.SpiralIndex] = id;
+        // a capital rising inside a live wave's territory doesn't steal the
+        // cell — it exists contested (ownership bookkeeping stays one-owner)
+        if (_owner[capitalCell.SpiralIndex] < 0)
+            _owner[capitalCell.SpiralIndex] = id;
         _skeleton.PrecursorWaves.Add(wave);
 
         _live.Add(new LiveWave
@@ -220,7 +225,6 @@ internal sealed class PrecursorArcEngine
             int bestFrom = -1;
             foreach (var (cellCoord, at) in Extent(wave))
             {
-                var cell = _skeleton.CellAt(cellCoord);
                 foreach (var neighborCoord in HexGrid.Neighbors(cellCoord))
                 {
                     if (!_skeleton.TryGetCell(neighborCoord, out var neighbor)) continue;
@@ -362,7 +366,7 @@ internal sealed class PrecursorArcEngine
         {
             var cell = _skeleton.CellAt(wave.Cells[k]);
             int i = cell.SpiralIndex;
-            _owner[i] = -1;
+            if (_owner[i] == wave.Id) _owner[i] = -1;   // never cross-release
 
             var siteType = k == 0 ? PrecursorSiteType.Capital
                 : cause == WaveEndCause.Transcendence ? PrecursorSiteType.Megastructure

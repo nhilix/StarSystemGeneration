@@ -93,6 +93,7 @@ public static class CosmicSim
                                   Action<CosmicFrame>? observer = null)
     {
         skeleton.Features.Clear();
+        skeleton.InvalidateFeatureCaches();
         skeleton.DeepTimeEvents.Clear();
         var s = new CosmicState(skeleton);
         var config = skeleton.Config;
