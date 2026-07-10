@@ -1077,6 +1077,10 @@ public sealed class InteriorPhase : ISimPhase
     {
         // segments founded by this step's entries integrate from the next step
         int preexisting = state.Segments.Count;
+        // native emergence dates fire first: free and uplift births become
+        // actors the entry loop below founds this same epoch (slice H)
+        var (nativeBirths, nativesIntegrated, emergencesSuppressed,
+            pendingClients) = NativeOps.Step(state);
         int entered = 0;
         foreach (var a in state.Actors)
         {
@@ -1129,6 +1133,9 @@ public sealed class InteriorPhase : ISimPhase
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,
                 EventVisibility.Public, new PolityEmergedPayload(a.Name)));
         }
+
+        // uplift-born clients kneel to their hosts now that they exist
+        NativeOps.BindClients(state, pendingClients);
 
         // refugees flee before attrition bites: migration reads last step's
         // market outcomes, demographics apply to whoever stayed
@@ -1189,6 +1196,17 @@ public sealed class InteriorPhase : ISimPhase
         if (claimsRaised > 0)
             note += $", {claimsRaised} " + (claimsRaised == 1
                 ? "claim raised" : "claims raised");
+        if (nativeBirths > 0)
+            note += $", {nativeBirths} native "
+                + (nativeBirths == 1 ? "emergence" : "emergences");
+        if (nativesIntegrated > 0)
+            note += $", {nativesIntegrated} "
+                + (nativesIntegrated == 1 ? "people integrated"
+                    : "peoples integrated");
+        if (emergencesSuppressed > 0)
+            note += $", {emergencesSuppressed} "
+                + (emergencesSuppressed == 1 ? "emergence suppressed"
+                    : "emergences suppressed");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

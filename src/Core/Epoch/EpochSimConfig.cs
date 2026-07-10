@@ -455,13 +455,26 @@ public sealed class SimKnobs
     public int EpochCount { get; set; } = 40;
 }
 
-/// <summary>Genesis-side knobs: only the stub emergence schedule until the
-/// real cosmic/evolutionary families land with Slice F.</summary>
+/// <summary>Genesis-side knobs: the emergence window, plus the native
+/// late-emergence schedule (slice H — interpolity/relations.md §Natives).</summary>
 public sealed class GenesisKnobs
 {
     /// <summary>Latest world-year a polity may enter — staggered emergence
     /// (frame/time.md §Asymmetric emergence).</summary>
     public int EmergenceWindowYears { get; set; } = 500;
+    /// <summary>World-year the last pre-spaceflight native's date projects
+    /// onto — natives emerge between the polity window and here, order and
+    /// spacing preserved (honest narrative compression).</summary>
+    public int NativeWindowYears { get; set; } = 900;
+    /// <summary>Population size an emerging native people starts with
+    /// (its homeworld segment, whoever administers it).</summary>
+    public double NativePopulationSize { get; set; } = 1.0;
+    /// <summary>Epochs a protectorate policy delays the emergence date —
+    /// the reserve buys time (and can turn cage).</summary>
+    public int ProtectorateDelayEpochs { get; set; } = 4;
+    /// <summary>Epochs an uplift host (Life tier ≥ 2 — the tech gate)
+    /// advances the emergence date.</summary>
+    public int UpliftAccelerationEpochs { get; set; } = 4;
 }
 
 /// <summary>Economy dials, per world-year where a rate: the market engine's

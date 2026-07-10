@@ -28,7 +28,7 @@ public static class ArtifactSerializer
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
+        ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
         ("corporations", 1), ("relations", 4), ("wars", 1),
     };
 
@@ -221,7 +221,9 @@ public static class ArtifactSerializer
                 o.AbiogenesisYear.ToString(Inv), o.SapienceYear.ToString(Inv),
                 o.SpaceflightYear.ToString(Inv), R(o.Richness),
                 o.Setbacks.ToString(Inv), ((int)o.Era).ToString(Inv),
-                o.DescendantOfWaveId.ToString(Inv)));
+                o.DescendantOfWaveId.ToString(Inv),
+                // origins v2 (slice H): native resolution rides along
+                o.ResolvedEpoch.ToString(Inv)));
 
         Layer(w, "precursors");
         foreach (var wave in state.Skeleton.PrecursorWaves)
@@ -588,6 +590,7 @@ public static class ArtifactSerializer
                             Setbacks = int.Parse(f[10], Inv),
                             Era = (OriginEra)int.Parse(f[11], Inv),
                             DescendantOfWaveId = int.Parse(f[12], Inv),
+                            ResolvedEpoch = int.Parse(f[13], Inv),
                         });
                         break;
                     case "WAVE":
@@ -1189,6 +1192,12 @@ public static class ArtifactSerializer
         PortCapturedPayload e => Join("portCaptured", e.WarId.ToString(Inv),
             Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
             Name(e.DefenderName)),
+        EmergenceSuppressedPayload e => Join("emergenceSuppressed",
+            e.OriginId.ToString(Inv), e.HostPolityId.ToString(Inv),
+            Name(e.HostName), Name(e.NativeName), e.Policy.ToString(Inv)),
+        NativesIntegratedPayload e => Join("nativesIntegrated",
+            e.OriginId.ToString(Inv), e.HostPolityId.ToString(Inv),
+            Name(e.HostName), Name(e.NativeName)),
         PeaceSettledPayload e => Join("peaceSettled", e.WarId.ToString(Inv),
             Name(e.WarName), e.Outcome.ToString(Inv),
             e.WinnerId.ToString(Inv), Name(e.AttackerName),
@@ -1320,6 +1329,12 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
         "portCaptured" => new PortCapturedPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
+        "emergenceSuppressed" => new EmergenceSuppressedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], int.Parse(f[at + 5], Inv)),
+        "nativesIntegrated" => new NativesIntegratedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4]),
         "peaceSettled" => new PeaceSettledPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
             f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),

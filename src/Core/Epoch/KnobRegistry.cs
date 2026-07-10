@@ -460,11 +460,27 @@ public static class KnobRegistry
           c => c.Fleet.YardHullsPerTierPerYear,
           (c, v) => c.Fleet.YardHullsPerTierPerYear = v),
 
-        // ---- Genesis (stub until slice F) ----
+        // ---- Genesis (emergence windows; natives — slice H) ----
         K("Genesis.EmergenceWindowYears",
           "latest world-year a polity may enter (staggered emergence)",
           c => c.Genesis.EmergenceWindowYears,
           (c, v) => c.Genesis.EmergenceWindowYears = (int)Math.Round(v)),
+        K("Genesis.NativePopulationSize",
+          "population an emerging native people starts with",
+          c => c.Genesis.NativePopulationSize,
+          (c, v) => c.Genesis.NativePopulationSize = v),
+        K("Genesis.NativeWindowYears",
+          "world-year the last native emergence date projects onto",
+          c => c.Genesis.NativeWindowYears,
+          (c, v) => c.Genesis.NativeWindowYears = (int)Math.Round(v)),
+        K("Genesis.ProtectorateDelayEpochs",
+          "epochs a protectorate policy delays a native emergence",
+          c => c.Genesis.ProtectorateDelayEpochs,
+          (c, v) => c.Genesis.ProtectorateDelayEpochs = (int)Math.Round(v)),
+        K("Genesis.UpliftAccelerationEpochs",
+          "epochs an uplift host (Life ≥ 2) advances a native emergence",
+          c => c.Genesis.UpliftAccelerationEpochs,
+          (c, v) => c.Genesis.UpliftAccelerationEpochs = (int)Math.Round(v)),
 
         // ---- Infrastructure (port physics and construction) ----
         K("Infrastructure.ConstructionDevGate",

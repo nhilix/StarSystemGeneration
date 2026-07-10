@@ -287,6 +287,22 @@ public static class RelationsOps
                     if (s.Size > 0 && s.CultureId == kinCulture
                         && state.Ports[s.PortId].OwnerActorId == other)
                         kinSize += s.Size;
+                // liberation claims (suppressed emergences, H8) release the
+                // same way kin claims do: when the people are out from
+                // under the other's rule
+                foreach (var claim in relation.Claims)
+                {
+                    if (claim.Released || claim.Type != ClaimType.Liberation
+                        || claim.HolderPolityId != holder) continue;
+                    double captiveSize = 0;
+                    foreach (var s in state.Segments)
+                        if (s.Size > 0 && s.CultureId == claim.SubjectId
+                            && state.Ports[s.PortId].OwnerActorId == other)
+                            captiveSize += s.Size;
+                    if (captiveSize < floor)
+                        Release(state, relation, ClaimType.Liberation,
+                                holder, claim.SubjectId);
+                }
                 bool live = relation.HasLiveClaim(ClaimType.CulturalKin,
                                                   holder, kinCulture);
                 if (kinSize >= floor && !live)

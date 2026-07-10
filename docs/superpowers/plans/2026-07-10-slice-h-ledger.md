@@ -216,7 +216,25 @@ surprises — updated as work lands.
   negotiated from per-objective outcomes (cessions, reparations,
   tribute, vassalization, white peace); aftermath residue: standing
   claims, veterans → military factions, war heroes, debt overhang.
-- [ ] **H8 — Native policy + emergence crises**: PreSpaceflight origins
+- [x] **H8 — Native policy + emergence crises** *(done: `Interpolity/
+  NativeOps.cs`; PreSpaceflight origins rank-project onto
+  (EmergenceWindow, NativeWindowYears] — deterministic from config,
+  never from EpochCount (LoadThenContinue-safe); species minted at
+  fire time via `SkeletonBuilder.DeriveSpecies` (made public; rolls
+  keyed to the origin cell); host = nearest covering port's owner;
+  free space → actor with EntryEpoch=now, founded by the same entry
+  loop (full contact-era EntryGradeBonus — behind, not hopeless);
+  uplift (Life ≥ 2 gate) → client polity + FirstContact + vassal Bind
+  after entry (uplift without the tech integrates instead — never a
+  cage); integrate → new culture + segment under the covering port +
+  event 309 (the cultural faction coalesces via FactionOps);
+  exploit / protectorate-turned-cage → suppressed: captive segment at
+  SoL 0.1, standing Liberation claims for every related rival (subject
+  = culture id, released kin-style when freed), event 308; controller
+  maps NativePolicy from temperament (structural); origins layer v2
+  (ResolvedEpoch); knobs Genesis.* +4 + TUNING; seed-42 r21: members,
+  clients, and one throttled emergence in the chronicle; 475/475,
+  golden regen)*: PreSpaceflight origins
   get projected emergence dates; inside claimed space the host's
   NativePolicy resolves (uplift → client vassal; integrate → member +
   cultural faction; exploit/protectorate-cage → suppressed emergence =

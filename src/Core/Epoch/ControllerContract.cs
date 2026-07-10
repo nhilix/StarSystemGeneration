@@ -342,6 +342,16 @@ public sealed class GenesisController : IController
                 Military: militarySplit, Astrogation: astroSplit,
                 Life: lifeSplit),
         };
+        // the native policy follows the composition: the open uplift or
+        // integrate, the militant exploit, the rest hold the reserve
+        // (interpolity/relations.md §Natives — ideology-weighted)
+        policies = policies with
+        {
+            NativePolicy = temperament.Openness >= 0.70 ? NativePolicy.Uplift
+                : temperament.Openness >= 0.55 ? NativePolicy.Integrate
+                : temperament.Militancy >= 0.55 ? NativePolicy.Exploit
+                : NativePolicy.Protectorate,
+        };
         // the tariff wall scales with insularity — open societies trade
         // near-free, closed ones tax the foreign; trade pacts cut what
         // stands (the PactTariffFactor's teeth)

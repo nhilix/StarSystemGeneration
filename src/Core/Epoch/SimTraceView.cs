@@ -258,6 +258,13 @@ public static class SimTraceView
             PortCapturedPayload p =>
                 Invariant($"port #{p.PortId} falls to {p.AttackerName}; ")
                 + $"its people wake under a new flag ({p.WarName})",
+            EmergenceSuppressedPayload p =>
+                $"the {p.NativeName} reach for the stars and find "
+                + $"{p.HostName}'s hand on their throat — "
+                + "the galaxy takes note",
+            NativesIntegratedPayload p =>
+                $"the {p.NativeName} emerge under {p.HostName}'s flag "
+                + "as members, not subjects",
             PeaceSettledPayload p =>
                 p.WarName + " ends: " + (WarOutcome)p.Outcome switch
                 {

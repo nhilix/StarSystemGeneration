@@ -38,6 +38,21 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
+## Genesis — the native late-emergence schedule (slice H)
+
+Pre-spaceflight natives carry dates projected onto the native window;
+where a domain covers the homeworld, the host's native policy resolves
+the firing (the AI's policy-by-temperament map is structural:
+openness ≥ 0.70 uplift, ≥ 0.55 integrate, militancy ≥ 0.55 exploit,
+else protectorate; uplift's Life-tier-2 gate is structural too).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Genesis.NativeWindowYears` | 900 | Emergence crises land late (claimed galaxies, more suppressions). | Natives emerge among the founding powers. |
+| `Genesis.NativePopulationSize` | 1.0 | Native minorities matter demographically (real accommodation strain). | Token peoples. |
+| `Genesis.ProtectorateDelayEpochs` | 4 | Reserves genuinely buy time (and turn cage later). | Protectorate is a label. |
+| `Genesis.UpliftAccelerationEpochs` | 4 | Uplift hosts mint client states a century early. | Uplift is patience. |
+
 ## Corporate — niches, charters, operations, deaths (slice G)
 
 The niche watcher raises merchant factions where profit persists

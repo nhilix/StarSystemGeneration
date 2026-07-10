@@ -50,6 +50,8 @@ public enum WorldEventType
     FactionDissolved = 305,
     RevoltCrushed = 306,
     GovernmentReformed = 307,
+    EmergenceSuppressed = 308,
+    NativesIntegrated = 309,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
@@ -265,6 +267,19 @@ public sealed record VassalAbsorbedPayload(
 public sealed record VassalSecededPayload(
     int OverlordPolityId, int VassalPolityId, string OverlordName,
     string VassalName) : EventPayload;
+
+/// <summary>An emergence inside claimed space, suppressed
+/// (interpolity/relations.md §Natives): exploitation or a protectorate
+/// turned cage — every rival gains a standing liberation casus belli.</summary>
+public sealed record EmergenceSuppressedPayload(
+    int OriginId, int HostPolityId, string HostName, string NativeName,
+    int Policy) : EventPayload;
+
+/// <summary>An emergence resolved as membership: the natives join the host
+/// with rights per its ideology, an instant cultural minority.</summary>
+public sealed record NativesIntegratedPayload(
+    int OriginId, int HostPolityId, string HostName, string NativeName)
+    : EventPayload;
 
 /// <summary>Tension discharges through a casus belli (interpolity/war.md):
 /// a declaration with objectives and a settlement demand.</summary>
