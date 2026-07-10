@@ -61,35 +61,9 @@ public sealed class MarketStepScratch
 public static class MarketEngine
 {
     /// <summary>Neutral machinery grade when a market holds none — the grade
-    /// multiplier is 1.0 at 0.5, so missing machinery neither helps nor hurts.</summary>
+    /// multiplier is 1.0 at 0.5, so missing machinery neither helps nor hurts.
+    /// (Structural, not a knob: 0.5 is the grade system's defined midpoint.)</summary>
     private const double DefaultMachineryGrade = 0.5;
-    /// <summary>Price response of demand per band: subsistence near-inelastic,
-    /// standard-of-living moderate, luxury elastic (economy/markets.md §2).</summary>
-    private const double SubsistenceElasticity = 0.1;
-    private const double SoLElasticity = 0.5;
-    private const double LuxuryElasticity = 1.3;
-    /// <summary>Demand's price-response clamp — hunger doubles at best, never
-    /// explodes.</summary>
-    private const double ElasticFloor = 0.25, ElasticCeiling = 2.0;
-    /// <summary>Drift shape: price moves by (demand/supply)^exponent, clamped
-    /// by the per-year rate limit.</summary>
-    private const double DriftExponent = 0.5;
-    private const double PriceFloor = 0.01;
-    /// <summary>Absolute ceiling as a multiple of the founding price — spikes
-    /// stay legible without running away over long famines (and without
-    /// ceiling-price churn minting paper fortunes through the wage share).</summary>
-    private const double MaxPriceMultiple = 100.0;
-    /// <summary>Black-book margin over the open price — prohibition converts
-    /// demand, it never deletes it (commodities.md legality).</summary>
-    private const double BlackMarketMarkup = 2.5;
-    /// <summary>Aggregate subsistence fraction below which a famine event is
-    /// chronicled — aligned with the demographic shrink threshold: famine is
-    /// when people die, scarcity is just prices.</summary>
-    private const double FamineThreshold = 0.75;
-    /// <summary>Supply elasticity: producers throttle toward this utilization
-    /// floor as their good's price falls under its founding price — nobody
-    /// mines ore nobody buys, so gluts clear instead of pegging the floor.</summary>
-    private const double MinUtilization = 0.15;
 
     private static readonly PopulationBand[] Bands =
     {
@@ -159,9 +133,10 @@ public static class MarketEngine
             {
                 double terrain = ExtractionPotential((InfraTypeId)f.TypeId,
                                                      good, fields);
-                double utilization = Math.Min(1.0, Math.Max(MinUtilization,
-                    market.Price[(int)good]
-                    / Market.InitialPrice(state.Config.Economy, good)));
+                double utilization = Math.Min(1.0,
+                    Math.Max(cfg.Economy.MinUtilization,
+                        market.Price[(int)good]
+                        / Market.InitialPrice(cfg.Economy, good)));
                 double capacity = Production.Output(def, f.Tier, terrain,
                                      laborFactor, machineryGrade)
                                   * share * years * f.Condition * utilization;
@@ -353,7 +328,7 @@ public static class MarketEngine
                         {
                             market.BlackBookDemand[(int)good] += black;
                             market.BlackBookPrice[(int)good] =
-                                market.Price[(int)good] * BlackMarketMarkup;
+                                market.Price[(int)good] * eco.BlackMarketMarkup;
                         }
                         double legal = qty - black;
                         if (legal <= 0) continue;
@@ -378,12 +353,12 @@ public static class MarketEngine
         if (basePrice <= 0) return 1.0;
         double elasticity = band switch
         {
-            PopulationBand.Subsistence => SubsistenceElasticity,
-            PopulationBand.StandardOfLiving => SoLElasticity,
-            _ => LuxuryElasticity,
+            PopulationBand.Subsistence => eco.SubsistenceElasticity,
+            PopulationBand.StandardOfLiving => eco.SoLElasticity,
+            _ => eco.LuxuryElasticity,
         };
         double factor = Math.Pow(market.Price[good] / basePrice, -elasticity);
-        return Math.Min(ElasticCeiling, Math.Max(ElasticFloor, factor));
+        return Math.Min(eco.ElasticCeiling, Math.Max(eco.ElasticFloor, factor));
     }
 
     /// <summary>Industry inputs are demand (commodities.md demand model #2):
@@ -407,9 +382,10 @@ public static class MarketEngine
             {
                 // planned, not maximal: the same price throttle production
                 // runs under, so input demand tracks what will really be made
-                double utilization = Math.Min(1.0, Math.Max(MinUtilization,
-                    market.Price[(int)good]
-                    / Market.InitialPrice(state.Config.Economy, good)));
+                double utilization = Math.Min(1.0,
+                    Math.Max(state.Config.Economy.MinUtilization,
+                        market.Price[(int)good]
+                        / Market.InitialPrice(state.Config.Economy, good)));
                 double potential = def.BaseOutputPerYear
                                    * Production.TierOutputFactor(f.Tier)
                                    * share * years * utilization * f.Condition;
@@ -435,7 +411,7 @@ public static class MarketEngine
     /// polity procurement is a market participant (market-geography.md).</summary>
     public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
     {
-        const double DevGate = 25.0;
+        var infra = state.Config.Infrastructure;
         foreach (var pr in state.Polities)                // actor-id order (P6)
         {
             if (!state.Actors[pr.ActorId].Entered) continue;
@@ -451,20 +427,22 @@ public static class MarketEngine
                             scratch.Demand[port.Id][g] += target - pr.ReserveQty[g];
                     break;
                 }
-            if (pr.DevelopmentPoints < DevGate) continue;
+            if (pr.DevelopmentPoints < infra.ConstructionDevGate) continue;
             foreach (var port in state.Ports)             // id order (P6)
             {
                 if (port.OwnerActorId != pr.ActorId) continue;
-                int cap = port.Tier
-                          * state.Config.Infrastructure.FacilitiesPerPortTier;
+                int cap = port.Tier * infra.FacilitiesPerPortTier;
                 int attached = 0;
                 foreach (var f in state.Facilities)
                     if (f.OwnerActorId == pr.ActorId
                         && AttachedMarketIndex(state, f) == port.Id) attached++;
                 if (attached >= cap) continue;
-                scratch.Demand[port.Id][(int)GoodId.Alloys] += 12;
-                scratch.Demand[port.Id][(int)GoodId.Machinery] += 8;
-                scratch.Demand[port.Id][(int)GoodId.Composites] += 6;
+                scratch.Demand[port.Id][(int)GoodId.Alloys]
+                    += infra.ConstructionPullAlloys;
+                scratch.Demand[port.Id][(int)GoodId.Machinery]
+                    += infra.ConstructionPullMachinery;
+                scratch.Demand[port.Id][(int)GoodId.Composites]
+                    += infra.ConstructionPullComposites;
             }
         }
     }
@@ -503,10 +481,6 @@ public static class MarketEngine
     // Step 3 — price adjusts
     // ------------------------------------------------------------------
 
-    /// <summary>Headroom over the arbitrage break-even in the parity cap —
-    /// imports must stay profitable to actually flow.</summary>
-    private const double ParityHeadroom = 1.15;
-
     /// <summary>Each (market, good) price drifts toward clearing: excess
     /// demand pushes up, glut pushes down, rate-limited per world-year —
     /// markets never perfectly clear; persistent gradients ARE the trade
@@ -534,11 +508,12 @@ public static class MarketEngine
                 double supply = market.Inventory[g];
                 if (demand <= eps && supply <= eps) continue;   // dormant good
                 double factor = Math.Pow((demand + eps) / (supply + eps),
-                                         DriftExponent);
+                                         eco.PriceDriftExponent);
                 factor = Math.Min(cap, Math.Max(1.0 / cap, factor));
-                double ceiling = Market.InitialPrice(eco, (GoodId)g) * MaxPriceMultiple;
+                double ceiling = Market.InitialPrice(eco, (GoodId)g)
+                                 * eco.MaxPriceMultiple;
                 market.Price[g] = Math.Min(ceiling,
-                    Math.Max(PriceFloor, market.Price[g] * factor));
+                    Math.Max(eco.PriceFloor, market.Price[g] * factor));
             }
         }
 
@@ -583,27 +558,17 @@ public static class MarketEngine
                 tariff = rate * snapshot[dstId][g];
             double friction = srcLevel == LegalityLevel.Restricted
                               || dstLevel == LegalityLevel.Restricted
-                ? RestrictedFriction * snapshot[dstId][g] : 0;
+                ? eco.RestrictedFriction * snapshot[dstId][g] : 0;
             double parity = (snapshot[srcId][g] + freight + fuel + tariff + friction)
-                            / margin * ParityHeadroom;
+                            / margin * eco.ParityHeadroom;
             if (parity < dstMarket.Price[g])
-                dstMarket.Price[g] = Math.Max(PriceFloor, parity);
+                dstMarket.Price[g] = Math.Max(eco.PriceFloor, parity);
         }
     }
 
     // ------------------------------------------------------------------
     // Step 4 — freight moves
     // ------------------------------------------------------------------
-
-    /// <summary>Share of a market's stock arbitrage may lift per step —
-    /// damping against flow oscillation.</summary>
-    private const double ExportShare = 0.5;
-    /// <summary>Restricted goods carry a per-unit friction cost (permits,
-    /// inspections, seizure risk) — evadable at margin cost by design.</summary>
-    private const double RestrictedFriction = 0.5;
-    /// <summary>Subsistence fraction below which a polity releases reserves
-    /// into the starving port's market.</summary>
-    private const double ReserveReleaseTrigger = 0.9;
 
     /// <summary>Step 4 — freight (economy/markets.md §4), three generators in
     /// deterministic order, all within lane capacity (the fleet-capacity stub
@@ -640,7 +605,8 @@ public static class MarketEngine
                 if (port.OwnerActorId != pr.ActorId) continue;
                 double shortfall = 0;
                 foreach (var seg in state.Segments)
-                    if (seg.PortId == port.Id && seg.LastSubsistence < ReserveReleaseTrigger)
+                    if (seg.PortId == port.Id
+                        && seg.LastSubsistence < eco.ReserveReleaseTrigger)
                         shortfall += seg.Size * eco.SubsistenceUnitsPerPopPerYear
                                      * years * (1.0 - seg.LastSubsistence);
                 if (shortfall <= 0) continue;
@@ -705,7 +671,7 @@ public static class MarketEngine
                 }
                 double friction = srcLevel == LegalityLevel.Restricted
                                   || dstLevel == LegalityLevel.Restricted
-                    ? RestrictedFriction * pDst : 0;
+                    ? eco.RestrictedFriction * pDst : 0;
                 double costPerUnit = pSrc + freight + fuel + tariff + friction;
                 // the exporter's realized take is the post-tax owner share of
                 // the destination sale, not the sticker price — gate on that
@@ -721,7 +687,7 @@ public static class MarketEngine
                 double absorption = Math.Max(0.0,
                     scratch.Demand[dst.Id][g] - mDst.Inventory[g]);
                 double qty = Math.Min(absorption,
-                    Math.Min(mSrc.Inventory[g] * ExportShare, capacity));
+                    Math.Min(mSrc.Inventory[g] * eco.ExportShare, capacity));
                 if (costPerUnit > 0 && exporter.Credits < qty * costPerUnit)
                     qty = Math.Max(0, exporter.Credits / costPerUnit);
                 if (qty <= 0) continue;
@@ -762,6 +728,7 @@ public static class MarketEngine
     /// from own markets, in actor-id then port-id then good-id order.</summary>
     private static void Procure(SimState state, MarketStepScratch scratch)
     {
+        var eco = state.Config.Economy;
         foreach (var pr in state.Polities)                // actor-id order (P6)
         {
             var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
@@ -777,7 +744,8 @@ public static class MarketEngine
                     if (port.OwnerActorId != pr.ActorId || deficit <= 0) continue;
                     var market = state.Markets[port.Id];
                     double price = market.Price[g];
-                    double qty = Math.Min(deficit, market.Inventory[g] * ExportShare);
+                    double qty = Math.Min(deficit,
+                                          market.Inventory[g] * eco.ExportShare);
                     if (price > 0 && pr.Credits < qty * price)
                         qty = Math.Max(0, pr.Credits / price);
                     if (qty <= 0) continue;
@@ -873,7 +841,7 @@ public static class MarketEngine
                 seg.SoL = Math.Min(1.0, Math.Max(0.0,
                     seg.SoL + (solFraction - seg.SoL) * pop.SoLDriftPerYear * years));
             }
-            if (portNeed > 0 && portCleared / portNeed < FamineThreshold)
+            if (portNeed > 0 && portCleared / portNeed < pop.FamineLine)
             {
                 double shortfall = 1.0 - portCleared / portNeed;
                 state.Staged.Add(new StagedEvent(

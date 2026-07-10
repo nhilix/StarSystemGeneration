@@ -152,6 +152,17 @@ Architecture decisions (made at kickoff, flag deviations):
       the final format · merge on user nod · HANDOFF · **write Slice E
       kickoff prompt** · flip kickoff checkbox · push only on user say-so.
 
+- [x] 11b. **Knob centralization** (user-directed, eyeball pass 3): every
+      calibration constant promoted into the config knob families (~75
+      dials incl. new `ControllerKnobs`); `KnobRegistry` is the single
+      index (name → doc → get/set) driving the artifact's config layer v3
+      (name-sorted `KNOB|Family.Name|value` lines — new knobs never reshape
+      the format again; unknown knobs refuse to load), the REPL `knobs
+      [filter]` command, and `docs/TUNING.md` (definition + consequence-of-
+      turning per dial, plus the structural-constants and galaxy-side
+      appendices). KnobRegistryTests enforce order/uniqueness/docs/accessor
+      round-trips.
+
 ## Notes / surprises
 
 - **Bootstrap problem** (task 2): construction costs real goods only

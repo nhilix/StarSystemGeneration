@@ -92,18 +92,11 @@ public sealed class GenesisController : IController
         _config = config;
     }
 
-    /// <summary>Provisions reserve target per owned port — famine and siege
-    /// buffering by standing policy (economy/markets.md §Stockpiles).</summary>
-    private const double ProvisionsReservePerPort = 3.0;
-    /// <summary>No expeditions while the realm starves: expansion waits for
-    /// consolidation below this mean-subsistence line.</summary>
-    private const double RealmHungerGate = 0.8;
-
     public ControllerDecision Decide(PerceptionView perceived)
     {
         var policies = PoliciesFor(perceived);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
-            && perceived.RealmSubsistence >= RealmHungerGate
+            && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0)
             return new ControllerDecision(policies, new Act[]
             {
@@ -114,41 +107,47 @@ public sealed class GenesisController : IController
 
     /// <summary>Default policies plus a species-derived law code (closed
     /// societies prohibit narcotics, guarded ones restrict them —
-    /// jurisdiction-relative legality, commodities.md) and a provisions
-    /// reserve target scaling with the realm. Deterministic from the view.</summary>
-    private static PolityPolicies PoliciesFor(PerceptionView perceived)
+    /// jurisdiction-relative legality, commodities.md) and reserve targets
+    /// scaling with the realm (ControllerKnobs). Deterministic from the view.</summary>
+    private PolityPolicies PoliciesFor(PerceptionView perceived)
     {
+        var knobs = _config.Controller;
         var policies = PolityPolicies.Default;
         var species = perceived.SelfSpecies;
-        if (species != null && species.Openness < 0.55)
+        if (species != null
+            && species.Openness < knobs.NarcoticsRestrictBelowOpenness)
             policies = policies with
             {
                 LawCode = new Dictionary<int, LegalityLevel>
                 {
-                    [(int)Substrate.GoodId.Narcotics] = species.Openness < 0.35
-                        ? LegalityLevel.Prohibited
-                        : LegalityLevel.Restricted,
+                    [(int)Substrate.GoodId.Narcotics] =
+                        species.Openness < knobs.NarcoticsProhibitBelowOpenness
+                            ? LegalityLevel.Prohibited
+                            : LegalityLevel.Restricted,
                 },
             };
         if (perceived.OwnPortCount > 0)
         {
             // polity procurement (market-geography.md participants): food
-            // security for everyone, war materiel by temperament — strategic
-            // demand that pulls the capital chains into existence
+            // security for everyone, construction materials banked (market
+            // leftovers never hold a whole build basket at once), war
+            // materiel by temperament
             var targets = new Dictionary<int, double>
             {
                 [(int)Substrate.GoodId.Provisions] =
-                    ProvisionsReservePerPort * perceived.OwnPortCount,
-                // the state banks construction materials — market leftovers
-                // alone never hold a whole build basket at once
-                [(int)Substrate.GoodId.Alloys] = 3.0 * perceived.OwnPortCount,
-                [(int)Substrate.GoodId.Machinery] = 1.5 * perceived.OwnPortCount,
-                [(int)Substrate.GoodId.Composites] = perceived.OwnPortCount,
+                    knobs.ProvisionsReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Alloys] =
+                    knobs.AlloysReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Machinery] =
+                    knobs.MachineryReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Composites] =
+                    knobs.CompositesReservePerPort * perceived.OwnPortCount,
             };
             double militancy = species?.Militancy ?? 0.5;
-            if (militancy > 0.2)
+            if (militancy > knobs.MilitancyReserveGate)
                 targets[(int)Substrate.GoodId.Armaments] =
-                    militancy * 2.0 * perceived.OwnPortCount;
+                    militancy * knobs.ArmamentsPerPortPerMilitancy
+                    * perceived.OwnPortCount;
             policies = policies with { StockpileTargets = targets };
         }
         return policies;

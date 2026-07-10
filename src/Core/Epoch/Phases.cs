@@ -184,7 +184,7 @@ public sealed class AllocationPhase : ISimPhase
 
             Substrate.InfraTypeId bestType = Substrate.InfraTypeId.Port;
             HexCoordinate bestHex = port.Hex;
-            double bestScore = 0.12;                          // don't build junk
+            double bestScore = cfg.Infrastructure.ConstructionScoreFloor;
             foreach (var cell in state.Skeleton.Cells)        // spiral order (P6)
             {
                 var center = HexGrid.CellCenter(cell.Coord);
@@ -652,10 +652,10 @@ public sealed class ResolutionPhase : ISimPhase
     private static Substrate.InfraTypeId FoundingIndustry(SimState state,
                                                           HexCoordinate target)
     {
-        const double FoodSecurityPremium = 1.25;
         var fields = MarketEngine.FieldsAt(state, target);
         var best = Substrate.InfraTypeId.AgriComplex;
-        double bar = Substrate.Potentials.Biosphere(fields) * FoodSecurityPremium;
+        double bar = Substrate.Potentials.Biosphere(fields)
+                     * state.Config.Infrastructure.FoodSecurityPremium;
         if (Substrate.Potentials.Ore(fields) > bar)
         { best = Substrate.InfraTypeId.Mine; bar = Substrate.Potentials.Ore(fields); }
         if (Substrate.Potentials.Volatiles(fields) > bar)
@@ -757,7 +757,7 @@ public sealed class InteriorPhase : ISimPhase
         {
             var seg = state.Segments[i];
             if (seg.Size <= 0) continue;
-            if (seg.LastSubsistence < 0.75)
+            if (seg.LastSubsistence < pop.FamineLine)
             {
                 seg.Size = System.Math.Max(0.0, seg.Size
                     * (1.0 - pop.FamineShrinkPerYear * years
@@ -789,17 +789,15 @@ public sealed class InteriorPhase : ISimPhase
     {
         var pop = state.Config.Population;
         int years = state.Config.Sim.YearsPerEpoch;
-        const double RefugeeMultiplier = 8.0;
-        const double MinGradient = 0.05;
         int flows = 0;
         for (int i = 0; i < preexisting; i++)             // id order (P6)
         {
             var seg = state.Segments[i];
             if (seg.Size <= 0.01) continue;
             double here = Attractiveness(state, seg.PortId);
-            bool refugees = seg.LastSubsistence < 0.5;
+            bool refugees = seg.LastSubsistence < pop.RefugeeLine;
             int bestPort = -1;
-            double bestGradient = MinGradient;
+            double bestGradient = pop.MigrationMinGradient;
             foreach (var lane in state.Lanes)             // id order (P6)
             {
                 if (state.SeveredLanes.Contains(lane.Id)) continue;
@@ -827,7 +825,7 @@ public sealed class InteriorPhase : ISimPhase
             }
             if (bestPort < 0) continue;
             double rate = pop.MigrationRatePerYear * years
-                          * (refugees ? RefugeeMultiplier : 1.0);
+                          * (refugees ? pop.RefugeeMultiplier : 1.0);
             double flow = System.Math.Min(seg.Size * 0.5,
                 seg.Size * rate * System.Math.Min(1.0, bestGradient));
             // the destination's service capacity limits settlement
@@ -904,15 +902,15 @@ public sealed class InteriorPhase : ISimPhase
         {
             var seg = state.Segments[i];
             if (seg.Size <= 0) continue;
-            if (seg.LastSubsistence < 0.7)
+            if (seg.LastSubsistence < pop.HungerIdeologyLine)
             {
                 double severity = 1.0 - seg.LastSubsistence;
                 Nudge(seg, IdeologyAxis.AuthorityAutonomy, 0.0, drift * severity);
                 Nudge(seg, IdeologyAxis.SacralMaterial, 0.0, drift * severity);
             }
-            if (seg.SoL > 0.7)
+            if (seg.SoL > pop.ProsperityIdeologyLine)
             {
-                double comfort = seg.SoL - 0.7;
+                double comfort = seg.SoL - pop.ProsperityIdeologyLine;
                 Nudge(seg, IdeologyAxis.CommunalIndividual, 1.0, drift * comfort * 3);
                 Nudge(seg, IdeologyAxis.OpenInsular, 0.0, drift * comfort * 3);
             }

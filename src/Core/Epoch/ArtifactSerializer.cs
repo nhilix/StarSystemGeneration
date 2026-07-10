@@ -25,7 +25,7 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 2), ("clock", 1), ("raster", 1), ("species", 1),
+        ("config", 3), ("clock", 1), ("raster", 1), ("species", 1),
         ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 1), ("segments", 2), ("events", 1), ("markets", 1),
     };
@@ -53,34 +53,10 @@ public static class ArtifactSerializer
             R(gc.HomeworldRatePerCell), R(gc.TraversabilityThreshold)));
         w.WriteLine(Join("ESIM", ec.MasterSeed.ToString(Inv),
             ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
-        w.WriteLine(Join("EGEN", ec.Genesis.EmergenceWindowYears.ToString(Inv)));
-        w.WriteLine(Join("EECO", R(ec.Economy.WarWearinessPerYear),
-            R(ec.Economy.StockpileDecayPerYear),
-            R(ec.Economy.SubsistenceUnitsPerPopPerYear),
-            R(ec.Economy.SoLUnitsPerPopPerYear), R(ec.Economy.LuxuryUnitsPerPopPerYear),
-            R(ec.Economy.BasePriceRaw), R(ec.Economy.BasePriceProcessed),
-            R(ec.Economy.BasePriceCapital), R(ec.Economy.PriceDriftMaxPerYear),
-            R(ec.Economy.ReExportWeight), R(ec.Economy.LaborShare),
-            R(ec.Economy.InitialCreditsPerPolity), R(ec.Economy.InitialWealthPerPop),
-            R(ec.Economy.FreightCostPerUnitPerHex), R(ec.Economy.FuelPerUnitPerHex),
-            R(ec.Economy.LoanRatePerYear), ec.Economy.LoanTermYears.ToString(Inv),
-            R(ec.Economy.ConditionDecayPerYear), R(ec.Economy.ConditionRecoveryPerYear),
-            ec.Economy.TechTierStub.ToString(Inv)));
-        w.WriteLine(Join("EPOP", R(ec.Population.MigrationRatePerYear),
-            R(ec.Population.IdeologyDriftPerYear), R(ec.Population.FamineShrinkPerYear),
-            R(ec.Population.SoLDriftPerYear)));
-        w.WriteLine(Join("EINF", ec.Infrastructure.ServiceRadiusBaseHexes.ToString(Inv),
-            ec.Infrastructure.ServiceRadiusPerTierHexes.ToString(Inv),
-            ec.Infrastructure.InterPortRangeBaseHexes.ToString(Inv),
-            ec.Infrastructure.InterPortRangePerTierHexes.ToString(Inv),
-            ec.Infrastructure.MaxPortTier.ToString(Inv),
-            ec.Infrastructure.HomeworldPortTier.ToString(Inv),
-            ec.Infrastructure.FacilitiesPerPortTier.ToString(Inv)));
-        w.WriteLine(Join("EEXP",
-            R(ec.Expansion.ColonyCost), ec.Expansion.ColonizationReachHexes.ToString(Inv),
-            R(ec.Expansion.PortUpgradeCostBase), R(ec.Expansion.LaneCost),
-            R(ec.Expansion.HomeworldSegmentSize), R(ec.Expansion.ColonySegmentSize),
-            R(ec.Expansion.SegmentGrowthPerYear), R(ec.Expansion.SegmentCapPerTier)));
+        // every calibration dial, name-sorted (the knob registry is the
+        // single index — docs/TUNING.md carries the consequences)
+        foreach (var knob in KnobRegistry.All)
+            w.WriteLine(Join("KNOB", knob.Name, R(knob.Get(ec))));
 
         Layer(w, "clock");
         w.WriteLine(Join("CLOCK", state.EpochIndex.ToString(Inv),
@@ -303,55 +279,12 @@ public static class ArtifactSerializer
                         config.Sim.YearsPerEpoch = int.Parse(f[2], Inv);
                         config.Sim.EpochCount = int.Parse(f[3], Inv);
                         break;
-                    case "EGEN":
-                        config!.Genesis.EmergenceWindowYears = int.Parse(f[1], Inv);
-                        break;
-                    case "EECO":
-                        config!.Economy.WarWearinessPerYear = double.Parse(f[1], Inv);
-                        config.Economy.StockpileDecayPerYear = double.Parse(f[2], Inv);
-                        config.Economy.SubsistenceUnitsPerPopPerYear = double.Parse(f[3], Inv);
-                        config.Economy.SoLUnitsPerPopPerYear = double.Parse(f[4], Inv);
-                        config.Economy.LuxuryUnitsPerPopPerYear = double.Parse(f[5], Inv);
-                        config.Economy.BasePriceRaw = double.Parse(f[6], Inv);
-                        config.Economy.BasePriceProcessed = double.Parse(f[7], Inv);
-                        config.Economy.BasePriceCapital = double.Parse(f[8], Inv);
-                        config.Economy.PriceDriftMaxPerYear = double.Parse(f[9], Inv);
-                        config.Economy.ReExportWeight = double.Parse(f[10], Inv);
-                        config.Economy.LaborShare = double.Parse(f[11], Inv);
-                        config.Economy.InitialCreditsPerPolity = double.Parse(f[12], Inv);
-                        config.Economy.InitialWealthPerPop = double.Parse(f[13], Inv);
-                        config.Economy.FreightCostPerUnitPerHex = double.Parse(f[14], Inv);
-                        config.Economy.FuelPerUnitPerHex = double.Parse(f[15], Inv);
-                        config.Economy.LoanRatePerYear = double.Parse(f[16], Inv);
-                        config.Economy.LoanTermYears = int.Parse(f[17], Inv);
-                        config.Economy.ConditionDecayPerYear = double.Parse(f[18], Inv);
-                        config.Economy.ConditionRecoveryPerYear = double.Parse(f[19], Inv);
-                        config.Economy.TechTierStub = int.Parse(f[20], Inv);
-                        break;
-                    case "EPOP":
-                        config!.Population.MigrationRatePerYear = double.Parse(f[1], Inv);
-                        config.Population.IdeologyDriftPerYear = double.Parse(f[2], Inv);
-                        config.Population.FamineShrinkPerYear = double.Parse(f[3], Inv);
-                        config.Population.SoLDriftPerYear = double.Parse(f[4], Inv);
-                        break;
-                    case "EINF":
-                        config!.Infrastructure.ServiceRadiusBaseHexes = int.Parse(f[1], Inv);
-                        config.Infrastructure.ServiceRadiusPerTierHexes = int.Parse(f[2], Inv);
-                        config.Infrastructure.InterPortRangeBaseHexes = int.Parse(f[3], Inv);
-                        config.Infrastructure.InterPortRangePerTierHexes = int.Parse(f[4], Inv);
-                        config.Infrastructure.MaxPortTier = int.Parse(f[5], Inv);
-                        config.Infrastructure.HomeworldPortTier = int.Parse(f[6], Inv);
-                        config.Infrastructure.FacilitiesPerPortTier = int.Parse(f[7], Inv);
-                        break;
-                    case "EEXP":
-                        config!.Expansion.ColonyCost = double.Parse(f[1], Inv);
-                        config.Expansion.ColonizationReachHexes = int.Parse(f[2], Inv);
-                        config.Expansion.PortUpgradeCostBase = double.Parse(f[3], Inv);
-                        config.Expansion.LaneCost = double.Parse(f[4], Inv);
-                        config.Expansion.HomeworldSegmentSize = double.Parse(f[5], Inv);
-                        config.Expansion.ColonySegmentSize = double.Parse(f[6], Inv);
-                        config.Expansion.SegmentGrowthPerYear = double.Parse(f[7], Inv);
-                        config.Expansion.SegmentCapPerTier = double.Parse(f[8], Inv);
+                    case "KNOB":
+                        var knob = KnobRegistry.Find(f[1])
+                            ?? throw new InvalidDataException(
+                                $"unknown knob '{f[1]}'; keep the artifact with "
+                                + "matching code or explicitly regenerate");
+                        knob.Set(config!, double.Parse(f[2], Inv));
                         break;
                     case "CLOCK":
                         state = new SimState(config!, skeleton!)

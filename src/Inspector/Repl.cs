@@ -37,6 +37,7 @@ public sealed class Repl
                     Console.WriteLine("lanecut <portA> <portB> — toggle a lane cut (debug blockade until slice H)");
                     Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
+                    Console.WriteLine("knobs [filter] — every calibration dial: name, live value, doc (see docs/TUNING.md)");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
                     Console.WriteLine("map layers: density | lean");
@@ -213,6 +214,26 @@ public sealed class Repl
                 case "goods":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
                     break;
+                case "knobs":
+                {
+                    var config = _sim?.Config ?? new Core.Epoch.EpochSimConfig();
+                    string filter = parts.Length >= 2 ? parts[1] : "";
+                    int shown = 0;
+                    foreach (var knob in Core.Epoch.KnobRegistry.All)
+                    {
+                        if (filter.Length > 0 && knob.Name.IndexOf(filter,
+                                StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"  {knob.Name,-42} {knob.Get(config),10:0.####}  {knob.Doc}"));
+                        shown++;
+                    }
+                    Console.WriteLine(shown == 0
+                        ? $"no knobs match '{filter}'"
+                        : $"{shown} knobs" + (_sim == null
+                            ? " (defaults — no sim loaded)"
+                            : " (live values of the loaded sim)"));
+                    break;
+                }
                 case "infra" when parts.Length == 3 && _galaxy?.Skeleton is { } isk
                         && int.TryParse(parts[1], out var iq) && int.TryParse(parts[2], out var ir):
                 {
