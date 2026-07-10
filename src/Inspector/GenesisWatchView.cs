@@ -48,16 +48,23 @@ public static class GenesisWatchView
         if (layer == "waves")
         {
             // live waves print as their letter; fallen extents linger as ruins
-            var chars = new System.Collections.Generic.Dictionary<Core.Model.HexCoordinate, char>();
-            foreach (var wave in skeleton.PrecursorWaves)
-            {
-                char glyph = wave.FellYear != 0 ? '·'
-                    : (char)('A' + wave.Id % 26);
-                foreach (var coord in wave.Cells) chars[coord] = glyph;
-            }
+            var chars = WaveChars(skeleton);
             body = GalaxyMapView.RenderCells(skeleton, cell =>
                 chars.TryGetValue(cell.Coord, out var g) ? g
                 : s.Alive[cell.SpiralIndex] ? '.' : ' ');
+        }
+        else if (layer == "life")
+        {
+            // the combined movie layer: biosphere richness underneath,
+            // precursor domains rising and falling on top
+            var chars = WaveChars(skeleton);
+            body = GalaxyMapView.RenderCells(skeleton, cell =>
+            {
+                if (chars.TryGetValue(cell.Coord, out var g)) return g;
+                int i = cell.SpiralIndex;
+                if (!s.Alive[i]) return cell.IsVoid ? ' ' : '.';
+                return GalaxyMapView.Ramp(s.Richness[i]);
+            });
         }
         else
             body = GalaxyMapView.RenderCells(skeleton, cell =>
@@ -68,6 +75,18 @@ public static class GenesisWatchView
             });
         return Header("evolutionary", layer, frame.Step, frame.StepCount, frame.WorldGyr)
             + body;
+    }
+
+    private static System.Collections.Generic.Dictionary<Core.Model.HexCoordinate, char>
+        WaveChars(GalaxySkeleton skeleton)
+    {
+        var chars = new System.Collections.Generic.Dictionary<Core.Model.HexCoordinate, char>();
+        foreach (var wave in skeleton.PrecursorWaves)
+        {
+            char glyph = wave.FellYear != 0 ? '·' : (char)('A' + wave.Id % 26);
+            foreach (var coord in wave.Cells) chars[coord] = glyph;
+        }
+        return chars;
     }
 
     private static string Header(string clock, string layer, int step,

@@ -60,11 +60,15 @@ Architecture decisions (made at kickoff, flag deviations):
   field. Passes 2–4 (`PassStellarPopulation`, `PassResourceAnchors`,
   `PassHomeworlds`) are deleted with their stub tests — the one legitimate
   test-replacement zone.
-- **Watch mode**: `CosmicSim.Run`/`EvolutionSim.Run` accept an optional
-  per-step observer (step index, world-year, read-only field view); the
-  REPL `gwatch <layer> [every N]` re-runs genesis rendering frames, and
-  the epoch runner gets `ewatch <epochs> <layer>` rendering `emap` per
-  epoch. Frames print sequentially (pipe-safe, scrollback-friendly).
+- **Watch mode** (reshaped at eyeball wave 1, user): `watch <seed>
+  [radius] [epochs] [frameMs]` runs the WHOLE pipeline — cosmic gas →
+  life + precursor waves → political domains — rendering every sim step
+  as an **in-place animation** (FrameAnimator: ANSI cursor-up +
+  erase-per-line, VT enabled on classic conhost, cursor hidden while
+  playing; variable frame heights padded). `gwatch`/`ewatch` animate in
+  place too. When output is redirected the animator falls back to
+  sampled sequential frames, so piped smoke tests keep working.
+  Observation stays pure: the watched run is byte-identical.
 - **Entry starting conditions**: entry epoch, homeworld, species seed from
   the schedule; maturation quality scales starting conditions with the
   late-emerger contact bonus (elevated starting Astrogation/Industrial
