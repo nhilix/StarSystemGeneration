@@ -31,9 +31,18 @@ public sealed class FactionKnobs
     /// demands as appeasement — payouts cap here (no infinite war chests),
     /// and grievance accrues on the unmet fraction.</summary>
     public double AppeasementDemandShare { get; set; } = 0.2;
+    /// <summary>How far the official line lurches toward the coup faction's
+    /// target when the palace falls.</summary>
+    public double CoupIdeologyLurch { get; set; } = 0.5;
+    /// <summary>Legitimacy lost by a successful coup.</summary>
+    public double CoupLegitimacyHit { get; set; } = 0.15;
     /// <summary>Strength below which a faction dissolves (its trigger has
     /// passed; wealth returns to the segments).</summary>
     public double DissolveStrengthFloor { get; set; } = 0.05;
+    /// <summary>Multiplier on legitimacy × enforcement in the graduation
+    /// test — how much grip a state gets per point of either. Lower it and
+    /// every polity cracks; raise it and factions grumble forever.</summary>
+    public double GraduationGripFactor { get; set; } = 4.0;
     /// <summary>Population share an interest needs to coalesce (intolerant
     /// forms raise it — hives barely factionalize).</summary>
     public double FormMinShare { get; set; } = 0.15;
@@ -58,6 +67,11 @@ public sealed class FactionKnobs
     /// <summary>Budget/ideology drift toward agendas per world-year at full
     /// strength and tolerance.</summary>
     public double PressureRatePerYear { get; set; } = 0.01;
+    /// <summary>Fraction of grievance a crushed revolt keeps (a successful
+    /// graduation spends all of it) — repression compounds.</summary>
+    public double RevoltGrievanceKeep { get; set; } = 0.75;
+    /// <summary>Legitimacy lost crushing a revolt.</summary>
+    public double RevoltLegitimacyHit { get; set; } = 0.1;
     /// <summary>Sacral-axis position below which segments read as a faith
     /// movement's base.</summary>
     public double SacralAxisLine { get; set; } = 0.35;

@@ -31,12 +31,17 @@ public class ExpansionTests
             var payload = Assert.IsType<PortEstablishedPayload>(e.Payload);
             var port = state.Ports[payload.PortId];
             Assert.Equal(e.Location, port.Hex);
-            Assert.Equal(e.Actors[0], port.OwnerActorId);
+            // schisms (slice G) may since have transferred sovereignty
+            if (!state.Log.Events.Any(ev =>
+                    ev.Type == WorldEventType.SchismDeclared
+                    && ev.Actors.Contains(e.Actors[0])))
+                Assert.Equal(e.Actors[0], port.OwnerActorId);
             // founded at tier 1 (may be raised later; founding year pins the record)
             Assert.Equal(e.WorldYear, port.FoundedYear);
-            // reachable from some port of the founder that existed by then
-            Assert.Contains(state.Ports, o => o.OwnerActorId == port.OwnerActorId
-                && o.Id != port.Id && o.FoundedYear <= port.FoundedYear
+            // reachable from some port that existed by then (the founder's
+            // at the time — sovereignty may have moved since)
+            Assert.Contains(state.Ports, o => o.Id != port.Id
+                && o.FoundedYear <= port.FoundedYear
                 && HexGrid.Distance(o.Hex, port.Hex) <= cfg.Expansion.ColonizationReachHexes);
             // a colony population segment administers under the new port
             Assert.Contains(state.Segments, s => s.PortId == port.Id);

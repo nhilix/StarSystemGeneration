@@ -164,6 +164,11 @@ public class MarketSupplyTests
         foreach (var pr in state.Polities)
         {
             if (!state.Actors[pr.ActorId].Entered) continue;
+            // schedule entries only — schism states (slice G) inherit
+            // existing industry, they don't found homeworlds
+            if (!state.Log.Events.Any(e =>
+                    e.Type == WorldEventType.PolityEmerged
+                    && e.Actors.Contains(pr.ActorId))) continue;
             int starters = 0;
             foreach (var f in state.Facilities)
                 if (f.OwnerActorId == pr.ActorId

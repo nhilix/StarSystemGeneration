@@ -72,9 +72,11 @@ public class ShapeAcceptanceTests
     {
         var state = Run(seed);
         var eco = state.Config.Economy;
+        // the mint fires once per schedule emergence — schism states (slice
+        // G) split existing ledgers instead of minting
         double minted = 0;
-        foreach (var a in state.Actors)
-            if (a.Entered)
+        foreach (var e in state.Log.Events)
+            if (e.Type == StarGen.Core.Epoch.WorldEventType.PolityEmerged)
                 minted += eco.InitialCreditsPerPolity
                           + state.Config.Expansion.HomeworldSegmentSize
                             * eco.InitialWealthPerPop;

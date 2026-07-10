@@ -46,6 +46,13 @@ public static class FactionOps
             formed += Form(state, pr, scan);
             Update(state, pr, scan, ref dissolved);
         }
+        // factions of depopulated or unentered polities never reach Update —
+        // their epoch-transients still must not cross the epoch boundary
+        foreach (var faction in state.Factions)
+        {
+            faction.PaidThisEpoch = 0;
+            faction.DemandThisEpoch = 0;
+        }
         return (formed, dissolved);
     }
 
@@ -323,6 +330,13 @@ public static class FactionOps
         {
             if (!faction.Active || faction.PolityId != pr.ActorId) continue;
 
+            // consume this epoch's appeasement up front — every exit from
+            // this loop body (dissolution included) must leave them zeroed
+            double paid = faction.PaidThisEpoch;
+            double demand = faction.DemandThisEpoch;
+            faction.PaidThisEpoch = 0;
+            faction.DemandThisEpoch = 0;
+
             // strength: population share by basis + wealth + patron renown
             double share = faction.Basis switch
             {
@@ -375,14 +389,11 @@ public static class FactionOps
             }
 
             // grievance settles against this epoch's appeasement
-            double appeased = faction.DemandThisEpoch <= 0 ? 1.0
-                : Math.Min(1.0, faction.PaidThisEpoch / faction.DemandThisEpoch);
+            double appeased = demand <= 0 ? 1.0 : Math.Min(1.0, paid / demand);
             faction.Grievance = Math.Max(0.0, faction.Grievance
                 + knobs.GrievancePerYear * years * faction.Strength
                   * (1.0 - appeased) * (1.0 - 0.5 * form.FactionTolerance)
                 - knobs.GrievanceDecayPerYear * years * appeased);
-            faction.PaidThisEpoch = 0;
-            faction.DemandThisEpoch = 0;
         }
     }
 

@@ -164,7 +164,11 @@ public class CharacterTests
                 Assert.False(string.IsNullOrEmpty(SimTraceView.Describe(e)));
             }
             if (!c.Alive)
-                Assert.Contains(life, e => e.Type == WorldEventType.CharacterDied);
+                // natural deaths chronicle as CharacterDied; martyrdom (a
+                // crushed revolt) IS the death record
+                Assert.Contains(life, e =>
+                    e.Type is WorldEventType.CharacterDied
+                    or WorldEventType.RevoltCrushed);
         }
         Assert.True(biographies > 0, "no character has any chronicle presence");
     }

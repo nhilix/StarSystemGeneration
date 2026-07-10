@@ -126,6 +126,23 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            SchismDeclaredPayload p =>
+                Invariant($"the {p.FactionName} leads {p.Ports} ")
+                + (p.Ports == 1 ? "domain" : "domains")
+                + Invariant($" out of polity #{p.OldPolityId} — ")
+                + Invariant($"{p.NewPolityName} declares itself (polity #{p.NewPolityId})"),
+            CoupStruckPayload p =>
+                Invariant($"{p.CharacterName} of the {p.FactionName} seizes ")
+                + Invariant($"power in polity #{p.PolityId}")
+                + (p.Contested ? " — loyalists refuse the palace" : ""),
+            RevoltCrushedPayload p =>
+                Invariant($"the {p.FactionName} rises and is crushed in ")
+                + Invariant($"polity #{p.PolityId}; {p.MartyrName} is martyred"),
+            GovernmentReformedPayload p =>
+                Invariant($"polity #{p.PolityId} is remade: ")
+                + GovernmentForms.Get((GovernmentFormId)p.OldForm).Name
+                + " gives way to "
+                + GovernmentForms.Get((GovernmentFormId)p.NewForm).Name,
             FactionFormedPayload p =>
                 Invariant($"the {p.Name} coalesces in polity #{p.PolityId} (")
                 + ((FactionBasis)p.Basis).ToString().ToLowerInvariant()

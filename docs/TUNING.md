@@ -167,6 +167,10 @@ graduation (task 5) spends. Per-basis budget agendas are catalog data
 | `Faction.GrievanceDecayPerYear` | 0.008 | Paying late still forgives. | Grievance is forever (every polity eventually cracks). |
 | `Faction.DissolveStrengthFloor` | 0.05 | Factions need standing membership to persist. | Zombie movements linger. |
 | `Faction.PatronRenownWeight` / `WealthStrengthWeight` | 0.01 / 0.1 | Famous leaders and fat war chests carry factions past their base. | Strength is purely demographic. |
+| `Faction.GraduationGripFactor` | 4.0 | States hold together; factions grumble for centuries. **The graduation-pacing dial** (seed 42 r12: 9 graduations / 40 epochs at default). | Every polity cracks within a generation. |
+| `Faction.CoupIdeologyLurch` | 0.5 | Coups remake the official line overnight (forms reseat often). | Palace coups change faces, not policy. |
+| `Faction.CoupLegitimacyHit` / `RevoltLegitimacyHit` | 0.15 / 0.1 | Political violence delegitimizes hard (cascading instability). | Consequence-free putsches. |
+| `Faction.RevoltGrievanceKeep` | 0.75 | Repression compounds: crushed movements return angrier. | Crushing a revolt actually settles it. |
 
 ## Infrastructure — port physics and construction
 

@@ -884,6 +884,9 @@ public sealed class InteriorPhase : ISimPhase
         var (deaths, successions, crises) = CharacterOps.Step(state);
         var (factionsFormed, factionsDissolved) = FactionOps.Step(state);
         int interiors = InteriorOps.Recompute(state);
+        // graduation reads the freshly recomputed grip (legitimacy ×
+        // enforcement) — new institutions are born at the epoch's end
+        var (schisms, coups, revolts) = GraduationOps.Step(state);
 
         string note = entered switch
         {
@@ -906,6 +909,13 @@ public sealed class InteriorPhase : ISimPhase
         if (factionsDissolved > 0)
             note += $", {factionsDissolved} " + (factionsDissolved == 1
                 ? "faction disbands" : "factions disband");
+        if (schisms > 0)
+            note += $", {schisms} " + (schisms == 1 ? "schism" : "schisms");
+        if (coups > 0)
+            note += $", {coups} " + (coups == 1 ? "coup" : "coups");
+        if (revolts > 0)
+            note += $", {revolts} " + (revolts == 1
+                ? "revolt crushed" : "revolts crushed");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

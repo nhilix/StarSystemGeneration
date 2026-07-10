@@ -43,8 +43,12 @@ public enum WorldEventType
     MigrationWave = 206,
     PolityEmerged = 300,
     PortEstablished = 301,
+    SchismDeclared = 302,
+    CoupStruck = 303,
     FactionFormed = 304,
     FactionDissolved = 305,
+    RevoltCrushed = 306,
+    GovernmentReformed = 307,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
@@ -172,6 +176,28 @@ public interface ICharacterPayload
 {
     int CharacterId { get; }
 }
+
+/// <summary>Domains secede as a new polity — a faction graduates
+/// (factions-and-government.md §Graduation).</summary>
+public sealed record SchismDeclaredPayload(
+    int FactionId, string FactionName, int OldPolityId, int NewPolityId,
+    string NewPolityName, int Ports) : EventPayload;
+
+/// <summary>A throne-seeking faction replaces the leadership; ideology
+/// lurches. Contested coups record the civil war slice H will fight.</summary>
+public sealed record CoupStruckPayload(
+    int CharacterId, string CharacterName, int FactionId, string FactionName,
+    int PolityId, bool Contested) : EventPayload, ICharacterPayload;
+
+/// <summary>A crushed graduation: martyrs, repression, compounding grievance.</summary>
+public sealed record RevoltCrushedPayload(
+    int CharacterId, string MartyrName, int FactionId, string FactionName,
+    int PolityId) : EventPayload, ICharacterPayload;
+
+/// <summary>The government form changes through a graduation event — a
+/// chronicle landmark (§Government forms).</summary>
+public sealed record GovernmentReformedPayload(
+    int PolityId, int OldForm, int NewForm) : EventPayload;
 
 /// <summary>A character takes a polity's seat — by succession, crisis
 /// resolution, or founding (the first ruler ascends silently at entry;

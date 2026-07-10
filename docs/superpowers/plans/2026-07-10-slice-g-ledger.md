@@ -107,7 +107,26 @@ as work lands.
   the view); `GenesisController` and other Intent paths consume it;
   fixed `SpeciesProfile` temperament reads retire from Intent. Knobs
   `Temperament.*`, golden regen.
-- [ ] **G5 — Graduation**: threshold `strength × grievance >
+- [x] **G5 — Graduation** *(done: `Interior/GraduationOps.cs`; events
+  302 SchismDeclared, 303 CoupStruck, 306 RevoltCrushed, 307
+  GovernmentReformed; channel 64; one attempt per polity per epoch (the
+  loudest faction past legitimacy × enforcement × GraduationGripFactor);
+  success p = pressure/(pressure+grip), else revolt. Schism: seceding
+  ports (frontier / culture-majority) walk with facilities, fleets
+  (+hull-ledger transfer), pop-share of every treasury/reserve, war
+  chest as founding treasury, entry designs seeded, culture split for
+  regional schisms (`PopulationSegment.CultureId` now settable), leader
+  crowned, court refills; degenerate schisms (0 or all ports) become
+  revolts. Coup: leader takes the seat, deposed ruler lives disgraced,
+  ideology lurches `CoupIdeologyLurch`, form reseats (307 landmark),
+  contested flag = civil-war stub for H, chest funds the regime.
+  Revolt: martyred leader (RevoltCrushed is the death record), strength
+  halved, grievance ×`RevoltGrievanceKeep` compounds, legitimacy hit.
+  Knobs ×5 + TUNING; seed-42 r12: 5 schisms / 2 coups / 2 revolts, 10 →
+  15 polities. Several older tests amended: sovereignty can now move
+  (ports/lanes/leaders), schism states don't mint or found homeworlds —
+  conservation test counts PolityEmerged events. 406/406 green, golden
+  regen)*: threshold `strength × grievance >
   legitimacy × enforcement`; basis-routed: **schism** (regional/
   cultural: domains secede — new polity actor + record, culture split
   via the Culture registry, ports/segments/facilities/fleets

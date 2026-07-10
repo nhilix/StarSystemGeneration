@@ -86,4 +86,5 @@ public enum RollChannel : ulong
 
     // --- Factions (slice G). ---
     FactionSeed = 63,          // faction name syllables: step = polity id, actor = faction id, subIndex = syllable (100 = length)
+    Graduation = 64,           // success roll (step = epoch, actor = faction id); subIndex 1 = contested-coup roll; schism culture names key (step = new actor id, actor = -1)
 }

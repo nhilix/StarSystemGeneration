@@ -23,10 +23,12 @@ public class FactionTests
             Assert.True(f.Grievance >= 0);
             Assert.True(f.Wealth >= 0);
             Assert.Equal(0.0, f.PaidThisEpoch);   // never crosses an epoch
-            // every faction has a leader character
+            // every faction has a leader character; an ACTIVE faction's
+            // leader still belongs to its polity (a graduated one's may
+            // rule the schism state it founded — slice G task 5)
             Assert.True(f.LeaderCharacterId >= 0, $"faction {f.Id} leaderless");
             var leader = state.Characters[f.LeaderCharacterId];
-            Assert.Equal(f.PolityId, leader.PolityId);
+            if (f.Active) Assert.Equal(f.PolityId, leader.PolityId);
         }
         // at most one active faction per (polity, basis)
         var dupes = state.Factions.Where(f => f.Active)
