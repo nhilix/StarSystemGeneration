@@ -84,6 +84,9 @@ public static class SimTraceView
             LoanDefaultedPayload p =>
                 Invariant($"polity #{p.BorrowerActorId} defaults on its debt ")
                 + Invariant($"to polity #{p.LenderActorId}"),
+            MigrationWavePayload p =>
+                Invariant($"refugees flee port #{p.FromPortId} ")
+                + Invariant($"for port #{p.ToPortId}"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

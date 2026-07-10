@@ -588,15 +588,18 @@ public sealed class InteriorPhase : ISimPhase
 {
     public string Name => "Interior";
 
-    /// <summary>Homeworld starter facilities, extraction before processing so
-    /// the chain flows within one market step (facility id = run order).</summary>
-    private static readonly StarGen.Core.Substrate.InfraTypeId[] StarterIndustry =
+    /// <summary>Homeworld starter facilities with tiers, extraction before
+    /// processing so the chain flows within one market step (facility id =
+    /// run order). Agriculture arrives established — a spacefaring species
+    /// has long since fed itself, whatever its farmland.</summary>
+    private static readonly (StarGen.Core.Substrate.InfraTypeId Type, int Tier)[]
+        StarterIndustry =
     {
-        StarGen.Core.Substrate.InfraTypeId.AgriComplex,
-        StarGen.Core.Substrate.InfraTypeId.Mine,
-        StarGen.Core.Substrate.InfraTypeId.Skimmer,
-        StarGen.Core.Substrate.InfraTypeId.Refinery,
-        StarGen.Core.Substrate.InfraTypeId.Foundry,
+        (StarGen.Core.Substrate.InfraTypeId.AgriComplex, 2),
+        (StarGen.Core.Substrate.InfraTypeId.Mine, 1),
+        (StarGen.Core.Substrate.InfraTypeId.Skimmer, 1),
+        (StarGen.Core.Substrate.InfraTypeId.Refinery, 1),
+        (StarGen.Core.Substrate.InfraTypeId.Foundry, 1),
     };
 
     public string Run(SimState state)
@@ -625,28 +628,20 @@ public sealed class InteriorPhase : ISimPhase
             // credit endowment — the only mint; conserved thereafter (P4)
             state.PolityOf(a.Id).Credits +=
                 state.Config.Economy.InitialCreditsPerPolity;
-            foreach (var t in StarterIndustry)
+            foreach (var (type, tier) in StarterIndustry)
                 state.Facilities.Add(new Facility(state.Facilities.Count,
-                    (int)t, tier: 1, a.Seat, a.Id, state.WorldYear));
+                    (int)type, tier, a.Seat, a.Id, state.WorldYear));
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,
                 EventVisibility.Public, new PolityEmergedPayload(a.Name)));
         }
 
-        int grown = 0;
-        var cfg = state.Config.Expansion;
-        for (int i = 0; i < preexisting; i++)             // id order (P6)
-        {
-            var seg = state.Segments[i];
-            double cap = state.Ports[seg.PortId].Tier * cfg.SegmentCapPerTier;
-            if (seg.Size <= 0 || cap <= 0) continue;
-            double step = seg.Size * cfg.SegmentGrowthPerYear
-                          * state.Config.Sim.YearsPerEpoch * (1.0 - seg.Size / cap);
-            if (step == 0) continue;
-            seg.Size = System.Math.Min(cap, seg.Size + step);
-            grown++;
-        }
+        // refugees flee before attrition bites: migration reads last step's
+        // market outcomes, demographics apply to whoever stayed
+        int migrations = Migrate(state, preexisting);
+        int grown = Demographics(state, preexisting);
+        DriftIdeology(state, preexisting);
 
         string note = entered switch
         {
@@ -656,7 +651,194 @@ public sealed class InteriorPhase : ISimPhase
         };
         if (grown > 0)
             note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
+        if (migrations > 0)
+            note += $", {migrations} " + (migrations == 1 ? "flow migrates" : "flows migrate");
         return note;
+    }
+
+    /// <summary>Growth = f(SoL, provisions access, embodiment) against the
+    /// port's shared tier cap; famine shrinks. Machine populations grow by
+    /// manufacture — their subsistence IS fab inputs, so industry access
+    /// gates their growth entirely; cut off, they age out rather than starve
+    /// (population-and-identity.md §Demographics).</summary>
+    private static int Demographics(SimState state, int preexisting)
+    {
+        var cfg = state.Config.Expansion;
+        var pop = state.Config.Population;
+        int years = state.Config.Sim.YearsPerEpoch;
+        int grown = 0;
+        for (int i = 0; i < preexisting; i++)             // id order (P6)
+        {
+            var seg = state.Segments[i];
+            if (seg.Size <= 0) continue;
+            if (seg.LastSubsistence < 0.75)
+            {
+                seg.Size = System.Math.Max(0.0, seg.Size
+                    * (1.0 - pop.FamineShrinkPerYear * years
+                             * (1.0 - seg.LastSubsistence)));
+                continue;
+            }
+            double cap = state.Ports[seg.PortId].Tier * cfg.SegmentCapPerTier;
+            double portTotal = 0;
+            foreach (var other in state.Segments)
+                if (other.PortId == seg.PortId) portTotal += other.Size;
+            if (cap <= 0 || portTotal >= cap) continue;
+            double vitality = seg.LastSubsistence * (0.5 + seg.SoL);
+            double step = seg.Size * cfg.SegmentGrowthPerYear * years
+                          * vitality * (1.0 - portTotal / cap);
+            if (step <= 0) continue;
+            seg.Size = System.Math.Min(seg.Size + cap - portTotal, seg.Size + step);
+            grown++;
+        }
+        return grown;
+    }
+
+    /// <summary>Migration basics: each segment weighs its lane-connected
+    /// neighbors by food security and SoL; flows follow the gradient,
+    /// identity and per-capita wealth travel with the people, and same
+    /// (species, culture) segments merge — anything else is a diaspora.
+    /// Refugees (starving segments) flee at many times the base rate and
+    /// chronicle an exodus (population-and-identity.md §Migration).</summary>
+    private static int Migrate(SimState state, int preexisting)
+    {
+        var pop = state.Config.Population;
+        int years = state.Config.Sim.YearsPerEpoch;
+        const double RefugeeMultiplier = 8.0;
+        const double MinGradient = 0.05;
+        int flows = 0;
+        for (int i = 0; i < preexisting; i++)             // id order (P6)
+        {
+            var seg = state.Segments[i];
+            if (seg.Size <= 0.01) continue;
+            double here = Attractiveness(state, seg.PortId);
+            bool refugees = seg.LastSubsistence < 0.5;
+            int bestPort = -1;
+            double bestGradient = MinGradient;
+            foreach (var lane in state.Lanes)             // id order (P6)
+            {
+                if (state.SeveredLanes.Contains(lane.Id)) continue;
+                int other = lane.PortAId == seg.PortId ? lane.PortBId
+                    : lane.PortBId == seg.PortId ? lane.PortAId : -1;
+                if (other < 0) continue;
+                double gradient = Attractiveness(state, other) - here;
+                if (gradient > bestGradient) { bestGradient = gradient; bestPort = other; }
+            }
+            if (bestPort < 0 && refugees)
+            {
+                // refugees flee wherever ships will take them: off-lane
+                // crossings to any same-polity port within reach
+                var srcPort = state.Ports[seg.PortId];
+                foreach (var port in state.Ports)         // id order (P6)
+                {
+                    if (port.Id == seg.PortId
+                        || port.OwnerActorId != srcPort.OwnerActorId) continue;
+                    if (HexGrid.Distance(port.Hex, srcPort.Hex)
+                        > state.Config.Expansion.ColonizationReachHexes) continue;
+                    double gradient = Attractiveness(state, port.Id) - here;
+                    if (gradient > bestGradient)
+                    { bestGradient = gradient; bestPort = port.Id; }
+                }
+            }
+            if (bestPort < 0) continue;
+            double rate = pop.MigrationRatePerYear * years
+                          * (refugees ? RefugeeMultiplier : 1.0);
+            double flow = System.Math.Min(seg.Size * 0.5,
+                seg.Size * rate * System.Math.Min(1.0, bestGradient));
+            // the destination's service capacity limits settlement
+            double destCap = state.Ports[bestPort].Tier
+                             * state.Config.Expansion.SegmentCapPerTier;
+            double destTotal = 0;
+            foreach (var s in state.Segments)
+                if (s.PortId == bestPort) destTotal += s.Size;
+            flow = System.Math.Min(flow, System.Math.Max(0.0, destCap - destTotal));
+            if (flow <= 0.001) continue;
+
+            double wealthShare = seg.Wealth * flow / seg.Size;
+            seg.Size -= flow;
+            seg.Wealth -= wealthShare;
+            var home = FindOrFoundSegment(state, bestPort, seg);
+            home.Size += flow;
+            home.Wealth += wealthShare;
+            flows++;
+            if (refugees)
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.MigrationWave,
+                    new[] { state.Ports[seg.PortId].OwnerActorId },
+                    state.Ports[bestPort].Hex, Magnitude: flow, Valence: -0.5,
+                    EventVisibility.Regional,
+                    new MigrationWavePayload(seg.PortId, bestPort, flow)));
+        }
+        return flows;
+    }
+
+    /// <summary>Food security plus a standard-of-living term — the gradient
+    /// migration reads. Empty ports read as open land.</summary>
+    private static double Attractiveness(SimState state, int portId)
+    {
+        double size = 0, food = 0, sol = 0;
+        foreach (var s in state.Segments)
+            if (s.PortId == portId && s.Size > 0)
+            {
+                size += s.Size;
+                food += s.LastSubsistence * s.Size;
+                sol += s.SoL * s.Size;
+            }
+        if (size <= 0) return 1.0;                        // open land
+        return food / size + 0.3 * (sol / size);
+    }
+
+    /// <summary>The destination segment of one (species, culture) — merged if
+    /// kin already live there, founded as a diaspora otherwise (segments add,
+    /// never blend away).</summary>
+    private static PopulationSegment FindOrFoundSegment(
+        SimState state, int portId, PopulationSegment migrant)
+    {
+        foreach (var s in state.Segments)                 // id order (P6)
+            if (s.PortId == portId && s.SpeciesId == migrant.SpeciesId
+                && s.CultureId == migrant.CultureId)
+                return s;
+        var founded = new PopulationSegment(state.Segments.Count, portId,
+            migrant.SpeciesId, migrant.CultureId, 0.0)
+        { SoL = migrant.SoL, LastSubsistence = migrant.LastSubsistence };
+        for (int a = 0; a < founded.Ideology.Length; a++)
+            founded.Ideology[a] = migrant.Ideology[a];
+        state.Segments.Add(founded);
+        return founded;
+    }
+
+    /// <summary>The fast identity layer drifts with lived conditions: famine
+    /// turns Sacral and Authoritarian, prosperity Individual and Open
+    /// (population-and-identity.md §Ideology).</summary>
+    private static void DriftIdeology(SimState state, int preexisting)
+    {
+        var pop = state.Config.Population;
+        int years = state.Config.Sim.YearsPerEpoch;
+        double drift = pop.IdeologyDriftPerYear * years;
+        for (int i = 0; i < preexisting; i++)             // id order (P6)
+        {
+            var seg = state.Segments[i];
+            if (seg.Size <= 0) continue;
+            if (seg.LastSubsistence < 0.7)
+            {
+                double severity = 1.0 - seg.LastSubsistence;
+                Nudge(seg, IdeologyAxis.AuthorityAutonomy, 0.0, drift * severity);
+                Nudge(seg, IdeologyAxis.SacralMaterial, 0.0, drift * severity);
+            }
+            if (seg.SoL > 0.7)
+            {
+                double comfort = seg.SoL - 0.7;
+                Nudge(seg, IdeologyAxis.CommunalIndividual, 1.0, drift * comfort * 3);
+                Nudge(seg, IdeologyAxis.OpenInsular, 0.0, drift * comfort * 3);
+            }
+        }
+    }
+
+    private static void Nudge(PopulationSegment seg, IdeologyAxis axis,
+                              double toward, double amount)
+    {
+        int a = (int)axis;
+        seg.Ideology[a] += (toward - seg.Ideology[a])
+                           * System.Math.Min(1.0, amount);
     }
 }
 

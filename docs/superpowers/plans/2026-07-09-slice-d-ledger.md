@@ -75,7 +75,7 @@ Architecture decisions (made at kickoff, flag deviations):
       targets with perishability decay; simple credit (borrow when treasury
       short, service, default event + collateral seizure). Colony valuation
       gains the price signal. Gate: unit tests, conservation test.
-- [ ] 6. **Interior rework** — demographics: growth = f(SoL, provisions
+- [x] 6. **Interior rework** — demographics: growth = f(SoL, provisions
       access, embodiment), famine shrink, machine populations grow by fab
       consumption (Machinery + Compute); migration basics along SoL/income
       gradients over lanes (same-polity + refugee variant minimal);
@@ -168,3 +168,15 @@ Architecture decisions (made at kickoff, flag deviations):
 - Remaining famine texture is the two kinds task 6 is designed to relieve:
   rich-but-laneless ports (cannot import) and poor-with-food ports
   (poverty) — migration and famine demographics redistribute both.
+- Task-6 notes: migration runs *before* demographics (refugees flee, then
+  attrition bites whoever stayed); refugees escape laneless ports off-lane
+  within colonization reach (same polity); port tier caps are shared across
+  segments and gate migration inflow; machine growth reads LastSubsistence
+  (their subsistence IS fab inputs — cut off, they age out); famine events
+  chronicle at <0.75 (aligned with the shrink threshold — famine is when
+  people die, scarcity is just prices); homeworld starter agri is tier 2 (a
+  spacefaring species has long since fed itself); MigrationWave=206 events
+  for refugee exoduses.
+- The frontier is *harsh* at 40 epochs (roughly half of young colonies run
+  subsistence deficits and shed refugees). All mechanics present; the
+  world's mood is a knob-tuning conversation for the eyeball gate.

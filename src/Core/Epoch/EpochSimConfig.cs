@@ -108,7 +108,7 @@ public sealed class PopulationKnobs
     /// <summary>Ideology-axis drift toward lived conditions per world-year.</summary>
     public double IdeologyDriftPerYear { get; set; } = 0.01;
     /// <summary>Fractional segment shrink per world-year of unmet subsistence.</summary>
-    public double FamineShrinkPerYear { get; set; } = 0.05;
+    public double FamineShrinkPerYear { get; set; } = 0.02;
     /// <summary>Machine-population growth per unit of Machinery/Compute
     /// consumed — their birth rate is fab capacity.</summary>
     public double MachineGrowthPerGoodUnit { get; set; } = 0.1;

@@ -376,6 +376,8 @@ public static class ArtifactSerializer
             R(e.Principal)),
         LoanDefaultedPayload e => Join("loanDefaulted", e.LoanId.ToString(Inv),
             e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv)),
+        MigrationWavePayload e => Join("migrationWave", e.FromPortId.ToString(Inv),
+            e.ToPortId.ToString(Inv), R(e.Size)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -398,6 +400,8 @@ public static class ArtifactSerializer
             double.Parse(f[at + 4], Inv)),
         "loanDefaulted" => new LoanDefaultedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "migrationWave" => new MigrationWavePayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), double.Parse(f[at + 3], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

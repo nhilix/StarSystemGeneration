@@ -82,8 +82,9 @@ public static class MarketEngine
     /// demand, it never deletes it (commodities.md legality).</summary>
     private const double BlackMarketMarkup = 2.5;
     /// <summary>Aggregate subsistence fraction below which a famine event is
-    /// chronicled.</summary>
-    private const double FamineThreshold = 0.95;
+    /// chronicled — aligned with the demographic shrink threshold: famine is
+    /// when people die, scarcity is just prices.</summary>
+    private const double FamineThreshold = 0.75;
     /// <summary>Supply elasticity: producers throttle toward this utilization
     /// floor as their good's price falls under its founding price — nobody
     /// mines ore nobody buys, so gluts clear instead of pegging the floor.</summary>

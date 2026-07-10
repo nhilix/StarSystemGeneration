@@ -31,6 +31,7 @@ public enum WorldEventType
     FacilityBuilt = 203,
     LoanIssued = 204,
     LoanDefaulted = 205,
+    MigrationWave = 206,
     PolityEmerged = 300,
     PortEstablished = 301,
 }
@@ -76,6 +77,11 @@ public sealed record LoanIssuedPayload(
 /// seizure (economy/markets.md §Credit).</summary>
 public sealed record LoanDefaultedPayload(
     int LoanId, int LenderActorId, int BorrowerActorId) : EventPayload;
+
+/// <summary>A refugee exodus — the fast desperate migration variant
+/// (population-and-identity.md §Migration).</summary>
+public sealed record MigrationWavePayload(
+    int FromPortId, int ToPortId, double Size) : EventPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.
