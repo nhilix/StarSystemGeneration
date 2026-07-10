@@ -41,7 +41,20 @@ as work lands.
   segment-aggregated legitimacy discounted by structural strain: size,
   culture count, capital distance). Serialize (interior layer v1),
   golden regen, knobs `Interior.*`.
-- [ ] **G2 — Characters**: registry + deterministic on-demand generation
+- [x] **G2 — Characters** *(done: `Interior/Character.cs` (+Dynasty),
+  `CharacterOps.cs`; events 700–703 RulerAscended/CharacterDied/
+  SuccessionCrisis/NotableEmerged with `ICharacterPayload` biography
+  index (`EventLog.ForCharacter`); channels 60–62; courts seated at
+  entry (ruler+heir(dynastic)+marshal), per-epoch death checks with
+  species-real age curve + ruler assassination hazard, succession per
+  form (heir → crisis → fresh house; committee forms mint; machine
+  forks silently), commanders fill warship/expedition fleets, founder
+  notables on colony foundings (capped), dynastic prestige feeds the
+  ruler legitimacy term; interior layer v2 (CHAR/DYNA); knobs
+  `Character.*` ×11 + TUNING; golden regen — 390/390 green. DECISION:
+  characters are registry-level with payload-referenced events, NOT
+  Actors entries — the actor-substrate/controller slot is play-scope
+  (P2), out of G's boundary)*: registry + deterministic on-demand generation
   (culture syllable names, ideology position + boldness/zeal/competence/
   ambition, species-real lifespans incl. hive continuity + machine
   fork/deprecate); role slots (ruler/heir/marshal per form; fleet

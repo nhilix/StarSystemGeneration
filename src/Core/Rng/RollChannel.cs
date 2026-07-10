@@ -78,4 +78,9 @@ public enum RollChannel : ulong
     WaveDormant = 57,          // dormant-survival roll per site: actor = wave, subIndex = site ordinal
     WaveName = 58,             // wave name syllables: actor = wave id, subIndex = syllable
     WaveDescendant = 59,       // machine-descendant gate + entry-date roll
+
+    // --- Characters (slice G). ---
+    CharacterName = 60,        // name syllables: step = culture id, actor = character id, subIndex = syllable (100 = length)
+    CharacterTraits = 61,      // personality: step = mint epoch, actor = character id, subIndex = trait ordinal
+    CharacterDeath = 62,       // per-epoch death check: step = epoch, actor = character id
 }

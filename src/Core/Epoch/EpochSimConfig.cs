@@ -18,6 +18,40 @@ public sealed class EpochSimConfig
     public ControllerKnobs Controller { get; } = new ControllerKnobs();
     public FleetKnobs Fleet { get; } = new FleetKnobs();
     public InteriorKnobs Interior { get; } = new InteriorKnobs();
+    public CharacterKnobs Character { get; } = new CharacterKnobs();
+}
+
+/// <summary>Character dials (polity/characters.md): mortality, succession
+/// fallout, renown magnitudes, dynastic prestige, sparsity caps. Slice G.
+/// Species lifespans are structural catalog data (CharacterOps.Lifespan).</summary>
+public sealed class CharacterKnobs
+{
+    /// <summary>Ruler assassination hazard per world-year at full ambition
+    /// and zero legitimacy (scales by both).</summary>
+    public double AssassinationBasePerYear { get; set; } = 0.02;
+    /// <summary>Legitimacy lost outright when a succession has no heir.</summary>
+    public double CrisisLegitimacyHit { get; set; } = 0.15;
+    /// <summary>Dynastic prestige accrued per world-year of reign.</summary>
+    public double DynastyPrestigePerReignYear { get; set; } = 0.01;
+    /// <summary>Heir mint age as a fraction of species lifespan.</summary>
+    public double HeirMintAgeFraction { get; set; } = 0.25;
+    /// <summary>Flat deprecation hazard per world-year for machine minds
+    /// (they fork replacements instead of aging).</summary>
+    public double MachineDeprecationPerYear { get; set; } = 0.002;
+    /// <summary>Living notables a polity carries at most (sparsity, P8).</summary>
+    public int MaxNotablesPerPolity { get; set; } = 6;
+    /// <summary>Death hazard per world-year at exactly one lifespan (the
+    /// age curve rises quadratically past 55% of span to reach this).</summary>
+    public double MortalityShapePerYear { get; set; } = 0.15;
+    /// <summary>Ruler-prestige legitimacy gain per point of ruler renown +
+    /// dynastic prestige (0.5 is the neutral prestige term).</summary>
+    public double PrestigePerRenown { get; set; } = 0.02;
+    /// <summary>Renown for taking a seat.</summary>
+    public double RenownAscension { get; set; } = 2.0;
+    /// <summary>Renown for being minted a notable.</summary>
+    public double RenownNotable { get; set; } = 5.0;
+    /// <summary>Ruler/marshal/commander mint age as a lifespan fraction.</summary>
+    public double RulerMintAgeFraction { get; set; } = 0.45;
 }
 
 /// <summary>Polity-interior dials (polity/factions-and-government.md):

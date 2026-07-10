@@ -126,6 +126,37 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            RulerAscendedPayload p =>
+                Invariant($"{p.CharacterName} takes the seat of polity ")
+                + Invariant($"#{p.PolityId}")
+                + (p.DynastyId >= 0
+                    ? Invariant($" (house #{p.DynastyId})") : ""),
+            CharacterDiedPayload p =>
+                p.CharacterName + (CharacterRole)p.Role switch
+                {
+                    CharacterRole.Ruler => ", the ruler,",
+                    CharacterRole.Heir => ", the heir,",
+                    CharacterRole.Marshal => ", the marshal,",
+                    CharacterRole.Commander => ", the commander,",
+                    CharacterRole.FactionLeader => ", the faction leader,",
+                    CharacterRole.Executive => ", the executive,",
+                    _ => "",
+                }
+                + Invariant($" dies at {p.AgeYears}"),
+            SuccessionCrisisPayload p =>
+                Invariant($"the death of {p.DeadRulerName} leaves polity ")
+                + Invariant($"#{p.PolityId} without a clear successor"),
+            NotableEmergedPayload p =>
+                p.CharacterName + (NotableType)p.NotableType switch
+                {
+                    NotableType.Founder => " is hailed as a founder",
+                    NotableType.WarHero => " returns a war hero",
+                    NotableType.Prophet => " speaks and crowds gather",
+                    NotableType.PirateLord => " is whispered of on every lane",
+                    NotableType.Magnate => " corners the market",
+                    NotableType.Explorer => " returns from the ruins famous",
+                    _ => " becomes notable",
+                },
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

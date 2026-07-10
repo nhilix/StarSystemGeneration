@@ -50,6 +50,10 @@ public sealed class SimState
     /// split mechanic lands.</summary>
     public List<Culture> Cultures { get; } = new List<Culture>();
     public List<Loan> Loans { get; } = new List<Loan>();
+    /// <summary>Sparse by construction (characters.md): role occupants and
+    /// notables only, own id space, minted on demand deterministically.</summary>
+    public List<Character> Characters { get; } = new List<Character>();
+    public List<Dynasty> Dynasties { get; } = new List<Dynasty>();
     /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
     /// never serialized; slice H replaces this with real interdiction.</summary>
     public HashSet<int> SeveredLanes { get; } = new HashSet<int>();

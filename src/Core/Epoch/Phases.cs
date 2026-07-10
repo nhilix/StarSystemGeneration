@@ -756,6 +756,9 @@ public sealed class ResolutionPhase : ISimPhase
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
             EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
+        // a founding convoy mints its founder (characters.md §Notables)
+        CharacterOps.MintNotable(state, act.ActorId, NotableType.Founder,
+                                 act.Target);
         return true;
     }
 
@@ -835,6 +838,7 @@ public sealed class InteriorPhase : ISimPhase
                 for (int ax = 0; ax < 4; ax++) homeSegment.Ideology[ax] = tilt[ax];
                 state.Segments.Add(homeSegment);
                 InteriorOps.SeatAtEntry(state, state.PolityOf(a.Id));
+                CharacterOps.SeatLeadership(state, state.PolityOf(a.Id));
             }
             else state.Segments.Add(homeSegment);
             // a civilization at spaceflight arrives with industry: the
@@ -863,7 +867,9 @@ public sealed class InteriorPhase : ISimPhase
         int migrations = Migrate(state, preexisting);
         int grown = Demographics(state, preexisting);
         DriftIdeology(state, preexisting);
-        // the polity's inside reads the settled demographics (slice G)
+        // lives run, then the polity's inside reads the settled state
+        // (successions and prestige land before legitimacy) — slice G
+        var (deaths, successions, crises) = CharacterOps.Step(state);
         int interiors = InteriorOps.Recompute(state);
 
         string note = entered switch
@@ -876,6 +882,11 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
         if (migrations > 0)
             note += $", {migrations} " + (migrations == 1 ? "flow migrates" : "flows migrate");
+        if (deaths > 0)
+            note += $", {deaths} " + (deaths == 1 ? "life ends" : "lives end");
+        if (successions > 0)
+            note += $", {successions} " + (successions == 1 ? "succession" : "successions")
+                    + (crises > 0 ? $" ({crises} contested)" : "");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

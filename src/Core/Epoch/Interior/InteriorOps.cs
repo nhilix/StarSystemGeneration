@@ -125,10 +125,18 @@ public static class InteriorOps
         return recomputed;
     }
 
-    /// <summary>The ruler-prestige legitimacy term — neutral until slice G
-    /// task 2 seats characters in the ruler role.</summary>
+    /// <summary>The ruler-prestige legitimacy term: neutral 0.5 plus the
+    /// occupant's renown and house prestige (characters.md §Renown).</summary>
     private static double RulerPrestige(SimState state, PolityInterior interior)
-        => 0.5;
+    {
+        int id = interior.RulerCharacterId;
+        if (id < 0 || id >= state.Characters.Count) return 0.5;
+        var ruler = state.Characters[id];
+        double house = ruler.DynastyId >= 0
+            ? state.Dynasties[ruler.DynastyId].Prestige : 0.0;
+        return Clamp01(0.5 + state.Config.Character.PrestigePerRenown
+                             * (ruler.Renown + house));
+    }
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
 }

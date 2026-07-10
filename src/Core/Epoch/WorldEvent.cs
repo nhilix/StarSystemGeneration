@@ -46,6 +46,10 @@ public enum WorldEventType
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    RulerAscended = 700,
+    CharacterDied = 701,
+    SuccessionCrisis = 702,
+    NotableEmerged = 703,
 }
 
 public static class WorldEventTypes
@@ -149,6 +153,37 @@ public sealed record FleetAttritionPayload(
 /// make founding physical (fleets doc §Postures, space-and-travel.md).</summary>
 public sealed record ConvoyDispatchedPayload(
     int FleetId, int FromPortId, int TargetQ, int TargetR) : EventPayload;
+
+/// <summary>Payloads that name an individual — the biography index key
+/// (characters have their own id space; the event's Actors list carries the
+/// institution). P8: a life reconstructs from the log by this interface.</summary>
+public interface ICharacterPayload
+{
+    int CharacterId { get; }
+}
+
+/// <summary>A character takes a polity's seat — by succession, crisis
+/// resolution, or founding (the first ruler ascends silently at entry;
+/// only real transitions chronicle).</summary>
+public sealed record RulerAscendedPayload(
+    int CharacterId, string CharacterName, int PolityId, int DynastyId)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A role-holder or notable dies; the age is world-years lived.</summary>
+public sealed record CharacterDiedPayload(
+    int CharacterId, string CharacterName, int Role, long AgeYears)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A seat empties with no clear successor — resolved as politics
+/// until the war machinery (H) can escalate it (characters.md §Succession).</summary>
+public sealed record SuccessionCrisisPayload(
+    int CharacterId, string DeadRulerName, int PolityId)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A threshold event mints a named notable (characters.md §Notables).</summary>
+public sealed record NotableEmergedPayload(
+    int CharacterId, string CharacterName, int NotableType)
+    : EventPayload, ICharacterPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.

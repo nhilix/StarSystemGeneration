@@ -126,6 +126,25 @@ multipliers (catalog) scale the legitimacy weights per government form.
 | `Interior.EnforcementBase` | 0.4 | States keep order without navies (graduations rarer). | Order rests entirely on hulls. |
 | `Interior.EnforcementPerWarshipPerPort` | 0.04 | Navies double as interior police (militant realms suppress factions). | Fleets are outward-facing only. |
 
+## Character — mortality, succession, renown (slice G)
+
+Species lifespans (human-analog 80y, aquatic 90, cryophilic 120, lithic
+400, hive/machine effectively ageless) are structural catalog data —
+`CharacterOps.Lifespan`. These dials shape how lives end and what deaths
+cost.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Character.MortalityShapePerYear` | 0.15 | Shorter reigns, faster court turnover, more successions per era. | Rulers linger far past their span. |
+| `Character.AssassinationBasePerYear` | 0.02 | Illegitimate thrones are death sentences (ambition × unpopularity). | Palace intrigue toothless. |
+| `Character.MachineDeprecationPerYear` | 0.002 | Machine consensus nodes cycle visibly. | Effectively immortal machine minds. |
+| `Character.CrisisLegitimacyHit` | 0.15 | Heirless successions destabilize hard (G5 graduations feed on it). | Crises are paperwork. |
+| `Character.DynastyPrestigePerReignYear` | 0.01 | Old houses accumulate towering legitimacy. | Dynasties are just names. |
+| `Character.PrestigePerRenown` | 0.02 | Famous rulers carry states single-handed. | Legitimacy ignores the person. |
+| `Character.RenownAscension` / `RenownNotable` | 2 / 5 | Seats and feats mint reputation faster. | Renown must be earned across eras. |
+| `Character.RulerMintAgeFraction` / `HeirMintAgeFraction` | 0.45 / 0.25 | Older courts: shorter reigns, more successions. | Child-kings reign for generations. |
+| `Character.MaxNotablesPerPolity` | 6 | More chronicle color per realm. | Only the singular get remembered. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs
@@ -237,6 +256,10 @@ day one of them *does* need to move.
   (`InteriorPhase.StarterIndustry`): agri t2 + mine/skimmer/refinery/foundry t1.
 - **Ideology drift shape** — the prosperity comfort ×3 factor and famine
   severity scaling: `InteriorPhase.DriftIdeology`.
+- **Species lifespans** — human-analog 80 / aquatic 90 / cryophilic 120 /
+  lithic 400 / hive & machine 10,000 world-years, and the age curve's
+  0.55-of-span onset: `CharacterOps.Lifespan` / `AgeHazardPerYear`
+  (slice G). Species-real mortality is a mechanic, not a dial.
 - **Government form catalog** — the eight forms' ideology seats, species
   gates, succession rules, inertia/tolerance/floor values, legitimacy
   multipliers, and temperament-composition weights:

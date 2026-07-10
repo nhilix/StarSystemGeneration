@@ -28,7 +28,7 @@ public static class ArtifactSerializer
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 1),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 2),
     };
 
     public static string ToText(SimState state)
@@ -252,6 +252,20 @@ public static class ArtifactSerializer
                     R(interior.Enforcement), R(interior.LastMeanSoL),
                     interior.RulerCharacterId.ToString(Inv),
                     interior.FoundingCultureId.ToString(Inv)));
+        foreach (var c in state.Characters)
+            w.WriteLine(Join("CHAR", c.Id.ToString(Inv), Name(c.Name),
+                c.SpeciesId.ToString(Inv), c.CultureId.ToString(Inv),
+                c.PolityId.ToString(Inv), ((int)c.Role).ToString(Inv),
+                c.InstitutionId.ToString(Inv), ((int)c.Notable).ToString(Inv),
+                c.BirthYear.ToString(Inv), B(c.Alive), c.DeathYear.ToString(Inv),
+                R(c.IdeologyPosition[0]), R(c.IdeologyPosition[1]),
+                R(c.IdeologyPosition[2]), R(c.IdeologyPosition[3]),
+                R(c.Boldness), R(c.Zeal), R(c.Competence), R(c.Ambition),
+                R(c.Renown), c.DynastyId.ToString(Inv)));
+        foreach (var d in state.Dynasties)
+            w.WriteLine(Join("DYNA", d.Id.ToString(Inv), Name(d.Name),
+                d.FounderCharacterId.ToString(Inv), d.PolityId.ToString(Inv),
+                R(d.Prestige)));
         w.WriteLine("END");
     }
 
@@ -726,6 +740,39 @@ public static class ArtifactSerializer
                         state!.PolityOf(int.Parse(f[1], Inv)).Interior = interior;
                         break;
                     }
+                    case "CHAR":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Characters.Count)
+                            throw new InvalidDataException("character ids out of order");
+                        var character = new Character(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            int.Parse(f[5], Inv), long.Parse(f[9], Inv))
+                        {
+                            Role = (CharacterRole)int.Parse(f[6], Inv),
+                            InstitutionId = int.Parse(f[7], Inv),
+                            Notable = (NotableType)int.Parse(f[8], Inv),
+                            Alive = f[10] == "1",
+                            DeathYear = long.Parse(f[11], Inv),
+                            Boldness = double.Parse(f[16], Inv),
+                            Zeal = double.Parse(f[17], Inv),
+                            Competence = double.Parse(f[18], Inv),
+                            Ambition = double.Parse(f[19], Inv),
+                            Renown = double.Parse(f[20], Inv),
+                            DynastyId = int.Parse(f[21], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            character.IdeologyPosition[ax] =
+                                double.Parse(f[12 + ax], Inv);
+                        state.Characters.Add(character);
+                        break;
+                    }
+                    case "DYNA":
+                        if (int.Parse(f[1], Inv) != state!.Dynasties.Count)
+                            throw new InvalidDataException("dynasty ids out of order");
+                        state.Dynasties.Add(new Dynasty(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv))
+                        { Prestige = double.Parse(f[5], Inv) });
+                        break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -813,6 +860,18 @@ public static class ArtifactSerializer
         ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
             e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
             e.TargetR.ToString(Inv)),
+        RulerAscendedPayload e => Join("rulerAscended",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.PolityId.ToString(Inv), e.DynastyId.ToString(Inv)),
+        CharacterDiedPayload e => Join("characterDied",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.Role.ToString(Inv), e.AgeYears.ToString(Inv)),
+        SuccessionCrisisPayload e => Join("successionCrisis",
+            e.CharacterId.ToString(Inv), Name(e.DeadRulerName),
+            e.PolityId.ToString(Inv)),
+        NotableEmergedPayload e => Join("notableEmerged",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.NotableType.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -859,6 +918,14 @@ public static class ArtifactSerializer
         "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "rulerAscended" => new RulerAscendedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv)),
+        "characterDied" => new CharacterDiedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), long.Parse(f[at + 4], Inv)),
+        "successionCrisis" => new SuccessionCrisisPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
+        "notableEmerged" => new NotableEmergedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 
