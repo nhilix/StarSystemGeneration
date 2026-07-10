@@ -7,10 +7,16 @@ namespace StarGen.Core.Epoch;
 /// a controller may read (P3). Perfect-information stub, built from truth each
 /// Perception phase; compressed belief replaces it in Slice I. The contract
 /// holds either way: Decide sees the view, never global state.</summary>
+/// <summary>What a controller sees of one own ship design — enough to key
+/// ShipbuildingPriorities by design id (fleets/ships-and-fleets.md).</summary>
+public sealed record DesignBrief(int DesignId, ShipRole Role, ShipSize Size, int Mark);
+
 public sealed class PerceptionView
 {
     private static readonly IReadOnlyList<ColonyCandidate> NoCandidates =
         new ColonyCandidate[0];
+    private static readonly IReadOnlyList<DesignBrief> NoDesigns =
+        new DesignBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -32,13 +38,21 @@ public sealed class PerceptionView
     /// (1.0 when unpeopled) — the consolidation signal: a starving realm
     /// digests before it expands.</summary>
     public double RealmSubsistence { get; }
+    /// <summary>Own current-mark ship designs — the ids
+    /// ShipbuildingPriorities are keyed by (polities; empty otherwise).</summary>
+    public IReadOnlyList<DesignBrief> OwnDesigns { get; }
+    /// <summary>Colony hulls sitting in own Reserve-posture fleets — an
+    /// expedition needs a physical convoy (fleets doc; 0 for non-polities).</summary>
+    public int ColonyHullsAvailable { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
                           IReadOnlyList<ColonyCandidate>? colonyCandidates = null,
                           SpeciesProfile? selfSpecies = null,
                           int ownPortCount = 0,
-                          double realmSubsistence = 1.0)
+                          double realmSubsistence = 1.0,
+                          IReadOnlyList<DesignBrief>? ownDesigns = null,
+                          int colonyHullsAvailable = 0)
     {
         SelfId = selfId;
         WorldYear = worldYear;
@@ -48,6 +62,8 @@ public sealed class PerceptionView
         SelfSpecies = selfSpecies;
         OwnPortCount = ownPortCount;
         RealmSubsistence = realmSubsistence;
+        OwnDesigns = ownDesigns ?? NoDesigns;
+        ColonyHullsAvailable = colonyHullsAvailable;
     }
 }
 

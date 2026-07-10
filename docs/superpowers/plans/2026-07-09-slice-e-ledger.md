@@ -80,8 +80,8 @@ Architecture decisions (made at kickoff, flag deviations):
 
 ## Tasks
 
-- [ ] 0. **Branch + ledger** — branch `slice-e-fleets` from main; this file.
-- [ ] 1. **Catalog + design math + knobs** — `ShipCatalog` (chassis grid,
+- [x] 0. **Branch + ledger** — branch `slice-e-fleets` from main; this file.
+- [x] 1. **Catalog + design math + knobs** — `ShipCatalog` (chassis grid,
       stat bases), `DesignMath.Sheet` (embodiment/doctrine/tech/grade
       derivation), `FleetMath.Vectors`, `FleetKnobs` + registry + TUNING
       rows. Gate: unit tests over the pure functions; KnobRegistryTests.

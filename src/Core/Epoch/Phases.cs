@@ -30,8 +30,10 @@ public sealed class PerceptionPhase : ISimPhase
             Galaxy.SpeciesProfile? selfSpecies = null;
             int ownPorts = 0;
             double realmSubsistence = 1.0;
+            List<DesignBrief>? designs = null;
             if (a.Kind == ActorKind.Polity)
             {
+                designs = CurrentDesignBriefs(state, a.Id);
                 int sp = state.PolityOf(a.Id).SpeciesId;
                 if (sp >= 0 && sp < state.Skeleton.Species.Count)
                     selfSpecies = state.Skeleton.Species[sp];
@@ -49,10 +51,30 @@ public sealed class PerceptionPhase : ISimPhase
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
-                                              ownPorts, realmSubsistence);
+                                              ownPorts, realmSubsistence, designs,
+                                              FleetOps.ColonyHullsInReserve(state, a.Id));
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
+    }
+
+    /// <summary>Current-mark designs per chassis cell, design-id order —
+    /// the briefs ShipbuildingPriorities are keyed by.</summary>
+    private static List<DesignBrief> CurrentDesignBriefs(SimState state, int actorId)
+    {
+        var currentByCell = new Dictionary<(ShipRole, ShipSize), ShipDesign>();
+        foreach (var d in state.Designs)                  // id order (P6)
+        {
+            if (d.OwnerActorId != actorId) continue;
+            if (!currentByCell.TryGetValue((d.Role, d.Size), out var held)
+                || d.Mark > held.Mark)
+                currentByCell[(d.Role, d.Size)] = d;
+        }
+        var briefs = new List<DesignBrief>(currentByCell.Count);
+        foreach (var d in currentByCell.Values)
+            briefs.Add(new DesignBrief(d.Id, d.Role, d.Size, d.Mark));
+        briefs.Sort((x, y) => x.DesignId.CompareTo(y.DesignId));
+        return briefs;
     }
 }
 
@@ -717,6 +739,11 @@ public sealed class InteriorPhase : ISimPhase
             foreach (var (type, tier) in StarterIndustry)
                 state.Facilities.Add(new Facility(state.Facilities.Count,
                     (int)type, tier, a.Seat, a.Id, state.WorldYear));
+            // a spacefaring species arrives with its founding design set —
+            // genesis furniture like the starter industry, no events
+            double militancy = species >= 0 && species < state.Skeleton.Species.Count
+                ? state.Skeleton.Species[species].Militancy : 0.5;
+            DesignRegistry.RegisterEntryDesigns(state, a.Id, militancy);
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

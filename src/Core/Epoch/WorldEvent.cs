@@ -34,6 +34,9 @@ public enum WorldEventType
     MigrationWave = 206,
     PolityEmerged = 300,
     PortEstablished = 301,
+    ShipClassLaunched = 400,
+    FleetAttrition = 401,
+    ConvoyDispatched = 402,
 }
 
 public static class WorldEventTypes
@@ -82,6 +85,21 @@ public sealed record LoanDefaultedPayload(
 /// (population-and-identity.md §Migration).</summary>
 public sealed record MigrationWavePayload(
     int FromPortId, int ToPortId, double Size) : EventPayload;
+
+/// <summary>An improved mark joins a design lineage — visible cultural
+/// history (fleets/ships-and-fleets.md §Chassis grid).</summary>
+public sealed record ShipClassLaunchedPayload(
+    int DesignId, string Name, int Mark) : EventPayload;
+
+/// <summary>Hulls wrecked by failed supply — losses conserve into wreckage
+/// at the hex where they died (fleets/ships-and-fleets.md §Attrition).</summary>
+public sealed record FleetAttritionPayload(
+    int FleetId, int HullsLost) : EventPayload;
+
+/// <summary>A convoy departs under the Expedition posture — colony convoys
+/// make founding physical (fleets doc §Postures, space-and-travel.md).</summary>
+public sealed record ConvoyDispatchedPayload(
+    int FleetId, int FromPortId, int TargetQ, int TargetR) : EventPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.
