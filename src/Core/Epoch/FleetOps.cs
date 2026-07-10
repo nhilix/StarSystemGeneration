@@ -382,6 +382,159 @@ public static class FleetOps
         return severed;
     }
 
+    /// <summary>Fleet supply (fleets/ships-and-fleets.md §Movement and
+    /// supply), run by Allocation after postures: every fleet draws upkeep
+    /// from its home-port market — fuel plus armaments for warship hulls,
+    /// machinery for civilian ones — paid from the military treasury at
+    /// market prices, the spend recycling to the home port's households
+    /// (navy money is somebody's income). Readiness drifts toward the met
+    /// fraction (the facility-condition convention); below the attrition
+    /// floor, hulls wreck at the fleet's hex (event 401). Returns hulls
+    /// lost.</summary>
+    public static int SupplyFleets(SimState state, PolityRecord pr)
+    {
+        var cfg = state.Config;
+        var knobs = cfg.Fleet;
+        int years = cfg.Sim.YearsPerEpoch;
+        int lost = 0;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.OwnerActorId != pr.ActorId || fleet.TotalHulls == 0)
+                continue;
+            int mIx = fleet.HomePortId;
+            if (mIx < 0 || mIx >= state.Markets.Count) continue;
+            var market = state.Markets[mIx];
+
+            double posture = fleet.Posture == FleetPosture.Reserve
+                ? knobs.ReserveUpkeepFactor : 1.0;
+            double fuelNeed = 0, armsNeed = 0, machNeed = 0;
+            foreach (var g in fleet.Hulls)                // design-id order
+            {
+                var design = state.Designs[g.DesignId];
+                var sheet = DesignRegistry.SheetOf(state, design);
+                double draw = sheet[ShipStat.Upkeep] * g.Count
+                              * knobs.UpkeepUnitsPerPointPerYear * years
+                              * posture;
+                fuelNeed += draw * knobs.UpkeepFuelShare;
+                if (ShipCatalog.IsWarship(design.Role))
+                    armsNeed += draw * (1 - knobs.UpkeepFuelShare);
+                else
+                    machNeed += draw * (1 - knobs.UpkeepFuelShare);
+            }
+
+            double met = 1.0;
+            met = Math.Min(met, DrawUpkeep(state, pr, market,
+                (int)GoodId.Fuel, fuelNeed));
+            met = Math.Min(met, DrawUpkeep(state, pr, market,
+                (int)GoodId.Armaments, armsNeed));
+            met = Math.Min(met, DrawUpkeep(state, pr, market,
+                (int)GoodId.Machinery, machNeed));
+
+            if (met >= fleet.Readiness)
+                fleet.Readiness = Math.Min(met, fleet.Readiness
+                    + knobs.ReadinessRecoveryPerYear * years);
+            else
+                fleet.Readiness = Math.Max(met, fleet.Readiness
+                    - knobs.ReadinessDecayPerYear * years);
+
+            if (fleet.Readiness < knobs.AttritionReadinessFloor)
+            {
+                double expected = fleet.TotalHulls
+                                  * knobs.AttritionHullLossPerYear * years;
+                int toLose = Math.Max(1, (int)expected);
+                lost += Wreck(state, fleet, toLose);
+            }
+        }
+        return lost;
+    }
+
+    /// <summary>Draw one upkeep good from the market, paid from the
+    /// military treasury at the market price (upkeep is a running purchase,
+    /// not a pre-commitment); the payment lands with the port's polity as
+    /// receipts through the wage channel. Returns the met fraction.</summary>
+    private static double DrawUpkeep(SimState state, PolityRecord pr,
+                                     Market market, int good, double need)
+    {
+        if (need <= 0) return 1.0;
+        double affordable = market.Price[good] > 0
+            ? Math.Max(0.0, pr.MilitaryPoints) / market.Price[good]
+            : need;
+        double drawn = market.Draw(good, Math.Min(need, affordable));
+        if (drawn > 0)
+        {
+            market.LastCleared[good] += drawn;
+            double cost = drawn * market.Price[good];
+            pr.MilitaryPoints -= cost;
+            // navy spending is somebody's income: dock workers and
+            // chandlers at the home port (the construction-wage convention)
+            MarketEngine.PayWages(state, market.PortId, cost);
+        }
+        return drawn / need;
+    }
+
+    /// <summary>Wreck up to <paramref name="count"/> hulls out of a fleet,
+    /// design-id order: wreckage records at the fleet's hex, the ledger
+    /// moves Built → Wrecked, the chronicle carries the loss (401).</summary>
+    public static int Wreck(SimState state, FleetRecord fleet, int count)
+    {
+        var pr = state.PolityOf(fleet.OwnerActorId);
+        int wrecked = 0;
+        while (count > 0 && fleet.Hulls.Count > 0)
+        {
+            var g = fleet.Hulls[0];
+            int loss = Math.Min(g.Count, count);
+            fleet.RemoveHulls(g.DesignId, loss);
+            state.Wreckage.Add(new WreckageRecord(state.Wreckage.Count,
+                fleet.Hex, g.DesignId, loss, state.WorldYear));
+            pr.HullsWrecked += loss;
+            wrecked += loss;
+            count -= loss;
+        }
+        if (wrecked > 0)
+            state.Staged.Add(new StagedEvent(
+                ClockStratum.Generational, WorldEventType.FleetAttrition,
+                new[] { fleet.OwnerActorId }, fleet.Hex, Magnitude: wrecked,
+                Valence: -1.0, EventVisibility.Regional,
+                new FleetAttritionPayload(fleet.Id, wrecked)));
+        return wrecked;
+    }
+
+    /// <summary>Fleet upkeep registers as demand at the home-port markets
+    /// (the MilitaryUpkeep use-case): the price signal keeps fuel and
+    /// armaments produced where navies base.</summary>
+    public static void AddUpkeepDemand(SimState state, MarketStepScratch scratch)
+    {
+        var knobs = state.Config.Fleet;
+        int years = state.Config.Sim.YearsPerEpoch;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.TotalHulls == 0 || fleet.HomePortId < 0
+                || fleet.HomePortId >= state.Markets.Count) continue;
+            double posture = fleet.Posture == FleetPosture.Reserve
+                ? knobs.ReserveUpkeepFactor : 1.0;
+            foreach (var g in fleet.Hulls)                // design-id order
+            {
+                var design = state.Designs[g.DesignId];
+                var sheet = DesignRegistry.SheetOf(state, design);
+                double draw = sheet[ShipStat.Upkeep] * g.Count
+                              * knobs.UpkeepUnitsPerPointPerYear * years
+                              * posture;
+                scratch.Demand[fleet.HomePortId][(int)GoodId.Fuel]
+                    += draw * knobs.UpkeepFuelShare;
+                int rest = ShipCatalog.IsWarship(design.Role)
+                    ? (int)GoodId.Armaments : (int)GoodId.Machinery;
+                scratch.Demand[fleet.HomePortId][rest]
+                    += draw * (1 - knobs.UpkeepFuelShare);
+            }
+        }
+    }
+
+    /// <summary>Off-lane range of a design in hexes — the endurance floor
+    /// in map units (the slowest hull limits a formation).</summary>
+    public static int EnduranceHexes(SimState state, ShipDesign design) =>
+        (int)(DesignRegistry.SheetOf(state, design)[ShipStat.OffLaneEndurance]
+              * state.Config.Fleet.EnduranceHexesPerPoint);
+
     /// <summary>Colony hulls docked in an actor's Reserve fleets — what an
     /// expedition can actually assemble (the founding gate's count).</summary>
     public static int ColonyHullsInReserve(SimState state, int actorId)

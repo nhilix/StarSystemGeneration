@@ -113,7 +113,8 @@ public sealed class GenesisController : IController
         var policies = PoliciesFor(perceived);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
-            && perceived.ColonyCandidates.Count > 0)
+            && perceived.ColonyCandidates.Count > 0
+            && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
             return new ControllerDecision(policies, new Act[]
             {
                 new FoundColonyAct(perceived.SelfId, perceived.ColonyCandidates[0].Target),

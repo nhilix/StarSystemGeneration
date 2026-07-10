@@ -252,6 +252,11 @@ public sealed class FleetKnobs
     /// <summary>Readiness below which an unsupplied fleet starts losing
     /// hulls to wreckage.</summary>
     public double AttritionReadinessFloor { get; set; } = 0.3;
+    /// <summary>Hexes of off-lane range per point of a design's
+    /// OffLaneEndurance stat — the endurance floor in map units (a Medium
+    /// pioneer at ~9 endurance reaches ~27 hexes, just past the default
+    /// colonization reach).</summary>
+    public double EnduranceHexesPerPoint { get; set; } = 3.0;
     /// <summary>Round trips per world-year of a posted hull at transit
     /// speed 1 over one hex — posted capacity = cargo × trips
     /// (× TransitSpeed ÷ distance).</summary>

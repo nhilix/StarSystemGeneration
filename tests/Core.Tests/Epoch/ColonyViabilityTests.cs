@@ -30,6 +30,9 @@ public class ColonyViabilityTests
         state.Segments.Add(new PopulationSegment(0, 0, species, species, 3.0));
         state.PolityOf(actor.Id).ExpansionPoints = 100;
         state.WorldYear = 100;
+        // founding is physical (slice E): the fixture needs a colony convoy
+        DesignRegistry.RegisterEntryDesigns(state, actor.Id, militancy: 0.5);
+        FleetOps.SeedStarterFleet(state, actor.Id, port, militancy: 0.5);
         return state;
     }
 
@@ -111,12 +114,12 @@ public class ColonyViabilityTests
         var candidates = new[] { new ColonyCandidate(new HexCoordinate(3, 3), 1.0) };
         var starving = new PerceptionView(0, 0, new int[0],
             expansionPoints: 1000, colonyCandidates: candidates,
-            realmSubsistence: 0.5);
+            realmSubsistence: 0.5, colonyHullsAvailable: 1);
         Assert.Empty(new GenesisController(config).Decide(starving).Acts);
 
         var fed = new PerceptionView(0, 0, new int[0],
             expansionPoints: 1000, colonyCandidates: candidates,
-            realmSubsistence: 1.0);
+            realmSubsistence: 1.0, colonyHullsAvailable: 1);
         Assert.NotEmpty(new GenesisController(config).Decide(fed).Acts);
     }
 

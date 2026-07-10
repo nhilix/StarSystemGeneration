@@ -99,7 +99,7 @@ Architecture decisions (made at kickoff, flag deviations):
       Arbitrage + AddReExportDemand, blockade severance, TrafficMath.
       Gate: no-hulls-no-freight test; blockade-spike parity with lanecut;
       shape still alive over 40 epochs.
-- [ ] 5. **Movement + supply + convoys** — fleet upkeep demand + draws,
+- [x] 5. **Movement + supply + convoys** — fleet upkeep demand + draws,
       readiness, attrition → wreckage (event 401), physical freight fuel,
       endurance floors, colony convoy resolution (event 402) gating
       founding on hulls. Gate: unsupplied-fleet decay test; convoy
@@ -175,3 +175,19 @@ Architecture decisions (made at kickoff, flag deviations):
   every epoch (grades blend per design); empty posted fleets linger as
   registry records (id==index — no deletion). Acceptable growth; disband
   mechanics can come with H salvage if it bothers.
+- **Task-5 shape** (seed 42, radius 12, 40 epochs): 21 foundings, every
+  one convoyed (event 402); famine events 189 (was 808 pre-E — slower
+  hull-gated colonization founds fewer doomed ports, and freight feeds
+  the rest); attrition wrecked 9–39 of 15–52 hulls built per polity —
+  mostly escorts starving on armaments at ports with no arsenal, which is
+  honest texture but worth a task-8 look. Fleet upkeep is bought from
+  MilitaryPoints at market prices and recycles as home-port wages.
+- Convoy staging: lane hops are free at this clock, so the convoy stages
+  from the own port *nearest the target*; only the off-lane leg gates on
+  the colony design's endurance (`Fleet.EnduranceHexesPerPoint` × stat ≈
+  27 hexes ≥ the 24-hex colonization reach). Escorts don't ride along yet
+  (piracy lands with H); the arrived convoy docks as the colony's first
+  (empty) reserve fleet.
+- Military treasuries still over-accumulate (28–63k by epoch 40) despite
+  upkeep purchases — the main task-8 calibration target (hull costs,
+  upkeep rate, or a militancy-scaled Budget.Military).

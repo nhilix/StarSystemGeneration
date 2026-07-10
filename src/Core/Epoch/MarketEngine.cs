@@ -778,8 +778,13 @@ public static class MarketEngine
                     dstOwner.Credits += drawn * friction;
                     dstOwner.Receipts += drawn * friction;
                 }
-                // movement is never free: traffic pulls on the fuel market
+                // movement is never free: traffic pulls on the fuel market —
+                // and burns it physically now that hulls exist (the slice-D
+                // deferral); a fuel-dry port still ships at monetized cost,
+                // its fuel price carrying the scarcity
                 scratch.Demand[src.Id][(int)GoodId.Fuel] += drawn * fuelUnits;
+                double fuelDrawn = mSrc.Draw((int)GoodId.Fuel, drawn * fuelUnits);
+                mSrc.LastCleared[(int)GoodId.Fuel] += fuelDrawn;
                 Deposit(state, scratch, dst.Id, src.OwnerActorId, g, drawn, grade);
                 scratch.LaneCapacityUsed[lane.Id] += drawn;
                 capacity -= drawn;

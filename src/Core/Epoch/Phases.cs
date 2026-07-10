@@ -98,6 +98,7 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
         MarketEngine.AddMilitaryDemand(state, scratch);
+        FleetOps.AddUpkeepDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
         // an import-fed port prices its arrivals, a blockaded one their
@@ -136,7 +137,7 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int earning = 0, lanesBuilt = 0, portsRaised = 0, facilitiesBuilt = 0;
-        int hullsLaid = 0;
+        int hullsLaid = 0, hullsLost = 0;
         int defaults = ServiceLoans(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
@@ -162,6 +163,7 @@ public sealed class AllocationPhase : ISimPhase
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
             hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
             FleetOps.ManagePostures(state, pr, ownPorts);
+            hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
@@ -172,6 +174,7 @@ public sealed class AllocationPhase : ISimPhase
         if (portsRaised > 0) note += $", {portsRaised} " + (portsRaised == 1 ? "port raised" : "ports raised");
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
         if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
+        if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
         return note;
@@ -615,10 +618,12 @@ public sealed class IntentPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 5 — acts collide and resolve deterministically. Slice B
-/// resolves FoundColonyAct: claiming space is building a port
-/// (space-and-travel.md) — convoyless until slice E gives the journey hulls.
-/// Collisions on one hex resolve in actor-id order; losers are not charged.</summary>
+/// <summary>Phase 5 — acts collide and resolve deterministically. Slice E:
+/// founding is physical — a colony convoy (a reserve colony hull staged
+/// from the nearest own port, the off-lane leg gated by its endurance)
+/// crosses to the target and becomes the port (space-and-travel.md
+/// §Colonization, end to end). Collisions on one hex resolve in actor-id
+/// order; losers are not charged.</summary>
 public sealed class ResolutionPhase : ISimPhase
 {
     public string Name => "Resolution";
@@ -656,7 +661,65 @@ public sealed class ResolutionPhase : ISimPhase
             { inReach = true; break; }
         if (!inReach) return false;
 
+        // the convoy: a colony hull sitting in reserve, staged from the
+        // nearest own port (lane hops are fast at this clock; the off-lane
+        // crossing gates on the hull's endurance floor). No hull, no colony.
+        Port? staging = null;
+        foreach (var p in state.Ports)                    // id order (P6)
+            if (p.OwnerActorId == act.ActorId
+                && (staging == null || HexGrid.Distance(p.Hex, act.Target)
+                    < HexGrid.Distance(staging.Hex, act.Target)))
+                staging = p;
+        FleetRecord? source = null;
+        HullGroup? colonyHull = null;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.OwnerActorId != act.ActorId
+                || fleet.Posture != FleetPosture.Reserve) continue;
+            foreach (var g in fleet.Hulls)                // design-id order
+                if (state.Designs[g.DesignId].Role == ShipRole.Colony)
+                { source = fleet; colonyHull = g; break; }
+            if (source != null) break;
+        }
+        if (staging == null || source == null) return false;
+        int offLane = HexGrid.Distance(staging.Hex, act.Target);
+        if (offLane > FleetOps.EnduranceHexes(state,
+                state.Designs[colonyHull!.DesignId])) return false;
+
         record.ExpansionPoints -= cfg.Expansion.ColonyCost;
+
+        // the convoy departs, burns the crossing's fuel at the staging
+        // market (movement is never free), and its hull becomes the colony
+        int designId = colonyHull.DesignId;
+        double hullGrade = colonyHull.Grade;
+        source.RemoveHulls(designId, 1);
+        var convoy = new FleetRecord(state.Fleets.Count, act.ActorId, staging.Hex)
+        {
+            Posture = FleetPosture.Expedition,
+            HomePortId = staging.Id,
+        };
+        convoy.AddHulls(designId, 1, hullGrade);
+        state.Fleets.Add(convoy);
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.ConvoyDispatched,
+            new[] { act.ActorId }, staging.Hex, Magnitude: offLane,
+            Valence: 0.5, EventVisibility.Regional,
+            new ConvoyDispatchedPayload(convoy.Id, staging.Id,
+                                        act.Target.Q, act.Target.R)));
+        var stagingMarket = state.Markets[staging.Id];
+        double fuelNeed = state.Config.Fleet.FuelPerHullPerHexMoved * offLane;
+        double fuelDrawn = stagingMarket.Draw((int)Substrate.GoodId.Fuel, fuelNeed);
+        if (fuelDrawn > 0)
+        {
+            stagingMarket.LastCleared[(int)Substrate.GoodId.Fuel] += fuelDrawn;
+            double fuelCost = fuelDrawn
+                * stagingMarket.Price[(int)Substrate.GoodId.Fuel];
+            record.Credits -= fuelCost;
+            MarketEngine.PayWages(state, staging.Id, fuelCost);
+        }
+        convoy.Hex = act.Target;
+        convoy.RemoveHulls(designId, 1);
+        record.HullsScrapped++;   // the colony ship becomes the colony
         var port = new Port(state.Ports.Count, act.ActorId, act.Target,
                             tier: 1, state.WorldYear);
         state.Ports.Add(port);
@@ -679,6 +742,9 @@ public sealed class ResolutionPhase : ISimPhase
             state.Facilities.Add(new Facility(state.Facilities.Count,
                 (int)Substrate.InfraTypeId.AgriComplex, tier: 1, act.Target,
                 act.ActorId, state.WorldYear));
+        // the convoy's survivors dock as the colony's first reserve fleet
+        convoy.Posture = FleetPosture.Reserve;
+        convoy.HomePortId = port.Id;
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,

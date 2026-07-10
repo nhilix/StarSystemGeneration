@@ -142,6 +142,10 @@ public static class ArtifactSerializer
                 ((int)f.Posture).ToString(Inv), f.TargetId.ToString(Inv),
                 f.HomePortId.ToString(Inv), R(f.Readiness),
                 f.CommanderId.ToString(Inv), HullMap(f)));
+        foreach (var wr in state.Wreckage)
+            w.WriteLine(Join("WRECK", wr.Id.ToString(Inv), wr.Hex.Q.ToString(Inv),
+                wr.Hex.R.ToString(Inv), wr.DesignId.ToString(Inv),
+                wr.Hulls.ToString(Inv), wr.Year.ToString(Inv)));
 
         Layer(w, "segments");
         foreach (var s in state.Segments)
@@ -457,6 +461,14 @@ public static class ArtifactSerializer
                         state.Fleets.Add(fleet);
                         break;
                     }
+                    case "WRECK":
+                        if (int.Parse(f[1], Inv) != state!.Wreckage.Count)
+                            throw new InvalidDataException("wreck ids out of order");
+                        state.Wreckage.Add(new WreckageRecord(int.Parse(f[1], Inv),
+                            new HexCoordinate(int.Parse(f[2], Inv), int.Parse(f[3], Inv)),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv)));
+                        break;
                     case "SEGMENT":
                         if (int.Parse(f[1], Inv) != state!.Segments.Count)
                             throw new InvalidDataException("segment ids out of order");

@@ -10,7 +10,8 @@ public class ControllerContractTests
     private static PerceptionView View(int selfId = 0, double expansionPoints = 0,
                                        params ColonyCandidate[] candidates) =>
         new PerceptionView(selfId, worldYear: 100, knownPolityIds: new[] { 0, 1 },
-                           expansionPoints, candidates);
+                           expansionPoints, candidates,
+                           colonyHullsAvailable: 1);   // founding needs a convoy
 
     [Fact]
     public void TrivialController_ReturnsDefaultPolicies_AndNoActs()
