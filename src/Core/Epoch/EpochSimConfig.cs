@@ -260,7 +260,7 @@ public sealed class FleetKnobs
     /// <summary>Round trips per world-year of a posted hull at transit
     /// speed 1 over one hex — posted capacity = cargo × trips
     /// (× TransitSpeed ÷ distance).</summary>
-    public double FreightTripsPerYearBase { get; set; } = 0.2;
+    public double FreightTripsPerYearBase { get; set; } = 0.3;
     /// <summary>Fuel units drawn per hull per hex of expedition movement —
     /// off-lane journeys are never free.</summary>
     public double FuelPerHullPerHexMoved { get; set; } = 0.02;
@@ -303,7 +303,7 @@ public sealed class FleetKnobs
     public double UpkeepFuelShare { get; set; } = 0.4;
     /// <summary>Goods units drawn per point of a fleet's Upkeep vector per
     /// world-year — the fleet-supply magnitude dial.</summary>
-    public double UpkeepUnitsPerPointPerYear { get; set; } = 0.05;
+    public double UpkeepUnitsPerPointPerYear { get; set; } = 0.025;
     /// <summary>Hulls a yard lays down per yard tier per world-year,
     /// components permitting.</summary>
     public double YardHullsPerTierPerYear { get; set; } = 0.2;
@@ -330,6 +330,14 @@ public sealed class ControllerKnobs
     /// <summary>Armaments reserve per port per point of species militancy —
     /// war materiel by temperament.</summary>
     public double ArmamentsPerPortPerMilitancy { get; set; } = 2.0;
+    /// <summary>Ship Components banked per owned port — the quartermaster's
+    /// stores fleet upkeep falls back on where a frontier port's market
+    /// holds none (fleets doc: fleets draw from market/stockpile).</summary>
+    public double ShipPartsReservePerPort { get; set; } = 3.0;
+    /// <summary>Fuel banked per owned port — navy fuel dumps; the other
+    /// half of the upkeep fallback (posted fleets at refinery-less
+    /// frontier ports otherwise run dry and rot).</summary>
+    public double FuelReservePerPort { get; set; } = 4.0;
     /// <summary>Militancy below which no armaments reserve is kept at all.</summary>
     public double MilitancyReserveGate { get; set; } = 0.2;
     /// <summary>Species openness below which narcotics are prohibited.</summary>

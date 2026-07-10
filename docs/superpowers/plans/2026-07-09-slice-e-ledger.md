@@ -127,6 +127,20 @@ Architecture decisions (made at kickoff, flag deviations):
       Verified clean by the reviewer: credit + hull conservation end to
       end, determinism (no dictionary-order leaks, invariant culture),
       serializer round-trips, hex tier untouched.
+- **Eyeball wave 1 (user: thin lanes, upkeep strain)** — hull upkeep was
+  starving the merchant marine: readiness pinned at exactly 0.40 (= the
+  fuel share) because ship-parts availability at colony home ports was
+  literally zero — no magnitude helps against an empty shelf. Fixes:
+  `Fleet.UpkeepUnitsPerPointPerYear` 0.05 → 0.025 (the user's asked-for
+  reduction); **the design's stockpile fallback implemented** ("fleets
+  draw from their home port's market/stockpile") — upkeep shortfalls draw
+  the polity's strategic reserve, and the genesis controller banks
+  `Controller.ShipPartsReservePerPort` (3) + `FuelReservePerPort` (4) per
+  port; `Fleet.FreightTripsPerYearBase` 0.2 → 0.3 so thin lanes carry.
+  Seed 42 r12: famines 223 → 160, freight ~150 → ~300 units/epoch,
+  fully-supplied fleets 12 → 20-34. Remaining 0.40-readiness fleets are
+  gated upstream (components *production* is machinery-limited), not by
+  upkeep magnitude.
 - [ ] 10. **USER: REPL eyeball** — posted routes visibly carrying freight
       (shipment counts rise where fleets post; a lane without hulls moves
       nothing) and a colony convoy founding a port. Tune knobs as directed.

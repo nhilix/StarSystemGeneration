@@ -159,6 +159,12 @@ public sealed class GenesisController : IController
                     knobs.MachineryReservePerPort * perceived.OwnPortCount,
                 [(int)Substrate.GoodId.Composites] =
                     knobs.CompositesReservePerPort * perceived.OwnPortCount,
+                // the quartermaster's stores: fleet upkeep falls back on
+                // these where frontier markets hold no ship parts
+                [(int)Substrate.GoodId.ShipComponents] =
+                    knobs.ShipPartsReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Fuel] =
+                    knobs.FuelReservePerPort * perceived.OwnPortCount,
             };
             double militancy = species?.Militancy ?? 0.5;
             if (militancy > knobs.MilitancyReserveGate)

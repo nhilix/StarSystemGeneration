@@ -38,6 +38,10 @@ public static class KnobRegistry
           "composites banked per owned port",
           c => c.Controller.CompositesReservePerPort,
           (c, v) => c.Controller.CompositesReservePerPort = v),
+        K("Controller.FuelReservePerPort",
+          "fuel banked per owned port (navy fuel dumps, upkeep fallback)",
+          c => c.Controller.FuelReservePerPort,
+          (c, v) => c.Controller.FuelReservePerPort = v),
         K("Controller.MachineryReservePerPort",
           "machinery banked per owned port",
           c => c.Controller.MachineryReservePerPort,
@@ -62,6 +66,10 @@ public static class KnobRegistry
           "no expeditions while realm mean subsistence is below this",
           c => c.Controller.RealmHungerGate,
           (c, v) => c.Controller.RealmHungerGate = v),
+        K("Controller.ShipPartsReservePerPort",
+          "ship components banked per owned port (fleet upkeep fallback)",
+          c => c.Controller.ShipPartsReservePerPort,
+          (c, v) => c.Controller.ShipPartsReservePerPort = v),
 
         // ---- Economy (market engine, freight, credit, lifecycle) ----
         K("Economy.BasePriceCapital", "founding price of capital goods",
