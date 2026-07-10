@@ -137,7 +137,25 @@ as work lands.
   compounding grievance), **charter** stub (economic basis: waits for
   G7 corporations; grievance holds meanwhile). Form changes are
   chronicle landmarks. Events in 3xx. Serialize, golden regen.
-- [ ] **G6 — Tech domains**: per-polity 4-domain tier state
+- [x] **G6 — Tech domains** *(done: `Interior/TechState.cs` (TechDomain,
+  Tech.Ceiling/Region/Tier/Threshold), `Interior/TechOps.cs`; event 207
+  TechAdvanced (economic block); PolityRecord.TechTier[4]+Progress[4];
+  `ResearchSplit` standing policy on PolityPolicies (actors layer v4;
+  GenesisController splits by temperament); research in Allocation draws
+  RefinedExotics × Compute from own markets, spend recycles as wages;
+  `MarketEngine.AddResearchDemand` sites the labs; geometric thresholds;
+  trade diffusion (cross-border lanes × posted capacity × openness,
+  structurally capped one tier below source) + salvage diffusion
+  (out-graded wreckage in reach teaches Military/Industrial); entry
+  tiers from the emergence schedule (EntryGradeBonus ≥ 0.10 lifts
+  Astrogation/Industrial; militants arrive armed) and the entry-design
+  grade hack deleted; schism states inherit parent science; consumers
+  rewired: MarketEngine recipes + grade ceilings (Industrial),
+  ShipDesign.Register per-role region, lane range + siting radius
+  (Astrogation), segment growth (Life); **Economy.TechTierStub
+  retired**; TECH lines (interior v4); knobs `Tech.*` ×12 + TUNING;
+  seed-42: tiers 1–3 differentiated, 13 advances — 412/412 green,
+  golden regen)*: per-polity 4-domain tier state
   (Industrial/Military/Astrogation/Life) + progress; research as
   Allocation execution (Research budget split, consumes Refined
   Exotics × Compute effectiveness from own markets, spend recycles as

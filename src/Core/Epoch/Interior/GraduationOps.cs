@@ -120,6 +120,11 @@ public static class GraduationOps
         {
             EntryGradeBonus = old.EntryGradeBonus,   // shared industrial heritage
         };
+        for (int d = 0; d < 4; d++)
+        {
+            young.TechTier[d] = old.TechTier[d];     // one people, one science
+            young.TechProgress[d] = old.TechProgress[d];
+        }
         state.Polities.Add(young);
 
         // people decide the split fraction; every ledger moves by it (P4)

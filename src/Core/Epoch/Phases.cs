@@ -102,6 +102,7 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
         MarketEngine.AddMilitaryDemand(state, scratch);
+        MarketEngine.AddResearchDemand(state, scratch);
         FleetOps.AddUpkeepDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
@@ -155,10 +156,10 @@ public sealed class AllocationPhase : ISimPhase
                 if (p.OwnerActorId == pr.ActorId) ownPorts.Add(p);
             if (ownPorts.Count == 0) continue;
             earning++;
-            var declared = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
+            var policies = actor.Policies as PolityPolicies ?? PolityPolicies.Default;
             // standing weights bend toward strong factions' agendas before
             // they spend — pressure is mechanical, bounded by form tolerance
-            var budget = FactionOps.PressedBudget(state, pr, declared);
+            var budget = FactionOps.PressedBudget(state, pr, policies.Budget);
             // budget the epoch's receipts, not the balance: development is
             // deficit-financed through downturns; credit picks up the slack
             double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
@@ -171,6 +172,10 @@ public sealed class AllocationPhase : ISimPhase
             // flow, conserved (P4); without factions the line stays liquid
             pr.Credits -= FactionOps.SpendAppeasement(state, pr,
                 allocatable * budget.Appeasement, allocatable);
+            // research: the standing split converts exotics × compute into
+            // ladder progress; the spend recycles as lab wages (slice G)
+            pr.Credits -= TechOps.Research(state, pr, policies.Research,
+                allocatable * budget.Research);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
@@ -180,6 +185,11 @@ public sealed class AllocationPhase : ISimPhase
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
+        // laggards learn from the goods they buy and the wrecks they find
+        TechOps.Diffuse(state);
+        int advances = 0;
+        foreach (var staged in state.Staged)
+            if (staged.Type == WorldEventType.TechAdvanced) advances++;
         int borrowed = Borrow(state);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
@@ -188,6 +198,7 @@ public sealed class AllocationPhase : ISimPhase
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
         if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
         if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
+        if (advances > 0) note += $", {advances} tech " + (advances == 1 ? "advance" : "advances");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
         return note;
@@ -234,7 +245,8 @@ public sealed class AllocationPhase : ISimPhase
             {
                 var center = HexGrid.CellCenter(cell.Coord);
                 if (HexGrid.Distance(port.Hex, center)
-                    > PortDomains.ServiceRadius(cfg, port.Tier)) continue;
+                    > PortDomains.ServiceRadius(cfg, port.Tier)
+                      + TechOps.AstroRadiusBonus(state, pr.ActorId)) continue;
                 if (cell.IsVoid) continue;
                 var fields = MarketEngine.FieldsAt(state, center);
                 var site = new Substrate.CellSite(fields,
@@ -531,6 +543,8 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int built = 0;
+        // Astrogation stretches the pairing reach (slice G)
+        int rangeBonus = TechOps.AstroRangeBonus(state, pr.ActorId);
         while (pr.DevelopmentPoints >= cfg.Expansion.LaneCost)
         {
             Port? bestA = null, bestB = null;
@@ -540,7 +554,7 @@ public sealed class AllocationPhase : ISimPhase
                 {
                     var a = ownPorts[i]; var b = ownPorts[j];
                     if (a.Id > b.Id) (a, b) = (b, a);
-                    if (!LaneMath.InRange(cfg, a, b)) continue;
+                    if (!LaneMath.InRange(cfg, a, b, rangeBonus)) continue;
                     if (LaneExists(state, a.Id, b.Id)) continue;
                     int dist = HexGrid.Distance(a.Hex, b.Hex);
                     if (dist < bestDist
@@ -850,6 +864,7 @@ public sealed class InteriorPhase : ISimPhase
                 state.Segments.Add(homeSegment);
                 InteriorOps.SeatAtEntry(state, state.PolityOf(a.Id));
                 CharacterOps.SeatLeadership(state, state.PolityOf(a.Id));
+                TechOps.SeedEntryTiers(state, state.PolityOf(a.Id));
             }
             else state.Segments.Add(homeSegment);
             // a civilization at spaceflight arrives with industry: the
@@ -951,7 +966,10 @@ public sealed class InteriorPhase : ISimPhase
             if (cap <= 0 || portTotal >= cap) continue;
             double vitality = seg.LastSubsistence * (0.5 + seg.SoL);
             double step = seg.Size * cfg.SegmentGrowthPerYear * years
-                          * vitality * (1.0 - portTotal / cap);
+                          * vitality * (1.0 - portTotal / cap)
+                          // medicine and agronomy: the Life domain (slice G)
+                          * TechOps.LifeGrowthFactor(state,
+                                state.Ports[seg.PortId].OwnerActorId);
             if (step <= 0) continue;
             seg.Size = System.Math.Min(seg.Size + cap - portTotal, seg.Size + step);
             grown++;

@@ -163,16 +163,17 @@ public static class MarketEngine
         }
     }
 
-    /// <summary>Convert inputs to output through the best recipe the config
-    /// tech stub allows: advanced variants first (higher grade base), falling
-    /// back by producible quantity. Inputs are drawn from the market at its
-    /// mean grades and paid for from the owner's credits.</summary>
+    /// <summary>Convert inputs to output through the best recipe the owner's
+    /// Industrial tier allows (slice G: per-polity tech, the stub retired):
+    /// advanced variants first (higher grade base), falling back by
+    /// producible quantity. Inputs are drawn from the market at its mean
+    /// grades and paid for from the owner's credits.</summary>
     private static void RunRecipe(SimState state, MarketStepScratch scratch,
                                   int mIx, Facility f,
                                   IReadOnlyList<Recipe> recipes, double capacity)
     {
         var market = state.Markets[mIx];
-        int techTier = state.Config.Economy.TechTierStub;
+        int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
         Recipe? pick = null;
         double pickQty = 0, pickWorth = 0;
         foreach (var r in recipes)
@@ -380,10 +381,10 @@ public static class MarketEngine
     public static void AddIndustrialDemand(SimState state, MarketStepScratch scratch)
     {
         int years = state.Config.Sim.YearsPerEpoch;
-        int techTier = state.Config.Economy.TechTierStub;
         foreach (var f in state.Facilities)               // id order (P6)
         {
             if (!IsActive(state, f)) continue;
+            int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
             int mIx = AttachedMarketIndex(state, f);
             if (mIx < 0) continue;
             var def = Infrastructure.Get((InfraTypeId)f.TypeId);
@@ -478,6 +479,30 @@ public static class MarketEngine
             if (at < 0) continue;
             scratch.Demand[at][(int)GoodId.ShipComponents]
                 += fleet.MilitaryPullComponents;
+        }
+    }
+
+    /// <summary>A funded research line pulls its feedstocks (slice G,
+    /// technology.md): exotics and compute demand registers at the capital,
+    /// so the price signal sites the labs and cores research bottlenecks on.</summary>
+    public static void AddResearchDemand(SimState state, MarketStepScratch scratch)
+    {
+        var tech = state.Config.Tech;
+        foreach (var pr in state.Polities)                // actor-id order (P6)
+        {
+            var actor = state.Actors[pr.ActorId];
+            if (!actor.Entered) continue;
+            var budget = (actor.Policies as PolityPolicies
+                          ?? PolityPolicies.Default).Budget;
+            if (budget.Research <= 0) continue;
+            int capital = -1;
+            foreach (var port in state.Ports)             // id order (P6)
+                if (port.OwnerActorId == pr.ActorId) { capital = port.Id; break; }
+            if (capital < 0) continue;
+            scratch.Demand[capital][(int)GoodId.RefinedExotics]
+                += tech.ResearchPullExotics;
+            scratch.Demand[capital][(int)GoodId.Compute]
+                += tech.ResearchPullCompute;
         }
     }
 

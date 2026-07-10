@@ -126,6 +126,10 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            TechAdvancedPayload p =>
+                Invariant($"polity #{p.PolityId} masters ")
+                + ((TechDomain)p.Domain).ToString().ToLowerInvariant()
+                + Invariant($" tier {p.NewTier}"),
             SchismDeclaredPayload p =>
                 Invariant($"the {p.FactionName} leads {p.Ports} ")
                 + (p.Ports == 1 ? "domain" : "domains")

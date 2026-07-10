@@ -26,9 +26,9 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("actors", 4), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 3),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 4),
     };
 
     public static string ToText(SimState state)
@@ -110,7 +110,10 @@ public static class ArtifactSerializer
                     ((int)pp.NativePolicy).ToString(Inv),
                     DoubleMap(pp.TariffSchedule), IntMap(pp.LawCode),
                     DoubleMap(pp.ShipbuildingPriorities),
-                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures)));
+                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures),
+                    // actors v4 (slice G): the research split rides along
+                    R(pp.Research.Industrial), R(pp.Research.Military),
+                    R(pp.Research.Astrogation), R(pp.Research.Life)));
         }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
@@ -266,6 +269,12 @@ public static class ArtifactSerializer
             w.WriteLine(Join("DYNA", d.Id.ToString(Inv), Name(d.Name),
                 d.FounderCharacterId.ToString(Inv), d.PolityId.ToString(Inv),
                 R(d.Prestige)));
+        foreach (var p in state.Polities)
+            w.WriteLine(Join("TECH", p.ActorId.ToString(Inv),
+                p.TechTier[0].ToString(Inv), p.TechTier[1].ToString(Inv),
+                p.TechTier[2].ToString(Inv), p.TechTier[3].ToString(Inv),
+                R(p.TechProgress[0]), R(p.TechProgress[1]),
+                R(p.TechProgress[2]), R(p.TechProgress[3])));
         foreach (var fa in state.Factions)
             w.WriteLine(Join("FACT", fa.Id.ToString(Inv), Name(fa.Name),
                 fa.PolityId.ToString(Inv), ((int)fa.Basis).ToString(Inv),
@@ -603,7 +612,10 @@ public static class ArtifactSerializer
                             ShipbuildingPriorities: ParseDoubleMap(f[15]),
                             StockpileTargets: ParseDoubleMap(f[16]),
                             DiplomaticPostures: ParseIntMap<DiplomaticPosture>(f[17]),
-                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv));
+                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv),
+                            Research: new ResearchSplit(double.Parse(f[18], Inv),
+                                double.Parse(f[19], Inv), double.Parse(f[20], Inv),
+                                double.Parse(f[21], Inv)));
                         break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
@@ -799,6 +811,16 @@ public static class ArtifactSerializer
                             int.Parse(f[3], Inv), int.Parse(f[4], Inv))
                         { Prestige = double.Parse(f[5], Inv) });
                         break;
+                    case "TECH":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        for (int d = 0; d < 4; d++)
+                        {
+                            pr.TechTier[d] = int.Parse(f[2 + d], Inv);
+                            pr.TechProgress[d] = double.Parse(f[6 + d], Inv);
+                        }
+                        break;
+                    }
                     case "FACT":
                         if (int.Parse(f[1], Inv) != state!.Factions.Count)
                             throw new InvalidDataException("faction ids out of order");
@@ -904,6 +926,8 @@ public static class ArtifactSerializer
         ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
             e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
             e.TargetR.ToString(Inv)),
+        TechAdvancedPayload e => Join("techAdvanced", e.PolityId.ToString(Inv),
+            e.Domain.ToString(Inv), e.NewTier.ToString(Inv)),
         SchismDeclaredPayload e => Join("schismDeclared",
             e.FactionId.ToString(Inv), Name(e.FactionName),
             e.OldPolityId.ToString(Inv), e.NewPolityId.ToString(Inv),
@@ -981,6 +1005,8 @@ public static class ArtifactSerializer
         "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "techAdvanced" => new TechAdvancedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
         "schismDeclared" => new SchismDeclaredPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
             f[at + 5], int.Parse(f[at + 6], Inv)),

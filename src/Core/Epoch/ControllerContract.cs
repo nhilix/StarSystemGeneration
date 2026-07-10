@@ -142,6 +142,18 @@ public sealed class GenesisController : IController
         var knobs = _config.Controller;
         var policies = PolityPolicies.Default;
         var temperament = perceived.SelfTemperament;
+        // the research split follows temperament: hawks fund the arsenal,
+        // expansionists the astrogators; the rest splits industry and life
+        double militarySplit = 0.10 + 0.20 * temperament.Militancy;
+        double astroSplit = 0.20 + 0.20 * temperament.Expansionism;
+        double lifeSplit = 0.15;
+        policies = policies with
+        {
+            Research = new ResearchSplit(
+                Industrial: 1.0 - militarySplit - astroSplit - lifeSplit,
+                Military: militarySplit, Astrogation: astroSplit,
+                Life: lifeSplit),
+        };
         if (perceived.SelfSpecies != null
             && temperament.Openness < knobs.NarcoticsRestrictBelowOpenness)
             policies = policies with

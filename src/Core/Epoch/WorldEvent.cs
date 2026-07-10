@@ -41,6 +41,7 @@ public enum WorldEventType
     LoanIssued = 204,
     LoanDefaulted = 205,
     MigrationWave = 206,
+    TechAdvanced = 207,
     PolityEmerged = 300,
     PortEstablished = 301,
     SchismDeclared = 302,
@@ -176,6 +177,11 @@ public interface ICharacterPayload
 {
     int CharacterId { get; }
 }
+
+/// <summary>A research threshold crossing climbs a domain's tier ladder
+/// (economy/technology.md §Advancement).</summary>
+public sealed record TechAdvancedPayload(
+    int PolityId, int Domain, int NewTier) : EventPayload;
 
 /// <summary>Domains secede as a new polity — a faction graduates
 /// (factions-and-government.md §Graduation).</summary>

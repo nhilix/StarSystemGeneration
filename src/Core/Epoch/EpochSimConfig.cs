@@ -20,6 +20,47 @@ public sealed class EpochSimConfig
     public InteriorKnobs Interior { get; } = new InteriorKnobs();
     public CharacterKnobs Character { get; } = new CharacterKnobs();
     public FactionKnobs Faction { get; } = new FactionKnobs();
+    public TechKnobs Tech { get; } = new TechKnobs();
+}
+
+/// <summary>Tech dials (economy/technology.md): the tier ladder's cost
+/// curve, research input conversion, diffusion rates, and what Astrogation
+/// and Life buy per tier. Slice G. Grade ceilings per tier are the Grade
+/// system's structural ladder (Grades.TechCeiling).</summary>
+public sealed class TechKnobs
+{
+    /// <summary>Extra inter-port lane reach per Astrogation tier above era
+    /// standard, in hexes.</summary>
+    public int AstroRangePerTierHexes { get; set; } = 4;
+    /// <summary>Extra port service radius per Astrogation tier above era
+    /// standard, in hexes — whose ports reach farther, visibly.</summary>
+    public int AstroRadiusPerTierHexes { get; set; } = 3;
+    /// <summary>Progress points to leave tier 1; each further tier costs
+    /// ×ThresholdGrowth more (geometric investment thresholds).</summary>
+    public double BaseThreshold { get; set; } = 25.0;
+    /// <summary>Research effectiveness multiplier at compute parity with
+    /// exotics (compute multiplies, never substitutes).</summary>
+    public double ComputeBoost { get; set; } = 0.5;
+    /// <summary>Population growth multiplier per Life tier above standard.</summary>
+    public double LifeGrowthPerTier { get; set; } = 0.15;
+    /// <summary>Research progress per Refined Exotics unit consumed.</summary>
+    public double ProgressPerExotic { get; set; } = 1.0;
+    /// <summary>Refined Exotics demand a funded research line registers at
+    /// the capital per epoch — the price signal that sites exotics labs.</summary>
+    public double ResearchPullExotics { get; set; } = 6.0;
+    /// <summary>Compute demand the research line registers likewise.</summary>
+    public double ResearchPullCompute { get; set; } = 3.0;
+    /// <summary>Military/Industrial progress per wrecked hull per world-year
+    /// while out-graded wreckage sits in reach (salvage diffusion; full
+    /// consumption including precursor digging is slice I).</summary>
+    public double SalvagePerHullPerYear { get; set; } = 0.02;
+    /// <summary>Ladder cost growth per tier (geometric).</summary>
+    public double ThresholdGrowth { get; set; } = 2.0;
+    /// <summary>Progress per world-year of full-volume open trade with a
+    /// partner ≥2 tiers ahead (capped one tier below the source).</summary>
+    public double TradeDiffusionPerYear { get; set; } = 0.15;
+    /// <summary>Posted lane capacity at which trade diffusion saturates.</summary>
+    public double TradeVolumeSaturation { get; set; } = 10.0;
 }
 
 /// <summary>Faction dials (polity/factions-and-government.md): formation
@@ -269,9 +310,8 @@ public sealed class EconomyKnobs
     /// <summary>Fractional condition recovery per world-year toward the met
     /// upkeep fraction.</summary>
     public double ConditionRecoveryPerYear { get; set; } = 0.05;
-    /// <summary>Config-level producer tech tier until tech domains land
-    /// (slice G). 2 = standard capital recipes run, advanced stay gated.</summary>
-    public int TechTierStub { get; set; } = 2;
+    // Economy.TechTierStub retired (slice G): producer tech is per-polity,
+    // per-domain — PolityRecord.TechTier via the Tech interface.
 }
 
 /// <summary>Population dials, per world-year where a rate: demographics,

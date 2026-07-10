@@ -84,8 +84,10 @@ shape how demand bends under price.
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
 | `Economy.ConditionRecoveryPerYear` | 0.05 | Repairs snap back. | Long scars from every shortage/war. |
 | `Economy.StockpileDecayPerYear` | 0.002 | Reserves cost more to hold (provisions ×10, organics ×5, medicine ×3 in code). | Cheap insurance; sieges (H) get longer. |
-| `Economy.TechTierStub` | 2 | 3 unlocks advanced recipes everywhere (pre-G). 1 locks capital goods entirely — the economy dies. | — |
 | `Economy.WarWearinessPerYear` | 0.003 | (Inert until H.) | — |
+
+*`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
+per-domain — see the Tech family.*
 
 ## Population — demographics, migration, ideology
 
@@ -219,6 +221,27 @@ player, P2) replace the AI and bring their own numbers.
 | `Controller.MilitancyReserveGate` | 0.2 | Only genuine hawks arm. | Everyone keeps a little powder dry. |
 | `Controller.NarcoticsProhibitBelowOpenness` | 0.35 | More theocratic drug bans → bigger black books. | Prohibition rare. |
 | `Controller.NarcoticsRestrictBelowOpenness` | 0.55 | Wider restricted band (friction, not bans). | Narcotics broadly legal. |
+
+## Tech — ladder costs, research, diffusion (slice G)
+
+Four per-polity domains (Industrial / Military / Astrogation / Life) on
+geometric tier ladders; research consumes Refined Exotics × Compute in
+Allocation; trade and salvage keep laggards in the race. Grade ceilings
+per tier are structural (`Grades.TechCeiling`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Tech.BaseThreshold` | 25 | Slow, era-scale advancement. | Tier churn every few epochs. |
+| `Tech.ThresholdGrowth` | 2.0 | High tiers are civilizational projects (runaway impossible). | Leaders sprint away from the pack. |
+| `Tech.ProgressPerExotic` | 1.0 | Research cheap in feedstock (exotics labs matter less). | Every tier costs mountains of exotics. |
+| `Tech.ComputeBoost` | 0.5 | Compute cores double research; digital economies lead. | Compute ornamental. |
+| `Tech.ResearchPullExotics` / `PullCompute` | 6 / 3 | Stronger lab price signal: exotics/compute chains spin up early. | Research starves for want of markets (tiers freeze). |
+| `Tech.TradeDiffusionPerYear` | 0.15 | Open borders equalize tech in a few generations. | Gaps persist for eras. |
+| `Tech.TradeVolumeSaturation` | 10 | Only heavy trade teaches. | A trickle of goods carries blueprints. |
+| `Tech.SalvagePerHullPerYear` | 0.02 | Battlefields are universities (H's wars will spread arms tech fast). | Wrecks are just metal. |
+| `Tech.AstroRadiusPerTierHexes` | 3 | Astrogation leaders visibly out-reach neighbors (the tech map gap). | Reach is pure port tier. |
+| `Tech.AstroRangePerTierHexes` | 4 | High-astro realms lace longer lanes. | Lane webs identical across tech. |
+| `Tech.LifeGrowthPerTier` | 0.15 | Medicine compounds: Life leaders out-populate everyone. | Demography ignores the clinics. |
 
 ## Fleet — yards, posted freight, supply, attrition, lineages
 

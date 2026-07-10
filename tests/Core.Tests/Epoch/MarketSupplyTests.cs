@@ -71,9 +71,10 @@ public class MarketSupplyTests
         Assert.True(m.Inventory[(int)GoodId.Alloys] > 0);
         Assert.True(m.Inventory[(int)GoodId.Ore] < 1000.0);        // consumed
         Assert.True(m.InventoryGrade[(int)GoodId.Alloys] > 0);
-        // grade capped by the config tech stub's ceiling
+        // grade capped by the owner's Industrial ceiling (slice G)
         Assert.True(m.InventoryGrade[(int)GoodId.Alloys]
-                    <= Grades.TechCeiling(state.Config.Economy.TechTierStub));
+                    <= Tech.Ceiling(state, port.OwnerActorId,
+                                    TechDomain.Industrial));
     }
 
     [Fact]
