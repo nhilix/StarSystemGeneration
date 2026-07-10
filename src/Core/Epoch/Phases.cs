@@ -49,10 +49,14 @@ public sealed class PerceptionPhase : ISimPhase
                 }
                 if (sizeSum > 0) realmSubsistence = subSum / sizeSum;
             }
+            var temperament = a.Kind == ActorKind.Polity
+                ? Temperament.Compose(state, state.PolityOf(a.Id))
+                : Temperament.Neutral;
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
                                               ownPorts, realmSubsistence, designs,
-                                              FleetOps.ColonyHullsInReserve(state, a.Id));
+                                              FleetOps.ColonyHullsInReserve(state, a.Id),
+                                              temperament);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";

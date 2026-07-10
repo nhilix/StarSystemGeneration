@@ -93,7 +93,15 @@ as work lands.
   conserved); grievance accrual for unappeased strong factions; faction
   leaders minted as characters. Events in 3xx. Serialize, golden regen,
   knobs `Faction.*`.
-- [ ] **G4 — Temperament composition**: species disposition × official
+- [x] **G4 — Temperament composition** *(done: `Interior/Temperament.cs`
+  — `Compose` blends species/ideology/ruler/faction terms by the form's
+  CompositionWeights; ideology→trait map + per-basis faction pulls are
+  structural catalog (TUNING note next sweep); PerceptionView gains
+  `SelfTemperament` (computed in Perception, P3-clean, species-only
+  fallback for shape skeletons); GenesisController law code, armaments
+  reserves, and yard priorities read the composition — fixed species
+  reads retired from Intent; no new knobs (mappings are structural);
+  golden regen — 400/400 green)*: species disposition × official
   ideology × ruler personality × faction pressure, weighted by
   government form; composition computed at Perception (P3-clean, rides
   the view); `GenesisController` and other Intent paths consume it;

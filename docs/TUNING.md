@@ -281,6 +281,10 @@ day one of them *does* need to move.
   severity scaling: `InteriorPhase.DriftIdeology`.
 - **Faction basis agendas** — the per-basis budget-emphasis vectors and the
   basis name suffixes: `FactionOps.BasisBudget` / `Suffix` (slice G).
+- **Temperament composition maps** — the ideology→trait map, the per-basis
+  faction pulls, and the ruler boldness/zeal skews:
+  `Interior/Temperament.cs` (slice G). The *weights* between the four terms
+  are per-form catalog data (`GovernmentForm.Composition`).
 - **Species lifespans** — human-analog 80 / aquatic 90 / cryophilic 120 /
   lithic 400 / hive & machine 10,000 world-years, and the age curve's
   0.55-of-span onset: `CharacterOps.Lifespan` / `AgeHazardPerYear`

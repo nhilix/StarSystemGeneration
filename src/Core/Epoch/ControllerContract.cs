@@ -28,9 +28,14 @@ public sealed class PerceptionView
     /// (mechanical enumeration; choosing is the controller's).</summary>
     public IReadOnlyList<ColonyCandidate> ColonyCandidates { get; }
     /// <summary>The actor's own species profile — an actor perceives its own
-    /// society (null for non-polities and shape-only test skeletons). Law
-    /// codes and temperament-flavored policies derive from it.</summary>
+    /// society (null for non-polities and shape-only test skeletons).
+    /// Embodiment facts live here; decision personality does NOT — that is
+    /// the temperament composition below.</summary>
     public SpeciesProfile? SelfSpecies { get; }
+    /// <summary>The temperament composition (slice G): species × official
+    /// ideology × ruler × faction pressure, weighted by government form.
+    /// The ONLY personality Intent may read — fixed species vectors retired.</summary>
+    public Temperament SelfTemperament { get; }
     /// <summary>Own port count — scales standing policy magnitudes
     /// (stockpile targets and the like).</summary>
     public int OwnPortCount { get; }
@@ -52,7 +57,8 @@ public sealed class PerceptionView
                           int ownPortCount = 0,
                           double realmSubsistence = 1.0,
                           IReadOnlyList<DesignBrief>? ownDesigns = null,
-                          int colonyHullsAvailable = 0)
+                          int colonyHullsAvailable = 0,
+                          Temperament? selfTemperament = null)
     {
         SelfId = selfId;
         WorldYear = worldYear;
@@ -64,6 +70,9 @@ public sealed class PerceptionView
         RealmSubsistence = realmSubsistence;
         OwnDesigns = ownDesigns ?? NoDesigns;
         ColonyHullsAvailable = colonyHullsAvailable;
+        SelfTemperament = selfTemperament
+            ?? (selfSpecies != null
+                ? Temperament.FromSpecies(selfSpecies) : Temperament.Neutral);
     }
 }
 
@@ -122,23 +131,25 @@ public sealed class GenesisController : IController
         return new ControllerDecision(policies, NoActs);
     }
 
-    /// <summary>Default policies plus a species-derived law code (closed
+    /// <summary>Default policies plus a temperament-derived law code (closed
     /// societies prohibit narcotics, guarded ones restrict them —
     /// jurisdiction-relative legality, commodities.md) and reserve targets
-    /// scaling with the realm (ControllerKnobs). Deterministic from the view.</summary>
+    /// scaling with the realm (ControllerKnobs). Personality comes from the
+    /// temperament composition (slice G), never a fixed species vector — a
+    /// nation's laws liberalize as its politics do. Deterministic from the view.</summary>
     private PolityPolicies PoliciesFor(PerceptionView perceived)
     {
         var knobs = _config.Controller;
         var policies = PolityPolicies.Default;
-        var species = perceived.SelfSpecies;
-        if (species != null
-            && species.Openness < knobs.NarcoticsRestrictBelowOpenness)
+        var temperament = perceived.SelfTemperament;
+        if (perceived.SelfSpecies != null
+            && temperament.Openness < knobs.NarcoticsRestrictBelowOpenness)
             policies = policies with
             {
                 LawCode = new Dictionary<int, LegalityLevel>
                 {
                     [(int)Substrate.GoodId.Narcotics] =
-                        species.Openness < knobs.NarcoticsProhibitBelowOpenness
+                        temperament.Openness < knobs.NarcoticsProhibitBelowOpenness
                             ? LegalityLevel.Prohibited
                             : LegalityLevel.Restricted,
                 },
@@ -166,7 +177,7 @@ public sealed class GenesisController : IController
                 [(int)Substrate.GoodId.Fuel] =
                     knobs.FuelReservePerPort * perceived.OwnPortCount,
             };
-            double militancy = species?.Militancy ?? 0.5;
+            double militancy = temperament.Militancy;
             if (militancy > knobs.MilitancyReserveGate)
                 targets[(int)Substrate.GoodId.Armaments] =
                     militancy * knobs.ArmamentsPerPortPerMilitancy
@@ -178,7 +189,7 @@ public sealed class GenesisController : IController
             // the yard queue by temperament: everyone hauls; a realm without
             // a colony convoy ready keeps one building whenever it means to
             // expand; warships by militancy (doctrine flavors, not war — H)
-            double militancy = perceived.SelfSpecies?.Militancy ?? 0.5;
+            double militancy = temperament.Militancy;
             var builds = new Dictionary<int, double>();
             foreach (var brief in perceived.OwnDesigns)
                 switch (brief.Role)
