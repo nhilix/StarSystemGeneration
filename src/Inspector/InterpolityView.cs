@@ -154,11 +154,10 @@ public static class InterpolityView
         }
         // the war's chronicle so far
         foreach (var e in state.Log.Events)
-            if (e.Payload is BattleFoughtPayload b && b.WarId == war.Id)
-                sb.AppendLine("  " + SimTraceView.Describe(e));
-            else if (e.Payload is PortCapturedPayload pc && pc.WarId == war.Id)
-                sb.AppendLine("  " + SimTraceView.Describe(e));
-            else if (e.Payload is PeaceSettledPayload ps && ps.WarId == war.Id)
+            if ((e.Payload is BattleFoughtPayload b && b.WarId == war.Id)
+                || (e.Payload is SiegeBegunPayload sg && sg.WarId == war.Id)
+                || (e.Payload is PortCapturedPayload pc && pc.WarId == war.Id)
+                || (e.Payload is PeaceSettledPayload ps && ps.WarId == war.Id))
                 sb.AppendLine("  " + SimTraceView.Describe(e));
         return sb.ToString();
     }

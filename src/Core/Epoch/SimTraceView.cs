@@ -268,10 +268,11 @@ public static class SimTraceView
             PeaceSettledPayload p =>
                 p.WarName + " ends: " + (WarOutcome)p.Outcome switch
                 {
-                    WarOutcome.ObjectivesCeded => Invariant(
-                        $"{p.DefenderName} cedes {p.PortsCeded} ")
-                        + (p.PortsCeded == 1 ? "port" : "ports")
-                        + $" to {p.AttackerName}",
+                    WarOutcome.ObjectivesCeded => p.PortsCeded > 0
+                        ? Invariant($"{p.DefenderName} cedes {p.PortsCeded} ")
+                          + (p.PortsCeded == 1 ? "port" : "ports")
+                          + $" to {p.AttackerName}"
+                        : $"{p.DefenderName} yields to {p.AttackerName}'s demands",
                     WarOutcome.Reparations =>
                         $"{p.DefenderName} pays reparations"
                         + (p.PortsCeded > 0
