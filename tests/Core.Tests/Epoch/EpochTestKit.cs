@@ -39,4 +39,26 @@ public static class EpochTestKit
         state.PolityOf(actorId).HullsBuilt += hulls;
         return fleet;
     }
+
+    /// <summary>Station a blockade squadron at a port's approaches — the
+    /// real interdiction that replaced the debug lane-cut hook (slice H):
+    /// every lane touching the port severs via FleetOps.SeveredLaneIds.</summary>
+    public static FleetRecord BlockadePort(SimState state, int actorId,
+                                           int portId, int hulls = 2)
+    {
+        var design = DesignRegistry.Current(state, actorId,
+                ShipRole.Escort, ShipSize.Light)
+            ?? DesignRegistry.Register(state, actorId,
+                ShipRole.Escort, ShipSize.Light, grade: 0.5);
+        var fleet = new FleetRecord(state.Fleets.Count, actorId,
+                                    state.Ports[portId].Hex)
+        {
+            Posture = FleetPosture.Blockade,
+            TargetId = portId,
+        };
+        fleet.AddHulls(design.Id, hulls, 0.5);
+        state.Fleets.Add(fleet);
+        state.PolityOf(actorId).HullsBuilt += hulls;
+        return fleet;
+    }
 }

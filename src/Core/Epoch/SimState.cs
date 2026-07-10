@@ -69,9 +69,6 @@ public sealed class SimState
     /// <summary>Wars declared and fought (interpolity/war.md) — id order
     /// (P6); ended wars stay as history.</summary>
     public List<War> Wars { get; } = new List<War>();
-    /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
-    /// never serialized; slice H replaces this with real interdiction.</summary>
-    public HashSet<int> SeveredLanes { get; } = new HashSet<int>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

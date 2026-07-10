@@ -173,7 +173,8 @@ public class ColonyViabilityTests
         state.Markets[0].Deposit((int)GoodId.Medicine, 5000, 0.5);
         state.Markets[1].Price[(int)GoodId.Medicine] = 200.0;
         EpochTestKit.PostFreight(state, 0, laneId: 0, hulls: 4);
-        state.SeveredLanes.Add(0);
+        // a real blockade severs the lane (slice H replaced the debug cut)
+        EpochTestKit.BlockadePort(state, 1, portId: 0);
 
         var scratch = new MarketStepScratch(state);
         MarketEngine.AssembleDemand(state, scratch);

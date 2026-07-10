@@ -93,7 +93,7 @@ public class MarketFreightTests
         var mB = state.Markets[1];
         mA.Deposit((int)GoodId.Provisions, 1000, 0.6);
         mB.Price[(int)GoodId.Provisions] = mA.Price[(int)GoodId.Provisions] * 4;
-        state.SeveredLanes.Add(0);
+        EpochTestKit.BlockadePort(state, 1, portId: 0);
         var scratch = new MarketStepScratch(state);
         scratch.Demand[1][(int)GoodId.Provisions] = 500;
 
@@ -215,7 +215,7 @@ public class MarketFreightTests
         for (int i = 0; i < 8; i++) phase.Run(state);
         double connected = state.Markets[1].Price[(int)GoodId.Provisions];
 
-        state.SeveredLanes.Add(0);
+        EpochTestKit.BlockadePort(state, 1, portId: 0);
         for (int i = 0; i < 4; i++) phase.Run(state);
         double blockaded = state.Markets[1].Price[(int)GoodId.Provisions];
 

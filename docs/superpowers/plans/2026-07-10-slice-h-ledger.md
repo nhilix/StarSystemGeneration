@@ -256,7 +256,22 @@ surprises — updated as work lands.
   golden regen)*: G's contested coups fight through the war
   machinery against a provisional polity (reuse graduation founding
   flows, no forks).
-- [ ] **H10 — REPL surfaces**: `relations [id]` panel (per-pair warmth/
+- [x] **H10 — REPL surfaces** *(done: `Inspector/InterpolityView.cs` —
+  `relations [polityId]` (warmth/tension bars WITH their live source
+  terms, bonds + clocks, standing offers, ties, incidents, live
+  claims), `wars` registry, `war <id>` (sides + allies + exhaustion
+  bars + strength-of-mustered, fronts with siege counters and fall
+  thresholds, war fleets with commanders, the war's own chronicle);
+  `emap war` (belligerent domains lettered, peaceful fade to commas,
+  war fleets burn as !) and `emap tension` (owner's hottest relation
+  as digit — the pressure gauge shaded); help text updated; chronicle
+  prose landed with each task; `SimState.SeveredLanes` DELETED — real
+  interdiction replaced it: MarketView/Migrate read
+  FleetOps.SeveredLaneIds (blockades now stop refugees too — a real
+  mechanics gain, golden regen), `lanecut` superseded (points at
+  `fleetpost <id> blockade <portId>`), tests blockade via
+  `EpochTestKit.BlockadePort`; `watch` untouched; 479/479 green)*:
+  `relations [id]` panel (per-pair warmth/
   tension/treaty/claims with sources), `wars` / `war <id>` panel
   (objectives, fronts, sieges, commanders), `emap` war/tension layers,
   chronicle prose for every new event, `watch` intact.

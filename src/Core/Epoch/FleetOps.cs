@@ -401,13 +401,14 @@ public static class FleetOps
         return trips;
     }
 
-    /// <summary>Lanes closed to freight this step: the REPL's debug cuts
-    /// plus every lane touching a blockaded port (a Blockade-posture fleet
-    /// stationed at its approaches — interdiction is one hex address,
-    /// space-and-travel.md). Derived from fleet state, never stored.</summary>
+    /// <summary>Lanes closed to freight this step: every lane touching a
+    /// blockaded port (a Blockade-posture fleet stationed at its
+    /// approaches — interdiction is one hex address, space-and-travel.md).
+    /// Derived from fleet state, never stored — real interdiction replaced
+    /// the slice-E debug cut hook (slice H).</summary>
     public static HashSet<int> SeveredLaneIds(SimState state)
     {
-        var severed = new HashSet<int>(state.SeveredLanes);
+        var severed = new HashSet<int>();
         foreach (var fleet in state.Fleets)               // id order (P6)
         {
             if (fleet.Posture != FleetPosture.Blockade || fleet.TargetId < 0

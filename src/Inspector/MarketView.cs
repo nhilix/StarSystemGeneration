@@ -69,13 +69,14 @@ public static class MarketView
         if (!anyFac) sb.AppendLine("  (none)");
 
         var lanes = new StringBuilder();
+        var severed = FleetOps.SeveredLaneIds(state);   // real interdiction (H)
         foreach (var l in state.Lanes)
         {
             if (l.PortAId != portId && l.PortBId != portId) continue;
             int other = l.PortAId == portId ? l.PortBId : l.PortAId;
             if (lanes.Length > 0) lanes.Append(", ");
             lanes.Append(Invariant($"#{other}"));
-            if (state.SeveredLanes.Contains(l.Id)) lanes.Append(" [CUT]");
+            if (severed.Contains(l.Id)) lanes.Append(" [CUT]");
         }
         sb.AppendLine("lanes to: " + (lanes.Length > 0 ? lanes.ToString() : "(none)"));
         return sb.ToString();

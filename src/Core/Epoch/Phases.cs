@@ -1264,6 +1264,8 @@ public sealed class InteriorPhase : ISimPhase
         var pop = state.Config.Population;
         int years = state.Config.Sim.YearsPerEpoch;
         int flows = 0;
+        // blockades stop refugees as surely as freight (real interdiction)
+        var severed = FleetOps.SeveredLaneIds(state);
         for (int i = 0; i < preexisting; i++)             // id order (P6)
         {
             var seg = state.Segments[i];
@@ -1274,7 +1276,7 @@ public sealed class InteriorPhase : ISimPhase
             double bestGradient = pop.MigrationMinGradient;
             foreach (var lane in state.Lanes)             // id order (P6)
             {
-                if (state.SeveredLanes.Contains(lane.Id)) continue;
+                if (severed.Contains(lane.Id)) continue;
                 int other = lane.PortAId == seg.PortId ? lane.PortBId
                     : lane.PortBId == seg.PortId ? lane.PortAId : -1;
                 if (other < 0) continue;
