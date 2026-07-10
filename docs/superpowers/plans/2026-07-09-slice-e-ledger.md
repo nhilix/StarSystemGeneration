@@ -141,9 +141,12 @@ Architecture decisions (made at kickoff, flag deviations):
   fully-supplied fleets 12 → 20-34. Remaining 0.40-readiness fleets are
   gated upstream (components *production* is machinery-limited), not by
   upkeep magnitude.
-- [ ] 10. **USER: REPL eyeball** — posted routes visibly carrying freight
-      (shipment counts rise where fleets post; a lane without hulls moves
-      nothing) and a colony convoy founding a port. Tune knobs as directed.
+- [x] 10. **USER: REPL eyeball — accepted 2026-07-09 ("okay for now")**
+      after one tuning wave (lighter upkeep + the stockpile fallback +
+      thicker lanes — see the wave-1 note above). User's call: remaining
+      balance (0.4-readiness cohorts, attrition chatter, military
+      treasuries) is knob territory that later slices will reshape anyway;
+      the dials exist (`knobs Fleet`, `knobs Controller`, TUNING.md).
 - [ ] 11. **Golden freeze + wrap-up** — golden frozen at final format ·
       USER merge decision · HANDOFF · **write Slice F kickoff prompt**
       (deep genesis — read the roadmap's sequencing rationale) · flip the
