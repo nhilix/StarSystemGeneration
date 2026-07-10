@@ -6,18 +6,25 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Galaxy;
 
+/// <summary>Tier-1 per-hex density since slice F: interpolated simulated
+/// cell density × hex-scale clumping noise — a pure function of (config,
+/// coordinate) through the cell layer. Geometry (membership, rim) is
+/// config-only and unchanged.</summary>
 public class DensityFieldTests
 {
-    private static GalaxyConfig Config(ulong seed = 42) => new() { MasterSeed = seed };
+    private static GalaxySkeleton Skeleton(ulong seed = 42, int radius = 8) =>
+        SkeletonBuilder.BuildShape(new GalaxyConfig
+        { MasterSeed = seed, GalaxyRadiusCells = radius });
 
     [Fact]
     public void At_IsDeterministic_AndBounded()
     {
-        var config = Config();
-        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 40).Where((_, i) => i % 7 == 0))
+        var s = Skeleton();
+        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 40)
+                     .Where((_, i) => i % 7 == 0))
         {
-            var v = DensityField.At(config, hex);
-            Assert.Equal(v, DensityField.At(config, hex));
+            var v = DensityField.At(s, hex);
+            Assert.Equal(v, DensityField.At(s, hex));
             Assert.InRange(v, 0.0, 1.0);
         }
     }
@@ -25,88 +32,61 @@ public class DensityFieldTests
     [Fact]
     public void OutsideGalaxy_IsZero_AndNotInGalaxy()
     {
-        var config = Config();   // radius 21 cells -> rim well inside |q| ~ 250
+        var s = Skeleton();
         var far = new HexCoordinate(400, 0);
-        Assert.False(DensityField.InGalaxy(config, far));
-        Assert.Equal(0.0, DensityField.At(config, far));
-        Assert.True(DensityField.InGalaxy(config, new HexCoordinate(0, 0)));
+        Assert.False(DensityField.InGalaxy(s.Config, far));
+        Assert.Equal(0.0, DensityField.At(s, far));
+        Assert.True(DensityField.InGalaxy(s.Config, new HexCoordinate(0, 0)));
     }
 
     [Fact]
-    public void Core_IsDenserThanMidDisc()
+    public void HexDensity_FollowsTheSimulatedCellLayer()
     {
-        var config = Config();
-        double Avg(HexCoordinate center) =>
-            HexGrid.Spiral(center, 6).Average(h => DensityField.At(config, h));
-        // mid-disc reference: a hex roughly 60% of the way to the rim along +q
-        int midQ = (int)(0.6 * 2.0 / 3.0 * DensityField.WorldRimRadius(config));
-        double coreAvg = Avg(new HexCoordinate(0, 0));
-        double midAvg = Avg(new HexCoordinate(midQ, -midQ / 2));
-        Assert.True(coreAvg > midAvg, $"core {coreAvg:F3} should exceed mid-disc {midAvg:F3}");
+        var s = Skeleton();
+        // hexes inside the densest and emptiest cells should read the
+        // difference (averaged over the cell's spiral to smooth the noise)
+        var densest = s.Cells.OrderByDescending(c => c.MeanDensity).First();
+        var emptiest = s.Cells.OrderBy(c => c.MeanDensity).First();
+        double Avg(RegionCell cell) =>
+            HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius)
+                .Average(h => DensityField.At(s, h));
+        Assert.True(Avg(densest) > Avg(emptiest) + 0.2,
+            $"dense cell {Avg(densest):F3} vs void cell {Avg(emptiest):F3}");
     }
 
     [Fact]
-    public void MeanInsideDisc_NearTarget()
+    public void MeanHexDensity_TracksTheCellNormalization()
     {
-        var config = Config();
-        double rim = DensityField.WorldRimRadius(config);
+        var s = Skeleton();
         double sum = 0; int count = 0;
-        foreach (var hex in HexGrid.Spiral(new HexCoordinate(0, 0), 230).Where((_, i) => i % 16 == 0))
+        foreach (var cell in s.Cells)
         {
-            var (wx, wy) = HexGrid.HexToWorld(hex);
-            if (System.Math.Sqrt(wx * wx + wy * wy) > 0.9 * rim) continue;
-            if (!DensityField.InGalaxy(config, hex)) continue;
-            sum += DensityField.At(config, hex);
+            // cell centers sample every cell once — cheap proxy for the disc
+            sum += DensityField.At(s, HexGrid.CellCenter(cell.Coord));
             count++;
         }
-        Assert.True(count > 3000, $"sample too small: {count}");
-        Assert.InRange(sum / count, config.MeanDensityTarget - 0.12, config.MeanDensityTarget + 0.12);
+        // cells are normalized to MeanDensityTarget; the noise modulation is
+        // mean-≈1 and the [0,1] clamp bites at the top, so allow a band
+        Assert.InRange(sum / count, s.Config.MeanDensityTarget - 0.15,
+                       s.Config.MeanDensityTarget + 0.15);
     }
 
     [Fact]
-    public void ShapeAt_Defaults_ReproduceLegacyConstants()
+    public void InterpolationSmoothsCellEdges()
     {
-        var config = new GalaxyConfig();
-        for (double nx = -0.9; nx <= 0.91; nx += 0.3)
-            for (double ny = -0.9; ny <= 0.91; ny += 0.3)
-            {
-                double r = Math.Sqrt(nx * nx + ny * ny);
-                double expected;
-                if (r >= 1.0) expected = 0.0;
-                else
-                {
-                    double theta = Math.Atan2(ny, nx);
-                    double core = Math.Exp(-(r * r) / (2 * 0.18 * 0.18));
-                    double disc = Math.Exp(-(r * r) / (2 * 0.55 * 0.55));
-                    double armAngle = Math.Log(Math.Max(r, 0.05)) / config.ArmTightness;
-                    double phase = (theta - armAngle) * config.ArmCount / (2 * Math.PI);
-                    double toRidge = Math.Abs(phase - Math.Round(phase)) * 2;
-                    double arms = Math.Exp(-(toRidge * toRidge) / (2 * config.ArmWidth * config.ArmWidth))
-                                  * (1 - core) * 0.9;
-                    expected = Math.Clamp(core + disc * 0.45 + arms * disc, 0.0, 1.0);
-                }
-                Assert.Equal(expected, DensityField.ShapeAt(config, nx, ny), 12);
-            }
-    }
-
-    [Fact]
-    public void ShapeAt_ZeroArmStrength_IsAngleInvariant()
-    {
-        var config = new GalaxyConfig { ArmStrength = 0.0 };
-        double reference = DensityField.ShapeAt(config, 0.6, 0.0);
-        for (int i = 1; i < 16; i++)
+        var s = Skeleton();
+        // walk a straight hex line across several cells: no adjacent-hex
+        // jump should exceed what the noise alone can produce plus a smooth
+        // share of the cell contrast (paint jumped a full cell at the edge)
+        double previous = -1;
+        int bigJumps = 0, samples = 0;
+        for (int q = -30; q <= 30; q++)
         {
-            double theta = i * Math.PI / 8;
-            Assert.Equal(reference,
-                DensityField.ShapeAt(config, 0.6 * Math.Cos(theta), 0.6 * Math.Sin(theta)), 12);
+            double v = DensityField.At(s, new HexCoordinate(q, 0));
+            if (previous >= 0 && Math.Abs(v - previous) > 0.5) bigJumps++;
+            previous = v; samples++;
         }
-    }
-
-    [Fact]
-    public void ShapeAt_LargerDiscFalloff_RaisesRimDensity()
-    {
-        var tight = new GalaxyConfig { DiscFalloff = 0.35, ArmStrength = 0.0 };
-        var flat = new GalaxyConfig { DiscFalloff = 0.9, ArmStrength = 0.0 };
-        Assert.True(DensityField.ShapeAt(flat, 0.8, 0.0) > DensityField.ShapeAt(tight, 0.8, 0.0));
+        Assert.True(bigJumps <= samples / 10,
+            $"{bigJumps} hard jumps in {samples} — cell edges are printing through");
     }
 }

@@ -23,9 +23,11 @@ public static class Generator
         bool anchored = region?.AnchorAt != null;
         if (!anchored)
         {
-            double presenceThreshold = galaxy.IsFlatspace
+            // a context without a skeleton has no nature to read — flatspace
+            // (mirrors RegionContext.For returning null)
+            double presenceThreshold = galaxy.IsFlatspace || galaxy.Skeleton == null
                 ? StellarDensity
-                : DensityField.At(galaxy.Config, coord);
+                : DensityField.At(galaxy.Skeleton, coord);
             if (ctx.NextDouble(RollChannel.Presence) >= presenceThreshold)
                 return new HexResult(coord, null);
         }

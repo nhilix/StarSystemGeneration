@@ -9,50 +9,37 @@ using StarGen.Core.Tables;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>Tier 2 builder: the ordered natural-raster seeding passes
-/// (spec §5) — shape, stellar leans, anchors, homeworlds. No history: the
-/// epoch sim (StarGen.Core.Epoch.EpochGenesis) seeds its polities from the
-/// homeworld anchors this leaves behind. The seeding passes survive until
-/// slice F derives their outputs causally.</summary>
+/// <summary>Tier 2 builder: the natural raster, causally (slice F). The
+/// cosmic sim (StarGen.Core.Genesis.CosmicSim) runs the formation history
+/// and its residue *is* the density/lean/metallicity structure — the old
+/// painted passes 1–2 are gone. Anchors and homeworlds still seed from the
+/// derived fields (passes 3–4, retired by the evolutionary integration).
+/// The epoch sim (StarGen.Core.Epoch.EpochGenesis) seeds its polities from
+/// the homeworld anchors this leaves behind.</summary>
 public static class SkeletonBuilder
 {
-    public static GalaxySkeleton Build(GalaxyConfig config)
+    public static GalaxySkeleton Build(GalaxyConfig config,
+        Action<Genesis.CosmicFrame>? cosmicObserver = null)
     {
-        var skeleton = BuildShape(config);
-        PassStellarPopulation(skeleton);
+        var skeleton = BuildShape(config, cosmicObserver);
         PassResourceAnchors(skeleton);
         PassHomeworlds(skeleton);
         return skeleton;
     }
 
-    /// <summary>Skeleton with cell densities/void/chokepoint marks only — no anchors,
-    /// homeworlds, or history. The cheap path behind the atlas setup live preview;
-    /// PassDensitySummary here is the same pass Build runs, so a preview's density
-    /// layer is pixel-identical to the same config's full build (setup-knobs spec §4.1).</summary>
-    public static GalaxySkeleton BuildShape(GalaxyConfig config)
+    /// <summary>Skeleton with the simulated present-day fields and
+    /// void/chokepoint marks — no anchors, homeworlds, or polity history.
+    /// The path behind the atlas setup preview; it runs the same cosmic sim
+    /// Build runs, so a preview's density layer is pixel-identical to the
+    /// same config's full build (setup-knobs spec §4.1).</summary>
+    public static GalaxySkeleton BuildShape(GalaxyConfig config,
+        Action<Genesis.CosmicFrame>? cosmicObserver = null)
     {
         var skeleton = new GalaxySkeleton(config);
-        PassDensitySummary(skeleton);
+        var cosmic = Genesis.CosmicSim.Run(skeleton, cosmicObserver);
+        Genesis.CosmicResidue.Compress(cosmic);
+        MarkChokepoints(skeleton);
         return skeleton;
-    }
-
-    internal static void PassDensitySummary(GalaxySkeleton s)
-    {
-        var config = s.Config;
-        foreach (var cell in s.Cells)
-        {
-            double sum = 0; int n = 0;
-            int i = 0;
-            foreach (var hex in HexGrid.Spiral(HexGrid.CellCenter(cell.Coord), HexGrid.CellRadius))
-            {
-                if (i++ % 2 != 0) continue;      // 46 of 91 hexes
-                sum += DensityField.At(config, hex);
-                n++;
-            }
-            cell.MeanDensity = sum / n;
-            cell.IsVoid = cell.MeanDensity < config.TraversabilityThreshold;
-        }
-        MarkChokepoints(s);
     }
 
     /// <summary>Articulation points of the traversability graph (spec §5 pass 1).</summary>
@@ -113,26 +100,8 @@ public static class SkeletonBuilder
         for (int i = 0; i < n; i++) s.Cells[i].IsChokepoint = articulation[i];
     }
 
-    /// <summary>Spec §5 pass 2: stellar-population & metallicity leans. Never paints
-    /// body kinds — world character emerges via the star->band->body causality.</summary>
-    internal static void PassStellarPopulation(GalaxySkeleton s)
-    {
-        var config = s.Config;
-        foreach (var cell in s.Cells)
-        {
-            var (wx, wy) = HexGrid.HexToWorld(HexGrid.CellCenter(cell.Coord));
-            double stellar = ValueNoise.Sample(config.MasterSeed,
-                RollChannel.NoiseStellarLattice, wx, wy, 2, 0.02);
-            cell.Lean = stellar < 0.12 ? StellarLean.RemnantGraveyard
-                      : stellar < 0.40 ? StellarLean.OldDim
-                      : stellar > 0.72 ? StellarLean.YoungBright
-                      : StellarLean.Balanced;
-            cell.Metallicity = ValueNoise.Sample(config.MasterSeed,
-                RollChannel.NoiseMetalLattice, wx, wy, 2, 0.015);
-        }
-    }
-
-    /// <summary>Spec §5 pass 3: strategic anchors. Closed vocabulary, one per hex.</summary>
+    /// <summary>Spec §5 pass 3: strategic anchors. Closed vocabulary, one per
+    /// hex. Reads the simulated metallicity/lean since slice F.</summary>
     internal static void PassResourceAnchors(GalaxySkeleton s)
     {
         var config = s.Config;

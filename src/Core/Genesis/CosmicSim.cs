@@ -33,17 +33,20 @@ public static class CosmicSim
     /// <summary>Potential exponent in the inflow weighting — sharper than
     /// linear so voids stay empty where potential plus clumping never
     /// gathered gas.</summary>
-    private const double InflowPotentialExponent = 2.0;
+    private const double InflowPotentialExponent = 1.5;
     /// <summary>Noise floor of the inflow clump roll: weight noise spans
     /// [floor, 1] so no cell is force-fed against a cold roll.</summary>
     private const double InflowClumpFloor = 0.15;
 
     // -- transport (structural) --
     /// <summary>Share of a cell's gas that drifts up the potential gradient
-    /// per step (arms and core collect gas).</summary>
-    private const double DriftRate = 0.10;
-    /// <summary>Share of a cell's gas spread evenly to neighbors per step.</summary>
-    private const double DiffusionRate = 0.02;
+    /// per step (arms and core collect gas). Kept gentle: 140 compounding
+    /// steps of aggressive drift funnel the whole disc onto ridge cells and
+    /// the map turns to voids (task-4 lesson).</summary>
+    private const double DriftRate = 0.04;
+    /// <summary>Share of a cell's gas spread evenly to neighbors per step —
+    /// the counterweight that keeps the disc broad.</summary>
+    private const double DiffusionRate = 0.04;
 
     // -- star formation (structural base; Cosmic.StarFormationEfficiency scales it) --
     /// <summary>Gas fraction converted per step at unit compression.</summary>

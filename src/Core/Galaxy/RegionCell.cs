@@ -23,4 +23,27 @@ public sealed class RegionCell
     public StellarLean Lean { get; set; }
     public double Metallicity { get; set; }
     public List<Anchor> Anchors { get; } = new();
+
+    // -- present-day residue of the cosmic sim (slice F, raster v2): every
+    // field below is a derivation of the simulated field stack, written by
+    // CosmicResidue.Compress — never painted. --
+    /// <summary>Gas share of the cell's total baryon mass [0,1].</summary>
+    public double GasFraction { get; set; }
+    /// <summary>Cohort mix: shares of stellar + remnant mass, summing to 1
+    /// where any stars exist. Derives the lean.</summary>
+    public double CohortYoung { get; set; }
+    public double CohortMid { get; set; }
+    public double CohortOld { get; set; }
+    public double CohortRemnant { get; set; }
+    /// <summary>Metals × remnant processing, normalized [0,1] — the ore
+    /// geography traces to actual ancient supernovae.</summary>
+    public double MineralRichness { get; set; }
+    /// <summary>Present-day star-formation activity, normalized [0,1].</summary>
+    public double SfActivity { get; set; }
+    /// <summary>Cosmic step when stellar metallicity first crossed the
+    /// life-viable floor; -1 = never (habitability history scalar).</summary>
+    public int LifeViableStep { get; set; } = -1;
+    /// <summary>Cosmic step of the last sterilization event (AGN wave);
+    /// -1 = never. Stability-since falls out of it.</summary>
+    public int LastSterilizedStep { get; set; } = -1;
 }

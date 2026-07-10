@@ -102,7 +102,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       emergent nebulae at finalization; feature registry; deep-time
       cosmic chronicle (events 0–99). Gate: bounded feature counts
       across seeds; dated entries with world-years; determinism.
-- [ ] 4. **Present-day derivations replace paint** — RegionCell v2
+- [x] 4. **Present-day derivations replace paint** — RegionCell v2
       fields written at finalization; `PassDensitySummary` + voids +
       chokepoints read simulated mass; `PassStellarPopulation` deleted;
       Tier-1 per-hex density reads the cell layer × clumping noise;
@@ -186,3 +186,21 @@ mechanics changes beyond genesis inputs and entry-time state.
   ~1.3 at radius 8, not the naive "core hoards gas" guess — the deep well
   burns as fast as it collects); nebula membership at 1.8× mean gas so
   arm-ridge concentrations connect instead of reading as isolated peaks.
+- **Task-4 map-shape lessons** (all found by diagnosing distributions, not
+  guessing): (1) 140 compounding steps of DriftRate 0.10 funneled the
+  whole disc onto ridge cells — 74% voids; drift 0.04 + diffusion 0.04 +
+  inflow exponent 1.5 restores a broad disc (38% voids at radius 8).
+  (2) The simulated mass distribution is heavy-tailed; MeanDensity maps
+  it through mass^0.45 (presentation only, mass stays raw/conserved).
+  (3) Lean cannot derive from raw young-mass share (young ≈ 0.2% of
+  14 Gyr of mass everywhere) — per the design doc it derives from
+  SfActivity (young-bright > 0.5 normalized) and burned-early gas
+  (old-dim: activity < 0.12 ∧ gas < 0.08); graveyard stays
+  remnant-share > 0.45.
+- Golden regenerated at task 4 (the painted galaxy became the simulated
+  one — every downstream fact legitimately changed). Radius-12 seed-42
+  history stays alive: 4 polities, 55 ports, 117 lanes, top tier 3.
+- MeanDensityTarget's meaning shifted slightly: it normalizes the *cell
+  mean* pre-clamp; the hex-level mean inherits clamp losses (band-tested
+  ±0.15). GalaxyContext without a skeleton now generates as flatspace
+  (mirrors RegionContext.For's null) — documented in Generator.
