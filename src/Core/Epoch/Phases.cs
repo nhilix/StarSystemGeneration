@@ -34,12 +34,26 @@ public sealed class PerceptionPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 2 — production, demand, price formation, trade flows.
-/// Empty frame until Slice D.</summary>
+/// <summary>Phase 2 — the market step in the design's fixed order
+/// (economy/markets.md): supply lands → demand assembles → price adjusts →
+/// freight moves → clearing and consequences. Slice D task 2 lands supply;
+/// the remaining sub-steps attach in order behind it.</summary>
 public sealed class MarketsPhase : ISimPhase
 {
     public string Name => "Markets";
-    public string Run(SimState state) => "idle (markets land in slice D)";
+
+    public string Run(SimState state)
+    {
+        if (state.Markets.Count == 0) return "no markets yet";
+        foreach (var m in state.Markets)
+            System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
+        var scratch = new MarketStepScratch(state.Markets.Count);
+        MarketEngine.SupplyLands(state, scratch);
+        int producing = 0;
+        foreach (var f in state.Facilities)
+            if (MarketEngine.IsActive(state, f)) producing++;
+        return $"{producing} facilities supply {state.Markets.Count} markets";
+    }
 }
 
 /// <summary>Phase 3 — standing policies applied mechanically. Slice B:
@@ -247,6 +261,17 @@ public sealed class InteriorPhase : ISimPhase
 {
     public string Name => "Interior";
 
+    /// <summary>Homeworld starter facilities, extraction before processing so
+    /// the chain flows within one market step (facility id = run order).</summary>
+    private static readonly StarGen.Core.Substrate.InfraTypeId[] StarterIndustry =
+    {
+        StarGen.Core.Substrate.InfraTypeId.AgriComplex,
+        StarGen.Core.Substrate.InfraTypeId.Mine,
+        StarGen.Core.Substrate.InfraTypeId.Skimmer,
+        StarGen.Core.Substrate.InfraTypeId.Refinery,
+        StarGen.Core.Substrate.InfraTypeId.Foundry,
+    };
+
     public string Run(SimState state)
     {
         // segments founded by this step's entries integrate from the next step
@@ -264,6 +289,14 @@ public sealed class InteriorPhase : ISimPhase
             int species = state.PolityOf(a.Id).SpeciesId;
             state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
                 species, species, state.Config.Expansion.HomeworldSegmentSize));
+            // a civilization at spaceflight arrives with industry: the
+            // starter chain (raw → alloys/fuel → machinery) and the one-time
+            // credit endowment — the only mint; conserved thereafter (P4)
+            state.PolityOf(a.Id).Credits +=
+                state.Config.Economy.InitialCreditsPerPolity;
+            foreach (var t in StarterIndustry)
+                state.Facilities.Add(new Facility(state.Facilities.Count,
+                    (int)t, tier: 1, a.Seat, a.Id, state.WorldYear));
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

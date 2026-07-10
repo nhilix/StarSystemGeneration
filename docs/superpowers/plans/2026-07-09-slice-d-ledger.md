@@ -47,7 +47,7 @@ Architecture decisions (made at kickoff, flag deviations):
       initial prices/endowment, labor share, freight/fuel costs, credit
       dials), event types 202+ (FamineStruck, FacilityBuilt, LoanIssued,
       LoanDefaulted, …). Gate: solution green, structural tests.
-- [ ] 2. **Supply lands** — MarketsPhase production execution: facility →
+- [x] 2. **Supply lands** — MarketsPhase production execution: facility →
       market attachment; extraction output with terrain potentials + raw
       grade at the facility hex; processing consumes market inventory via
       recipes (tech-tier stub gates variants); organic baseline; labor share
@@ -104,4 +104,18 @@ Architecture decisions (made at kickoff, flag deviations):
 
 ## Notes / surprises
 
-(fill as encountered)
+- **Bootstrap problem** (task 2): construction costs real goods only
+  facilities produce — a cold-start deadlock. Resolution: homeworld entry
+  seeds a starter industry (AgriComplex, Mine, Skimmer, Refinery, Foundry,
+  tier 1, extraction ids before processing so the chain flows in one step)
+  plus the one-time credit endowment (`InitialCreditsPerPolity`, the only
+  mint). Genesis furniture — no FacilityBuilt events. **Flag at eyeball.**
+- Facility→market attachment simplified to *nearest same-owner port* (tie:
+  lower id) — the servicing check was redundant in practice.
+- Organic baseline moved from task 2 (supply) to task 3 (demand): it is
+  self-supply that offsets subsistence demand, not sellable inventory.
+- Automation stays 0 in the labor factor until Compute-driven automation
+  gets a consumer story (G); machinery grade defaults to the neutral 0.5
+  when a market holds none.
+- Golden regenerated twice so far (EECO knob line; starter industry) —
+  deliberate, same-commit, history changes are the slice's point.
