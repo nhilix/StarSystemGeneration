@@ -16,6 +16,7 @@ public sealed class EpochSimConfig
     public InfrastructureKnobs Infrastructure { get; } = new InfrastructureKnobs();
     public ExpansionKnobs Expansion { get; } = new ExpansionKnobs();
     public ControllerKnobs Controller { get; } = new ControllerKnobs();
+    public FleetKnobs Fleet { get; } = new FleetKnobs();
 }
 
 /// <summary>Clock and stepping knobs (frame/time.md). Structural — serialized
@@ -236,6 +237,64 @@ public sealed class ExpansionKnobs
     public double SegmentGrowthPerYear { get; set; } = 0.01;
     /// <summary>Port population cap = port tier × this, shared across segments.</summary>
     public double SegmentCapPerTier { get; set; } = 2.0;
+}
+
+/// <summary>Fleet dials (fleets/ships-and-fleets.md), per world-year where a
+/// rate: yard throughput and hull costs, posted freight throughput, supply
+/// and readiness, attrition, lineage drift, and the genesis starter fleet.
+/// Chassis stat baselines are structural catalog data (ShipCatalog).</summary>
+public sealed class FleetKnobs
+{
+    /// <summary>Fraction of a fleet's hulls wrecked per world-year while its
+    /// readiness sits below the attrition floor — unsupplied fleets lose
+    /// readiness, then hulls.</summary>
+    public double AttritionHullLossPerYear { get; set; } = 0.02;
+    /// <summary>Readiness below which an unsupplied fleet starts losing
+    /// hulls to wreckage.</summary>
+    public double AttritionReadinessFloor { get; set; } = 0.3;
+    /// <summary>Round trips per world-year of a posted hull at transit
+    /// speed 1 over one hex — posted capacity = cargo × trips
+    /// (× TransitSpeed ÷ distance).</summary>
+    public double FreightTripsPerYearBase { get; set; } = 0.2;
+    /// <summary>Fuel units drawn per hull per hex of expedition movement —
+    /// off-lane journeys are never free.</summary>
+    public double FuelPerHullPerHexMoved { get; set; } = 0.02;
+    /// <summary>Armaments per Medium warship hull at the yard
+    /// (× SizeCostFactor; warship roles only).</summary>
+    public double HullArmamentsBase { get; set; } = 1.5;
+    /// <summary>Ship Components per Medium hull at the yard
+    /// (× SizeCostFactor).</summary>
+    public double HullComponentsBase { get; set; } = 3.0;
+    /// <summary>Component-grade improvement over a design's build grade that
+    /// mints the next mark of its lineage.</summary>
+    public double MarkGradeStep { get; set; } = 0.15;
+    /// <summary>Fractional readiness decay per world-year toward the unmet
+    /// supply fraction.</summary>
+    public double ReadinessDecayPerYear { get; set; } = 0.02;
+    /// <summary>Fractional readiness recovery per world-year toward the met
+    /// supply fraction.</summary>
+    public double ReadinessRecoveryPerYear { get; set; } = 0.05;
+    /// <summary>Upkeep multiplier for docked Reserve-posture fleets —
+    /// mothballs are cheap and readiness decays anyway.</summary>
+    public double ReserveUpkeepFactor { get; set; } = 0.25;
+    /// <summary>Colony hulls in the homeworld starter fleet (genesis
+    /// furniture — founding needs a physical convoy from epoch one).</summary>
+    public int StarterColonyHulls { get; set; } = 1;
+    /// <summary>Escort hulls in the starter fleet per point of species
+    /// militancy (rounded).</summary>
+    public double StarterEscortPerMilitancy { get; set; } = 4.0;
+    /// <summary>Freight hulls in the homeworld starter fleet — the first
+    /// posted capacity; without them nothing moves at epoch one.</summary>
+    public int StarterFreightHulls { get; set; } = 4;
+    /// <summary>Share of fleet upkeep drawn as Fuel; the rest is Armaments
+    /// for warships, Machinery for civilian hulls.</summary>
+    public double UpkeepFuelShare { get; set; } = 0.4;
+    /// <summary>Goods units drawn per point of a fleet's Upkeep vector per
+    /// world-year — the fleet-supply magnitude dial.</summary>
+    public double UpkeepUnitsPerPointPerYear { get; set; } = 0.05;
+    /// <summary>Hulls a yard lays down per yard tier per world-year,
+    /// components permitting.</summary>
+    public double YardHullsPerTierPerYear { get; set; } = 0.2;
 }
 
 /// <summary>Genesis-AI policy dials (frame/controller-contract.md): the
