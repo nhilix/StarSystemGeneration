@@ -80,7 +80,8 @@ public class ShapeAcceptanceTests
                             * eco.InitialWealthPerPop;
         double held = 0;
         foreach (var p in state.Polities)
-            held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints;
+            held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
+                    + p.MilitaryPoints;
         foreach (var s in state.Segments)
             held += s.Wealth;
         Assert.True(minted > 0);

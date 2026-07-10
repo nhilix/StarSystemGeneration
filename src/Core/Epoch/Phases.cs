@@ -30,8 +30,10 @@ public sealed class PerceptionPhase : ISimPhase
             Galaxy.SpeciesProfile? selfSpecies = null;
             int ownPorts = 0;
             double realmSubsistence = 1.0;
+            List<DesignBrief>? designs = null;
             if (a.Kind == ActorKind.Polity)
             {
+                designs = CurrentDesignBriefs(state, a.Id);
                 int sp = state.PolityOf(a.Id).SpeciesId;
                 if (sp >= 0 && sp < state.Skeleton.Species.Count)
                     selfSpecies = state.Skeleton.Species[sp];
@@ -49,10 +51,30 @@ public sealed class PerceptionPhase : ISimPhase
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
-                                              ownPorts, realmSubsistence);
+                                              ownPorts, realmSubsistence, designs,
+                                              FleetOps.ColonyHullsInReserve(state, a.Id));
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
+    }
+
+    /// <summary>Current-mark designs per chassis cell, design-id order —
+    /// the briefs ShipbuildingPriorities are keyed by.</summary>
+    private static List<DesignBrief> CurrentDesignBriefs(SimState state, int actorId)
+    {
+        var currentByCell = new Dictionary<(ShipRole, ShipSize), ShipDesign>();
+        foreach (var d in state.Designs)                  // id order (P6)
+        {
+            if (d.OwnerActorId != actorId) continue;
+            if (!currentByCell.TryGetValue((d.Role, d.Size), out var held)
+                || d.Mark > held.Mark)
+                currentByCell[(d.Role, d.Size)] = d;
+        }
+        var briefs = new List<DesignBrief>(currentByCell.Count);
+        foreach (var d in currentByCell.Values)
+            briefs.Add(new DesignBrief(d.Id, d.Role, d.Size, d.Mark));
+        briefs.Sort((x, y) => x.DesignId.CompareTo(y.DesignId));
+        return briefs;
     }
 }
 
@@ -75,11 +97,13 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AssembleDemand(state, scratch);
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
+        MarketEngine.AddMilitaryDemand(state, scratch);
+        FleetOps.AddUpkeepDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
         // an import-fed port prices its arrivals, a blockaded one their
         // absence (markets.md §The market step; amended in slice D)
-        int shipments = MarketEngine.MoveFreight(state, scratch);
+        var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
@@ -89,7 +113,9 @@ public sealed class MarketsPhase : ISimPhase
                 && MarketEngine.AttachedMarketIndex(state, f) >= 0) producing++;
         string note = $"{producing} facilities supply {state.Markets.Count} markets";
         if (shipments > 0)
-            note += $", {shipments} " + (shipments == 1 ? "shipment" : "shipments");
+            note += System.FormattableString.Invariant(
+                $", {shipments} ") + (shipments == 1 ? "shipment" : "shipments")
+                + System.FormattableString.Invariant($" ({units:0} units)");
         if (famines > 0)
             note += $", {famines} " + (famines == 1 ? "famine" : "famines");
         return note;
@@ -113,6 +139,7 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int earning = 0, lanesBuilt = 0, portsRaised = 0, facilitiesBuilt = 0;
+        int hullsLaid = 0, hullsLost = 0;
         int defaults = ServiceLoans(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
@@ -130,10 +157,15 @@ public sealed class AllocationPhase : ISimPhase
             double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
-            pr.Credits -= allocatable * (budget.Expansion + budget.Development);
+            pr.MilitaryPoints += allocatable * budget.Military;
+            pr.Credits -= allocatable
+                * (budget.Expansion + budget.Development + budget.Military);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
+            hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
+            FleetOps.ManagePostures(state, pr, ownPorts);
+            hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
@@ -143,6 +175,8 @@ public sealed class AllocationPhase : ISimPhase
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
         if (portsRaised > 0) note += $", {portsRaised} " + (portsRaised == 1 ? "port raised" : "ports raised");
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
+        if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
+        if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
         return note;
@@ -199,6 +233,10 @@ public sealed class AllocationPhase : ISimPhase
                     IsChokepoint: cell.IsChokepoint);
                 foreach (var type in BuildableTypes)
                 {
+                    // only candidates the polity can actually build compete:
+                    // an unaffordable high scorer must not block the port
+                    // (an unbuilt shipyard is not a construction plan)
+                    if (!CanAfford(state, pr, market, type)) continue;
                     var def = Substrate.Infrastructure.Get(type);
                     double signal = PriceSignal(eco, market, def);
                     int existing = 0;
@@ -219,22 +257,10 @@ public sealed class AllocationPhase : ISimPhase
                 }
             }
             if (bestType == Substrate.InfraTypeId.Port) continue;
-
-            // full build cost must be physically present — in the port market
-            // or the polity's banked reserves; the treasury pays administered
-            // (founding) prices — a state pre-commitment is not a spot
-            // speculator, so scarcity prices can't price out the very
-            // construction that would cure the scarcity
             var buildDef = Substrate.Infrastructure.Get(bestType);
             double value = 0;
-            bool available = true;
             foreach (var q in buildDef.BuildCost)
-            {
-                if (market.Inventory[(int)q.Good]
-                    + pr.ReserveQty[(int)q.Good] < q.Quantity) available = false;
                 value += q.Quantity * Market.InitialPrice(eco, q.Good);
-            }
-            if (!available || pr.DevelopmentPoints < value) continue;
             foreach (var q in buildDef.BuildCost)
             {
                 double fromMarket = market.Draw((int)q.Good, q.Quantity);
@@ -261,6 +287,25 @@ public sealed class AllocationPhase : ISimPhase
                 new FacilityBuiltPayload(facility.Id, facility.TypeId, 1)));
         }
         return built;
+    }
+
+    /// <summary>Full build cost physically present (port market + banked
+    /// polity reserves) and the treasury covering the administered value —
+    /// a state pre-commitment pays founding prices, so scarcity prices
+    /// can't price out the very construction that would cure the scarcity.</summary>
+    private static bool CanAfford(SimState state, PolityRecord pr,
+                                  Market market, Substrate.InfraTypeId type)
+    {
+        var def = Substrate.Infrastructure.Get(type);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+        {
+            if (market.Inventory[(int)q.Good]
+                + pr.ReserveQty[(int)q.Good] < q.Quantity) return false;
+            value += q.Quantity
+                     * Market.InitialPrice(state.Config.Economy, q.Good);
+        }
+        return pr.DevelopmentPoints >= value;
     }
 
     /// <summary>Mean price-over-founding ratio of the type's products,
@@ -575,10 +620,12 @@ public sealed class IntentPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 5 — acts collide and resolve deterministically. Slice B
-/// resolves FoundColonyAct: claiming space is building a port
-/// (space-and-travel.md) — convoyless until slice E gives the journey hulls.
-/// Collisions on one hex resolve in actor-id order; losers are not charged.</summary>
+/// <summary>Phase 5 — acts collide and resolve deterministically. Slice E:
+/// founding is physical — a colony convoy (a reserve colony hull staged
+/// from the nearest own port, the off-lane leg gated by its endurance)
+/// crosses to the target and becomes the port (space-and-travel.md
+/// §Colonization, end to end). Collisions on one hex resolve in actor-id
+/// order; losers are not charged.</summary>
 public sealed class ResolutionPhase : ISimPhase
 {
     public string Name => "Resolution";
@@ -616,7 +663,65 @@ public sealed class ResolutionPhase : ISimPhase
             { inReach = true; break; }
         if (!inReach) return false;
 
+        // the convoy: a colony hull sitting in reserve, staged from the
+        // nearest own port (lane hops are fast at this clock; the off-lane
+        // crossing gates on the hull's endurance floor). No hull, no colony.
+        Port? staging = null;
+        foreach (var p in state.Ports)                    // id order (P6)
+            if (p.OwnerActorId == act.ActorId
+                && (staging == null || HexGrid.Distance(p.Hex, act.Target)
+                    < HexGrid.Distance(staging.Hex, act.Target)))
+                staging = p;
+        FleetRecord? source = null;
+        HullGroup? colonyHull = null;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.OwnerActorId != act.ActorId
+                || fleet.Posture != FleetPosture.Reserve) continue;
+            foreach (var g in fleet.Hulls)                // design-id order
+                if (state.Designs[g.DesignId].Role == ShipRole.Colony)
+                { source = fleet; colonyHull = g; break; }
+            if (source != null) break;
+        }
+        if (staging == null || source == null) return false;
+        int offLane = HexGrid.Distance(staging.Hex, act.Target);
+        if (offLane > FleetOps.EnduranceHexes(state,
+                state.Designs[colonyHull!.DesignId])) return false;
+
         record.ExpansionPoints -= cfg.Expansion.ColonyCost;
+
+        // the convoy departs, burns the crossing's fuel at the staging
+        // market (movement is never free), and its hull becomes the colony
+        int designId = colonyHull.DesignId;
+        double hullGrade = colonyHull.Grade;
+        source.RemoveHulls(designId, 1);
+        var convoy = new FleetRecord(state.Fleets.Count, act.ActorId, staging.Hex)
+        {
+            Posture = FleetPosture.Expedition,
+            HomePortId = staging.Id,
+        };
+        convoy.AddHulls(designId, 1, hullGrade);
+        state.Fleets.Add(convoy);
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.ConvoyDispatched,
+            new[] { act.ActorId }, staging.Hex, Magnitude: offLane,
+            Valence: 0.5, EventVisibility.Regional,
+            new ConvoyDispatchedPayload(convoy.Id, staging.Id,
+                                        act.Target.Q, act.Target.R)));
+        var stagingMarket = state.Markets[staging.Id];
+        double fuelNeed = state.Config.Fleet.FuelPerHullPerHexMoved * offLane;
+        double fuelDrawn = stagingMarket.Draw((int)Substrate.GoodId.Fuel, fuelNeed);
+        if (fuelDrawn > 0)
+        {
+            stagingMarket.LastCleared[(int)Substrate.GoodId.Fuel] += fuelDrawn;
+            double fuelCost = fuelDrawn
+                * stagingMarket.Price[(int)Substrate.GoodId.Fuel];
+            record.Credits -= fuelCost;
+            MarketEngine.PayWages(state, staging.Id, fuelCost);
+        }
+        convoy.Hex = act.Target;
+        convoy.RemoveHulls(designId, 1);
+        record.HullsScrapped++;   // the colony ship becomes the colony
         var port = new Port(state.Ports.Count, act.ActorId, act.Target,
                             tier: 1, state.WorldYear);
         state.Ports.Add(port);
@@ -639,6 +744,9 @@ public sealed class ResolutionPhase : ISimPhase
             state.Facilities.Add(new Facility(state.Facilities.Count,
                 (int)Substrate.InfraTypeId.AgriComplex, tier: 1, act.Target,
                 act.ActorId, state.WorldYear));
+        // the convoy's survivors dock as the colony's first reserve fleet
+        convoy.Posture = FleetPosture.Reserve;
+        convoy.HomePortId = port.Id;
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
@@ -686,6 +794,9 @@ public sealed class InteriorPhase : ISimPhase
         (StarGen.Core.Substrate.InfraTypeId.Skimmer, 1),
         (StarGen.Core.Substrate.InfraTypeId.Refinery, 1),
         (StarGen.Core.Substrate.InfraTypeId.Foundry, 1),
+        // a species that arrived at spaceflight arrived by ship: the yard
+        // that built the starter fleet completes the hull chain (slice E)
+        (StarGen.Core.Substrate.InfraTypeId.Shipyard, 1),
     };
 
     public string Run(SimState state)
@@ -717,6 +828,13 @@ public sealed class InteriorPhase : ISimPhase
             foreach (var (type, tier) in StarterIndustry)
                 state.Facilities.Add(new Facility(state.Facilities.Count,
                     (int)type, tier, a.Seat, a.Id, state.WorldYear));
+            // a spacefaring species arrives with its founding design set and
+            // the hulls already flying — genesis furniture like the starter
+            // industry, no events
+            double militancy = species >= 0 && species < state.Skeleton.Species.Count
+                ? state.Skeleton.Species[species].Militancy : 0.5;
+            DesignRegistry.RegisterEntryDesigns(state, a.Id, militancy);
+            FleetOps.SeedStarterFleet(state, a.Id, port, militancy);
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

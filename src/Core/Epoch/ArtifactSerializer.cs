@@ -27,7 +27,7 @@ public static class ArtifactSerializer
     {
         ("config", 3), ("clock", 1), ("raster", 1), ("species", 1),
         ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
-        ("fleets", 1), ("segments", 2), ("events", 1), ("markets", 1),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
     };
 
     public static string ToText(SimState state)
@@ -122,9 +122,30 @@ public static class ArtifactSerializer
                 f.OwnerActorId.ToString(Inv), R(f.Condition), f.BuiltYear.ToString(Inv)));
 
         Layer(w, "fleets");
+        // the fleet-side polity record: military treasury + the hull
+        // conservation ledger (kept here so the actors layer stays v2)
+        foreach (var p in state.Polities)
+            if (p.MilitaryPoints != 0 || p.HullsBuilt != 0
+                || p.HullsWrecked != 0 || p.HullsScrapped != 0)
+                w.WriteLine(Join("NAVY", p.ActorId.ToString(Inv),
+                    R(p.MilitaryPoints), p.HullsBuilt.ToString(Inv),
+                    p.HullsWrecked.ToString(Inv), p.HullsScrapped.ToString(Inv)));
+        foreach (var d in state.Designs)
+            w.WriteLine(Join("DESIGN", d.Id.ToString(Inv),
+                d.OwnerActorId.ToString(Inv), ((int)d.Role).ToString(Inv),
+                ((int)d.Size).ToString(Inv), d.Mark.ToString(Inv), Name(d.Name),
+                R(d.ComponentGrade), d.TechTier.ToString(Inv),
+                d.DesignedYear.ToString(Inv)));
         foreach (var f in state.Fleets)
             w.WriteLine(Join("FLEET", f.Id.ToString(Inv), f.OwnerActorId.ToString(Inv),
-                f.Hex.Q.ToString(Inv), f.Hex.R.ToString(Inv)));
+                f.Hex.Q.ToString(Inv), f.Hex.R.ToString(Inv),
+                ((int)f.Posture).ToString(Inv), f.TargetId.ToString(Inv),
+                f.HomePortId.ToString(Inv), R(f.Readiness),
+                f.CommanderId.ToString(Inv), HullMap(f)));
+        foreach (var wr in state.Wreckage)
+            w.WriteLine(Join("WRECK", wr.Id.ToString(Inv), wr.Hex.Q.ToString(Inv),
+                wr.Hex.R.ToString(Inv), wr.DesignId.ToString(Inv),
+                wr.Hulls.ToString(Inv), wr.Year.ToString(Inv)));
 
         Layer(w, "segments");
         foreach (var s in state.Segments)
@@ -167,6 +188,19 @@ public static class ArtifactSerializer
                 R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
                 l.IssuedYear.ToString(Inv), B(l.Closed)));
         w.WriteLine("END");
+    }
+
+    /// <summary>A fleet's composition as "designId:count:grade;…" in the
+    /// list's design-id order; "-" when hull-less.</summary>
+    private static string HullMap(FleetRecord fleet)
+    {
+        if (fleet.Hulls.Count == 0) return "-";
+        var parts = new string[fleet.Hulls.Count];
+        for (int i = 0; i < fleet.Hulls.Count; i++)
+            parts[i] = fleet.Hulls[i].DesignId.ToString(Inv) + ":"
+                       + fleet.Hulls[i].Count.ToString(Inv) + ":"
+                       + R(fleet.Hulls[i].Grade);
+        return string.Join(";", parts);
     }
 
     /// <summary>Int-keyed double map as "k:v;k:v" ascending; "-" when empty
@@ -385,10 +419,67 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
                         { Condition = double.Parse(f[7], Inv) });
                         break;
+                    case "NAVY":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        pr.MilitaryPoints = double.Parse(f[2], Inv);
+                        pr.HullsBuilt = int.Parse(f[3], Inv);
+                        pr.HullsWrecked = int.Parse(f[4], Inv);
+                        pr.HullsScrapped = int.Parse(f[5], Inv);
+                        break;
+                    }
+                    case "DESIGN":
+                        if (int.Parse(f[1], Inv) != state!.Designs.Count)
+                            throw new InvalidDataException("design ids out of order");
+                        state.Designs.Add(new ShipDesign(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv), (ShipRole)int.Parse(f[3], Inv),
+                            (ShipSize)int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            f[6], double.Parse(f[7], Inv), int.Parse(f[8], Inv),
+                            int.Parse(f[9], Inv)));
+                        break;
                     case "FLEET":
-                        state!.Fleets.Add(new FleetRecord(int.Parse(f[1], Inv),
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Fleets.Count)
+                            throw new InvalidDataException("fleet ids out of order");
+                        var fleet = new FleetRecord(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv),
-                            new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv))));
+                            new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)))
+                        {
+                            Posture = (FleetPosture)int.Parse(f[5], Inv),
+                            TargetId = int.Parse(f[6], Inv),
+                            HomePortId = int.Parse(f[7], Inv),
+                            Readiness = double.Parse(f[8], Inv),
+                            CommanderId = int.Parse(f[9], Inv),
+                        };
+                        if (f[10] != "-")
+                            foreach (var part in f[10].Split(';'))
+                            {
+                                var h = part.Split(':');
+                                int designId = int.Parse(h[0], Inv);
+                                // compositions are design-id sorted and
+                                // reference registered designs — a tampered
+                                // hull map must refuse here, not blow up
+                                // mid-step in SheetOf
+                                if (designId < 0 || designId >= state.Designs.Count
+                                    || (fleet.Hulls.Count > 0
+                                        && fleet.Hulls[fleet.Hulls.Count - 1]
+                                               .DesignId >= designId))
+                                    throw new InvalidDataException(
+                                        "fleet hull map out of order or "
+                                        + "referencing an unknown design");
+                                fleet.Hulls.Add(new HullGroup(designId,
+                                    int.Parse(h[1], Inv), double.Parse(h[2], Inv)));
+                            }
+                        state.Fleets.Add(fleet);
+                        break;
+                    }
+                    case "WRECK":
+                        if (int.Parse(f[1], Inv) != state!.Wreckage.Count)
+                            throw new InvalidDataException("wreck ids out of order");
+                        state.Wreckage.Add(new WreckageRecord(int.Parse(f[1], Inv),
+                            new HexCoordinate(int.Parse(f[2], Inv), int.Parse(f[3], Inv)),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv)));
                         break;
                     case "SEGMENT":
                         if (int.Parse(f[1], Inv) != state!.Segments.Count)
@@ -500,6 +591,13 @@ public static class ArtifactSerializer
             e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv)),
         MigrationWavePayload e => Join("migrationWave", e.FromPortId.ToString(Inv),
             e.ToPortId.ToString(Inv), R(e.Size)),
+        ShipClassLaunchedPayload e => Join("shipClassLaunched",
+            e.DesignId.ToString(Inv), Name(e.Name), e.Mark.ToString(Inv)),
+        FleetAttritionPayload e => Join("fleetAttrition", e.FleetId.ToString(Inv),
+            e.HullsLost.ToString(Inv)),
+        ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
+            e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
+            e.TargetR.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -524,6 +622,13 @@ public static class ArtifactSerializer
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
         "migrationWave" => new MigrationWavePayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), double.Parse(f[at + 3], Inv)),
+        "shipClassLaunched" => new ShipClassLaunchedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
+        "fleetAttrition" => new FleetAttritionPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv)),
+        "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

@@ -36,7 +36,13 @@ public sealed class SimState
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
     public List<Facility> Facilities { get; } = new List<Facility>();
+    /// <summary>Per-polity ship designs — lineage entries in id order;
+    /// improved marks append, never edit (fleets/ships-and-fleets.md).</summary>
+    public List<ShipDesign> Designs { get; } = new List<ShipDesign>();
     public List<FleetRecord> Fleets { get; } = new List<FleetRecord>();
+    /// <summary>Losses conserve into wreckage at real hexes — salvage
+    /// sites; the narrative layer compiles them in I (P4).</summary>
+    public List<WreckageRecord> Wreckage { get; } = new List<WreckageRecord>();
     public List<PopulationSegment> Segments { get; } = new List<PopulationSegment>();
     /// <summary>One market per port, parallel to Ports (market id = port id).</summary>
     public List<Market> Markets { get; } = new List<Market>();

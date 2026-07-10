@@ -147,9 +147,37 @@ player, P2) replace the AI and bring their own numbers.
 | `Controller.MachineryReservePerPort` | 1.5 | (as above, machinery) | — |
 | `Controller.CompositesReservePerPort` | 1 | (as above, composites) | — |
 | `Controller.ArmamentsPerPortPerMilitancy` | 2 | Militant species stockpile arsenals (H inherits armed worlds). | Demilitarized reserves. |
+| `Controller.ShipPartsReservePerPort` | 3 | Deeper quartermaster stores: fleet upkeep survives bare frontier markets (readiness holds). | Merchant marines rot at 0.4 readiness wherever components don't reach. |
+| `Controller.FuelReservePerPort` | 4 | Navy fuel dumps: posted fleets at refinery-less ports stay flying. | Fuel-dry frontiers ground their fleets (0-readiness attrition). |
 | `Controller.MilitancyReserveGate` | 0.2 | Only genuine hawks arm. | Everyone keeps a little powder dry. |
 | `Controller.NarcoticsProhibitBelowOpenness` | 0.35 | More theocratic drug bans → bigger black books. | Prohibition rare. |
 | `Controller.NarcoticsRestrictBelowOpenness` | 0.55 | Wider restricted band (friction, not bans). | Narcotics broadly legal. |
+
+## Fleet — yards, posted freight, supply, attrition, lineages
+
+Slice E's family: the physical carriers. Freight only moves on Posted
+hulls, so these dials gate the whole trade layer; watch `emap traffic`,
+the shipment volume in the Markets note, and the `fleet` readiness column.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Fleet.YardHullsPerTierPerYear` | 0.2 | Bigger navies and merchant marines per yard tier (components permitting). | Hulls trickle; expansion and freight both thin. |
+| `Fleet.HullComponentsBase` | 3 | Dearer hulls: yards drain components and treasuries faster, fleets stay small. | Cheap hulls; the components market barely notices a navy. |
+| `Fleet.HullArmamentsBase` | 1.5 | Warships bid up armaments — arsenals pay (H inherits armed yards). | Guns nearly free at the slip. |
+| `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
+| `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
+| `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |
+| `Fleet.UpkeepUnitsPerPointPerYear` | 0.025 | Fleets eat harder into fuel/armaments/components — treasuries drain, navies compete with merchants for fuel. | Upkeep cosmetic; military treasuries pile up. |
+| `Fleet.UpkeepFuelShare` | 0.4 | Supply tilts toward fuel (refinery-driven readiness). | Tilts toward armaments/components (industry-driven readiness). |
+| `Fleet.ReserveUpkeepFactor` | 0.25 | Mothballs cost real money. | Docked fleets nearly free (reserves become the default posture). |
+| `Fleet.ReadinessRecoveryPerYear` / `ReadinessDecayPerYear` | 0.05 / 0.02 | Faster snap toward the met fraction (both directions). | Sluggish supply response; shortages take generations to bite. |
+| `Fleet.AttritionReadinessFloor` | 0.3 | Fleets start dying at higher readiness — supply failures brutal. | Only total starvation kills hulls. |
+| `Fleet.AttritionHullLossPerYear` | 0.02 | Starved fleets evaporate within an epoch or two. | Slow rot; wrecks accumulate gently. |
+| `Fleet.MarkGradeStep` | 0.15 | Rare marks: lineages span eras. | Chatty lineages, a mark every grade wobble. |
+| `Fleet.MilitaryPullComponents` | 10 | Stronger yard-port components signal: shipyards site earlier, components chains spin up. | Yards may never pencil out (the pre-E stall). |
+| `Fleet.StarterFreightHulls` | 4 | Thicker epoch-one trade. | Early lanes empty until yards ramp. |
+| `Fleet.StarterColonyHulls` | 1 | Multiple foundings before the first yard hull. | 0 stalls all expansion until a yard builds a pioneer. |
+| `Fleet.StarterEscortPerMilitancy` | 4 | Militant species enter with real screens. | Unescorted dawn. |
 
 ---
 
@@ -162,9 +190,15 @@ day one of them *does* need to move.
 - **Catalog data** — goods, recipes, grade bases, build costs, upkeep draws,
   base outputs, labor requirements: `src/Core/Substrate/Goods.cs`,
   `Infrastructure.cs`. This is the game's content vocabulary ("data as
-  code"), versioned with the design docs. *Note: catalog upkeep coefficients
-  are currently the economy's dominant sink — an open calibration question
-  tracked in the slice D ledger.*
+  code"), versioned with the design docs. *Slice E halved the catalog
+  machinery-upkeep coefficients (D's parked question): the old rates left
+  no machinery for Ship Components production, which gated hulls, which
+  gated expansion once founding needed convoys. Machinery remains the
+  dominant sink at half rate; fleets deliberately draw components, not
+  machinery.*
+- **Chassis catalog** — the role × size grid, per-role stat baselines,
+  size/cost/tech scaling, grade sensitivities: `src/Core/Epoch/ShipCatalog.cs`.
+  The two-layer stat model's data half; `FleetKnobs` carries the dials.
 - **Grade system shape** — tech ceilings, band edges, use-case
   sensitivities, tier factors: `src/Core/Substrate/Grades.cs`,
   `Production.cs`. The neutral machinery grade 0.5 (`MarketEngine`) is the

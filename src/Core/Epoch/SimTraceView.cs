@@ -87,6 +87,15 @@ public static class SimTraceView
             MigrationWavePayload p =>
                 Invariant($"refugees flee port #{p.FromPortId} ")
                 + Invariant($"for port #{p.ToPortId}"),
+            ShipClassLaunchedPayload p =>
+                Invariant($"the {p.Name} Mk {p.Mark} class launches ")
+                + Invariant($"(design #{p.DesignId})"),
+            FleetAttritionPayload p =>
+                Invariant($"fleet #{p.FleetId} loses {p.HullsLost} ")
+                + (p.HullsLost == 1 ? "hull" : "hulls") + " to failed supply",
+            ConvoyDispatchedPayload p =>
+                Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
+                + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

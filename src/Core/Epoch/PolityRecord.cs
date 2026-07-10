@@ -25,6 +25,18 @@ public sealed class PolityRecord
     /// <summary>Accrued development budget; lanes, port tier raises, and
     /// facility construction consume it.</summary>
     public double DevelopmentPoints { get; set; }
+    /// <summary>Accrued military budget; yard hull production consumes it
+    /// (slice E — the Budget.Military share stops idling in Credits).</summary>
+    public double MilitaryPoints { get; set; }
+    /// <summary>Hulls ever laid down (yards + genesis starter fleets) — the
+    /// conservation ledger: Built == active + Wrecked + Scrapped, always (P4).</summary>
+    public int HullsBuilt { get; set; }
+    /// <summary>Hulls lost to attrition and battle — each one has a
+    /// wreckage record at a real hex.</summary>
+    public int HullsWrecked { get; set; }
+    /// <summary>Hulls deliberately broken up (colony ships become the
+    /// colony; partial alloy recovery lands with salvage).</summary>
+    public int HullsScrapped { get; set; }
     /// <summary>Strategic reserve stock per good — held against policy
     /// targets, buffering sieges and famines (economy/markets.md
     /// §Stockpiles). Polity-aggregate in slice D; wars make it spatial (H).</summary>

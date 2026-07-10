@@ -16,6 +16,7 @@ public sealed class EpochSimConfig
     public InfrastructureKnobs Infrastructure { get; } = new InfrastructureKnobs();
     public ExpansionKnobs Expansion { get; } = new ExpansionKnobs();
     public ControllerKnobs Controller { get; } = new ControllerKnobs();
+    public FleetKnobs Fleet { get; } = new FleetKnobs();
 }
 
 /// <summary>Clock and stepping knobs (frame/time.md). Structural — serialized
@@ -238,6 +239,76 @@ public sealed class ExpansionKnobs
     public double SegmentCapPerTier { get; set; } = 2.0;
 }
 
+/// <summary>Fleet dials (fleets/ships-and-fleets.md), per world-year where a
+/// rate: yard throughput and hull costs, posted freight throughput, supply
+/// and readiness, attrition, lineage drift, and the genesis starter fleet.
+/// Chassis stat baselines are structural catalog data (ShipCatalog).</summary>
+public sealed class FleetKnobs
+{
+    /// <summary>Fraction of a fleet's hulls wrecked per world-year while its
+    /// readiness sits below the attrition floor — unsupplied fleets lose
+    /// readiness, then hulls.</summary>
+    public double AttritionHullLossPerYear { get; set; } = 0.02;
+    /// <summary>Readiness below which an unsupplied fleet starts losing
+    /// hulls to wreckage.</summary>
+    public double AttritionReadinessFloor { get; set; } = 0.3;
+    /// <summary>Hexes of off-lane range per point of a design's
+    /// OffLaneEndurance stat — the endurance floor in map units (a Medium
+    /// pioneer at ~9 endurance reaches ~27 hexes, just past the default
+    /// colonization reach).</summary>
+    public double EnduranceHexesPerPoint { get; set; } = 3.0;
+    /// <summary>Round trips per world-year of a posted hull at transit
+    /// speed 1 over one hex — posted capacity = cargo × trips
+    /// (× TransitSpeed ÷ distance).</summary>
+    public double FreightTripsPerYearBase { get; set; } = 0.3;
+    /// <summary>Fuel units drawn per hull per hex of expedition movement —
+    /// off-lane journeys are never free.</summary>
+    public double FuelPerHullPerHexMoved { get; set; } = 0.02;
+    /// <summary>Armaments per Medium warship hull at the yard
+    /// (× SizeCostFactor; warship roles only).</summary>
+    public double HullArmamentsBase { get; set; } = 1.5;
+    /// <summary>Ship Components per Medium hull at the yard
+    /// (× SizeCostFactor).</summary>
+    public double HullComponentsBase { get; set; } = 3.0;
+    /// <summary>Component-grade improvement over a design's build grade that
+    /// mints the next mark of its lineage.</summary>
+    public double MarkGradeStep { get; set; } = 0.15;
+    /// <summary>Ship Components demand a funded polity registers per epoch
+    /// at its yard port (capital until a yard exists) — the military-
+    /// construction pull that makes shipyards worth siting; without it the
+    /// components price floors and no yard ever pencils out.</summary>
+    public double MilitaryPullComponents { get; set; } = 10.0;
+    /// <summary>Fractional readiness decay per world-year toward the unmet
+    /// supply fraction.</summary>
+    public double ReadinessDecayPerYear { get; set; } = 0.02;
+    /// <summary>Fractional readiness recovery per world-year toward the met
+    /// supply fraction.</summary>
+    public double ReadinessRecoveryPerYear { get; set; } = 0.05;
+    /// <summary>Upkeep multiplier for docked Reserve-posture fleets —
+    /// mothballs are cheap and readiness decays anyway.</summary>
+    public double ReserveUpkeepFactor { get; set; } = 0.25;
+    /// <summary>Colony hulls in the homeworld starter fleet (genesis
+    /// furniture — founding needs a physical convoy from epoch one).</summary>
+    public int StarterColonyHulls { get; set; } = 1;
+    /// <summary>Escort hulls in the starter fleet per point of species
+    /// militancy (rounded).</summary>
+    public double StarterEscortPerMilitancy { get; set; } = 4.0;
+    /// <summary>Freight hulls in the homeworld starter fleet — the first
+    /// posted capacity; without them nothing moves at epoch one.</summary>
+    public int StarterFreightHulls { get; set; } = 4;
+    /// <summary>Share of fleet upkeep drawn as Fuel; the rest is Armaments
+    /// for warships, Ship Components (spares) for civilian hulls — kept off
+    /// Machinery deliberately: the facility-upkeep sink already dominates
+    /// that market, and coupling the merchant marine to it starved freight.</summary>
+    public double UpkeepFuelShare { get; set; } = 0.4;
+    /// <summary>Goods units drawn per point of a fleet's Upkeep vector per
+    /// world-year — the fleet-supply magnitude dial.</summary>
+    public double UpkeepUnitsPerPointPerYear { get; set; } = 0.025;
+    /// <summary>Hulls a yard lays down per yard tier per world-year,
+    /// components permitting.</summary>
+    public double YardHullsPerTierPerYear { get; set; } = 0.2;
+}
+
 /// <summary>Genesis-AI policy dials (frame/controller-contract.md): the
 /// standing-policy magnitudes the stock controller writes. Smarter
 /// controllers and the player replace the AI, not these defaults.</summary>
@@ -259,6 +330,14 @@ public sealed class ControllerKnobs
     /// <summary>Armaments reserve per port per point of species militancy —
     /// war materiel by temperament.</summary>
     public double ArmamentsPerPortPerMilitancy { get; set; } = 2.0;
+    /// <summary>Ship Components banked per owned port — the quartermaster's
+    /// stores fleet upkeep falls back on where a frontier port's market
+    /// holds none (fleets doc: fleets draw from market/stockpile).</summary>
+    public double ShipPartsReservePerPort { get; set; } = 3.0;
+    /// <summary>Fuel banked per owned port — navy fuel dumps; the other
+    /// half of the upkeep fallback (posted fleets at refinery-less
+    /// frontier ports otherwise run dry and rot).</summary>
+    public double FuelReservePerPort { get; set; } = 4.0;
     /// <summary>Militancy below which no armaments reserve is kept at all.</summary>
     public double MilitancyReserveGate { get; set; } = 0.2;
     /// <summary>Species openness below which narcotics are prohibited.</summary>
