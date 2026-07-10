@@ -45,7 +45,9 @@ public static class FleetOps
             var market = state.Markets[port.Id];
 
             // the components at hand may out-grade the design — lineage
-            // drift happens at the yard, before this epoch's hulls lay down
+            // drift happens at the yard, before this epoch's hulls lay
+            // down; only cells the yard could actually afford a hull of
+            // advance, so no class ever launches without a ship behind it
             double gradeAtHand = market.Inventory[(int)GoodId.ShipComponents] > 0
                 ? market.InventoryGrade[(int)GoodId.ShipComponents] : 0.0;
             var queue = BuildQueue(state, pr.ActorId, priorities);
@@ -53,6 +55,7 @@ public static class FleetOps
             if (gradeAtHand > 0)
                 for (int i = 0; i < queue.Count; i++)
                 {
+                    if (!CanLayDown(state, pr, market, queue[i].Design)) continue;
                     var advanced = DesignRegistry.MaybeAdvanceMark(state,
                         queue[i].Design, gradeAtHand, port.Hex);
                     if (!ReferenceEquals(advanced, queue[i].Design))
@@ -108,9 +111,29 @@ public static class FleetOps
         return laid;
     }
 
+    /// <summary>One hull of this design is physically and fiscally
+    /// buildable at this market right now.</summary>
+    private static bool CanLayDown(SimState state, PolityRecord pr,
+                                   Market market, ShipDesign design)
+    {
+        var cfg = state.Config;
+        double components = DesignMath.ComponentsPerHull(cfg.Fleet, design.Size);
+        double armaments = DesignMath.ArmamentsPerHull(cfg.Fleet, design.Role,
+                                                       design.Size);
+        double value = components
+            * Market.InitialPrice(cfg.Economy, GoodId.ShipComponents)
+            + armaments * Market.InitialPrice(cfg.Economy, GoodId.Armaments);
+        return market.Inventory[(int)GoodId.ShipComponents] >= components
+               && market.Inventory[(int)GoodId.Armaments] >= armaments
+               && pr.MilitaryPoints >= value;
+    }
+
     /// <summary>The yard's queue: current-mark designs with their standing
-    /// weights. An empty priorities policy falls back to freight only —
-    /// hulls someone always wants.</summary>
+    /// weights. Priorities were decided from last step's perception, so a
+    /// lineage that advanced since then is still keyed by its previous
+    /// mark — the weight follows the lineage, not the id (a yard never
+    /// idles the epoch after a class launch). An empty priorities policy
+    /// falls back to freight only — hulls someone always wants.</summary>
     private static List<(ShipDesign Design, double Weight, int Granted)>
         BuildQueue(SimState state, int actorId,
                    IReadOnlyDictionary<int, double> priorities)
@@ -121,10 +144,18 @@ public static class FleetOps
         {
             if (d.OwnerActorId != actorId || !seen.Add((d.Role, d.Size))) continue;
             var current = DesignRegistry.Current(state, actorId, d.Role, d.Size)!;
-            double weight = priorities.TryGetValue(current.Id, out double w)
-                ? w
-                : priorities.Count == 0 && current.Role == ShipRole.Freight
-                    ? 1.0 : 0.0;
+            double weight = 0;
+            if (priorities.Count == 0)
+                weight = current.Role == ShipRole.Freight ? 1.0 : 0.0;
+            else
+                // the lineage's weight: any mark of this cell that the
+                // standing priorities name (highest mark named wins;
+                // designs scan in id order, so later marks overwrite)
+                foreach (var mark in state.Designs)       // id order (P6)
+                    if (mark.OwnerActorId == actorId && mark.Role == d.Role
+                        && mark.Size == d.Size
+                        && priorities.TryGetValue(mark.Id, out double w))
+                        weight = w;
             if (weight > 0) queue.Add((current, weight, 0));
         }
         return queue;
@@ -323,8 +354,10 @@ public static class FleetOps
     }
 
     /// <summary>Posted freight capacity of a lane this epoch — the design's
-    /// fleet-capacity interface, replacing the slice-D LaneMath stub: a lane
-    /// without hulls moves nothing.</summary>
+    /// fleet-capacity interface (Σ cargo × availability), replacing the
+    /// slice-D LaneMath stub: a lane without hulls moves nothing, and a
+    /// starved fleet carries less (readiness is the availability term —
+    /// supply failure bites the economy before the attrition cliff).</summary>
     public static double PostedCapacity(SimState state, Lane lane)
     {
         var a = state.Ports[lane.PortAId];
@@ -340,7 +373,7 @@ public static class FleetOps
             foreach (var g in fleet.Hulls)                // design-id order
                 capacity += FleetMath.PostedCapacityPerEpoch(state.Config.Fleet,
                     DesignRegistry.SheetOf(state, state.Designs[g.DesignId]),
-                    g.Count, speed, dist, years);
+                    g.Count, speed, dist, years) * fleet.Readiness;
         }
         return capacity;
     }
@@ -360,7 +393,7 @@ public static class FleetOps
             if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
                 trips += fleet.TotalHulls
                          * state.Config.Fleet.FreightTripsPerYearBase
-                         * speed / dist;
+                         * speed / dist * fleet.Readiness;
         return trips;
     }
 

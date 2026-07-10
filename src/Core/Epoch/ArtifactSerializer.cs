@@ -455,7 +455,19 @@ public static class ArtifactSerializer
                             foreach (var part in f[10].Split(';'))
                             {
                                 var h = part.Split(':');
-                                fleet.Hulls.Add(new HullGroup(int.Parse(h[0], Inv),
+                                int designId = int.Parse(h[0], Inv);
+                                // compositions are design-id sorted and
+                                // reference registered designs — a tampered
+                                // hull map must refuse here, not blow up
+                                // mid-step in SheetOf
+                                if (designId < 0 || designId >= state.Designs.Count
+                                    || (fleet.Hulls.Count > 0
+                                        && fleet.Hulls[fleet.Hulls.Count - 1]
+                                               .DesignId >= designId))
+                                    throw new InvalidDataException(
+                                        "fleet hull map out of order or "
+                                        + "referencing an unknown design");
+                                fleet.Hulls.Add(new HullGroup(designId,
                                     int.Parse(h[1], Inv), double.Parse(h[2], Inv)));
                             }
                         state.Fleets.Add(fleet);
