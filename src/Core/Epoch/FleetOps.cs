@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
 using StarGen.Core.Substrate;
 
 namespace StarGen.Core.Epoch;
@@ -175,6 +177,211 @@ public static class FleetOps
         fleet.AddHulls(design.Id, count, grade);
         state.PolityOf(actorId).HullsBuilt += count;
     }
+    /// <summary>Standing-policy posture management, run by Allocation after
+    /// the yards: freight hulls rebalance across the polity's lanes as
+    /// Posted fleets (D'Hondt over lane throughput — busy corridors get the
+    /// hulls), escorts consolidate into a Patrol fleet at the capital
+    /// (legality-enforcement data for the black books, H consumes it).
+    /// Line, carrier, scout, and colony hulls hold their reserve stations —
+    /// convoys and war assemble them later. Deterministic: lanes, fleets,
+    /// and designs in id order (P6).</summary>
+    public static void ManagePostures(SimState state, PolityRecord pr,
+                                      List<Port> ownPorts)
+    {
+        if (ownPorts.Count == 0) return;
+        int actor = pr.ActorId;
+        var capital = ownPorts[0];
+
+        var freightPool = PoolHulls(state, actor, ShipRole.Freight);
+        var lanes = new List<Lane>();
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            if (state.Ports[lane.PortAId].OwnerActorId == actor
+                || state.Ports[lane.PortBId].OwnerActorId == actor)
+                lanes.Add(lane);
+        int totalFreight = 0;
+        foreach (var g in freightPool) totalFreight += g.Count;
+        if (lanes.Count > 0 && totalFreight > 0)
+        {
+            // D'Hondt over lane throughput: slots to the lane with the
+            // highest weight / (hulls granted + 1), ties to lower lane id
+            var granted = new int[lanes.Count];
+            var weights = new double[lanes.Count];
+            for (int i = 0; i < lanes.Count; i++)
+                weights[i] = LaneMath.Capacity(state.Ports[lanes[i].PortAId],
+                                               state.Ports[lanes[i].PortBId]);
+            for (int slot = 0; slot < totalFreight; slot++)
+            {
+                int pick = 0;
+                double best = 0;
+                for (int i = 0; i < lanes.Count; i++)
+                {
+                    double claim = weights[i] / (granted[i] + 1);
+                    if (claim > best) { best = claim; pick = i; }
+                }
+                granted[pick]++;
+            }
+            for (int i = 0; i < lanes.Count; i++)
+            {
+                var lane = lanes[i];
+                var fleet = PostureFleet(state, actor, FleetPosture.Posted,
+                                         lane.Id);
+                var home = state.Ports[lane.PortAId].OwnerActorId == actor
+                    ? state.Ports[lane.PortAId] : state.Ports[lane.PortBId];
+                fleet.HomePortId = home.Id;
+                fleet.Hex = home.Hex;
+                DealHulls(freightPool, fleet, granted[i]);
+            }
+        }
+
+        var escortPool = PoolHulls(state, actor, ShipRole.Escort);
+        int escorts = 0;
+        foreach (var g in escortPool) escorts += g.Count;
+        if (escorts > 0)
+        {
+            var patrol = PostureFleet(state, actor, FleetPosture.Patrol,
+                                      capital.Id);
+            patrol.HomePortId = capital.Id;
+            patrol.Hex = capital.Hex;
+            DealHulls(escortPool, patrol, escorts);
+        }
+
+        // whatever the deal left over docks at the capital reserve
+        var leftovers = HomeFleet(state, actor, capital);
+        foreach (var g in freightPool)
+            leftovers.AddHulls(g.DesignId, g.Count, g.Grade);
+        foreach (var g in escortPool)
+            leftovers.AddHulls(g.DesignId, g.Count, g.Grade);
+    }
+
+    /// <summary>Strip every hull of one role from the actor's fleets into a
+    /// virtual pool (grades blend per design) — the rebalancing source.</summary>
+    private static List<HullGroup> PoolHulls(SimState state, int actorId,
+                                             ShipRole role)
+    {
+        var pool = new List<HullGroup>();
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.OwnerActorId != actorId) continue;
+            for (int i = fleet.Hulls.Count - 1; i >= 0; i--)
+            {
+                var g = fleet.Hulls[i];
+                if (state.Designs[g.DesignId].Role != role) continue;
+                Blend(pool, g.DesignId, g.Count, g.Grade);
+                fleet.Hulls.RemoveAt(i);
+            }
+        }
+        pool.Sort((x, y) => x.DesignId.CompareTo(y.DesignId));
+        return pool;
+    }
+
+    private static void Blend(List<HullGroup> pool, int designId, int count,
+                              double grade)
+    {
+        foreach (var g in pool)
+            if (g.DesignId == designId)
+            {
+                g.Grade = (g.Count * g.Grade + count * grade) / (g.Count + count);
+                g.Count += count;
+                return;
+            }
+        pool.Add(new HullGroup(designId, count, grade));
+    }
+
+    /// <summary>Move up to <paramref name="count"/> hulls from the pool into
+    /// a fleet, design-id order.</summary>
+    private static void DealHulls(List<HullGroup> pool, FleetRecord fleet,
+                                  int count)
+    {
+        foreach (var g in pool)
+        {
+            if (count <= 0) return;
+            int take = Math.Min(g.Count, count);
+            if (take <= 0) continue;
+            fleet.AddHulls(g.DesignId, take, g.Grade);
+            g.Count -= take;
+            count -= take;
+        }
+    }
+
+    /// <summary>The actor's fleet standing at one posture/target, founded on
+    /// first assignment.</summary>
+    public static FleetRecord PostureFleet(SimState state, int actorId,
+                                           FleetPosture posture, int targetId)
+    {
+        foreach (var fleet in state.Fleets)               // id order (P6)
+            if (fleet.OwnerActorId == actorId && fleet.Posture == posture
+                && fleet.TargetId == targetId)
+                return fleet;
+        var founded = new FleetRecord(state.Fleets.Count, actorId,
+                                      default(HexCoordinate))
+        {
+            Posture = posture,
+            TargetId = targetId,
+        };
+        state.Fleets.Add(founded);
+        return founded;
+    }
+
+    /// <summary>Posted freight capacity of a lane this epoch — the design's
+    /// fleet-capacity interface, replacing the slice-D LaneMath stub: a lane
+    /// without hulls moves nothing.</summary>
+    public static double PostedCapacity(SimState state, Lane lane)
+    {
+        var a = state.Ports[lane.PortAId];
+        var b = state.Ports[lane.PortBId];
+        int dist = HexGrid.Distance(a.Hex, b.Hex);
+        double speed = LaneMath.TransitSpeed(a, b);
+        int years = state.Config.Sim.YearsPerEpoch;
+        double capacity = 0;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Posted
+                || fleet.TargetId != lane.Id) continue;
+            foreach (var g in fleet.Hulls)                // design-id order
+                capacity += FleetMath.PostedCapacityPerEpoch(state.Config.Fleet,
+                    DesignRegistry.SheetOf(state, state.Designs[g.DesignId]),
+                    g.Count, speed, dist, years);
+        }
+        return capacity;
+    }
+
+    /// <summary>Traffic frequency of a lane: posted round trips per
+    /// world-year — the news-speed data Perception consumes in slice I
+    /// (busy lanes carry news fast, backwaters slowly, wilds barely).</summary>
+    public static double TrafficPerYear(SimState state, Lane lane)
+    {
+        var a = state.Ports[lane.PortAId];
+        var b = state.Ports[lane.PortBId];
+        int dist = HexGrid.Distance(a.Hex, b.Hex);
+        if (dist <= 0) return 0;
+        double speed = LaneMath.TransitSpeed(a, b);
+        double trips = 0;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+            if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
+                trips += fleet.TotalHulls
+                         * state.Config.Fleet.FreightTripsPerYearBase
+                         * speed / dist;
+        return trips;
+    }
+
+    /// <summary>Lanes closed to freight this step: the REPL's debug cuts
+    /// plus every lane touching a blockaded port (a Blockade-posture fleet
+    /// stationed at its approaches — interdiction is one hex address,
+    /// space-and-travel.md). Derived from fleet state, never stored.</summary>
+    public static HashSet<int> SeveredLaneIds(SimState state)
+    {
+        var severed = new HashSet<int>(state.SeveredLanes);
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Blockade || fleet.TargetId < 0
+                || fleet.TotalHulls == 0) continue;
+            foreach (var lane in state.Lanes)
+                if (lane.PortAId == fleet.TargetId || lane.PortBId == fleet.TargetId)
+                    severed.Add(lane.Id);
+        }
+        return severed;
+    }
+
     /// <summary>Colony hulls docked in an actor's Reserve fleets — what an
     /// expedition can actually assemble (the founding gate's count).</summary>
     public static int ColonyHullsInReserve(SimState state, int actorId)

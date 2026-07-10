@@ -161,6 +161,7 @@ public sealed class AllocationPhase : ISimPhase
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
             hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
+            FleetOps.ManagePostures(state, pr, ownPorts);
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }

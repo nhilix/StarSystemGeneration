@@ -42,6 +42,8 @@ public class MarketFreightTests
         state.PolityOf(a0.Id).Credits = 500;
         if (!sameOwner) state.PolityOf(a1.Id).Credits = 500;
         state.WorldYear = 100;
+        // freight only moves on posted hulls (slice E): six haulers on the lane
+        EpochTestKit.PostFreight(state, a0.Id, laneId: 0, hulls: 6);
         return (state, pa, pb);
     }
 
@@ -76,8 +78,9 @@ public class MarketFreightTests
 
         double moved = mB.Inventory[(int)GoodId.Provisions];
         Assert.True(moved > 0, "profitable gap should move goods");
-        double cap = LaneMath.Capacity(pa, pb) * state.Config.Sim.YearsPerEpoch;
-        Assert.True(moved <= cap + 1e-9, $"moved {moved} over capacity {cap}");
+        double cap = FleetOps.PostedCapacity(state, state.Lanes[0]);
+        Assert.True(cap > 0, "six posted haulers should carry something");
+        Assert.True(moved <= cap + 1e-9, $"moved {moved} over posted capacity {cap}");
         Assert.True(mA.Inventory[(int)GoodId.Provisions] < 1000);
         Assert.Equal(0.6, mB.InventoryGrade[(int)GoodId.Provisions]);  // grade travels
     }

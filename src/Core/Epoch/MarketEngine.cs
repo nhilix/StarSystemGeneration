@@ -35,9 +35,16 @@ public sealed class MarketStepScratch
     public double[] SubsistenceCleared { get; }
     public double[] SoLNeed { get; }
     public double[] SoLCleared { get; }
-    /// <summary>Freight units already carried per lane id this step — the
-    /// fleet-capacity stub's budget (E replaces it with posted capacity).</summary>
+    /// <summary>Freight units already carried per lane id this step,
+    /// budgeted against the posted capacity.</summary>
     public double[] LaneCapacityUsed { get; }
+    /// <summary>Posted freight capacity per lane id this epoch — the
+    /// fleet-capacity interface (fleets/ships-and-fleets.md): Σ cargo ×
+    /// trips of the Posted fleets. A lane without hulls moves nothing.</summary>
+    public double[] LaneFleetCapacity { get; }
+    /// <summary>Lanes closed this step: debug cuts + blockade postures,
+    /// derived once from fleet state.</summary>
+    public HashSet<int> Severed { get; }
 
     public MarketStepScratch(SimState state)
     {
@@ -50,6 +57,10 @@ public sealed class MarketStepScratch
         SoLNeed = new double[state.Segments.Count];
         SoLCleared = new double[state.Segments.Count];
         LaneCapacityUsed = new double[state.Lanes.Count];
+        LaneFleetCapacity = new double[state.Lanes.Count];
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            LaneFleetCapacity[lane.Id] = FleetOps.PostedCapacity(state, lane);
+        Severed = FleetOps.SeveredLaneIds(state);
     }
 }
 
@@ -498,13 +509,14 @@ public static class MarketEngine
     public static void AddReExportDemand(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
-        int years = state.Config.Sim.YearsPerEpoch;
         foreach (var lane in state.Lanes)                 // id order (P6)
         {
-            if (state.SeveredLanes.Contains(lane.Id)) continue;
-            var a = state.Ports[lane.PortAId];
-            var b = state.Ports[lane.PortBId];
-            double laneFlow = LaneMath.Capacity(a, b) * years * eco.ReExportWeight;
+            if (scratch.Severed.Contains(lane.Id)) continue;
+            // hubs pull only what posted hulls could actually carry out —
+            // no fleet, no re-export bid (the design's capacity interface)
+            double laneFlow = scratch.LaneFleetCapacity[lane.Id]
+                              * eco.ReExportWeight;
+            if (laneFlow <= 0) continue;
             var mA = state.Markets[lane.PortAId];
             var mB = state.Markets[lane.PortBId];
             for (int g = 0; g < mA.Price.Length; g++)
@@ -562,7 +574,11 @@ public static class MarketEngine
 
         foreach (var lane in state.Lanes)                 // id order (P6)
         {
-            if (state.SeveredLanes.Contains(lane.Id)) continue;
+            // parity discipline needs a lane goods can actually cross:
+            // severed or hull-less lanes cap nothing — an unserved market
+            // spikes exactly like a blockaded one (visible naval shortage)
+            if (scratch.Severed.Contains(lane.Id)
+                || scratch.LaneFleetCapacity[lane.Id] <= 0) continue;
             ApplyImportParity(state, snapshot, lane.PortAId, lane.PortBId);
             ApplyImportParity(state, snapshot, lane.PortBId, lane.PortAId);
         }
@@ -678,10 +694,12 @@ public static class MarketEngine
         int shipments = 0;
         foreach (var lane in state.Lanes)                 // id order (P6)
         {
-            if (state.SeveredLanes.Contains(lane.Id)) continue;
+            if (scratch.Severed.Contains(lane.Id)) continue;
             var portA = state.Ports[lane.PortAId];
             var portB = state.Ports[lane.PortBId];
-            double capacity = LaneMath.Capacity(portA, portB) * years
+            // the posted-posture capacity: what this lane's hulls can lift
+            // this epoch (a lane without freighters arbitrages nothing)
+            double capacity = scratch.LaneFleetCapacity[lane.Id]
                               - scratch.LaneCapacityUsed[lane.Id];
             if (capacity <= 0) continue;
             int dist = HexGrid.Distance(portA.Hex, portB.Hex);
@@ -731,9 +749,13 @@ public static class MarketEngine
                     scratch.Demand[dst.Id][g] - mDst.Inventory[g]);
                 double qty = Math.Min(absorption,
                     Math.Min(mSrc.Inventory[g] * eco.ExportShare, capacity));
-                if (costPerUnit > 0 && exporter.Credits < qty * costPerUnit)
-                    qty = Math.Max(0, exporter.Credits / costPerUnit);
                 if (qty <= 0) continue;
+                // merchants trade on working capital, like producers
+                // (slice D's RunRecipe convention): the ledger may dip
+                // within the step — the sale's payout lands at distribution,
+                // the trade is margin-gated above, and insolvency is
+                // Allocation's credit problem. Clamping to a deficit-financed
+                // treasury killed every shipment in the galaxy.
 
                 double grade = mSrc.InventoryGrade[g];
                 double drawn = mSrc.Draw(g, qty);

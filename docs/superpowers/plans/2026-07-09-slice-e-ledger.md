@@ -93,7 +93,7 @@ Architecture decisions (made at kickoff, flag deviations):
       yard hull building from market components (+armaments), fleet
       founding/joining, hull counters, homeworld starter fleet, NAVY/FLEET
       serialization. Gate: conservation test (credits + hulls); golden regen.
-- [ ] 4. **Postures + posted capacity** — posture/route state, Allocation
+- [x] 4. **Postures + posted capacity** — posture/route state, Allocation
       fleet management (post freight to lanes, patrols by militancy,
       reserve default), `PostedCapacity` replaces `LaneMath.Capacity` in
       Arbitrage + AddReExportDemand, blockade severance, TrafficMath.
@@ -154,3 +154,24 @@ Architecture decisions (made at kickoff, flag deviations):
 - Mark drift hasn't fired in golden runs yet: recipe component grades
   hover below design grade + 0.15. Revisit at task 8 (or accept: lineages
   drift when tech/grade actually moves, which is honest).
+- **Freight was structurally dead on main** (task 4 discovery): 0
+  arbitrage shipments over entire 40-epoch histories at radius 12 AND 21 —
+  pre-E. Two stacked causes: (1) every polity runs deficit-financed
+  (credits −11k…−77k), and arbitrage clamped shipments to exporter
+  treasury → always 0; (2) freight cost/hex over 8–29-hex lanes swamps
+  raw-goods glut prices, and the parity cap sits just above break-even so
+  the drift takes epochs to reach viability. Fix: **merchants trade on
+  working capital** — same convention D gave producers in RunRecipe (the
+  ledger dips within the step, payout lands at distribution, insolvency is
+  Allocation's problem). After: shipments 0 → 130–160/epoch by late
+  history; famine events 808 → 622 (seed 42, radius 12). D's economy
+  "worked" through the parity price cap alone — a promise of imports that
+  never physically flowed; E's hulls made the lie visible. **Flag at
+  eyeball.**
+- Import parity now requires a *served* lane (posted capacity > 0, not
+  severed): an unserved market spikes exactly like a blockaded one —
+  naval shortage is visible on the price map.
+- Posture manager churn note: posted fleets pool + redeal freight hulls
+  every epoch (grades blend per design); empty posted fleets linger as
+  registry records (id==index — no deletion). Acceptable growth; disband
+  mechanics can come with H salvage if it bothers.
