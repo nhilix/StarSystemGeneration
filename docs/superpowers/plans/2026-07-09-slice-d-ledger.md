@@ -106,7 +106,24 @@ Architecture decisions (made at kickoff, flag deviations):
       Accepted as documented deferrals: physical fuel drawdown (E's hulls),
       unpaid upkeep draws (the commons convention, revisit when
       corporations own facilities in G).
-- [ ] 11. **USER: REPL eyeball** — the taste gate: run a sim, `market` a
+- [~] 11. **USER: REPL eyeball** — first pass diagnosed the famine wall.
+      Root cause was colonial cash-flow drain + ceiling-locked prices, NOT
+      site quality or connectivity (classification: hungry ports had good
+      farmland, lanes, and food on the shelf their broke households couldn't
+      buy). User-agreed fixes, landed: (1) **the expedition ships the
+      equipment for what it came for** — founding facility matches the
+      site's best potential (extraction needs a 1.25× food-security premium
+      over farmland; agri seeds alongside any extraction pick); (2) the
+      genesis controller **holds expansion below realm subsistence 0.8**
+      (consolidation before expansion; `PerceptionView.RealmSubsistence`);
+      (3) **import parity disciplines connected prices** — a market's price
+      caps at neighbor price + transport, grossed up by the exporter's
+      realized margin ×1.15 headroom; severed lanes lift the cap, so
+      blockade spikes survive. After: hungry ports inverted from
+      wealth-0/price-ceiling death spirals to wealthy young colonies
+      mid-bootstrap at sane prices; industry doubled (211 facilities);
+      ghost towns (~30%) remain as legible residue — proportion is the
+      remaining taste call. — the taste gate: run a sim, `market` a
       hub, `lanecut` a lane, `estep`, watch the spike at the strangled port
       and the glut at the producer. Tune knobs as directed.
 - [ ] 12. **Golden freeze + wrap-up** — regenerate

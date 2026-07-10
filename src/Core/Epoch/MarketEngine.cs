@@ -486,16 +486,28 @@ public static class MarketEngine
     // Step 3 — price adjusts
     // ------------------------------------------------------------------
 
+    /// <summary>Headroom over the arbitrage break-even in the parity cap —
+    /// imports must stay profitable to actually flow.</summary>
+    private const double ParityHeadroom = 1.15;
+
     /// <summary>Each (market, good) price drifts toward clearing: excess
     /// demand pushes up, glut pushes down, rate-limited per world-year —
     /// markets never perfectly clear; persistent gradients ARE the trade
-    /// opportunities.</summary>
+    /// opportunities. Lane-connected markets are additionally disciplined by
+    /// import parity: nobody pays ceiling prices for what a neighbor sells
+    /// at glut plus transport — a blockade (severed lane) removes the
+    /// alternative and with it the cap, which is exactly the spike.</summary>
     public static void AdjustPrices(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
         double cap = Math.Exp(eco.PriceDriftMaxPerYear
                               * state.Config.Sim.YearsPerEpoch);
         const double eps = 1e-9;
+        // parity reads pre-drift prices so lane order cannot matter (P6)
+        var snapshot = new double[state.Markets.Count][];
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+            snapshot[mIx] = (double[])state.Markets[mIx].Price.Clone();
+
         for (int mIx = 0; mIx < state.Markets.Count; mIx++)
         {
             var market = state.Markets[mIx];
@@ -511,6 +523,54 @@ public static class MarketEngine
                 market.Price[g] = Math.Min(ceiling,
                     Math.Max(PriceFloor, market.Price[g] * factor));
             }
+        }
+
+        foreach (var lane in state.Lanes)                 // id order (P6)
+        {
+            if (state.SeveredLanes.Contains(lane.Id)) continue;
+            ApplyImportParity(state, snapshot, lane.PortAId, lane.PortBId);
+            ApplyImportParity(state, snapshot, lane.PortBId, lane.PortAId);
+        }
+    }
+
+    /// <summary>Cap the destination's price at what importing from this
+    /// neighbor would cost: source price + freight + fuel + tariff +
+    /// friction, grossed up by the exporter's realized margin (tax and labor
+    /// share) plus headroom so the trade still pays.</summary>
+    private static void ApplyImportParity(SimState state, double[][] snapshot,
+                                          int srcId, int dstId)
+    {
+        var eco = state.Config.Economy;
+        var src = state.Ports[srcId];
+        var dst = state.Ports[dstId];
+        int dist = HexGrid.Distance(src.Hex, dst.Hex);
+        double freight = eco.FreightCostPerUnitPerHex * dist;
+        double fuel = eco.FuelPerUnitPerHex * dist
+                      * snapshot[srcId][(int)GoodId.Fuel];
+        var dstPolicies = state.Actors[dst.OwnerActorId].Policies
+                          as PolityPolicies ?? PolityPolicies.Default;
+        double margin = (1.0 - dstPolicies.TaxRate) * (1.0 - eco.LaborShare);
+        if (margin <= 0) return;
+        var dstMarket = state.Markets[dstId];
+        for (int g = 0; g < dstMarket.Price.Length; g++)
+        {
+            // no supply to import against, no parity
+            if (state.Markets[srcId].Inventory[g] <= 0) continue;
+            var srcLevel = LegalityAt(state, src.OwnerActorId, g);
+            var dstLevel = LegalityAt(state, dst.OwnerActorId, g);
+            if (srcLevel == LegalityLevel.Prohibited
+                || dstLevel == LegalityLevel.Prohibited) continue;
+            double tariff = 0;
+            if (src.OwnerActorId != dst.OwnerActorId
+                && dstPolicies.TariffSchedule.TryGetValue(g, out double rate))
+                tariff = rate * snapshot[dstId][g];
+            double friction = srcLevel == LegalityLevel.Restricted
+                              || dstLevel == LegalityLevel.Restricted
+                ? RestrictedFriction * snapshot[dstId][g] : 0;
+            double parity = (snapshot[srcId][g] + freight + fuel + tariff + friction)
+                            / margin * ParityHeadroom;
+            if (parity < dstMarket.Price[g])
+                dstMarket.Price[g] = Math.Max(PriceFloor, parity);
         }
     }
 

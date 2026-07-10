@@ -29,6 +29,7 @@ public sealed class PerceptionPhase : ISimPhase
                 ? ColonyValuation.CandidatesFor(state, a.Id) : null;
             Galaxy.SpeciesProfile? selfSpecies = null;
             int ownPorts = 0;
+            double realmSubsistence = 1.0;
             if (a.Kind == ActorKind.Polity)
             {
                 int sp = state.PolityOf(a.Id).SpeciesId;
@@ -36,10 +37,19 @@ public sealed class PerceptionPhase : ISimPhase
                     selfSpecies = state.Skeleton.Species[sp];
                 foreach (var p in state.Ports)
                     if (p.OwnerActorId == a.Id) ownPorts++;
+                double sizeSum = 0, subSum = 0;
+                foreach (var s in state.Segments)
+                {
+                    if (s.Size <= 0
+                        || state.Ports[s.PortId].OwnerActorId != a.Id) continue;
+                    sizeSum += s.Size;
+                    subSum += s.LastSubsistence * s.Size;
+                }
+                if (sizeSum > 0) realmSubsistence = subSum / sizeSum;
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
-                                              ownPorts);
+                                              ownPorts, realmSubsistence);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -599,16 +609,41 @@ public sealed class ResolutionPhase : ISimPhase
             // spending is somebody's income, never destroyed (P4)
             Wealth = cfg.Expansion.ColonyCost,
         });
-        // settlers farm first: every colony founds with a subsistence farm
-        // (expedition furniture, like the homeworld starter industry)
+        // the expedition ships the equipment for what it came for: the
+        // founding facility matches the site's best extraction potential,
+        // plus a subsistence farm when that isn't farming — the export
+        // earnings are what finance the provisions imports
+        var founding = FoundingIndustry(state, act.Target);
         state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)Substrate.InfraTypeId.AgriComplex, tier: 1, act.Target,
-            act.ActorId, state.WorldYear));
+            (int)founding, tier: 1, act.Target, act.ActorId, state.WorldYear));
+        if (founding != Substrate.InfraTypeId.AgriComplex)
+            state.Facilities.Add(new Facility(state.Facilities.Count,
+                (int)Substrate.InfraTypeId.AgriComplex, tier: 1, act.Target,
+                act.ActorId, state.WorldYear));
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
             EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
         return true;
+    }
+
+    /// <summary>The extraction type matching the colony site's strongest
+    /// potential. Food security carries a premium: extraction wins only when
+    /// it clearly out-values the farmland — otherwise settlers farm.</summary>
+    private static Substrate.InfraTypeId FoundingIndustry(SimState state,
+                                                          HexCoordinate target)
+    {
+        const double FoodSecurityPremium = 1.25;
+        var fields = MarketEngine.FieldsAt(state, target);
+        var best = Substrate.InfraTypeId.AgriComplex;
+        double bar = Substrate.Potentials.Biosphere(fields) * FoodSecurityPremium;
+        if (Substrate.Potentials.Ore(fields) > bar)
+        { best = Substrate.InfraTypeId.Mine; bar = Substrate.Potentials.Ore(fields); }
+        if (Substrate.Potentials.Volatiles(fields) > bar)
+        { best = Substrate.InfraTypeId.Skimmer; bar = Substrate.Potentials.Volatiles(fields); }
+        if (Substrate.Potentials.Exotics(fields) > bar)
+            best = Substrate.InfraTypeId.ExcavationSite;
+        return best;
     }
 }
 

@@ -28,12 +28,17 @@ public sealed class PerceptionView
     /// <summary>Own port count — scales standing policy magnitudes
     /// (stockpile targets and the like).</summary>
     public int OwnPortCount { get; }
+    /// <summary>Size-weighted mean subsistence across the realm's segments
+    /// (1.0 when unpeopled) — the consolidation signal: a starving realm
+    /// digests before it expands.</summary>
+    public double RealmSubsistence { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
                           IReadOnlyList<ColonyCandidate>? colonyCandidates = null,
                           SpeciesProfile? selfSpecies = null,
-                          int ownPortCount = 0)
+                          int ownPortCount = 0,
+                          double realmSubsistence = 1.0)
     {
         SelfId = selfId;
         WorldYear = worldYear;
@@ -42,6 +47,7 @@ public sealed class PerceptionView
         ColonyCandidates = colonyCandidates ?? NoCandidates;
         SelfSpecies = selfSpecies;
         OwnPortCount = ownPortCount;
+        RealmSubsistence = realmSubsistence;
     }
 }
 
@@ -89,11 +95,15 @@ public sealed class GenesisController : IController
     /// <summary>Provisions reserve target per owned port — famine and siege
     /// buffering by standing policy (economy/markets.md §Stockpiles).</summary>
     private const double ProvisionsReservePerPort = 3.0;
+    /// <summary>No expeditions while the realm starves: expansion waits for
+    /// consolidation below this mean-subsistence line.</summary>
+    private const double RealmHungerGate = 0.8;
 
     public ControllerDecision Decide(PerceptionView perceived)
     {
         var policies = PoliciesFor(perceived);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
+            && perceived.RealmSubsistence >= RealmHungerGate
             && perceived.ColonyCandidates.Count > 0)
             return new ControllerDecision(policies, new Act[]
             {
