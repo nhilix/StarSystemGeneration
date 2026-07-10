@@ -121,20 +121,28 @@ public static class TechOps
     }
 
     /// <summary>Diffusion's bounded ladder climb: you can learn from the
-    /// goods you buy, but not lead with them — progress past the cap is
-    /// discarded, structurally (not just at sane rates).</summary>
+    /// goods you buy, but not lead with them — the climb STOPS at the cap
+    /// (no phantom TechAdvance past it) and overflow progress is discarded,
+    /// structurally (not just at sane rates).</summary>
     private static void AdvanceCapped(SimState state, PolityRecord pr,
                                       TechDomain domain, double progress,
                                       int maxTier)
     {
         int d = (int)domain;
-        if (pr.TechTier[d] >= maxTier) return;
-        Advance(state, pr, domain, progress);
-        if (pr.TechTier[d] >= maxTier)
+        if (progress <= 0 || pr.TechTier[d] >= maxTier) return;
+        pr.TechProgress[d] += progress;
+        while (pr.TechTier[d] < maxTier
+               && pr.TechProgress[d] >= Tech.Threshold(state.Config, pr.TechTier[d]))
         {
-            pr.TechTier[d] = maxTier;
-            pr.TechProgress[d] = 0;
+            pr.TechProgress[d] -= Tech.Threshold(state.Config, pr.TechTier[d]);
+            pr.TechTier[d]++;
+            state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+                WorldEventType.TechAdvanced, new[] { pr.ActorId },
+                state.Actors[pr.ActorId].Seat, Magnitude: pr.TechTier[d],
+                Valence: 1.0, EventVisibility.Regional,
+                new TechAdvancedPayload(pr.ActorId, d, pr.TechTier[d])));
         }
+        if (pr.TechTier[d] >= maxTier) pr.TechProgress[d] = 0;
     }
 
     /// <summary>The two live diffusion channels (technology.md §Diffusion):

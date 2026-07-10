@@ -178,7 +178,7 @@ public static class CorporationOps
     {
         foreach (var corp in state.Corporations)
             if (corp.Active && corp.Niche == CorporateNiche.Raiding
-                && corp.HomePortId == laneId) return true;
+                && corp.TargetId == laneId) return true;
         return false;
     }
 
@@ -266,7 +266,8 @@ public static class CorporationOps
             haven, state.EpochIndex, new CorporateController())
         { Entered = true });
         var band = new Corporation(state.Corporations.Count, actorId, name,
-            -1, CorporateNiche.Raiding, laneId, state.WorldYear);
+            -1, CorporateNiche.Raiding, lane.PortAId, state.WorldYear)
+        { TargetId = laneId };   // the haven is a port; the hunt is a lane
         state.Corporations.Add(band);
         var lord = CharacterOps.MintNotable(state, pr.ActorId,
             NotableType.PirateLord, haven);
@@ -315,6 +316,19 @@ public static class CorporationOps
             var policies = state.Actors[corp.ActorId].Policies
                 as CorporationPolicies ?? CorporationPolicies.Default;
 
+            // the boardroom refills like any court: a dead executive's
+            // seat passes on (characters.md — role slots stay occupied)
+            if (corp.ExecutiveCharacterId < 0
+                || !state.Characters[corp.ExecutiveCharacterId].Alive)
+            {
+                int home = corp.HostPolityId >= 0 ? corp.HostPolityId
+                    : state.Ports[corp.HomePortId].OwnerActorId;
+                var successor = CharacterOps.Mint(state, home,
+                    CharacterRole.Executive, corp.ActorId,
+                    state.Config.Character.RulerMintAgeFraction);
+                corp.ExecutiveCharacterId = successor.Id;
+            }
+
             RunUpkeep(state, corp);
             switch (corp.Niche)
             {
@@ -352,11 +366,22 @@ public static class CorporationOps
                 if (corp.Receipts > knobs.MagnateReceipts
                     && corp.ExecutiveCharacterId >= 0
                     && state.Characters[corp.ExecutiveCharacterId]
-                           .Notable == NotableType.None
+                           is { Alive: true, Notable: NotableType.None } exec
                     && CharacterOps.NotableCount(state, corp.HostPolityId)
                        < state.Config.Character.MaxNotablesPerPolity)
-                    state.Characters[corp.ExecutiveCharacterId].Notable =
-                        NotableType.Magnate;
+                {
+                    // a corporate boom mints its magnate — chronicled and
+                    // renowned like every other notable (characters.md)
+                    exec.Notable = NotableType.Magnate;
+                    exec.Renown += state.Config.Character.RenownNotable;
+                    state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+                        WorldEventType.NotableEmerged,
+                        new[] { corp.HostPolityId, corp.ActorId },
+                        state.Ports[corp.HomePortId].Hex, Magnitude: 1.0,
+                        Valence: 0.5, EventVisibility.Regional,
+                        new NotableEmergedPayload(exec.Id, exec.Name,
+                                                  (int)NotableType.Magnate)));
+                }
             }
 
             // deaths: the balance sheet or the niche gives out

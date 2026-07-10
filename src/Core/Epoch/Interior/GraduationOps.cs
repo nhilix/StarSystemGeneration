@@ -39,7 +39,12 @@ public static class GraduationOps
             foreach (var faction in state.Factions)           // id order (P6)
             {
                 if (!faction.Active || faction.PolityId != pr.ActorId) continue;
-                if (faction.Basis == FactionBasis.Corporate) continue; // task 7
+                if (faction.Basis == FactionBasis.Corporate) continue; // charters instead
+                // a leaderless movement waits for its next leader (FactionOps
+                // remints them) — never crown or martyr a corpse
+                if (faction.LeaderCharacterId < 0
+                    || !state.Characters[faction.LeaderCharacterId].Alive)
+                    continue;
                 double pressure = faction.Strength * faction.Grievance;
                 if (pressure > loudest) { loudest = pressure; challenger = faction; }
             }
@@ -100,15 +105,17 @@ public static class GraduationOps
         }
         string name = state.Cultures[cultureId].Name;
 
-        // seat at the biggest seceding harbor
+        // seat at the biggest seceding harbor (port-id order breaks ties —
+        // never iterate the set itself, P6)
         int seatPort = -1;
         double seatPop = -1;
-        foreach (int portId in seceding)
+        foreach (var port in state.Ports)                     // id order (P6)
         {
+            if (!seceding.Contains(port.Id)) continue;
             double pop = 0;
             foreach (var s in state.Segments)
-                if (s.PortId == portId) pop += s.Size;
-            if (pop > seatPop) { seatPop = pop; seatPort = portId; }
+                if (s.PortId == port.Id) pop += s.Size;
+            if (pop > seatPop) { seatPop = pop; seatPort = port.Id; }
         }
         var seat = state.Ports[seatPort].Hex;
 
@@ -303,18 +310,17 @@ public static class GraduationOps
             RollChannel.Graduation, state.EpochIndex, faction.Id, 1)
             < faction.Militancy * 0.5;
 
-        if (newForm != oldForm)
+        if (newForm != oldForm) interior.FormId = newForm;
+        // whatever form the coup leaves behind, a lineage form crowns a
+        // house — the usurper's line starts here (characters.md §Dynasties)
+        if (GovernmentForms.Get(interior.FormId).Succession
+                is SuccessionRule.Dynastic or SuccessionRule.RareDesignation
+            && leader.DynastyId < 0)
         {
-            interior.FormId = newForm;
-            var form = GovernmentForms.Get(newForm);
-            if (form.Succession is SuccessionRule.Dynastic
-                or SuccessionRule.RareDesignation && leader.DynastyId < 0)
-            {
-                var house = new Dynasty(state.Dynasties.Count, leader.Name,
-                                        leader.Id, pr.ActorId);
-                state.Dynasties.Add(house);
-                leader.DynastyId = house.Id;
-            }
+            var house = new Dynasty(state.Dynasties.Count, leader.Name,
+                                    leader.Id, pr.ActorId);
+            state.Dynasties.Add(house);
+            leader.DynastyId = house.Id;
         }
 
         // the movement's chest funds the new regime (conserved flow)

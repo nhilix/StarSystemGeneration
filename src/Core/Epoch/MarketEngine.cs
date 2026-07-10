@@ -798,7 +798,11 @@ public static class MarketEngine
                 if (drawn <= 0) continue;
                 mSrc.LastCleared[g] += drawn;
                 exporter.Credits -= drawn * (pSrc + freight + fuel);
-                scratch.PoolByMarket[src.Id] += drawn * (pSrc + freight + fuel);
+                scratch.PoolByMarket[src.Id] += drawn * (pSrc + fuel);
+                // the freight fee pays whoever posted the hulls — freight
+                // lines (and merchant marines) book real revenue (slice G;
+                // corporations.md: unserved *profitable* lanes)
+                PayHaulers(state, lane, drawn * freight);
                 if (tariff > 0)
                 {
                     exporter.Credits -= drawn * tariff;
@@ -829,6 +833,37 @@ public static class MarketEngine
             }
         }
         return (shipments, units);
+    }
+
+    /// <summary>The freight fee splits across the lane's posted fleets by
+    /// hull count — a conserved exporter→hauler flow (P4). The lane always
+    /// has haulers when freight moved (capacity IS their hulls).</summary>
+    private static void PayHaulers(SimState state, Lane lane, double fee)
+    {
+        if (fee <= 0) return;
+        int hulls = 0;
+        foreach (var fleet in state.Fleets)
+            if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
+                hulls += fleet.TotalHulls;
+        if (hulls <= 0)
+        {
+            // shouldn't happen (capacity implies hulls), but a fee must
+            // land somewhere: the source port's sovereign takes it
+            var fallback = state.LedgerOf(
+                state.Ports[lane.PortAId].OwnerActorId);
+            fallback.Credits += fee;
+            fallback.Receipts += fee;
+            return;
+        }
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Posted
+                || fleet.TargetId != lane.Id || fleet.TotalHulls == 0) continue;
+            var owner = state.LedgerOf(fleet.OwnerActorId);
+            double share = fee * fleet.TotalHulls / hulls;
+            owner.Credits += share;
+            owner.Receipts += share;
+        }
     }
 
     /// <summary>Polity procurement: buy toward standing stockpile targets

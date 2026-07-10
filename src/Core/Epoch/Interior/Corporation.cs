@@ -40,8 +40,12 @@ public sealed class Corporation : ICreditLedger
     /// pirate bands are chartered nowhere).</summary>
     public int HostPolityId { get; set; }
     public CorporateNiche Niche { get; }
-    /// <summary>Headquarters — operations stage from this port's market.</summary>
+    /// <summary>Headquarters — operations stage from this port's market
+    /// (a pirate band's haven port).</summary>
     public int HomePortId { get; set; }
+    /// <summary>Niche context: the hunted lane id for pirate bands; −1
+    /// otherwise (slice H arms the raiding).</summary>
+    public int TargetId { get; set; } = -1;
     public long FoundedYear { get; }
     public bool Active { get; set; } = true;
     /// <summary>Conserved books: founded on the merchant faction's war

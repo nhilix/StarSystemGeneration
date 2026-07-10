@@ -235,11 +235,28 @@ as work lands.
   chronicle prose for every new event type in `SimTraceView.Describe`;
   `watch` stays intact (byte-neutral observation). Golden frozen once
   at slice end.
-- [ ] **G9 — fresh-eyes whole-branch review** (one subagent) + one fix
-  wave; TUNING.md sweep (all new knob rows + catalog structural
-  notes); shape-band tests: factions form but polities survive
-  (graduations low single digits per polity over 40 epochs),
-  characters ≈ a dozen per polity, tech tiers advance without runaway.
+- [x] **G9 — fresh-eyes whole-branch review + fix wave** *(done: one
+  subagent reviewed the full branch diff; 7 confirmed findings, all
+  fixed in one wave: (1) coups now found a house whenever the
+  resulting form is lineage-based (was: only on form change — dynastic
+  thrones went permanently houseless); (2) freight fees now pay the
+  posting fleets (`MarketEngine.PayHaulers`, exporter→hauler conserved
+  flow) — freight corporations were structurally revenue-less and
+  died on schedule; (3) dead executives refill like any court, and
+  magnate minting is Alive-guarded + chronicled + renowned; (4)
+  graduation skips dead-leader factions (never crown a corpse); (5)
+  schism seat selection iterates ports in id order, not the HashSet
+  (P6 hardening); (6) pirate bands store haven port in HomePortId and
+  the hunted lane in new `Corporation.TargetId` (serialized); (7)
+  capped diffusion stops climbing at source−1 instead of clamping
+  after emitting phantom TechAdvance events. Review also explicitly
+  cleared conservation, determinism keying, serialization field
+  orders, and registry lifecycle paths. TUNING sweep complete
+  (Interior/Character/Faction/Tech/Corporate tables + structural
+  notes). Shape bands verified at seeds 42/7/1234: graduations 5–6
+  per ~10-polity galaxy per 40 epochs, characters within the sparsity
+  band, tech tiers 1–3 no runaway. Golden regenerated (freight income
+  changed histories) — 418/418 green)*.
 - [ ] **G10 — eyeball gate**: a polity readable as a story (form, reign,
   succession, a faction rising on real grievance and graduating — a
   schism visible on the domain map, a corporation founded from a

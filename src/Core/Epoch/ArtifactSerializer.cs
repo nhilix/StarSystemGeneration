@@ -294,7 +294,8 @@ public static class ArtifactSerializer
                 B(c.Active), R(c.Credits),
                 c.ExecutiveCharacterId.ToString(Inv),
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
-                c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv)));
+                c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv),
+                c.TargetId.ToString(Inv)));
         w.WriteLine("END");
     }
 
@@ -872,6 +873,7 @@ public static class ArtifactSerializer
                             HullsWrecked = int.Parse(f[12], Inv),
                             HullsScrapped = int.Parse(f[13], Inv),
                             LeanEpochs = int.Parse(f[14], Inv),
+                            TargetId = int.Parse(f[15], Inv),
                         });
                         break;
                     case "EVENT":
