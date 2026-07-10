@@ -99,6 +99,25 @@ public sealed class WarKnobs
     /// <summary>Exhaustion per fully-wrecked own warship roster — losses
     /// weary a nation beyond the years alone.</summary>
     public double ExhaustionPerLoss { get; set; } = 0.4;
+    /// <summary>Legitimacy below which a belligerent's politics count as
+    /// broken — a polity breaks when its politics break.</summary>
+    public double LegitimacyCollapseFloor { get; set; } = 0.25;
+    /// <summary>Coalition strength (as a share of the strength mustered at
+    /// declaration) below which a side counts fleet-exhausted.</summary>
+    public double FleetExhaustionShare { get; set; } = 0.15;
+    /// <summary>Share of the loser's liquid treasury a reparations
+    /// settlement transfers (conserved).</summary>
+    public double ReparationsShare { get; set; } = 0.25;
+    /// <summary>Fractional tension unloaded by a settlement — the war
+    /// discharged what the claims don't restock.</summary>
+    public double SettlementTensionRelief { get; set; } = 0.5;
+    /// <summary>Militancy a war's end adds to both sides' military
+    /// factions — veterans come home harder.</summary>
+    public double VeteranMilitancyBump { get; set; } = 0.10;
+    /// <summary>Legitimacy a settlement hands the winner's throne.</summary>
+    public double VictoryLegitimacy { get; set; } = 0.08;
+    /// <summary>Legitimacy a settlement costs the loser's throne.</summary>
+    public double DefeatLegitimacy { get; set; } = 0.12;
 }
 
 /// <summary>Relations dials (interpolity/relations.md): contact reach, the

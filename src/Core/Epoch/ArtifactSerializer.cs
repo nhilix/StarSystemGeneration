@@ -1189,6 +1189,11 @@ public static class ArtifactSerializer
         PortCapturedPayload e => Join("portCaptured", e.WarId.ToString(Inv),
             Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
             Name(e.DefenderName)),
+        PeaceSettledPayload e => Join("peaceSettled", e.WarId.ToString(Inv),
+            Name(e.WarName), e.Outcome.ToString(Inv),
+            e.WinnerId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName), e.PortsCeded.ToString(Inv),
+            R(e.Reparations)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1315,6 +1320,10 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
         "portCaptured" => new PortCapturedPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
+        "peaceSettled" => new PeaceSettledPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
+            double.Parse(f[at + 8], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

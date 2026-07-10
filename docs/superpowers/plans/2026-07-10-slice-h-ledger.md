@@ -186,7 +186,28 @@ surprises — updated as work lands.
   real interdiction (blockade fleets sever lanes) replaces
   SimState.SeveredLanes. Named battles with commanders (war-hero mints,
   commander hazard). Wars named ("the <name> War").
-- [ ] **H7 — War economy, weariness, termination, settlement**:
+- [x] **H7 — Weariness, termination, settlement, aftermath** *(done:
+  `Interpolity/WarResolution.cs`; the legitimacy war term is LIVE —
+  `WarScore` (0.5 at peace; ± objective progress − exhaustion) replaces
+  InteriorOps' stub, and `Economy.WarWearinessPerYear` (inert since
+  slice A) drives exhaustion with the loss share on top; break
+  conditions on truth: exhaustion ≥ 1, legitimacy <
+  LegitimacyCollapseFloor, coalition strength < FleetExhaustionShare ×
+  mustered, capital lost, extinction; controllers sue for peace
+  (SettlementResponseAct) when exhaustion > 0.7 or strength share <
+  0.3; Terminate settles: attacker victory (defender broke or all
+  objectives taken, attacker whole) executes the demand — cessions
+  hold + LostTerritory claims raise per ceded port, reparations =
+  treasury share conserved, Vassalize binds (guarded), Independence
+  unbinds; anything else = white peace with captures + facilities
+  returned; wind-down: demobilization to reserve, tension ×(1−relief),
+  veterans bump military-faction militancy both sides, winner/loser
+  legitimacy deltas; event 510 PeaceSettled (diplomatic, the
+  settlement record); knobs +7 + TUNING; seed-42 r12: 16 settlements
+  (white peaces + cessions), no permanent galaxy-wide war (shape test
+  locks it); 471/471 green, golden regen. NOTE: victories often cede
+  0 ports — sieges rarely complete at current navy scales; flagged
+  for the H11 shape pass)*:
   armaments/fuel drain through existing upkeep + mobilization demand;
   war loans; weariness through the interior (losses + SoL decline shift
   ideology → peace/military factions → legitimacy war term armed,

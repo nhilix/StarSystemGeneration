@@ -372,6 +372,12 @@ and the incident freshness window (2 epochs) are structural.
 | `War.CommanderDeathOnRout` | 0.25 | Decisive days kill admirals (biographies end at the front). | Commanders always swim home. |
 | `War.RenownPerVictory` / `WarHeroRenown` | 2 / 6 | Heroes mint from a battle or two. | Only lifetime campaigners are remembered. |
 | `War.ExhaustionPerLoss` | 0.4 | Blood exhausts faster than years (losses end wars). | Only time wearies; attrition wars run forever. |
+| `War.LegitimacyCollapseFloor` | 0.25 | Shaky thrones sue early ("a polity breaks when its politics break"). | Wars outlive the governments fighting them. |
+| `War.FleetExhaustionShare` | 0.15 | Navies fight to the last squadron. | First serious losses end the war. |
+| `War.ReparationsShare` | 0.25 | Losing is expensive (postwar debt overhang decades). | Reparations are symbolic. |
+| `War.SettlementTensionRelief` | 0.5 | Peace genuinely clears the air (until claims restock it). | The next war starts where the last one ended. |
+| `War.VeteranMilitancyBump` | 0.10 | Every war hardens the sword parties (militarization ratchets). | Veterans retire quietly. |
+| `War.VictoryLegitimacy` / `DefeatLegitimacy` | 0.08 / 0.12 | War outcomes make and break governments (defeat → graduation risk). | Thrones indifferent to the front. |
 
 ## Structural constants (code, not knobs — deliberately)
 

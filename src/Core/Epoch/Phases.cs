@@ -847,6 +847,7 @@ public sealed class ResolutionPhase : ISimPhase
         int acts = 0, founded = 0, nationalized = 0;
         int signed = 0, broken = 0, vassalized = 0, instruments = 0;
         int warsDeclared = 0;
+        HashSet<(int, int)>? concessions = null;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
@@ -870,11 +871,16 @@ public sealed class ResolutionPhase : ISimPhase
                 if (act is DeclareWarAct war
                     && WarOps.DeclareWar(state, war) != null)
                     warsDeclared++;
+                if (act is SettlementResponseAct sue && sue.Accept)
+                    (concessions ??= new HashSet<(int, int)>())
+                        .Add((sue.WarId, sue.ActorId));
             }
         // the theater/objective model fights every active war one epoch
         // forward — doctrine posts fleets, engagements resolve on vectors,
         // sieges grind, captures transfer domains (war.md §Conduct)
         int battles = WarConduct.FightWars(state);
+        // then the broken sue: settlements read per-objective outcomes
+        int settled = WarResolution.Terminate(state, concessions);
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
         if (battles > 0)
@@ -897,6 +903,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (warsDeclared > 0)
             note += $", {warsDeclared} " + (warsDeclared == 1
                 ? "war declared" : "wars declared");
+        if (settled > 0)
+            note += $", {settled} " + (settled == 1
+                ? "peace settled" : "peaces settled");
         return note;
     }
 

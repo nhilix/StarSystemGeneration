@@ -82,7 +82,9 @@ public static class InteriorOps
                 meanSoL + knobs.SoLTrendGain * (meanSoL - interior.LastMeanSoL));
             double alignment = Clamp01(1.0 - 2.0 * gap);
             double ruler = RulerPrestige(state, interior);
-            double war = 0.5;   // war outcomes land with slice H
+            // war outcomes: winning steadies a throne, a grinding or
+            // losing war saps it — weariness is the interior responding
+            double war = WarResolution.WarScore(state, pr.ActorId);
             double accommodation = Clamp01(1.0 - minoritySize / sizeSum);
             double wP = knobs.LegitimacyProsperityWeight * form.LegitimacyProsperityWeight;
             double wI = knobs.LegitimacyIdeologyWeight * form.LegitimacyIdeologyWeight;

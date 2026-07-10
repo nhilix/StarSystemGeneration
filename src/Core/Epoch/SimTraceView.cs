@@ -258,6 +258,23 @@ public static class SimTraceView
             PortCapturedPayload p =>
                 Invariant($"port #{p.PortId} falls to {p.AttackerName}; ")
                 + $"its people wake under a new flag ({p.WarName})",
+            PeaceSettledPayload p =>
+                p.WarName + " ends: " + (WarOutcome)p.Outcome switch
+                {
+                    WarOutcome.ObjectivesCeded => Invariant(
+                        $"{p.DefenderName} cedes {p.PortsCeded} ")
+                        + (p.PortsCeded == 1 ? "port" : "ports")
+                        + $" to {p.AttackerName}",
+                    WarOutcome.Reparations =>
+                        $"{p.DefenderName} pays reparations"
+                        + (p.PortsCeded > 0
+                            ? Invariant($" and cedes {p.PortsCeded}") : ""),
+                    WarOutcome.Vassalized =>
+                        $"{p.DefenderName} kneels to {p.AttackerName}",
+                    WarOutcome.Independence =>
+                        $"{p.AttackerName} wins its independence",
+                    _ => "white peace — the borders stand where they stood",
+                },
             DynasticInstrumentPayload p =>
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"

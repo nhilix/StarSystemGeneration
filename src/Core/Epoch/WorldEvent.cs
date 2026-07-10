@@ -68,6 +68,7 @@ public enum WorldEventType
     VassalAbsorbed = 507,
     VassalSeceded = 508,
     DynasticInstrument = 509,
+    PeaceSettled = 510,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -306,6 +307,14 @@ public sealed record PortCapturedPayload(
 public sealed record DynasticInstrumentPayload(
     int FromPolityId, int ToPolityId, string FromName, string ToName,
     int Instrument) : EventPayload;
+
+/// <summary>The settlement record (war.md §Termination): negotiated from
+/// per-objective outcomes — cessions, reparations, vassalization,
+/// independence, or white peace. WinnerId −1 = white peace.</summary>
+public sealed record PeaceSettledPayload(
+    int WarId, string WarName, int Outcome, int WinnerId,
+    string AttackerName, string DefenderName, int PortsCeded,
+    double Reparations) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

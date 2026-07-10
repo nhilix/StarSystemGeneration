@@ -242,6 +242,14 @@ public sealed class GenesisController : IController
                     rel.OtherPolityId, instrument));
                 break;   // one wedding a generation is plenty
             }
+        // suing for peace: a leader concedes when the war is visibly lost —
+        // exhaustion deep or the navy gone (perceived cost of continuing
+        // exceeds the settlement; staleness arrives with slice I)
+        foreach (var war in perceived.Wars)
+            if (war.IsLeader && (war.OwnSideExhaustion > 0.7
+                                 || war.OwnSideStrengthShare < 0.3))
+                acts.Add(new SettlementResponseAct(perceived.SelfId,
+                                                   war.WarId, Accept: true));
         // war: tension discharges through a casus belli (war.md) — the
         // loaded border with a viable declared goal, priced against the
         // defender's whole coalition; one war at a time keeps a realm's
