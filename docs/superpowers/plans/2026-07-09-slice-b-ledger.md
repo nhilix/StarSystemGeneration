@@ -65,8 +65,9 @@ the prototype sim is deleted in Task 5.
       ✓ accepted 2026-07-09** after tuning HomeworldRatePerCell 0.02→0.008
       (~13 polities — map legibility) · goldens frozen ✓
       (`Goldens/slice-b-artifact-seed42.txt`, radius 12, GoldenTests) ·
-      **USER: merge decision** (pending) · HANDOFF · Slice D kickoff
-      prompt · kickoff checkbox.
+      **USER: merge decision ✓ merged 2026-07-09** · HANDOFF ✓ · Slice D
+      kickoff prompt completed (B half filled) ✓ · kickoff checkbox ✓.
+      Not pushed (awaiting user say-so).
 
 ## Notes / surprises
 

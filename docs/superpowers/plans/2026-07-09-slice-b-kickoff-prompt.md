@@ -85,4 +85,4 @@ port-domain glows with organic borders" in ASCII.
    both B and C; check C's status) · flip the box below · push only on user
    say-so.
 
-- [ ] Slice B complete
+- [x] Slice B complete
