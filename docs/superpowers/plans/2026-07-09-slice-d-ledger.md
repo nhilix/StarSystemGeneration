@@ -80,7 +80,7 @@ Architecture decisions (made at kickoff, flag deviations):
       consumption (Machinery + Compute); migration basics along SoL/income
       gradients over lanes (same-polity + refugee variant minimal);
       ideology drift from lived conditions. Gate: unit tests.
-- [ ] 7. **Artifact format v2** — config v2 (EECO grows), actors v2
+- [x] 7. **Artifact format v2** — config v2 (EECO grows), actors v2
       (PolityPolicies + Credits serialized), segments v2, new `markets`
       layer (MARKET/BLACKBOOK/RESERVE/LOAN + CULTURE records). Gates:
       byte-identity, load-vs-rebuild equivalence, version refusal,
@@ -180,3 +180,7 @@ Architecture decisions (made at kickoff, flag deviations):
 - The frontier is *harsh* at 40 epochs (roughly half of young colonies run
   subsistence deficits and shed refugees). All mechanics present; the
   world's mood is a knob-tuning conversation for the eyeball gate.
+- Task-7 surprise: `LastSubsistence` looked transient but reserve release
+  reads the *previous* epoch's value — cross-step state, so segments v2
+  serializes it (the load-then-continue byte-equivalence test would have
+  caught the divergence).

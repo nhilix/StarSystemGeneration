@@ -36,9 +36,10 @@ public sealed class PopulationSegment
     /// <summary>Mean position per <see cref="IdeologyAxis"/>, drifting with
     /// lived conditions (the fast layer).</summary>
     public double[] Ideology { get; } = { 0.5, 0.5, 0.5, 0.5 };
-    /// <summary>Last market step's subsistence satisfaction [0,1] — a
-    /// transient consequence Interior demographics read the same step;
-    /// recomputed every Markets phase, never serialized.</summary>
+    /// <summary>Last market step's subsistence satisfaction [0,1] — written
+    /// by clearing, read by Interior demographics the same step AND by the
+    /// next step's reserve release, so it is real cross-step state and the
+    /// artifact carries it (segments layer v2).</summary>
     public double LastSubsistence { get; set; } = 1.0;
 
     public PopulationSegment(int id, int portId, int speciesId, int cultureId,

@@ -13,20 +13,21 @@ namespace StarGen.Core.Epoch;
 /// invariant culture, "\n" newlines, fixed ordering — identical state
 /// serializes byte-identically. The hex tier is never persisted; transients
 /// (perception views, staged events, decisions, the phase trace) are not
-/// state. Controllers reattach on load. Standing policies are not yet
-/// serialized — they are always PolityPolicies.Default in slice B; slice D
-/// bumps the actors layer when they become real state.</summary>
+/// state. Controllers reattach on load. Slice D: config/actors/segments at
+/// v2 (knob families, standing policies + credits, identity layers) and the
+/// appended markets layer (markets, cultures, reserves, loans).</summary>
 public static class ArtifactSerializer
 {
     private const string Header = "STARGEN-EPOCH|1";
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    /// <summary>Layer names and schema versions, in artifact order.</summary>
+    /// <summary>Layer names and schema versions, in artifact order — new
+    /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 1), ("clock", 1), ("raster", 1), ("species", 1),
-        ("actors", 1), ("ports", 1), ("lanes", 1), ("facilities", 1),
-        ("fleets", 1), ("segments", 1), ("events", 1),
+        ("config", 2), ("clock", 1), ("raster", 1), ("species", 1),
+        ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("fleets", 1), ("segments", 2), ("events", 1), ("markets", 1),
     };
 
     public static string ToText(SimState state)
@@ -54,13 +55,27 @@ public static class ArtifactSerializer
             ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
         w.WriteLine(Join("EGEN", ec.Genesis.EmergenceWindowYears.ToString(Inv)));
         w.WriteLine(Join("EECO", R(ec.Economy.WarWearinessPerYear),
-            R(ec.Economy.StockpileDecayPerYear), R(ec.Economy.SubsistenceUnitsPerPopPerYear)));
+            R(ec.Economy.StockpileDecayPerYear),
+            R(ec.Economy.SubsistenceUnitsPerPopPerYear),
+            R(ec.Economy.SoLUnitsPerPopPerYear), R(ec.Economy.LuxuryUnitsPerPopPerYear),
+            R(ec.Economy.BasePriceRaw), R(ec.Economy.BasePriceProcessed),
+            R(ec.Economy.BasePriceCapital), R(ec.Economy.PriceDriftMaxPerYear),
+            R(ec.Economy.ReExportWeight), R(ec.Economy.LaborShare),
+            R(ec.Economy.InitialCreditsPerPolity), R(ec.Economy.InitialWealthPerPop),
+            R(ec.Economy.FreightCostPerUnitPerHex), R(ec.Economy.FuelPerUnitPerHex),
+            R(ec.Economy.LoanRatePerYear), ec.Economy.LoanTermYears.ToString(Inv),
+            R(ec.Economy.ConditionDecayPerYear), R(ec.Economy.ConditionRecoveryPerYear),
+            ec.Economy.TechTierStub.ToString(Inv)));
+        w.WriteLine(Join("EPOP", R(ec.Population.MigrationRatePerYear),
+            R(ec.Population.IdeologyDriftPerYear), R(ec.Population.FamineShrinkPerYear),
+            R(ec.Population.MachineGrowthPerGoodUnit), R(ec.Population.SoLDriftPerYear)));
         w.WriteLine(Join("EINF", ec.Infrastructure.ServiceRadiusBaseHexes.ToString(Inv),
             ec.Infrastructure.ServiceRadiusPerTierHexes.ToString(Inv),
             ec.Infrastructure.InterPortRangeBaseHexes.ToString(Inv),
             ec.Infrastructure.InterPortRangePerTierHexes.ToString(Inv),
             ec.Infrastructure.MaxPortTier.ToString(Inv),
-            ec.Infrastructure.HomeworldPortTier.ToString(Inv)));
+            ec.Infrastructure.HomeworldPortTier.ToString(Inv),
+            ec.Infrastructure.FacilitiesPerPortTier.ToString(Inv)));
         w.WriteLine(Join("EEXP",
             R(ec.Expansion.ColonyCost), ec.Expansion.ColonizationReachHexes.ToString(Inv),
             R(ec.Expansion.PortUpgradeCostBase), R(ec.Expansion.LaneCost),
@@ -91,12 +106,27 @@ public static class ArtifactSerializer
 
         Layer(w, "actors");
         foreach (var a in state.Actors)
+        {
             w.WriteLine(Join("ACTOR", a.Id.ToString(Inv), ((int)a.Kind).ToString(Inv),
                 Name(a.Name), a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
                 a.EntryEpoch.ToString(Inv), B(a.Entered)));
+            if (a.Policies is PolityPolicies pp)
+                w.WriteLine(Join("POLICY", a.Id.ToString(Inv),
+                    R(pp.Budget.Development), R(pp.Budget.Military),
+                    R(pp.Budget.Research), R(pp.Budget.Expansion),
+                    R(pp.Budget.Appeasement), R(pp.Budget.Reserves),
+                    R(pp.TaxRate), R(pp.CharterOpenness),
+                    ((int)pp.Doctrine.Posture).ToString(Inv),
+                    R(pp.Doctrine.EngagementBias),
+                    ((int)pp.NativePolicy).ToString(Inv),
+                    DoubleMap(pp.TariffSchedule), IntMap(pp.LawCode),
+                    DoubleMap(pp.ShipbuildingPriorities),
+                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures)));
+        }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
-                p.SpeciesId.ToString(Inv), R(p.ExpansionPoints), R(p.DevelopmentPoints)));
+                p.SpeciesId.ToString(Inv), R(p.Credits),
+                R(p.ExpansionPoints), R(p.DevelopmentPoints)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -123,7 +153,10 @@ public static class ArtifactSerializer
         Layer(w, "segments");
         foreach (var s in state.Segments)
             w.WriteLine(Join("SEGMENT", s.Id.ToString(Inv), s.PortId.ToString(Inv),
-                s.SpeciesId.ToString(Inv), R(s.Size)));
+                s.SpeciesId.ToString(Inv), s.CultureId.ToString(Inv), R(s.Size),
+                R(s.SoL), R(s.Wealth), R(s.LastSubsistence),
+                R(s.Ideology[0]), R(s.Ideology[1]), R(s.Ideology[2]),
+                R(s.Ideology[3])));
 
         Layer(w, "events");
         foreach (var e in state.Log.Events)
@@ -136,7 +169,79 @@ public static class ArtifactSerializer
                 e.Location.R.ToString(Inv), R(e.Magnitude), R(e.Valence),
                 ((int)e.Visibility).ToString(Inv), Payload(e.Payload)));
         }
+
+        Layer(w, "markets");
+        foreach (var c in state.Cultures)
+            w.WriteLine(Join("CULTURE", c.Id.ToString(Inv), Name(c.Name),
+                c.SpeciesId.ToString(Inv)));
+        foreach (var m in state.Markets)
+            for (int g = 0; g < m.Price.Length; g++)
+                w.WriteLine(Join("MARKET", m.PortId.ToString(Inv), g.ToString(Inv),
+                    R(m.Price[g]), R(m.Inventory[g]), R(m.InventoryGrade[g]),
+                    R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
+                    R(m.BlackBookPrice[g])));
+        foreach (var p in state.Polities)
+            for (int g = 0; g < p.ReserveQty.Length; g++)
+                if (p.ReserveQty[g] != 0)
+                    w.WriteLine(Join("RESERVE", p.ActorId.ToString(Inv),
+                        g.ToString(Inv), R(p.ReserveQty[g]), R(p.ReserveGrade[g])));
+        foreach (var l in state.Loans)
+            w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
+                l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
+                R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
+                l.IssuedYear.ToString(Inv), B(l.Closed)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Int-keyed double map as "k:v;k:v" ascending; "-" when empty
+    /// (fields are never blank).</summary>
+    private static string DoubleMap(IReadOnlyDictionary<int, double> map)
+    {
+        if (map.Count == 0) return "-";
+        var keys = new List<int>(map.Keys);
+        keys.Sort();
+        var parts = new string[keys.Count];
+        for (int i = 0; i < keys.Count; i++)
+            parts[i] = keys[i].ToString(Inv) + ":" + R(map[keys[i]]);
+        return string.Join(";", parts);
+    }
+
+    private static string IntMap<T>(IReadOnlyDictionary<int, T> map) where T : struct
+    {
+        if (map.Count == 0) return "-";
+        var keys = new List<int>(map.Keys);
+        keys.Sort();
+        var parts = new string[keys.Count];
+        for (int i = 0; i < keys.Count; i++)
+            parts[i] = keys[i].ToString(Inv) + ":"
+                       + ((int)(object)map[keys[i]]!).ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static Dictionary<int, double> ParseDoubleMap(string field)
+    {
+        var map = new Dictionary<int, double>();
+        if (field == "-" || field.Length == 0) return map;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            map[int.Parse(part.Substring(0, colon), Inv)] =
+                double.Parse(part.Substring(colon + 1), Inv);
+        }
+        return map;
+    }
+
+    private static Dictionary<int, T> ParseIntMap<T>(string field) where T : struct
+    {
+        var map = new Dictionary<int, T>();
+        if (field == "-" || field.Length == 0) return map;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            map[int.Parse(part.Substring(0, colon), Inv)] =
+                (T)(object)int.Parse(part.Substring(colon + 1), Inv);
+        }
+        return map;
     }
 
     public static SimState Load(TextReader reader)
@@ -205,6 +310,30 @@ public static class ArtifactSerializer
                         config!.Economy.WarWearinessPerYear = double.Parse(f[1], Inv);
                         config.Economy.StockpileDecayPerYear = double.Parse(f[2], Inv);
                         config.Economy.SubsistenceUnitsPerPopPerYear = double.Parse(f[3], Inv);
+                        config.Economy.SoLUnitsPerPopPerYear = double.Parse(f[4], Inv);
+                        config.Economy.LuxuryUnitsPerPopPerYear = double.Parse(f[5], Inv);
+                        config.Economy.BasePriceRaw = double.Parse(f[6], Inv);
+                        config.Economy.BasePriceProcessed = double.Parse(f[7], Inv);
+                        config.Economy.BasePriceCapital = double.Parse(f[8], Inv);
+                        config.Economy.PriceDriftMaxPerYear = double.Parse(f[9], Inv);
+                        config.Economy.ReExportWeight = double.Parse(f[10], Inv);
+                        config.Economy.LaborShare = double.Parse(f[11], Inv);
+                        config.Economy.InitialCreditsPerPolity = double.Parse(f[12], Inv);
+                        config.Economy.InitialWealthPerPop = double.Parse(f[13], Inv);
+                        config.Economy.FreightCostPerUnitPerHex = double.Parse(f[14], Inv);
+                        config.Economy.FuelPerUnitPerHex = double.Parse(f[15], Inv);
+                        config.Economy.LoanRatePerYear = double.Parse(f[16], Inv);
+                        config.Economy.LoanTermYears = int.Parse(f[17], Inv);
+                        config.Economy.ConditionDecayPerYear = double.Parse(f[18], Inv);
+                        config.Economy.ConditionRecoveryPerYear = double.Parse(f[19], Inv);
+                        config.Economy.TechTierStub = int.Parse(f[20], Inv);
+                        break;
+                    case "EPOP":
+                        config!.Population.MigrationRatePerYear = double.Parse(f[1], Inv);
+                        config.Population.IdeologyDriftPerYear = double.Parse(f[2], Inv);
+                        config.Population.FamineShrinkPerYear = double.Parse(f[3], Inv);
+                        config.Population.MachineGrowthPerGoodUnit = double.Parse(f[4], Inv);
+                        config.Population.SoLDriftPerYear = double.Parse(f[5], Inv);
                         break;
                     case "EINF":
                         config!.Infrastructure.ServiceRadiusBaseHexes = int.Parse(f[1], Inv);
@@ -213,6 +342,7 @@ public static class ArtifactSerializer
                         config.Infrastructure.InterPortRangePerTierHexes = int.Parse(f[4], Inv);
                         config.Infrastructure.MaxPortTier = int.Parse(f[5], Inv);
                         config.Infrastructure.HomeworldPortTier = int.Parse(f[6], Inv);
+                        config.Infrastructure.FacilitiesPerPortTier = int.Parse(f[7], Inv);
                         break;
                     case "EEXP":
                         config!.Expansion.ColonyCost = double.Parse(f[1], Inv);
@@ -250,10 +380,6 @@ public static class ArtifactSerializer
                         });
                         break;
                     case "SPECIES":
-                        // culture registry mirrors species (id == species id)
-                        // until the markets layer serializes CULTURE records
-                        state!.Cultures.Add(new Culture(state.Cultures.Count, f[2],
-                            int.Parse(f[1], Inv)));
                         skeleton!.Species.Add(new SpeciesProfile
                         {
                             Id = int.Parse(f[1], Inv), Name = f[2],
@@ -276,12 +402,31 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), controller)
                         { Entered = f[7] == "1" });
                         break;
+                    case "POLICY":
+                        state!.Actors[int.Parse(f[1], Inv)].Policies = new PolityPolicies(
+                            new BudgetWeights(double.Parse(f[2], Inv),
+                                double.Parse(f[3], Inv), double.Parse(f[4], Inv),
+                                double.Parse(f[5], Inv), double.Parse(f[6], Inv),
+                                double.Parse(f[7], Inv)),
+                            TaxRate: double.Parse(f[8], Inv),
+                            TariffSchedule: ParseDoubleMap(f[13]),
+                            LawCode: ParseIntMap<LegalityLevel>(f[14]),
+                            CharterOpenness: double.Parse(f[9], Inv),
+                            Doctrine: new MilitaryDoctrine(
+                                (DoctrinePosture)int.Parse(f[10], Inv),
+                                double.Parse(f[11], Inv)),
+                            ShipbuildingPriorities: ParseDoubleMap(f[15]),
+                            StockpileTargets: ParseDoubleMap(f[16]),
+                            DiplomaticPostures: ParseIntMap<DiplomaticPosture>(f[17]),
+                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv));
+                        break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv))
                         {
-                            ExpansionPoints = double.Parse(f[3], Inv),
-                            DevelopmentPoints = double.Parse(f[4], Inv),
+                            Credits = double.Parse(f[3], Inv),
+                            ExpansionPoints = double.Parse(f[4], Inv),
+                            DevelopmentPoints = double.Parse(f[5], Inv),
                         });
                         break;
                     case "PORT":
@@ -310,11 +455,48 @@ public static class ArtifactSerializer
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv))));
                         break;
                     case "SEGMENT":
-                        // culture id == species id until segments layer v2
-                        // serializes the identity layers (slice D task 7)
-                        state!.Segments.Add(new PopulationSegment(int.Parse(f[1], Inv),
+                        var segment = new PopulationSegment(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
-                            int.Parse(f[3], Inv), double.Parse(f[4], Inv)));
+                            int.Parse(f[4], Inv), double.Parse(f[5], Inv))
+                        {
+                            SoL = double.Parse(f[6], Inv),
+                            Wealth = double.Parse(f[7], Inv),
+                            LastSubsistence = double.Parse(f[8], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            segment.Ideology[ax] = double.Parse(f[9 + ax], Inv);
+                        state!.Segments.Add(segment);
+                        break;
+                    case "CULTURE":
+                        state!.Cultures.Add(new Culture(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv)));
+                        break;
+                    case "MARKET":
+                    {
+                        var market = state!.Markets[int.Parse(f[1], Inv)];
+                        int good = int.Parse(f[2], Inv);
+                        market.Price[good] = double.Parse(f[3], Inv);
+                        market.Inventory[good] = double.Parse(f[4], Inv);
+                        market.InventoryGrade[good] = double.Parse(f[5], Inv);
+                        market.LastCleared[good] = double.Parse(f[6], Inv);
+                        market.BlackBookDemand[good] = double.Parse(f[7], Inv);
+                        market.BlackBookPrice[good] = double.Parse(f[8], Inv);
+                        break;
+                    }
+                    case "RESERVE":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        int good = int.Parse(f[2], Inv);
+                        pr.ReserveQty[good] = double.Parse(f[3], Inv);
+                        pr.ReserveGrade[good] = double.Parse(f[4], Inv);
+                        break;
+                    }
+                    case "LOAN":
+                        state!.Loans.Add(new Loan(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv), int.Parse(f[3], Inv),
+                            double.Parse(f[4], Inv), double.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), int.Parse(f[7], Inv))
+                        { Closed = f[8] == "1" });
                         break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
