@@ -53,7 +53,7 @@ public class DeterminismTests
         new EpochEngine().Run(state);
         string text = SimTraceView.Render(state);
         foreach (var e in state.Log.Events)
-            Assert.Contains($"y{e.WorldYear}", text);
+            Assert.Contains(SimTraceView.YearLabel(e.WorldYear), text);
         foreach (var a in state.Actors)
             Assert.Contains(a.Name, text);
         Assert.Contains("Perception", text);

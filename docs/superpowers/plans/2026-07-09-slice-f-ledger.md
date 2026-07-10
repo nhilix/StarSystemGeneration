@@ -135,7 +135,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       deep-time event payloads + `SimTraceView` cases; version refusal.
       Gate: round-trips; byte-identity; load-vs-rebuild;
       `LoadThenContinue_EqualsTheStraightRun`; golden regen.
-- [ ] 9. **REPL surface + watch mode** — `map` layers: gas, metallicity,
+- [x] 9. **REPL surface + watch mode** — `map` layers: gas, metallicity,
       stellar age, mineral richness, biosphere, emergence, features;
       `features`/`precursors` dumps; deep-time chronicle beneath the
       epoch chronicle; `gwatch` + `ewatch`. Gate: piped-stdin smoke via
