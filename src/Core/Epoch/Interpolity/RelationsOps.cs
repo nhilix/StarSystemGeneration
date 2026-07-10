@@ -15,13 +15,31 @@ public static class RelationsOps
     /// <summary>One epoch of relations upkeep: contact detection, standing
     /// claim bookkeeping, warmth/tension drift. Returns counts for the
     /// phase note.</summary>
+    /// <summary>Epochs a standing treaty offer stays on the table before it
+    /// lapses (structural — offer churn, not calibration).</summary>
+    private const int OfferExpiryEpochs = 4;
+
     public static (int Contacts, int ClaimsRaised) Step(SimState state)
     {
         var geometry = SurveyGeometry(state);
         int contacts = Contact(state, geometry);
         int claimsRaised = KinClaims(state);
+        ExpireOffers(state);
         Recompute(state, geometry);
         return (contacts, claimsRaised);
+    }
+
+    /// <summary>Unanswered offers lapse quietly — the table clears.</summary>
+    private static void ExpireOffers(SimState state)
+    {
+        foreach (var relation in state.Relations)             // creation order (P6)
+            if (relation.OfferedRung != TreatyRung.None
+                && state.EpochIndex - relation.OfferEpoch >= OfferExpiryEpochs)
+            {
+                relation.OfferedRung = TreatyRung.None;
+                relation.OfferedById = -1;
+                relation.OfferEpoch = -1;
+            }
     }
 
     /// <summary>Per unordered polity pair: nearest port distance and the
@@ -257,7 +275,12 @@ public static class RelationsOps
                           MilitaryAgitation(state, b.ActorId));
         t[5] = knobs.MilitancyTensionWeight
                * 0.5 * (tempA.Militancy + tempB.Militancy);
-        return Clamp01(t[0] + t[1] + t[2] + t[3] + t[4] + t[5]);
+        double target = Clamp01(t[0] + t[1] + t[2] + t[3] + t[4] + t[5]);
+        // the non-aggression rung's teeth: standing friction is damped
+        // while the pact holds (interpolity/relations.md §Treaties)
+        if (relation.Rung >= TreatyRung.NonAggression)
+            target *= 1.0 - knobs.NonAggressionDamping;
+        return target;
     }
 
     /// <summary>How alien two polities read to each other before openness
@@ -353,6 +376,106 @@ public static class RelationsOps
             capacity += FleetOps.PostedCapacity(state, lane);
         }
         return capacity;
+    }
+
+    // ---- the treaty ladder (interpolity/relations.md §Treaties) ----
+
+    public enum TreatyOutcome { NoEffect, Offered, Signed, Broken }
+
+    /// <summary>Warmth required to offer or accept a rung — warmth gates
+    /// ascent.</summary>
+    public static double TreatyGate(EpochSimConfig cfg, TreatyRung rung) =>
+        cfg.Relations.TreatyGateBase
+        + cfg.Relations.TreatyGateStep * ((int)rung - 1);
+
+    /// <summary>Tariff multiplier between two owners: the trade-pact cut
+    /// when the first rung (or higher) stands, 1 otherwise. Markets call
+    /// this at both tariff sites.</summary>
+    public static double TariffFactor(SimState state, int ownerA, int ownerB)
+    {
+        var relation = state.RelationOf(ownerA, ownerB);
+        return relation != null && relation.Rung >= TreatyRung.TradePact
+            ? state.Config.Relations.PactTariffFactor : 1.0;
+    }
+
+    /// <summary>Resolve one treaty act — mutual consent in Resolution:
+    /// offers sit on the relation until accepted, matched (mutual offers
+    /// consent immediately), or lapsed; rungs climb one at a time; breaking
+    /// is public and warmth crashes.</summary>
+    public static TreatyOutcome ResolveTreaty(SimState state, TreatyAct act)
+    {
+        if (act.ActorId == act.TargetPolityId) return TreatyOutcome.NoEffect;
+        if (act.ActorId >= state.Actors.Count
+            || act.TargetPolityId >= state.Actors.Count
+            || state.Actors[act.ActorId].Kind != ActorKind.Polity
+            || state.Actors[act.TargetPolityId].Kind != ActorKind.Polity)
+            return TreatyOutcome.NoEffect;
+        var relation = state.RelationOf(act.ActorId, act.TargetPolityId);
+        if (relation == null) return TreatyOutcome.NoEffect;   // no table before contact
+        var rung = (TreatyRung)act.Rung;
+        switch (act.Verb)
+        {
+            case TreatyVerb.Offer:
+                if (rung != relation.Rung + 1
+                    || rung > TreatyRung.DefenseAlliance)
+                    return TreatyOutcome.NoEffect;
+                if (relation.OfferedRung == rung
+                    && relation.OfferedById == act.TargetPolityId)
+                    return Sign(state, relation, rung);   // mutual offers consent
+                relation.OfferedRung = rung;
+                relation.OfferedById = act.ActorId;
+                relation.OfferEpoch = state.EpochIndex;
+                return TreatyOutcome.Offered;
+            case TreatyVerb.Accept:
+                if (relation.OfferedRung == TreatyRung.None
+                    || relation.OfferedById != act.TargetPolityId
+                    || relation.OfferedRung != relation.Rung + 1)
+                    return TreatyOutcome.NoEffect;
+                return Sign(state, relation, relation.OfferedRung);
+            case TreatyVerb.Break:
+            {
+                if (relation.Rung == TreatyRung.None) return TreatyOutcome.NoEffect;
+                var broken = relation.Rung;
+                relation.Rung = TreatyRung.None;
+                relation.OfferedRung = TreatyRung.None;
+                relation.OfferedById = -1;
+                relation.OfferEpoch = -1;
+                relation.Warmth = Math.Max(0.0, relation.Warmth
+                    - state.Config.Relations.BreakWarmthPenalty);
+                int other = act.TargetPolityId;
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.TreatyBroken,
+                    new[] { act.ActorId, other }, state.Actors[act.ActorId].Seat,
+                    Magnitude: (int)broken, Valence: -0.7,
+                    EventVisibility.Public,
+                    new TreatyBrokenPayload(act.ActorId, other,
+                        state.Actors[act.ActorId].Name,
+                        state.Actors[other].Name, (int)broken)));
+                return TreatyOutcome.Broken;
+            }
+            default:
+                return TreatyOutcome.NoEffect;
+        }
+    }
+
+    private static TreatyOutcome Sign(SimState state, PolityRelation relation,
+                                      TreatyRung rung)
+    {
+        relation.Rung = rung;
+        relation.OfferedRung = TreatyRung.None;
+        relation.OfferedById = -1;
+        relation.OfferEpoch = -1;
+        var seatA = state.Actors[relation.PolityAId].Seat;
+        var seatB = state.Actors[relation.PolityBId].Seat;
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.TreatySigned,
+            new[] { relation.PolityAId, relation.PolityBId },
+            HexGrid.Round((seatA.Q + seatB.Q) * 0.5, (seatA.R + seatB.R) * 0.5),
+            Magnitude: (int)rung, Valence: 0.7, EventVisibility.Public,
+            new TreatySignedPayload(relation.PolityAId, relation.PolityBId,
+                state.Actors[relation.PolityAId].Name,
+                state.Actors[relation.PolityBId].Name, (int)rung)));
+        return TreatyOutcome.Signed;
     }
 
     private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;

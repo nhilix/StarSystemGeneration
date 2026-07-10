@@ -56,6 +56,8 @@ public enum WorldEventType
     FirstContact = 500,
     ClaimRaised = 501,
     ClaimReleased = 502,
+    TreatySigned = 503,
+    TreatyBroken = 504,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -217,6 +219,18 @@ public sealed record ClaimRaisedPayload(
 public sealed record ClaimReleasedPayload(
     int HolderPolityId, int AgainstPolityId, int ClaimType, int SubjectId)
     : EventPayload;
+
+/// <summary>Mutual consent seals a treaty rung (interpolity/relations.md
+/// §Relations state per pair). Rung is the TreatyRung reached.</summary>
+public sealed record TreatySignedPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName,
+    int Rung) : EventPayload;
+
+/// <summary>A rung breaks — a reputation event the galaxy hears; warmth
+/// crashes with it.</summary>
+public sealed record TreatyBrokenPayload(
+    int BreakerPolityId, int OtherPolityId, string BreakerName,
+    string OtherName, int Rung) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

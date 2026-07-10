@@ -572,22 +572,38 @@ public sealed class AllocationPhase : ISimPhase
         return issued;
     }
 
-    /// <summary>Missing in-range same-owner pairs, nearest first (tie: lower
-    /// ids), built while the development treasury affords them.</summary>
+    /// <summary>Missing in-range same-owner pairs — plus pact-partner ports:
+    /// a trade pact's lane priority means the builder may pair its ports
+    /// with the partner's (interpolity/relations.md §Treaties teeth) —
+    /// nearest first (tie: lower ids), built while the development treasury
+    /// affords them.</summary>
     private static int BuildLanes(SimState state, PolityRecord pr, List<Port> ownPorts)
     {
         var cfg = state.Config;
         int built = 0;
         // Astrogation stretches the pairing reach (slice G)
         int rangeBonus = TechOps.AstroRangeBonus(state, pr.ActorId);
+        // trade-pact partners' ports join the candidate pool (one end of
+        // any pair must still be own — nobody builds foreign-foreign)
+        var pactPorts = new List<Port>();
+        foreach (var port in state.Ports)                     // id order (P6)
+        {
+            if (port.OwnerActorId == pr.ActorId
+                || !state.Actors[port.OwnerActorId].Entered) continue;
+            var relation = state.RelationOf(pr.ActorId, port.OwnerActorId);
+            if (relation != null && relation.Rung >= TreatyRung.TradePact)
+                pactPorts.Add(port);
+        }
         while (pr.DevelopmentPoints >= cfg.Expansion.LaneCost)
         {
             Port? bestA = null, bestB = null;
             int bestDist = int.MaxValue;
             for (int i = 0; i < ownPorts.Count; i++)
-                for (int j = i + 1; j < ownPorts.Count; j++)
+                for (int j = i + 1; j < ownPorts.Count + pactPorts.Count; j++)
                 {
-                    var a = ownPorts[i]; var b = ownPorts[j];
+                    var a = ownPorts[i];
+                    var b = j < ownPorts.Count ? ownPorts[j]
+                        : pactPorts[j - ownPorts.Count];
                     if (a.Id > b.Id) (a, b) = (b, a);
                     if (!LaneMath.InRange(cfg, a, b, rangeBonus)) continue;
                     if (LaneExists(state, a.Id, b.Id)) continue;
@@ -693,6 +709,7 @@ public sealed class ResolutionPhase : ISimPhase
     public string Run(SimState state)
     {
         int acts = 0, founded = 0, nationalized = 0;
+        int signed = 0, broken = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
@@ -702,12 +719,24 @@ public sealed class ResolutionPhase : ISimPhase
                     && CorporationOps.Nationalize(state, n.ActorId,
                                                   n.CorporationId))
                     nationalized++;
+                if (act is TreatyAct t)
+                    switch (RelationsOps.ResolveTreaty(state, t))
+                    {
+                        case RelationsOps.TreatyOutcome.Signed: signed++; break;
+                        case RelationsOps.TreatyOutcome.Broken: broken++; break;
+                    }
             }
         string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
             : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
         if (nationalized > 0)
             note += $", {nationalized} " + (nationalized == 1
                 ? "corporation nationalized" : "corporations nationalized");
+        if (signed > 0)
+            note += $", {signed} " + (signed == 1
+                ? "treaty signed" : "treaties signed");
+        if (broken > 0)
+            note += $", {broken} " + (broken == 1
+                ? "treaty broken" : "treaties broken");
         return note;
     }
 

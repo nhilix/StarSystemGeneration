@@ -159,6 +159,30 @@ public sealed class GenesisController : IController
             && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
             acts.Add(new FoundColonyAct(perceived.SelfId,
                                         perceived.ColonyCandidates[0].Target));
+        // the treaty ladder: climb toward friends one rung at a time, answer
+        // standing offers, and tear up rungs with the hostile — warmth gates
+        // ascent (interpolity/relations.md §Treaties)
+        foreach (var rel in perceived.Relations)
+        {
+            var stance = StanceOf(rel);
+            if (rel.Rung > TreatyRung.None && stance == DiplomaticPosture.Hostile)
+            {
+                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                    (int)rel.Rung, TreatyVerb.Break));
+                continue;
+            }
+            if (stance < DiplomaticPosture.Cordial) continue;
+            if (rel.OfferedRung > rel.Rung
+                && rel.OfferedById == rel.OtherPolityId
+                && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.OfferedRung))
+                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                    (int)rel.OfferedRung, TreatyVerb.Accept));
+            else if (rel.OfferedRung == TreatyRung.None
+                && rel.Rung < TreatyRung.DefenseAlliance
+                && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.Rung + 1))
+                acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
+                    (int)(rel.Rung + 1), TreatyVerb.Offer));
+        }
         // a chartered corporation that out-wealths the state is a de facto
         // power; the counter-move is nationalization (corporations.md)
         foreach (var corp in perceived.HostedCorporations)
@@ -196,6 +220,17 @@ public sealed class GenesisController : IController
                 Military: militarySplit, Astrogation: astroSplit,
                 Life: lifeSplit),
         };
+        // the tariff wall scales with insularity — open societies trade
+        // near-free, closed ones tax the foreign; trade pacts cut what
+        // stands (the PactTariffFactor's teeth)
+        double tariffRate = knobs.BaseTariffRate * (1.0 - temperament.Openness);
+        if (tariffRate > 0.005)
+        {
+            var tariffs = new Dictionary<int, double>();
+            for (int g = 0; g < Substrate.Goods.All.Count; g++)
+                tariffs[g] = tariffRate;
+            policies = policies with { TariffSchedule = tariffs };
+        }
         if (perceived.SelfSpecies != null
             && temperament.Openness < knobs.NarcoticsRestrictBelowOpenness)
             policies = policies with

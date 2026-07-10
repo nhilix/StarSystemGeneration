@@ -1064,6 +1064,12 @@ public static class ArtifactSerializer
         ClaimReleasedPayload e => Join("claimReleased",
             e.HolderPolityId.ToString(Inv), e.AgainstPolityId.ToString(Inv),
             e.ClaimType.ToString(Inv), e.SubjectId.ToString(Inv)),
+        TreatySignedPayload e => Join("treatySigned",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName), e.Rung.ToString(Inv)),
+        TreatyBrokenPayload e => Join("treatyBroken",
+            e.BreakerPolityId.ToString(Inv), e.OtherPolityId.ToString(Inv),
+            Name(e.BreakerName), Name(e.OtherName), e.Rung.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1155,6 +1161,12 @@ public static class ArtifactSerializer
         "claimReleased" => new ClaimReleasedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "treatySigned" => new TreatySignedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4],
+            int.Parse(f[at + 5], Inv)),
+        "treatyBroken" => new TreatyBrokenPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4],
+            int.Parse(f[at + 5], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

@@ -647,7 +647,9 @@ public static class MarketEngine
             double tariff = 0;
             if (src.OwnerActorId != dst.OwnerActorId
                 && dstPolicies.TariffSchedule.TryGetValue(g, out double rate))
-                tariff = rate * snapshot[dstId][g];
+                tariff = rate * snapshot[dstId][g]
+                         * RelationsOps.TariffFactor(state, src.OwnerActorId,
+                                                     dst.OwnerActorId);
             double friction = srcLevel == LegalityLevel.Restricted
                               || dstLevel == LegalityLevel.Restricted
                 ? eco.RestrictedFriction * snapshot[dstId][g] : 0;
@@ -764,7 +766,9 @@ public static class MarketEngine
                     var schedule = (state.Actors[dst.OwnerActorId].Policies
                         as PolityPolicies ?? PolityPolicies.Default).TariffSchedule;
                     if (schedule.TryGetValue(g, out double rate))
-                        tariff = rate * pDst;
+                        tariff = rate * pDst
+                                 * RelationsOps.TariffFactor(state,
+                                       src.OwnerActorId, dst.OwnerActorId);
                 }
                 double friction = srcLevel == LegalityLevel.Restricted
                                   || dstLevel == LegalityLevel.Restricted

@@ -81,6 +81,20 @@ public sealed class RelationsKnobs
     /// <summary>Kin population living under the other's rule at which a
     /// cultural-kin claim raises (and below which it releases).</summary>
     public double KinClaimSegmentFloor { get; set; } = 0.5;
+    /// <summary>Warmth required to offer or accept the first rung; each
+    /// further rung costs +TreatyGateStep — warmth gates ascent.</summary>
+    public double TreatyGateBase { get; set; } = 0.40;
+    /// <summary>Additional warmth gate per rung above the first.</summary>
+    public double TreatyGateStep { get; set; } = 0.12;
+    /// <summary>Warmth lost outright by the pair when a rung is broken —
+    /// the galaxy hears, the partner remembers.</summary>
+    public double BreakWarmthPenalty { get; set; } = 0.25;
+    /// <summary>Fractional tension-target damping under a non-aggression
+    /// rung or above — the rung's teeth (spark de-escalation is war.md's).</summary>
+    public double NonAggressionDamping { get; set; } = 0.30;
+    /// <summary>Tariff multiplier between trade-pact partners — the tariff
+    /// cut that is the first rung's teeth.</summary>
+    public double PactTariffFactor { get; set; } = 0.40;
 }
 
 /// <summary>Corporate dials (economy/corporations.md): niche detection
@@ -627,6 +641,10 @@ public sealed class ControllerKnobs
     public double FuelReservePerPort { get; set; } = 4.0;
     /// <summary>Militancy below which no armaments reserve is kept at all.</summary>
     public double MilitancyReserveGate { get; set; } = 0.2;
+    /// <summary>Flat tariff rate the AI levies on foreign goods at zero
+    /// openness (scaled down by openness; trade pacts cut what remains —
+    /// the teeth the PactTariffFactor bites on).</summary>
+    public double BaseTariffRate { get; set; } = 0.15;
     /// <summary>Species openness below which narcotics are prohibited.</summary>
     public double NarcoticsProhibitBelowOpenness { get; set; } = 0.35;
     /// <summary>Species openness below which narcotics are restricted.</summary>

@@ -209,6 +209,13 @@ public static class SimTraceView
                 Invariant($"polity #{p.HolderPolityId} lets its ")
                 + ClaimName((ClaimType)p.ClaimType)
                 + Invariant($" claim against polity #{p.AgainstPolityId} rest"),
+            TreatySignedPayload p =>
+                $"{p.PolityAName} and {p.PolityBName} sign a "
+                + RungName((TreatyRung)p.Rung),
+            TreatyBrokenPayload p =>
+                $"{p.BreakerName} tears up its "
+                + RungName((TreatyRung)p.Rung)
+                + $" with {p.OtherName} — the galaxy hears",
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();
@@ -216,6 +223,14 @@ public static class SimTraceView
         return Invariant($"{YearLabel(e.WorldYear),-9} {family,-12} {what} ")
             + Invariant($"at ({e.Location.Q},{e.Location.R}) [{vis}]");
     }
+
+    private static string RungName(TreatyRung rung) => rung switch
+    {
+        TreatyRung.TradePact => "trade pact",
+        TreatyRung.NonAggression => "non-aggression pact",
+        TreatyRung.DefenseAlliance => "defense alliance",
+        _ => "treaty",
+    };
 
     private static string ClaimName(ClaimType type) => type switch
     {

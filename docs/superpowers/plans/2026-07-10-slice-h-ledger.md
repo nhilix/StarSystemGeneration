@@ -55,7 +55,19 @@ surprises — updated as work lands.
   agitation, ideology gap × zeal); tension decays only as sources
   resolve. Relations layer v1. Knobs `Relations.*`. Perception carries a
   relations brief; DiplomaticPostures written by Intent from it.
-- [ ] **H2 — Treaty ladder rungs 1–3**: offer/accept/break through
+- [x] **H2 — Treaty ladder rungs 1–3** *(done: `ResolveTreaty` in
+  RelationsOps (offer/accept/break; mutual offers consent immediately;
+  rungs climb one at a time; offers lapse after 4 epochs — structural);
+  events 503 TreatySigned / 504 TreatyBroken (public, named); teeth:
+  PactTariffFactor at both MarketEngine tariff sites, NonAggression
+  damps the tension target ×(1−0.30), trade-pact partners' ports join
+  BuildLanes' candidate pool (cross-border lanes — the trade that feeds
+  warmth); GenesisController levies openness-scaled tariffs
+  (`Controller.BaseTariffRate`) so the cut bites, and climbs/answers/
+  breaks per stance + warmth gate (TreatyGateBase/Step); knobs +5
+  Relations, +1 Controller, TUNING rows; seed-42 r12: 41 signings, the
+  full ladder climbed by warm pairs, 0 breaks (no wars yet); golden
+  regen; 435/435 green)*: offer/accept/break through
   Resolution (standing offers on the relation, mutual consent), teeth:
   trade pact (tariff cuts, lane priority), non-aggression (spark
   de-escalation, tension damping), defense alliance (join defensive

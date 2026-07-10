@@ -228,6 +228,10 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.AgitationTensionWeight` | 0.15 | Military factions drag their polity toward war. | The sword waits quietly. |
 | `Relations.InterdictionTensionWeight` | 0.40 | Blockades near-guarantee escalation. | Sieges read as negotiation. |
 | `Relations.KinClaimSegmentFloor` | 0.5 | Only large stranded kin populations raise claims. | Every diaspora is an irredenta. |
+| `Relations.TreatyGateBase` / `TreatyGateStep` | 0.40 / 0.12 | Rungs demand deep warmth (alliances rare and meaningful). | Everyone allies with everyone (seed 42: pairs reach alliance in ~3 epochs once warm). |
+| `Relations.BreakWarmthPenalty` | 0.25 | Broken treaties end friendships for good. | Rungs churn — break and re-sign. |
+| `Relations.NonAggressionDamping` | 0.30 | The second rung genuinely calms borders (fewer sparks reach powder). | Non-aggression is paper. |
+| `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
 
 ## Infrastructure — port physics and construction
 
@@ -276,6 +280,12 @@ player, P2) replace the AI and bring their own numbers.
 | `Controller.MilitancyReserveGate` | 0.2 | Only genuine hawks arm. | Everyone keeps a little powder dry. |
 | `Controller.NarcoticsProhibitBelowOpenness` | 0.35 | More theocratic drug bans → bigger black books. | Prohibition rare. |
 | `Controller.NarcoticsRestrictBelowOpenness` | 0.55 | Wider restricted band (friction, not bans). | Narcotics broadly legal. |
+
+### Controller additions (slice H)
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Controller.BaseTariffRate` | 0.15 | Insular societies wall off trade (pact cuts matter more). | Free trade everywhere; trade-pact teeth bite nothing. |
 
 ## Tech — ladder costs, research, diffusion (slice G)
 
