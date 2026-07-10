@@ -97,6 +97,7 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AssembleDemand(state, scratch);
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
+        MarketEngine.AddMilitaryDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
         // an import-fed port prices its arrivals, a blockaded one their
@@ -135,6 +136,7 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int earning = 0, lanesBuilt = 0, portsRaised = 0, facilitiesBuilt = 0;
+        int hullsLaid = 0;
         int defaults = ServiceLoans(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
@@ -152,10 +154,13 @@ public sealed class AllocationPhase : ISimPhase
             double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
-            pr.Credits -= allocatable * (budget.Expansion + budget.Development);
+            pr.MilitaryPoints += allocatable * budget.Military;
+            pr.Credits -= allocatable
+                * (budget.Expansion + budget.Development + budget.Military);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
+            hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
@@ -165,6 +170,7 @@ public sealed class AllocationPhase : ISimPhase
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
         if (portsRaised > 0) note += $", {portsRaised} " + (portsRaised == 1 ? "port raised" : "ports raised");
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
+        if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
         return note;
@@ -221,6 +227,10 @@ public sealed class AllocationPhase : ISimPhase
                     IsChokepoint: cell.IsChokepoint);
                 foreach (var type in BuildableTypes)
                 {
+                    // only candidates the polity can actually build compete:
+                    // an unaffordable high scorer must not block the port
+                    // (an unbuilt shipyard is not a construction plan)
+                    if (!CanAfford(state, pr, market, type)) continue;
                     var def = Substrate.Infrastructure.Get(type);
                     double signal = PriceSignal(eco, market, def);
                     int existing = 0;
@@ -241,22 +251,10 @@ public sealed class AllocationPhase : ISimPhase
                 }
             }
             if (bestType == Substrate.InfraTypeId.Port) continue;
-
-            // full build cost must be physically present — in the port market
-            // or the polity's banked reserves; the treasury pays administered
-            // (founding) prices — a state pre-commitment is not a spot
-            // speculator, so scarcity prices can't price out the very
-            // construction that would cure the scarcity
             var buildDef = Substrate.Infrastructure.Get(bestType);
             double value = 0;
-            bool available = true;
             foreach (var q in buildDef.BuildCost)
-            {
-                if (market.Inventory[(int)q.Good]
-                    + pr.ReserveQty[(int)q.Good] < q.Quantity) available = false;
                 value += q.Quantity * Market.InitialPrice(eco, q.Good);
-            }
-            if (!available || pr.DevelopmentPoints < value) continue;
             foreach (var q in buildDef.BuildCost)
             {
                 double fromMarket = market.Draw((int)q.Good, q.Quantity);
@@ -283,6 +281,25 @@ public sealed class AllocationPhase : ISimPhase
                 new FacilityBuiltPayload(facility.Id, facility.TypeId, 1)));
         }
         return built;
+    }
+
+    /// <summary>Full build cost physically present (port market + banked
+    /// polity reserves) and the treasury covering the administered value —
+    /// a state pre-commitment pays founding prices, so scarcity prices
+    /// can't price out the very construction that would cure the scarcity.</summary>
+    private static bool CanAfford(SimState state, PolityRecord pr,
+                                  Market market, Substrate.InfraTypeId type)
+    {
+        var def = Substrate.Infrastructure.Get(type);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+        {
+            if (market.Inventory[(int)q.Good]
+                + pr.ReserveQty[(int)q.Good] < q.Quantity) return false;
+            value += q.Quantity
+                     * Market.InitialPrice(state.Config.Economy, q.Good);
+        }
+        return pr.DevelopmentPoints >= value;
     }
 
     /// <summary>Mean price-over-founding ratio of the type's products,
@@ -708,6 +725,9 @@ public sealed class InteriorPhase : ISimPhase
         (StarGen.Core.Substrate.InfraTypeId.Skimmer, 1),
         (StarGen.Core.Substrate.InfraTypeId.Refinery, 1),
         (StarGen.Core.Substrate.InfraTypeId.Foundry, 1),
+        // a species that arrived at spaceflight arrived by ship: the yard
+        // that built the starter fleet completes the hull chain (slice E)
+        (StarGen.Core.Substrate.InfraTypeId.Shipyard, 1),
     };
 
     public string Run(SimState state)
@@ -739,11 +759,13 @@ public sealed class InteriorPhase : ISimPhase
             foreach (var (type, tier) in StarterIndustry)
                 state.Facilities.Add(new Facility(state.Facilities.Count,
                     (int)type, tier, a.Seat, a.Id, state.WorldYear));
-            // a spacefaring species arrives with its founding design set —
-            // genesis furniture like the starter industry, no events
+            // a spacefaring species arrives with its founding design set and
+            // the hulls already flying — genesis furniture like the starter
+            // industry, no events
             double militancy = species >= 0 && species < state.Skeleton.Species.Count
                 ? state.Skeleton.Species[species].Militancy : 0.5;
             DesignRegistry.RegisterEntryDesigns(state, a.Id, militancy);
+            FleetOps.SeedStarterFleet(state, a.Id, port, militancy);
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.PolityEmerged,
                 new[] { a.Id }, a.Seat, Magnitude: 1.0, Valence: 1.0,

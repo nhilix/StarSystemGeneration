@@ -268,6 +268,11 @@ public sealed class FleetKnobs
     /// <summary>Component-grade improvement over a design's build grade that
     /// mints the next mark of its lineage.</summary>
     public double MarkGradeStep { get; set; } = 0.15;
+    /// <summary>Ship Components demand a funded polity registers per epoch
+    /// at its yard port (capital until a yard exists) — the military-
+    /// construction pull that makes shipyards worth siting; without it the
+    /// components price floors and no yard ever pencils out.</summary>
+    public double MilitaryPullComponents { get; set; } = 10.0;
     /// <summary>Fractional readiness decay per world-year toward the unmet
     /// supply fraction.</summary>
     public double ReadinessDecayPerYear { get; set; } = 0.02;

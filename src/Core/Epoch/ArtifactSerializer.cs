@@ -122,6 +122,14 @@ public static class ArtifactSerializer
                 f.OwnerActorId.ToString(Inv), R(f.Condition), f.BuiltYear.ToString(Inv)));
 
         Layer(w, "fleets");
+        // the fleet-side polity record: military treasury + the hull
+        // conservation ledger (kept here so the actors layer stays v2)
+        foreach (var p in state.Polities)
+            if (p.MilitaryPoints != 0 || p.HullsBuilt != 0
+                || p.HullsWrecked != 0 || p.HullsScrapped != 0)
+                w.WriteLine(Join("NAVY", p.ActorId.ToString(Inv),
+                    R(p.MilitaryPoints), p.HullsBuilt.ToString(Inv),
+                    p.HullsWrecked.ToString(Inv), p.HullsScrapped.ToString(Inv)));
         foreach (var d in state.Designs)
             w.WriteLine(Join("DESIGN", d.Id.ToString(Inv),
                 d.OwnerActorId.ToString(Inv), ((int)d.Role).ToString(Inv),
@@ -407,6 +415,15 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
                         { Condition = double.Parse(f[7], Inv) });
                         break;
+                    case "NAVY":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        pr.MilitaryPoints = double.Parse(f[2], Inv);
+                        pr.HullsBuilt = int.Parse(f[3], Inv);
+                        pr.HullsWrecked = int.Parse(f[4], Inv);
+                        pr.HullsScrapped = int.Parse(f[5], Inv);
+                        break;
+                    }
                     case "DESIGN":
                         if (int.Parse(f[1], Inv) != state!.Designs.Count)
                             throw new InvalidDataException("design ids out of order");

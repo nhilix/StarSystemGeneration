@@ -166,6 +166,35 @@ public sealed class GenesisController : IController
                     * perceived.OwnPortCount;
             policies = policies with { StockpileTargets = targets };
         }
+        if (perceived.OwnDesigns.Count > 0)
+        {
+            // the yard queue by temperament: everyone hauls; a realm without
+            // a colony convoy ready keeps one building whenever it means to
+            // expand; warships by militancy (doctrine flavors, not war — H)
+            double militancy = perceived.SelfSpecies?.Militancy ?? 0.5;
+            var builds = new Dictionary<int, double>();
+            foreach (var brief in perceived.OwnDesigns)
+                switch (brief.Role)
+                {
+                    case ShipRole.Freight:
+                        builds[brief.DesignId] = 1.0;
+                        break;
+                    case ShipRole.Colony:
+                        builds[brief.DesignId] =
+                            perceived.ColonyHullsAvailable == 0 ? 0.6 : 0.05;
+                        break;
+                    case ShipRole.Scout:
+                        builds[brief.DesignId] = 0.1;
+                        break;
+                    case ShipRole.Escort:
+                        builds[brief.DesignId] = 0.5 * militancy;
+                        break;
+                    case ShipRole.Line:
+                        builds[brief.DesignId] = 0.35 * militancy;
+                        break;
+                }
+            policies = policies with { ShipbuildingPriorities = builds };
+        }
         return policies;
     }
 }

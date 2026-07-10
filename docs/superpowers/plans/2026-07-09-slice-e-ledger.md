@@ -85,13 +85,13 @@ Architecture decisions (made at kickoff, flag deviations):
       stat bases), `DesignMath.Sheet` (embodiment/doctrine/tech/grade
       derivation), `FleetMath.Vectors`, `FleetKnobs` + registry + TUNING
       rows. Gate: unit tests over the pure functions; KnobRegistryTests.
-- [ ] 2. **Design registry + lineages** — `ShipDesign` records on SimState,
+- [x] 2. **Design registry + lineages** — `ShipDesign` records on SimState,
       genesis designs per polity at entry, mark drift, PerceptionView
       design briefs, event 400, artifact DESIGN records (fleets layer → 2).
       Gate: unit tests; artifact round-trip; golden regen.
-- [ ] 3. **Yard production + starter fleets** — MilitaryPoints accrual,
+- [x] 3. **Yard production + starter fleets** — MilitaryPoints accrual,
       yard hull building from market components (+armaments), fleet
-      founding/joining, hull counters, homeworld starter fleet, FLEET/HULLS
+      founding/joining, hull counters, homeworld starter fleet, NAVY/FLEET
       serialization. Gate: conservation test (credits + hulls); golden regen.
 - [ ] 4. **Postures + posted capacity** — posture/route state, Allocation
       fleet management (post freight to lanes, patrols by militancy,
@@ -128,4 +128,29 @@ Architecture decisions (made at kickoff, flag deviations):
 
 ## Notes / surprises
 
-(running log — appended as they happen)
+- **Naval bootstrap wall (task 3)**: with the military-construction pull
+  alone, the first shipyard sited at y975 (epoch 39/40, radius 12) —
+  components price signal, machinery banking, and 4 construction years
+  stack too slowly. Resolution mirrors D's starter-industry precedent: the
+  homeworld starter set gains a **tier-1 Shipyard** (a species that
+  arrived at spaceflight arrived by ship). Hull chain complete from epoch
+  one; 33–67 hulls per polity per history. **Flag at eyeball.**
+- **AddMilitaryDemand** (new market sub-step): a funded polity registers
+  Ship Components demand at its yard port (capital until a yard exists) —
+  the MilitaryConstruction use-case D left unused. Without it the
+  components price floors and yards never pencil out
+  (`Fleet.MilitaryPullComponents`).
+- **BuildFacilities behavior change (D code, flag at eyeball)**: the
+  affordability check moved *into* candidate scoring — an unaffordable
+  high scorer (the shipyard's 16 machinery) used to block its port from
+  building anything at all; now the best *buildable* candidate wins.
+  Radius-12 golden went from 6 facility builds per history to ~24, chains
+  visibly more diverse. Latent D issue exposed by the components signal.
+- **NAVY record** (fleets layer): MilitaryPoints + hull ledger live
+  fleet-side so the actors layer stays v2.
+- Military treasuries still accumulate faster than yards spend (60k by
+  epoch 40) — task 5's fleet upkeep drains against it; recheck at task 8
+  calibration.
+- Mark drift hasn't fired in golden runs yet: recipe component grades
+  hover below design grade + 0.15. Revisit at task 8 (or accept: lineages
+  drift when tech/grade actually moves, which is honest).

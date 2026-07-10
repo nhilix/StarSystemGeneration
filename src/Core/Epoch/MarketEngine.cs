@@ -447,6 +447,49 @@ public static class MarketEngine
         }
     }
 
+    /// <summary>Military-construction demand (the MilitaryConstruction
+    /// use-case D left wired but unused): a polity whose military treasury
+    /// could pay for hulls registers Ship Components demand at its yard
+    /// port — the capital until a yard exists. Without this pull the
+    /// components price floors, no shipyard ever out-scores a mine, and the
+    /// navy never gets built (the E bootstrap loop: demand → price signal →
+    /// yard sites → components flow → hulls lay down).</summary>
+    public static void AddMilitaryDemand(SimState state, MarketStepScratch scratch)
+    {
+        var fleet = state.Config.Fleet;
+        double hullValue = DesignMath.ComponentsPerHull(fleet, ShipSize.Medium)
+            * Market.InitialPrice(state.Config.Economy, GoodId.ShipComponents);
+        foreach (var pr in state.Polities)                // actor-id order (P6)
+        {
+            if (!state.Actors[pr.ActorId].Entered) continue;
+            if (pr.MilitaryPoints < hullValue) continue;  // can't pay, don't pull
+            int at = YardPortOf(state, pr.ActorId);
+            if (at < 0) continue;
+            scratch.Demand[at][(int)GoodId.ShipComponents]
+                += fleet.MilitaryPullComponents;
+        }
+    }
+
+    /// <summary>The port a polity's naval procurement lands at: the first
+    /// port (id order) with an active own shipyard attached, else the
+    /// capital (first own port — the AddConstructionPull convention).</summary>
+    internal static int YardPortOf(SimState state, int actorId)
+    {
+        int capital = -1;
+        foreach (var port in state.Ports)                 // id order (P6)
+        {
+            if (port.OwnerActorId != actorId) continue;
+            if (capital < 0) capital = port.Id;
+            foreach (var f in state.Facilities)           // id order (P6)
+                if (f.OwnerActorId == actorId
+                    && f.TypeId == (int)InfraTypeId.Shipyard
+                    && IsActive(state, f)
+                    && AttachedMarketIndex(state, f) == port.Id)
+                    return port.Id;
+        }
+        return capital;
+    }
+
     /// <summary>Re-export demand (economy/markets.md §2): bids from
     /// arbitrageurs who see outbound gradients bid up a hub's price even with
     /// zero local consumption — without this term goods refuse to enter
