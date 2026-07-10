@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using StarGen.Core.Galaxy;
 
 namespace StarGen.Core.Epoch;
 
@@ -20,16 +21,22 @@ public sealed class PerceptionView
     /// <summary>Scored colonization targets within reach, best first
     /// (mechanical enumeration; choosing is the controller's).</summary>
     public IReadOnlyList<ColonyCandidate> ColonyCandidates { get; }
+    /// <summary>The actor's own species profile — an actor perceives its own
+    /// society (null for non-polities and shape-only test skeletons). Law
+    /// codes and temperament-flavored policies derive from it.</summary>
+    public SpeciesProfile? SelfSpecies { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
-                          IReadOnlyList<ColonyCandidate>? colonyCandidates = null)
+                          IReadOnlyList<ColonyCandidate>? colonyCandidates = null,
+                          SpeciesProfile? selfSpecies = null)
     {
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
         ExpansionPoints = expansionPoints;
         ColonyCandidates = colonyCandidates ?? NoCandidates;
+        SelfSpecies = selfSpecies;
     }
 }
 
@@ -60,10 +67,10 @@ public sealed class TrivialController : IController
         new ControllerDecision(PolityPolicies.Default, NoActs);
 }
 
-/// <summary>The genesis expansion AI: default standing policies; founds toward
-/// the top colony candidate whenever the expansion treasury affords it.
-/// Constructed with the config — its own policy costs, not world state; the
-/// P2 contract (decide from the view alone) holds.</summary>
+/// <summary>The genesis expansion AI: species-flavored standing policies;
+/// founds toward the top colony candidate whenever the expansion treasury
+/// affords it. Constructed with the config — its own policy costs, not world
+/// state; the P2 contract (decide from the view alone) holds.</summary>
 public sealed class GenesisController : IController
 {
     private static readonly IReadOnlyList<Act> NoActs = new Act[0];
@@ -76,12 +83,30 @@ public sealed class GenesisController : IController
 
     public ControllerDecision Decide(PerceptionView perceived)
     {
+        var policies = PoliciesFor(perceived.SelfSpecies);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.ColonyCandidates.Count > 0)
-            return new ControllerDecision(PolityPolicies.Default, new Act[]
+            return new ControllerDecision(policies, new Act[]
             {
                 new FoundColonyAct(perceived.SelfId, perceived.ColonyCandidates[0].Target),
             });
-        return new ControllerDecision(PolityPolicies.Default, NoActs);
+        return new ControllerDecision(policies, NoActs);
+    }
+
+    /// <summary>Default policies plus a species-derived law code: closed
+    /// societies prohibit narcotics, guarded ones restrict them —
+    /// jurisdiction-relative legality (commodities.md), deterministic from
+    /// the perceived self.</summary>
+    private static PolityPolicies PoliciesFor(SpeciesProfile? species)
+    {
+        if (species == null || species.Openness >= 0.55)
+            return PolityPolicies.Default;
+        var law = new Dictionary<int, LegalityLevel>
+        {
+            [(int)Substrate.GoodId.Narcotics] = species.Openness < 0.35
+                ? LegalityLevel.Prohibited
+                : LegalityLevel.Restricted,
+        };
+        return PolityPolicies.Default with { LawCode = law };
     }
 }

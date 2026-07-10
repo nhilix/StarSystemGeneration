@@ -26,8 +26,15 @@ public sealed class PerceptionPhase : ISimPhase
                 ? state.PolityOf(a.Id).ExpansionPoints : 0.0;
             var candidates = a.Kind == ActorKind.Polity
                 ? ColonyValuation.CandidatesFor(state, a.Id) : null;
+            Galaxy.SpeciesProfile? selfSpecies = null;
+            if (a.Kind == ActorKind.Polity)
+            {
+                int sp = state.PolityOf(a.Id).SpeciesId;
+                if (sp >= 0 && sp < state.Skeleton.Species.Count)
+                    selfSpecies = state.Skeleton.Species[sp];
+            }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
-                                              expansion, candidates);
+                                              expansion, candidates, selfSpecies);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -47,12 +54,19 @@ public sealed class MarketsPhase : ISimPhase
         if (state.Markets.Count == 0) return "no markets yet";
         foreach (var m in state.Markets)
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
+        MarketEngine.AssembleDemand(state, scratch);
+        MarketEngine.AdjustPrices(state, scratch);
+        int famines = MarketEngine.Clear(state, scratch);
+        MarketEngine.DistributePools(state, scratch);
         int producing = 0;
         foreach (var f in state.Facilities)
             if (MarketEngine.IsActive(state, f)) producing++;
-        return $"{producing} facilities supply {state.Markets.Count} markets";
+        string note = $"{producing} facilities supply {state.Markets.Count} markets";
+        if (famines > 0)
+            note += $", {famines} " + (famines == 1 ? "famine" : "famines");
+        return note;
     }
 }
 

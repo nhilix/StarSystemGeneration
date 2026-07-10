@@ -46,7 +46,7 @@ public class MarketSupplyTests
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Mine, port.Hex, port.OwnerActorId);
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
@@ -64,7 +64,7 @@ public class MarketSupplyTests
         var m = state.Markets[0];
         m.Deposit((int)GoodId.Ore, 1000.0, 0.6);
         m.Deposit((int)GoodId.Volatiles, 1000.0, 0.6);
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
@@ -81,7 +81,7 @@ public class MarketSupplyTests
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Foundry, port.Hex, port.OwnerActorId);
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
@@ -89,7 +89,7 @@ public class MarketSupplyTests
     }
 
     [Fact]
-    public void InputPurchases_MoveOwnerCreditsIntoTheMarketPool()
+    public void InputPurchasesAndWages_AreConservedLedgerMoves()
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Refinery, port.Hex, port.OwnerActorId);
@@ -97,13 +97,19 @@ public class MarketSupplyTests
         m.Deposit((int)GoodId.Ore, 1000.0, 0.6);
         m.Deposit((int)GoodId.Volatiles, 1000.0, 0.6);
         double creditsBefore = state.PolityOf(port.OwnerActorId).Credits;
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
+        // owner spend splits exactly into input purchases (the market pool)
+        // and wages (segment wealth) — conserved (P4)
         double spent = creditsBefore - state.PolityOf(port.OwnerActorId).Credits;
+        double wages = 0;
+        foreach (var s in state.Segments) wages += s.Wealth;
         Assert.True(spent > 0);
-        Assert.Equal(spent, scratch.PoolByMarket[0], 10);   // conserved (P4)
+        Assert.True(scratch.PoolByMarket[0] > 0);
+        Assert.True(wages > 0);
+        Assert.Equal(spent, scratch.PoolByMarket[0] + wages, 10);
     }
 
     [Fact]
@@ -113,7 +119,7 @@ public class MarketSupplyTests
         var f = new Facility(0, (int)InfraTypeId.Mine, 1, port.Hex,
                              port.OwnerActorId, builtYear: state.WorldYear);
         state.Facilities.Add(f);
-        var scratch = new MarketStepScratch(state.Markets.Count);
+        var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
@@ -125,12 +131,12 @@ public class MarketSupplyTests
     {
         var (a, portA) = Fixture();
         Built(a, InfraTypeId.Mine, portA.Hex, portA.OwnerActorId, condition: 1.0);
-        var sa = new MarketStepScratch(a.Markets.Count);
+        var sa = new MarketStepScratch(a);
         MarketEngine.SupplyLands(a, sa);
 
         var (b, portB) = Fixture();
         Built(b, InfraTypeId.Mine, portB.Hex, portB.OwnerActorId, condition: 0.5);
-        var sb = new MarketStepScratch(b.Markets.Count);
+        var sb = new MarketStepScratch(b);
         MarketEngine.SupplyLands(b, sb);
 
         Assert.Equal(a.Markets[0].Inventory[(int)GoodId.Ore] * 0.5,

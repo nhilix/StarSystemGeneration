@@ -7,9 +7,13 @@ using StarGen.Core.Substrate;
 namespace StarGen.Core.Epoch;
 
 /// <summary>One supplier's deposit this step — the attribution the revenue
-/// pool is distributed against at clearing (labor share to the port's
-/// segments, remainder to the owner).</summary>
+/// pool is distributed against at clearing.</summary>
 public sealed record SupplyRecord(int MarketIndex, int OwnerActorId, double Value);
+
+/// <summary>One buyer's banded want at one market — assembled by demand,
+/// consumed by clearing in band-priority order.</summary>
+public sealed record DemandRecord(
+    int MarketIndex, int SegmentId, PopulationBand Band, int Good, double Quantity);
 
 /// <summary>Step-transient market bookkeeping — never state, never serialized
 /// (P6: transients are not state). Buyers pay into the per-market pool;
@@ -20,10 +24,28 @@ public sealed class MarketStepScratch
     public double[] PoolByMarket { get; }
     /// <summary>Deposit attribution, in facility id order.</summary>
     public List<SupplyRecord> Supplies { get; } = new List<SupplyRecord>();
+    /// <summary>Aggregate legal demand per market per good — the price signal
+    /// and the freight gradient input.</summary>
+    public double[][] Demand { get; }
+    /// <summary>Banded population demand, in market → segment → band order.</summary>
+    public List<DemandRecord> DemandRecords { get; } = new List<DemandRecord>();
+    /// <summary>Subsistence units needed / cleared per segment id — the
+    /// famine arithmetic.</summary>
+    public double[] SubsistenceNeed { get; }
+    public double[] SubsistenceCleared { get; }
+    public double[] SoLNeed { get; }
+    public double[] SoLCleared { get; }
 
-    public MarketStepScratch(int marketCount)
+    public MarketStepScratch(SimState state)
     {
-        PoolByMarket = new double[marketCount];
+        PoolByMarket = new double[state.Markets.Count];
+        Demand = new double[state.Markets.Count][];
+        for (int i = 0; i < Demand.Length; i++)
+            Demand[i] = new double[Goods.All.Count];
+        SubsistenceNeed = new double[state.Segments.Count];
+        SubsistenceCleared = new double[state.Segments.Count];
+        SoLNeed = new double[state.Segments.Count];
+        SoLCleared = new double[state.Segments.Count];
     }
 }
 
@@ -37,6 +59,30 @@ public static class MarketEngine
     /// <summary>Neutral machinery grade when a market holds none — the grade
     /// multiplier is 1.0 at 0.5, so missing machinery neither helps nor hurts.</summary>
     private const double DefaultMachineryGrade = 0.5;
+    /// <summary>Price response of demand per band: subsistence near-inelastic,
+    /// standard-of-living moderate, luxury elastic (economy/markets.md §2).</summary>
+    private const double SubsistenceElasticity = 0.1;
+    private const double SoLElasticity = 0.5;
+    private const double LuxuryElasticity = 1.3;
+    /// <summary>Demand's price-response clamp — hunger doubles at best, never
+    /// explodes.</summary>
+    private const double ElasticFloor = 0.25, ElasticCeiling = 2.0;
+    /// <summary>Drift shape: price moves by (demand/supply)^exponent, clamped
+    /// by the per-year rate limit.</summary>
+    private const double DriftExponent = 0.5;
+    private const double PriceFloor = 0.01;
+    /// <summary>Black-book margin over the open price — prohibition converts
+    /// demand, it never deletes it (commodities.md legality).</summary>
+    private const double BlackMarketMarkup = 2.5;
+    /// <summary>Aggregate subsistence fraction below which a famine event is
+    /// chronicled.</summary>
+    private const double FamineThreshold = 0.95;
+
+    private static readonly PopulationBand[] Bands =
+    {
+        PopulationBand.Subsistence, PopulationBand.StandardOfLiving,
+        PopulationBand.Luxury,
+    };
 
     /// <summary>The market a facility sells into: its owner's nearest port
     /// (tie: lower port id) — derived, never stored. −1 when the owner has no
@@ -59,11 +105,17 @@ public static class MarketEngine
         state.WorldYear >= f.BuiltYear
                            + Infrastructure.Get((InfraTypeId)f.TypeId).ConstructionYears;
 
-    /// <summary>Step 1 — supply lands: every active facility produces per
-    /// C's formula and sells into its attached market. Extraction reads the
-    /// genesis fields at its hex (output AND grade root in geography);
-    /// processing consumes market inventory through recipes, paying input
-    /// costs from the owner's credits into the market pool.</summary>
+    // ------------------------------------------------------------------
+    // Step 1 — supply lands
+    // ------------------------------------------------------------------
+
+    /// <summary>Every active facility produces per C's formula and sells into
+    /// its attached market. Extraction reads the genesis fields at its hex
+    /// (output AND grade root in geography); processing consumes market
+    /// inventory through recipes, paying input costs from the owner's credits
+    /// into the market pool. Wages precede sales: the labor share of each
+    /// deposit's value goes to the staffing segments immediately, giving
+    /// households purchasing power this same step.</summary>
     public static void SupplyLands(SimState state, MarketStepScratch scratch)
     {
         var cfg = state.Config;
@@ -169,9 +221,286 @@ public static class MarketEngine
     {
         var market = state.Markets[mIx];
         market.Deposit(good, qty, grade);
-        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId,
-                                              qty * market.Price[good]));
+        double value = qty * market.Price[good];
+        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId, value));
+        PayWages(state, market.PortId, ownerActorId,
+                 state.Config.Economy.LaborShare * value);
     }
+
+    /// <summary>Labor share to the staffing segments, pro-rata by size —
+    /// household income is earned, not assumed (economy/markets.md).</summary>
+    private static void PayWages(SimState state, int portId, int ownerActorId,
+                                 double wage)
+    {
+        if (wage <= 0) return;
+        double totalSize = 0;
+        foreach (var s in state.Segments)
+            if (s.PortId == portId) totalSize += s.Size;
+        if (totalSize <= 0) return;
+        state.PolityOf(ownerActorId).Credits -= wage;
+        foreach (var s in state.Segments)
+            if (s.PortId == portId)
+                s.Wealth += wage * s.Size / totalSize;
+    }
+
+    // ------------------------------------------------------------------
+    // Step 2 — demand assembles
+    // ------------------------------------------------------------------
+
+    /// <summary>Population demand per band: C's normalized profiles × the
+    /// config's absolute per-capita rates × segment size, embodiment-
+    /// modulated, price-elastic, with the organic baseline offsetting
+    /// provisions (self-supply — unserviced systems are poor, not starving).
+    /// Prohibition converts demand into the black book instead of deleting
+    /// it.</summary>
+    public static void AssembleDemand(SimState state, MarketStepScratch scratch)
+    {
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        {
+            var market = state.Markets[mIx];
+            Array.Clear(market.BlackBookDemand, 0, market.BlackBookDemand.Length);
+            Array.Clear(market.BlackBookPrice, 0, market.BlackBookPrice.Length);
+            var port = state.Ports[market.PortId];
+            var law = (state.Actors[port.OwnerActorId].Policies as PolityPolicies
+                       ?? PolityPolicies.Default).LawCode;
+            double biosphere = Potentials.Biosphere(FieldsAt(state, port.Hex));
+
+            foreach (var seg in state.Segments)           // id order (P6)
+            {
+                if (seg.PortId != port.Id || seg.Size <= 0) continue;
+                var embodiment = EmbodimentOf(state, seg.SpeciesId);
+                double baseline =
+                    Production.OrganicBaseline(seg.Size, biosphere) * years;
+
+                foreach (var band in Bands)
+                {
+                    double rate = band switch
+                    {
+                        PopulationBand.Subsistence =>
+                            eco.SubsistenceUnitsPerPopPerYear
+                            * DemandProfiles.SubsistenceScale(embodiment),
+                        PopulationBand.StandardOfLiving => eco.SoLUnitsPerPopPerYear,
+                        _ => eco.LuxuryUnitsPerPopPerYear,
+                    };
+                    double bandTotal = seg.Size * rate * years;
+                    foreach (var (good, weight) in
+                             DemandProfiles.Population(embodiment, band))
+                    {
+                        double qty = bandTotal * weight;
+                        if (band == PopulationBand.Subsistence)
+                        {
+                            scratch.SubsistenceNeed[seg.Id] += qty;
+                            if (good == GoodId.Provisions && baseline > 0)
+                            {
+                                double offset = Math.Min(qty, baseline);
+                                qty -= offset;
+                                scratch.SubsistenceCleared[seg.Id] += offset;
+                            }
+                        }
+                        else if (band == PopulationBand.StandardOfLiving)
+                            scratch.SoLNeed[seg.Id] += qty;
+                        if (qty <= 0) continue;
+
+                        qty *= ElasticFactor(eco, market, (int)good, band);
+                        double black = law.TryGetValue((int)good, out var level)
+                            ? level switch
+                            {
+                                LegalityLevel.Prohibited => qty,
+                                LegalityLevel.Restricted => qty * 0.5,
+                                _ => 0.0,
+                            } : 0.0;
+                        if (black > 0)
+                        {
+                            market.BlackBookDemand[(int)good] += black;
+                            market.BlackBookPrice[(int)good] =
+                                market.Price[(int)good] * BlackMarketMarkup;
+                        }
+                        double legal = qty - black;
+                        if (legal <= 0) continue;
+                        scratch.Demand[mIx][(int)good] += legal;
+                        scratch.DemandRecords.Add(new DemandRecord(
+                            mIx, seg.Id, band, (int)good, legal));
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>Demand's price response around the founding price, clamped —
+    /// elasticity by band.</summary>
+    private static double ElasticFactor(EconomyKnobs eco, Market market,
+                                        int good, PopulationBand band)
+    {
+        double basePrice = Market.InitialPrice(eco, (GoodId)good);
+        if (basePrice <= 0) return 1.0;
+        double elasticity = band switch
+        {
+            PopulationBand.Subsistence => SubsistenceElasticity,
+            PopulationBand.StandardOfLiving => SoLElasticity,
+            _ => LuxuryElasticity,
+        };
+        double factor = Math.Pow(market.Price[good] / basePrice, -elasticity);
+        return Math.Min(ElasticCeiling, Math.Max(ElasticFloor, factor));
+    }
+
+    // ------------------------------------------------------------------
+    // Step 3 — price adjusts
+    // ------------------------------------------------------------------
+
+    /// <summary>Each (market, good) price drifts toward clearing: excess
+    /// demand pushes up, glut pushes down, rate-limited per world-year —
+    /// markets never perfectly clear; persistent gradients ARE the trade
+    /// opportunities.</summary>
+    public static void AdjustPrices(SimState state, MarketStepScratch scratch)
+    {
+        var eco = state.Config.Economy;
+        double cap = Math.Exp(eco.PriceDriftMaxPerYear
+                              * state.Config.Sim.YearsPerEpoch);
+        const double eps = 1e-9;
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        {
+            var market = state.Markets[mIx];
+            for (int g = 0; g < market.Price.Length; g++)
+            {
+                double demand = scratch.Demand[mIx][g];
+                double supply = market.Inventory[g];
+                if (demand <= eps && supply <= eps) continue;   // dormant good
+                double factor = Math.Pow((demand + eps) / (supply + eps),
+                                         DriftExponent);
+                factor = Math.Min(cap, Math.Max(1.0 / cap, factor));
+                market.Price[g] = Math.Max(PriceFloor, market.Price[g] * factor);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Step 5 — clearing and consequences
+    // ------------------------------------------------------------------
+
+    /// <summary>Consumption satisfies band priority per good; buyers pay the
+    /// (adjusted) price from their wealth into the market pool. Unmet
+    /// subsistence chronicles a famine; the SoL scalar drifts toward the
+    /// standard-of-living band's cleared fraction. Returns the famine count
+    /// (the phase note reports it).</summary>
+    public static int Clear(SimState state, MarketStepScratch scratch)
+    {
+        var pop = state.Config.Population;
+        int years = state.Config.Sim.YearsPerEpoch;
+        int famines = 0;
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        {
+            var market = state.Markets[mIx];
+            var port = state.Ports[market.PortId];
+            foreach (var band in Bands)                   // priority order
+            {
+                // totals for this band at this market, against live inventory
+                for (int g = 0; g < market.Price.Length; g++)
+                {
+                    double total = 0;
+                    foreach (var r in scratch.DemandRecords)
+                        if (r.MarketIndex == mIx && r.Band == band && r.Good == g)
+                            total += r.Quantity;
+                    if (total <= 0) continue;
+                    double fraction = Math.Min(1.0, market.Inventory[g] / total);
+                    if (fraction <= 0) continue;
+                    foreach (var r in scratch.DemandRecords)
+                    {
+                        if (r.MarketIndex != mIx || r.Band != band || r.Good != g)
+                            continue;
+                        var seg = state.Segments[r.SegmentId];
+                        double take = r.Quantity * fraction;
+                        double price = market.Price[g];
+                        if (price > 0 && take * price > seg.Wealth)
+                            take = seg.Wealth / price;     // poverty caps the basket
+                        double drawn = market.Draw(g, take);
+                        if (drawn <= 0) continue;
+                        double cost = drawn * price;
+                        seg.Wealth -= cost;
+                        scratch.PoolByMarket[mIx] += cost;
+                        market.LastCleared[g] += drawn;
+                        if (band == PopulationBand.Subsistence)
+                            scratch.SubsistenceCleared[r.SegmentId] += drawn;
+                        else if (band == PopulationBand.StandardOfLiving)
+                            scratch.SoLCleared[r.SegmentId] += drawn;
+                    }
+                }
+            }
+
+            // consequences: famine arithmetic and the SoL drift
+            double portNeed = 0, portCleared = 0;
+            foreach (var seg in state.Segments)
+            {
+                if (seg.PortId != port.Id) continue;
+                double need = scratch.SubsistenceNeed[seg.Id];
+                seg.LastSubsistence = need > 0
+                    ? Math.Min(1.0, scratch.SubsistenceCleared[seg.Id] / need)
+                    : 1.0;
+                portNeed += need;
+                portCleared += Math.Min(scratch.SubsistenceCleared[seg.Id], need);
+                double solNeed = scratch.SoLNeed[seg.Id];
+                double solFraction = solNeed > 0
+                    ? Math.Min(1.0, scratch.SoLCleared[seg.Id] / solNeed)
+                    : seg.SoL;                            // no want, no news
+                seg.SoL = Math.Min(1.0, Math.Max(0.0,
+                    seg.SoL + (solFraction - seg.SoL) * pop.SoLDriftPerYear * years));
+            }
+            if (portNeed > 0 && portCleared / portNeed < FamineThreshold)
+            {
+                double shortfall = 1.0 - portCleared / portNeed;
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.FamineStruck,
+                    new[] { port.OwnerActorId }, port.Hex,
+                    Magnitude: shortfall, Valence: -1.0, EventVisibility.Regional,
+                    new FamineStruckPayload(port.Id, shortfall)));
+                famines++;
+            }
+        }
+        return famines;
+    }
+
+    // ------------------------------------------------------------------
+    // Revenue distribution
+    // ------------------------------------------------------------------
+
+    /// <summary>The pool of buyer payments per market: transaction tax to the
+    /// port's polity, the rest to this step's suppliers pro-rata by supplied
+    /// value (capped at that value — unsold goods earn nothing); surplus from
+    /// carried-inventory sales accrues to the port owner. Every credit is a
+    /// conserved ledger move (P4).</summary>
+    public static void DistributePools(SimState state, MarketStepScratch scratch)
+    {
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        {
+            double pool = scratch.PoolByMarket[mIx];
+            if (pool <= 0) continue;
+            var port = state.Ports[state.Markets[mIx].PortId];
+            var portOwner = state.PolityOf(port.OwnerActorId);
+            double taxRate = (state.Actors[port.OwnerActorId].Policies
+                              as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+            double tax = pool * taxRate;
+            portOwner.Credits += tax;
+            double net = pool - tax;
+
+            double totalSupplied = 0;
+            foreach (var s in scratch.Supplies)
+                if (s.MarketIndex == mIx) totalSupplied += s.Value;
+            if (totalSupplied > 0)
+            {
+                double payRatio = Math.Min(1.0, net / totalSupplied);
+                foreach (var s in scratch.Supplies)
+                    if (s.MarketIndex == mIx)
+                        state.PolityOf(s.OwnerActorId).Credits += s.Value * payRatio;
+                net -= Math.Min(net, totalSupplied);
+            }
+            portOwner.Credits += net;   // carried-inventory sales
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Shared lookups
+    // ------------------------------------------------------------------
 
     /// <summary>Terrain potential per extraction type at the facility's cell;
     /// 1.0 for processing (the formula's neutral terrain).</summary>
@@ -201,6 +530,13 @@ public static class MarketEngine
                               mineral, precursor);
     }
 
+    /// <summary>Shape-only skeletons (frame tests) carry no species profiles —
+    /// read as the terran default.</summary>
+    internal static Embodiment EmbodimentOf(SimState state, int speciesId) =>
+        speciesId >= 0 && speciesId < state.Skeleton.Species.Count
+            ? state.Skeleton.Species[speciesId].Embodiment
+            : Embodiment.TerranAnalog;
+
     /// <summary>Total workforce and dominant embodiment (largest segment,
     /// tie: lower id) of the port's population.</summary>
     private static Embodiment DominantEmbodiment(SimState state, int portId,
@@ -215,11 +551,7 @@ public static class MarketEngine
             if (s.Size > biggest)
             {
                 biggest = s.Size;
-                // shape-only skeletons (frame tests) carry no species profiles
-                embodiment = s.SpeciesId >= 0
-                             && s.SpeciesId < state.Skeleton.Species.Count
-                    ? state.Skeleton.Species[s.SpeciesId].Embodiment
-                    : Embodiment.TerranAnalog;
+                embodiment = EmbodimentOf(state, s.SpeciesId);
             }
         }
         return embodiment;

@@ -53,7 +53,7 @@ Architecture decisions (made at kickoff, flag deviations):
       recipes (tech-tier stub gates variants); organic baseline; labor share
       of revenue → segments, remainder → owner; condition scales output.
       Gate: unit tests (fixtures over a seeded state).
-- [ ] 3. **Demand assembles + price + clearing** — per-segment band demand
+- [x] 3. **Demand assembles + price + clearing** — per-segment band demand
       (C profiles × config rates × income budget, embodiment-modulated);
       institutional demand (facility inputs/upkeep, polity procurement);
       priority-order clearing; transaction tax; price drift toward clearing
@@ -117,5 +117,19 @@ Architecture decisions (made at kickoff, flag deviations):
 - Automation stays 0 in the labor factor until Compute-driven automation
   gets a consumer story (G); machinery grade defaults to the neutral 0.5
   when a market holds none.
-- Golden regenerated twice so far (EECO knob line; starter industry) —
-  deliberate, same-commit, history changes are the slice's point.
+- Golden regenerated per history-changing task (EECO knob line; starter
+  industry; live market step) — deliberate, same-commit, history changes are
+  the slice's point.
+- **Wages precede sales** (task 3): the labor share is paid at deposit time
+  from owner credits (households get same-step purchasing power — solves the
+  income/spending circularity); suppliers recoup the full cleared value at
+  distribution. Owner credits may run negative pre-credit (task 5).
+- Law codes derive from `PerceptionView.SelfSpecies` (an actor perceives its
+  own society) — no controller-ctor churn, reattaches cleanly on load.
+  Genesis flavor: openness < 0.35 prohibits narcotics, < 0.55 restricts.
+- `PopulationSegment.LastSubsistence` is a transient consequence (Markets
+  writes, Interior reads same step) — never serialized; load-then-step
+  recomputes it before any read.
+- Mid-slice state (post task 3): colonies famine — no facilities (task 5)
+  and no freight imports (task 4) yet. The famine wall receding as tasks 4–6
+  land is the natural acceptance arc.

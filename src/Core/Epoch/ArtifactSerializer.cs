@@ -368,6 +368,8 @@ public static class ArtifactSerializer
             e.PortBId.ToString(Inv)),
         PortTierRaisedPayload e => Join("portTierRaised", e.PortId.ToString(Inv),
             e.NewTier.ToString(Inv)),
+        FamineStruckPayload e => Join("famineStruck", e.PortId.ToString(Inv),
+            R(e.Shortfall)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -381,6 +383,8 @@ public static class ArtifactSerializer
             int.Parse(f[at + 2], Inv)),
         "portTierRaised" => new PortTierRaisedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv)),
+        "famineStruck" => new FamineStruckPayload(int.Parse(f[at + 1], Inv),
+            double.Parse(f[at + 2], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 
