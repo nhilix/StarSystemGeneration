@@ -33,10 +33,18 @@ public sealed class FrameAnimator
         var lines = text.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
         if (InPlace && _lastHeight > 0)
             Console.Write($"\x1b[{_lastHeight}A");
+        // a line wider than the terminal would wrap onto a second row the
+        // cursor-up count doesn't know about — every frame after would
+        // drift, leaving stale rows behind. Clip, never wrap.
+        int clip = int.MaxValue;
+        if (InPlace)
+            try { clip = Math.Max(1, Console.WindowWidth - 1); }
+            catch (System.IO.IOException) { }
         int height = Math.Max(lines.Length, _lastHeight);
         for (int i = 0; i < height; i++)
         {
             string line = i < lines.Length ? lines[i] : "";
+            if (line.Length > clip) line = line.Substring(0, clip);
             Console.Write(InPlace ? line + "\x1b[K\n" : line + "\n");
         }
         _lastHeight = height;

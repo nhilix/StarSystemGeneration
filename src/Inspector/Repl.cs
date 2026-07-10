@@ -268,12 +268,11 @@ public sealed class Repl
                         for (int i = 0; i < wepochs; i++)
                         {
                             wengine.Step(westate);
+                            // no header line: the emap legend already names the
+                            // domains, and extra chrome only risks wrap drift
                             if ((i + 1) % eEvery == 0 || i == wepochs - 1)
-                                animator.Frame(FormattableString.Invariant(
-                                    $"── generational clock · domains · epoch {westate.EpochIndex}/{wepochs} · y{westate.WorldYear} ")
-                                    + new string('─', 20) + "\n"
-                                    + EpochMapView.Render(westate, "domains",
-                                        Core.Substrate.GoodId.Provisions));
+                                animator.Frame(EpochMapView.Render(westate, "domains",
+                                    Core.Substrate.GoodId.Provisions));
                         }
                         animator.Done();
                         _sim = westate;
@@ -342,11 +341,8 @@ public sealed class Repl
                         for (int i = 0; i < n; i++)
                         {
                             wengine.Step(_sim!);
-                            eanimator.Frame(FormattableString.Invariant(
-                                $"── epoch {_sim!.EpochIndex} (y{_sim.WorldYear}) · {wlayer} ")
-                                + new string('─', 20) + "\n"
-                                + EpochMapView.Render(_sim, wlayer,
-                                    Core.Substrate.GoodId.Provisions));
+                            eanimator.Frame(EpochMapView.Render(_sim!, wlayer,
+                                Core.Substrate.GoodId.Provisions));
                         }
                     }
                     finally { eanimator.Done(); }
