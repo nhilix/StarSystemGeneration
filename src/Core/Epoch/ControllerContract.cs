@@ -25,11 +25,15 @@ public sealed class PerceptionView
     /// society (null for non-polities and shape-only test skeletons). Law
     /// codes and temperament-flavored policies derive from it.</summary>
     public SpeciesProfile? SelfSpecies { get; }
+    /// <summary>Own port count — scales standing policy magnitudes
+    /// (stockpile targets and the like).</summary>
+    public int OwnPortCount { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
                           IReadOnlyList<ColonyCandidate>? colonyCandidates = null,
-                          SpeciesProfile? selfSpecies = null)
+                          SpeciesProfile? selfSpecies = null,
+                          int ownPortCount = 0)
     {
         SelfId = selfId;
         WorldYear = worldYear;
@@ -37,6 +41,7 @@ public sealed class PerceptionView
         ExpansionPoints = expansionPoints;
         ColonyCandidates = colonyCandidates ?? NoCandidates;
         SelfSpecies = selfSpecies;
+        OwnPortCount = ownPortCount;
     }
 }
 
@@ -81,9 +86,13 @@ public sealed class GenesisController : IController
         _config = config;
     }
 
+    /// <summary>Provisions reserve target per owned port — famine and siege
+    /// buffering by standing policy (economy/markets.md §Stockpiles).</summary>
+    private const double ProvisionsReservePerPort = 3.0;
+
     public ControllerDecision Decide(PerceptionView perceived)
     {
-        var policies = PoliciesFor(perceived.SelfSpecies);
+        var policies = PoliciesFor(perceived);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.ColonyCandidates.Count > 0)
             return new ControllerDecision(policies, new Act[]
@@ -93,20 +102,33 @@ public sealed class GenesisController : IController
         return new ControllerDecision(policies, NoActs);
     }
 
-    /// <summary>Default policies plus a species-derived law code: closed
+    /// <summary>Default policies plus a species-derived law code (closed
     /// societies prohibit narcotics, guarded ones restrict them —
-    /// jurisdiction-relative legality (commodities.md), deterministic from
-    /// the perceived self.</summary>
-    private static PolityPolicies PoliciesFor(SpeciesProfile? species)
+    /// jurisdiction-relative legality, commodities.md) and a provisions
+    /// reserve target scaling with the realm. Deterministic from the view.</summary>
+    private static PolityPolicies PoliciesFor(PerceptionView perceived)
     {
-        if (species == null || species.Openness >= 0.55)
-            return PolityPolicies.Default;
-        var law = new Dictionary<int, LegalityLevel>
-        {
-            [(int)Substrate.GoodId.Narcotics] = species.Openness < 0.35
-                ? LegalityLevel.Prohibited
-                : LegalityLevel.Restricted,
-        };
-        return PolityPolicies.Default with { LawCode = law };
+        var policies = PolityPolicies.Default;
+        var species = perceived.SelfSpecies;
+        if (species != null && species.Openness < 0.55)
+            policies = policies with
+            {
+                LawCode = new Dictionary<int, LegalityLevel>
+                {
+                    [(int)Substrate.GoodId.Narcotics] = species.Openness < 0.35
+                        ? LegalityLevel.Prohibited
+                        : LegalityLevel.Restricted,
+                },
+            };
+        if (perceived.OwnPortCount > 0)
+            policies = policies with
+            {
+                StockpileTargets = new Dictionary<int, double>
+                {
+                    [(int)Substrate.GoodId.Provisions] =
+                        ProvisionsReservePerPort * perceived.OwnPortCount,
+                },
+            };
+        return policies;
     }
 }

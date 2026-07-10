@@ -27,14 +27,18 @@ public sealed class PerceptionPhase : ISimPhase
             var candidates = a.Kind == ActorKind.Polity
                 ? ColonyValuation.CandidatesFor(state, a.Id) : null;
             Galaxy.SpeciesProfile? selfSpecies = null;
+            int ownPorts = 0;
             if (a.Kind == ActorKind.Polity)
             {
                 int sp = state.PolityOf(a.Id).SpeciesId;
                 if (sp >= 0 && sp < state.Skeleton.Species.Count)
                     selfSpecies = state.Skeleton.Species[sp];
+                foreach (var p in state.Ports)
+                    if (p.OwnerActorId == a.Id) ownPorts++;
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
-                                              expansion, candidates, selfSpecies);
+                                              expansion, candidates, selfSpecies,
+                                              ownPorts);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -57,6 +61,11 @@ public sealed class MarketsPhase : ISimPhase
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
         MarketEngine.AssembleDemand(state, scratch);
+        MarketEngine.AddReExportDemand(state, scratch);
+        // freight before the price drift: the drift reads realized supply —
+        // an import-fed port prices its arrivals, a blockaded one their
+        // absence (markets.md §The market step; amended in slice D)
+        int shipments = MarketEngine.MoveFreight(state, scratch);
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
@@ -64,6 +73,8 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var f in state.Facilities)
             if (MarketEngine.IsActive(state, f)) producing++;
         string note = $"{producing} facilities supply {state.Markets.Count} markets";
+        if (shipments > 0)
+            note += $", {shipments} " + (shipments == 1 ? "shipment" : "shipments");
         if (famines > 0)
             note += $", {famines} " + (famines == 1 ? "famine" : "famines");
         return note;
@@ -258,7 +269,11 @@ public sealed class ResolutionPhase : ISimPhase
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
         state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
-            record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize));
+            record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize)
+        {
+            // founding households arrive with savings (minted, P4-noted)
+            Wealth = cfg.Expansion.ColonySegmentSize * cfg.Economy.InitialWealthPerPop,
+        });
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
@@ -302,7 +317,11 @@ public sealed class InteriorPhase : ISimPhase
             state.Markets.Add(new Market(port.Id, state.Config.Economy));
             int species = state.PolityOf(a.Id).SpeciesId;
             state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
-                species, species, state.Config.Expansion.HomeworldSegmentSize));
+                species, species, state.Config.Expansion.HomeworldSegmentSize)
+            {
+                Wealth = state.Config.Expansion.HomeworldSegmentSize
+                         * state.Config.Economy.InitialWealthPerPop,
+            });
             // a civilization at spaceflight arrives with industry: the
             // starter chain (raw → alloys/fuel → machinery) and the one-time
             // credit endowment — the only mint; conserved thereafter (P4)

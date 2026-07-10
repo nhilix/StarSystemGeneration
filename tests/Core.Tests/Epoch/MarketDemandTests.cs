@@ -188,17 +188,22 @@ public class MarketDemandTests
     }
 
     [Fact]
-    public void Wages_ReachTheStaffingSegments()
+    public void Wages_ReachTheStaffingSegments_FromRealizedRevenue()
     {
         var (state, port, seg) = Fixture(wealth: 0.0);
         state.PolityOf(port.OwnerActorId).Credits = 500;
+        // the refinery buys the mine's ore: realized revenue → wages
         state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, 1,
             port.Hex, port.OwnerActorId, state.WorldYear - 10));
+        state.Facilities.Add(new Facility(1, (int)InfraTypeId.Skimmer, 1,
+            port.Hex, port.OwnerActorId, state.WorldYear - 10));
+        state.Facilities.Add(new Facility(2, (int)InfraTypeId.Refinery, 1,
+            port.Hex, port.OwnerActorId, state.WorldYear - 10));
 
-        var scratch = new MarketStepScratch(state);
-        MarketEngine.SupplyLands(state, scratch);
+        Step(state);
 
-        Assert.True(seg.Wealth > 0, "labor share should be paid at production");
+        Assert.True(seg.Wealth > 0,
+            "the labor share of cleared revenue should reach households");
     }
 
     private static void Fill(Market m)

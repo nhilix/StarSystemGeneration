@@ -89,7 +89,7 @@ public class MarketSupplyTests
     }
 
     [Fact]
-    public void InputPurchasesAndWages_AreConservedLedgerMoves()
+    public void InputPurchases_MoveOwnerCreditsIntoTheMarketPool()
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Refinery, port.Hex, port.OwnerActorId);
@@ -101,15 +101,11 @@ public class MarketSupplyTests
 
         MarketEngine.SupplyLands(state, scratch);
 
-        // owner spend splits exactly into input purchases (the market pool)
-        // and wages (segment wealth) — conserved (P4)
+        // input purchases land in the pool intact; wages wait for realized
+        // revenue at distribution — conserved (P4)
         double spent = creditsBefore - state.PolityOf(port.OwnerActorId).Credits;
-        double wages = 0;
-        foreach (var s in state.Segments) wages += s.Wealth;
         Assert.True(spent > 0);
-        Assert.True(scratch.PoolByMarket[0] > 0);
-        Assert.True(wages > 0);
-        Assert.Equal(spent, scratch.PoolByMarket[0] + wages, 10);
+        Assert.Equal(spent, scratch.PoolByMarket[0], 10);
     }
 
     [Fact]

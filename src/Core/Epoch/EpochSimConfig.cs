@@ -48,11 +48,11 @@ public sealed class EconomyKnobs
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year
     /// (× embodiment SubsistenceScale) — the famine dial.</summary>
-    public double SubsistenceUnitsPerPopPerYear { get; set; } = 1.0;
+    public double SubsistenceUnitsPerPopPerYear { get; set; } = 0.6;
     /// <summary>Standard-of-living-band units per population unit per world-year.</summary>
-    public double SoLUnitsPerPopPerYear { get; set; } = 0.6;
+    public double SoLUnitsPerPopPerYear { get; set; } = 0.4;
     /// <summary>Luxury-band units per population unit per world-year (elastic).</summary>
-    public double LuxuryUnitsPerPopPerYear { get; set; } = 0.2;
+    public double LuxuryUnitsPerPopPerYear { get; set; } = 0.15;
 
     // -- Prices --
     public double BasePriceRaw { get; set; } = 1.0;
@@ -69,9 +69,13 @@ public sealed class EconomyKnobs
     /// <summary>Share of facility revenue paid to the staffing segments; the
     /// remainder goes to the owner (economy/markets.md §Household income).</summary>
     public double LaborShare { get; set; } = 0.4;
-    /// <summary>Credits minted once per polity at entry — the only mint;
-    /// conserved thereafter (P4).</summary>
+    /// <summary>Credits minted once per polity at entry; conserved
+    /// thereafter (P4).</summary>
     public double InitialCreditsPerPolity { get; set; } = 200.0;
+    /// <summary>Household credits minted per population unit when a segment
+    /// is founded — the other mint; first-epoch purchasing power before any
+    /// wages have been earned.</summary>
+    public double InitialWealthPerPop { get; set; } = 15.0;
 
     // -- Freight --
     /// <summary>Credits per unit of goods per hex of lane distance.</summary>

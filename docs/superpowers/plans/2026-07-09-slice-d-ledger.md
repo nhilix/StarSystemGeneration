@@ -61,7 +61,7 @@ Architecture decisions (made at kickoff, flag deviations):
       written to segments; black-book conversion for prohibited goods
       (GenesisController writes species-derived law codes). Gate: unit tests
       incl. priority order, famine flag, drift bounds.
-- [ ] 4. **Freight** — re-export demand term; arbitrage flows over lanes
+- [x] 4. **Freight** — re-export demand term; arbitrage flows over lanes
       within `LaneMath.Capacity` (fleet-capacity stub), fuel + tariff costs,
       legality at both ends; contracts: unmet polity stockpile targets post
       premium contracts freight fulfills; internal logistics: polity moves
@@ -133,3 +133,22 @@ Architecture decisions (made at kickoff, flag deviations):
 - Mid-slice state (post task 3): colonies famine — no facilities (task 5)
   and no freight imports (task 4) yet. The famine wall receding as tasks 4–6
   land is the natural acceptance arc.
+- **Design-doc amendment (task 4, flag to user)**: `markets.md` market-step
+  order — freight now moves *before* the price drift, so the drift reads
+  realized supply. With the doc's original order an import-fed port always
+  priced against empty shelves (permanent artificial spike, wealth death
+  spiral); with the amendment a blockade is what spikes, exactly as the
+  design intends. Freight plans on the previous drift's prices.
+- Task-4 mechanics born from the blockade diagnostic: demand is
+  **wealth-backed** (poverty reads as glut, not frozen prices); arbitrage is
+  **absorption-capped** (ships what the destination will take beyond stock —
+  re-export demand makes hubs pull); prices carry an absolute ceiling
+  (base × 1000) against ε-supply runaways; the organic baseline scales with
+  embodiment (a lithic farms as little as it eats).
+- Explicit escrowed contract objects deferred to E (carriers) / I (news
+  propagation): D ships polity procurement (stockpile targets → purchases)
+  + reserve release to starving own ports as the internal-logistics reading.
+  **Flag at eyeball.**
+- Freight fuel is monetized at the source market's fuel price and pulls on
+  its fuel demand (movement is never free); physical fuel drawdown awaits E's
+  hulls.
