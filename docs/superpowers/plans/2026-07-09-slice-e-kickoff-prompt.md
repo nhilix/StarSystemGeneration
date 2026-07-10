@@ -134,4 +134,4 @@ from 41; new economic events from 207, military from 400.
    genesis — read the roadmap's sequencing rationale first) · flip the box
    below · push only on user say-so.
 
-- [ ] Slice E complete
+- [x] Slice E complete
