@@ -59,9 +59,11 @@ public sealed class MarketsPhase : ISimPhase
         if (state.Markets.Count == 0) return "no markets yet";
         foreach (var m in state.Markets)
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
+        foreach (var pr in state.Polities) pr.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
         MarketEngine.AssembleDemand(state, scratch);
+        MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
@@ -112,7 +114,9 @@ public sealed class AllocationPhase : ISimPhase
             if (ownPorts.Count == 0) continue;
             earning++;
             var budget = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
-            double allocatable = Math.Max(0.0, pr.Credits);
+            // budget the epoch's receipts, not the balance: development is
+            // deficit-financed through downturns; credit picks up the slack
+            double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.Credits -= allocatable * (budget.Expansion + budget.Development);
@@ -265,13 +269,36 @@ public sealed class AllocationPhase : ISimPhase
         return count;
     }
 
-    /// <summary>Upkeep drawn from the attached market; unmet upkeep decays
-    /// condition, met upkeep restores it — output scales with condition
-    /// (assets-and-investment.md §Condition).</summary>
+    /// <summary>Upkeep drawn from the attached market, pro-rata per good when
+    /// scarce — a starving chain recovers together instead of the first
+    /// facility by id hogging the machinery while the rest rot. Condition
+    /// drifts toward the met fraction: partial upkeep holds partial health,
+    /// never an unrecoverable floor (assets-and-investment.md §Condition;
+    /// output scales with condition).</summary>
     private static void RunUpkeep(SimState state, PolityRecord pr)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
+        // pass 1: total upkeep need and starting stock per (market, good)
+        var need = new Dictionary<(int Market, int Good), double>();
+        var available = new Dictionary<(int Market, int Good), double>();
+        foreach (var f in state.Facilities)                   // id order (P6)
+        {
+            if (f.OwnerActorId != pr.ActorId) continue;
+            if (!MarketEngine.IsActive(state, f)) continue;
+            int mIx = MarketEngine.AttachedMarketIndex(state, f);
+            if (mIx < 0) continue;
+            var def = Substrate.Infrastructure.Get((Substrate.InfraTypeId)f.TypeId);
+            double scale = Substrate.Production.TierCostFactor(f.Tier) * years;
+            foreach (var q in def.UpkeepPerYear)
+            {
+                var key = (mIx, (int)q.Good);
+                need.TryGetValue(key, out double sum);
+                need[key] = sum + q.Quantity * scale;
+                available[key] = state.Markets[mIx].Inventory[(int)q.Good];
+            }
+        }
+        // pass 2: everyone gets the same fraction of the starting stock
         foreach (var f in state.Facilities)                   // id order (P6)
         {
             if (f.OwnerActorId != pr.ActorId) continue;
@@ -284,18 +311,22 @@ public sealed class AllocationPhase : ISimPhase
             double met = 1.0;
             foreach (var q in def.UpkeepPerYear)
             {
-                double need = q.Quantity * scale;
-                if (need <= 0) continue;
-                double drawn = market.Draw((int)q.Good, need);
+                double myNeed = q.Quantity * scale;
+                if (myNeed <= 0) continue;
+                var key = (mIx, (int)q.Good);
+                double fraction = need[key] <= 0 ? 1.0
+                    : Math.Min(1.0, available[key] / need[key]);
+                double drawn = market.Draw((int)q.Good, myNeed * fraction);
                 market.LastCleared[(int)q.Good] += drawn;
-                met = Math.Min(met, drawn / need);
+                met = Math.Min(met, drawn / myNeed);
             }
-            if (met >= 1.0)
-                f.Condition = Math.Min(1.0,
+            double target = Math.Max(0.05, met);
+            if (target > f.Condition)
+                f.Condition = Math.Min(target,
                     f.Condition + eco.ConditionRecoveryPerYear * years);
             else
-                f.Condition = Math.Max(0.05,
-                    f.Condition - eco.ConditionDecayPerYear * years * (1.0 - met));
+                f.Condition = Math.Max(target,
+                    f.Condition - eco.ConditionDecayPerYear * years);
         }
     }
 

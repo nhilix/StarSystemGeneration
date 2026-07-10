@@ -15,6 +15,11 @@ public sealed class PolityRecord
     /// <summary>The credit ledger — conserved (P4): endowed once at entry,
     /// then moved only by transactions, taxes, and loans.</summary>
     public double Credits { get; set; }
+    /// <summary>This epoch's market receipts (taxes, payouts, tariffs) —
+    /// written by the Markets phase, consumed by the same epoch's Allocation
+    /// as the budget base (development is deficit-financed when the balance
+    /// runs negative). Step-transient: never serialized.</summary>
+    public double Receipts { get; set; }
     /// <summary>Accrued expansion budget; colony foundings consume it.</summary>
     public double ExpansionPoints { get; set; }
     /// <summary>Accrued development budget; lanes, port tier raises, and

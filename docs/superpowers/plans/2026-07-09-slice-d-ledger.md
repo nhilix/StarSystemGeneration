@@ -85,7 +85,7 @@ Architecture decisions (made at kickoff, flag deviations):
       layer (MARKET/BLACKBOOK/RESERVE/LOAN + CULTURE records). Gates:
       byte-identity, load-vs-rebuild equivalence, version refusal,
       round-trip of typed payloads.
-- [ ] 8. **REPL surface** — `market <portId>` dump (per-good
+- [x] 8. **REPL surface** — `market <portId>` dump (per-good
       price/qty/grade + black book + segments with SoL/income);
       `emap price [good]` layer; `lanecut <portA> <portB>` debug hook;
       `estep [n]` continuation; help text. Gate: piped-stdin smoke via bash
@@ -184,3 +184,17 @@ Architecture decisions (made at kickoff, flag deviations):
   reads the *previous* epoch's value — cross-step state, so segments v2
   serializes it (the load-then-continue byte-equivalence test would have
   caught the divergence).
+- Task-8 macro wave (the REPL dump made the pathologies visible):
+  **industry inputs are demand** (upkeep + planned recipe draws register at
+  the attached market — without this machinery floors and the industrial
+  base rots); **working capital** (production input purchases aren't
+  credit-clamped; revenue lands the same step, insolvency is Allocation's
+  credit problem); **condition drifts toward the met fraction** (partial
+  upkeep = partial health, never an unrecoverable floor) with **pro-rata
+  upkeep** per market (chains recover together); **receipts-based
+  budgeting** (`Receipts` step-transient on PolityRecord: Allocation budgets
+  the epoch's receipts even under a negative balance — deficit-financed
+  development ends the liquidity-trap stall); price ceiling ×1000 → ×100
+  (ceiling-price churn was minting paper fortunes via the wage share).
+  Households still accumulate large paper wealth through spike eras —
+  a tuning conversation for the eyeball gate.

@@ -76,8 +76,9 @@ public static class MarketEngine
     private const double DriftExponent = 0.5;
     private const double PriceFloor = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes
-    /// stay legible without running away over long famines.</summary>
-    private const double MaxPriceMultiple = 1000.0;
+    /// stay legible without running away over long famines (and without
+    /// ceiling-price churn minting paper fortunes through the wage share).</summary>
+    private const double MaxPriceMultiple = 100.0;
     /// <summary>Black-book margin over the open price — prohibition converts
     /// demand, it never deletes it (commodities.md legality).</summary>
     private const double BlackMarketMarkup = 2.5;
@@ -203,15 +204,14 @@ public static class MarketEngine
         }
         if (pick == null || pickQty <= 0) return;
 
-        // affordability bounds quantity: inputs are bought at market prices
+        // inputs are bought at market prices on working capital: the owner's
+        // ledger may dip within the step — sales revenue lands at
+        // distribution, and insolvency is Allocation's credit problem
         var owner = state.PolityOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
         double qty = pickQty;
-        if (costPerUnit > 0 && owner.Credits < qty * costPerUnit)
-            qty = Math.Max(0, owner.Credits / costPerUnit);
-        if (qty <= 0) return;
 
         double gradeSum = 0, weightSum = 0;
         foreach (var q in pick.Inputs)
@@ -370,6 +370,47 @@ public static class MarketEngine
         };
         double factor = Math.Pow(market.Price[good] / basePrice, -elasticity);
         return Math.Min(ElasticCeiling, Math.Max(ElasticFloor, factor));
+    }
+
+    /// <summary>Industry inputs are demand (commodities.md demand model #2):
+    /// every active facility's recipe inputs at potential output plus its
+    /// upkeep draw register at its market, so the price signal keeps the
+    /// chain's feedstocks produced — without this, machinery reads as
+    /// wanted-by-nobody, floors, and the whole industrial base rots.</summary>
+    public static void AddIndustrialDemand(SimState state, MarketStepScratch scratch)
+    {
+        int years = state.Config.Sim.YearsPerEpoch;
+        int techTier = state.Config.Economy.TechTierStub;
+        foreach (var f in state.Facilities)               // id order (P6)
+        {
+            if (!IsActive(state, f)) continue;
+            int mIx = AttachedMarketIndex(state, f);
+            if (mIx < 0) continue;
+            var def = Infrastructure.Get((InfraTypeId)f.TypeId);
+            var market = state.Markets[mIx];
+            double share = def.Produces.Count > 0 ? 1.0 / def.Produces.Count : 0;
+            foreach (var good in def.Produces)
+            {
+                // planned, not maximal: the same price throttle production
+                // runs under, so input demand tracks what will really be made
+                double utilization = Math.Min(1.0, Math.Max(MinUtilization,
+                    market.Price[(int)good]
+                    / Market.InitialPrice(state.Config.Economy, good)));
+                double potential = def.BaseOutputPerYear
+                                   * Production.TierOutputFactor(f.Tier)
+                                   * share * years * utilization * f.Condition;
+                foreach (var r in Goods.Get(good).Recipes)
+                {
+                    if (r.MinTechTier > techTier) continue;
+                    foreach (var q in r.Inputs)
+                        scratch.Demand[mIx][(int)q.Good] += q.Quantity * potential;
+                    break;                                // first viable variant
+                }
+            }
+            double upkeepScale = Production.TierCostFactor(f.Tier) * years;
+            foreach (var q in def.UpkeepPerYear)
+                scratch.Demand[mIx][(int)q.Good] += q.Quantity * upkeepScale;
+        }
     }
 
     /// <summary>Development pulls its own materials: an under-capacity port
@@ -601,13 +642,17 @@ public static class MarketEngine
                 if (tariff > 0)
                 {
                     exporter.Credits -= drawn * tariff;
-                    state.PolityOf(dst.OwnerActorId).Credits += drawn * tariff;
+                    var dstOwner = state.PolityOf(dst.OwnerActorId);
+                    dstOwner.Credits += drawn * tariff;
+                    dstOwner.Receipts += drawn * tariff;
                 }
                 if (friction > 0)
                 {
                     // friction burns as fees at the destination port
                     exporter.Credits -= drawn * friction;
-                    state.PolityOf(dst.OwnerActorId).Credits += drawn * friction;
+                    var dstOwner = state.PolityOf(dst.OwnerActorId);
+                    dstOwner.Credits += drawn * friction;
+                    dstOwner.Receipts += drawn * friction;
                 }
                 // movement is never free: traffic pulls on the fuel market
                 scratch.Demand[src.Id][(int)GoodId.Fuel] += drawn * fuelUnits;
@@ -772,6 +817,7 @@ public static class MarketEngine
                               as PolityPolicies ?? PolityPolicies.Default).TaxRate;
             double tax = pool * taxRate;
             portOwner.Credits += tax;
+            portOwner.Receipts += tax;
             double net = pool - tax;
 
             double totalSupplied = 0;
@@ -785,12 +831,14 @@ public static class MarketEngine
                     if (s.MarketIndex != mIx) continue;
                     double payout = s.Value * payRatio;
                     PayWages(state, port.Id, payout * laborShare);
-                    state.PolityOf(s.OwnerActorId).Credits
-                        += payout * (1.0 - laborShare);
+                    var supplier = state.PolityOf(s.OwnerActorId);
+                    supplier.Credits += payout * (1.0 - laborShare);
+                    supplier.Receipts += payout * (1.0 - laborShare);
                 }
                 net -= Math.Min(net, totalSupplied);
             }
             portOwner.Credits += net;   // carried-inventory sales
+            portOwner.Receipts += net;
         }
     }
 
