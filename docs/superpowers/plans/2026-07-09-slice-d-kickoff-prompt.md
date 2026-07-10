@@ -149,4 +149,4 @@ New Unity `.meta` files for any new file/folder under `src/Core`.
 6. Wrap-up: merge · HANDOFF · **write the Slice E kickoff prompt** · flip the
    box below · push only on user say-so.
 
-- [ ] Slice D complete
+- [x] Slice D complete (merged to main 2026-07-09)

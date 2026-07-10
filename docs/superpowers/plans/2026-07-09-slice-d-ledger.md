@@ -151,7 +151,9 @@ Architecture decisions (made at kickoff, flag deviations):
       rates, or accept precious-machinery scarcity as the era's texture. — the taste gate: run a sim, `market` a
       hub, `lanecut` a lane, `estep`, watch the spike at the strangled port
       and the glut at the producer. Tune knobs as directed.
-- [ ] 12. **Golden freeze + wrap-up** — regenerate
+- [x] 12. **Golden freeze + wrap-up** — golden frozen at the final format ·
+      **USER: merge decision ✓ merged + pushed 2026-07-09** · HANDOFF ✓ ·
+      Slice E kickoff prompt ✓ · kickoff checkbox ✓. — regenerate
       `Goldens/slice-b-artifact-seed42.txt` successor in the same commit as
       the final format · merge on user nod · HANDOFF · **write Slice E
       kickoff prompt** · flip kickoff checkbox · push only on user say-so.
