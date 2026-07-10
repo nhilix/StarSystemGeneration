@@ -126,6 +126,27 @@ public class CorporationTests
     }
 
     [Fact]
+    public void NicheDeath_NeverStrikesInsideTheFoundingGrace()
+    {
+        // the stillbirth regression: a founding gets FoundingGraceEpochs of
+        // build-out plus NicheDeathEpochs of lean before the niche can kill
+        // it — no corp dies of niche death in (or near) its founding epoch
+        var (_, state) = EpochTestKit.Seeded(42, 10);
+        new EpochEngine().Run(state);
+        var knobs = state.Config.Corporate;
+        int minYears = (knobs.FoundingGraceEpochs + knobs.NicheDeathEpochs)
+                       * state.Config.Sim.YearsPerEpoch;
+        foreach (var e in state.Log.Events)
+        {
+            if (e.Type != WorldEventType.NicheDied) continue;
+            var corp = state.Corporations[((NicheDiedPayload)e.Payload!).CorpId];
+            Assert.True(e.WorldYear - corp.FoundedYear >= minYears,
+                $"corp {corp.Id} ({corp.Name}) died of niche death "
+                + $"{e.WorldYear - corp.FoundedYear}y after founding");
+        }
+    }
+
+    [Fact]
     public void Corporations_RoundTripThroughTheArtifact()
     {
         var state = EagerRun();
