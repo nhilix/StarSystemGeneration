@@ -21,6 +21,6 @@ public sealed class GalaxyConfig
     public double MineralAnchorMultiplier { get; set; } = 1.0;
     /// <summary>Scales precursor-site anchor chance (1 = stock, 0 = none).</summary>
     public double PrecursorAnchorMultiplier { get; set; } = 1.0;
-    public double HomeworldRatePerCell { get; set; } = 0.02;     // ~28 polities at radius 21
+    public double HomeworldRatePerCell { get; set; } = 0.008;    // ~13 polities at radius 21
     public double TraversabilityThreshold { get; set; } = 0.25;
 }

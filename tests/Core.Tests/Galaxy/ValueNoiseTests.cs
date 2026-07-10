@@ -47,7 +47,7 @@ public class ValueNoiseTests
     {
         var config = new GalaxyConfig { MasterSeed = 42 };
         Assert.Equal(21, config.GalaxyRadiusCells);
-        Assert.Equal(0.02, config.HomeworldRatePerCell);
+        Assert.Equal(0.008, config.HomeworldRatePerCell);   // eyeball-tuned from 0.02
         Assert.Equal(0.5, config.MeanDensityTarget);
     }
 }
