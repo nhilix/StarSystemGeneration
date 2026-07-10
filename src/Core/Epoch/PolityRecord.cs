@@ -8,7 +8,7 @@ namespace StarGen.Core.Epoch;
 /// SimState.Polities, actor-id order (P6). Slice D: real market income
 /// (transaction tax + tariffs + state facility revenue) replaces the slice-B
 /// stub as the treasuries' source.</summary>
-public sealed class PolityRecord
+public sealed class PolityRecord : ICreditLedger
 {
     public int ActorId { get; }
     public int SpeciesId { get; }

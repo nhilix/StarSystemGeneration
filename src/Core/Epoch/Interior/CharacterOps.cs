@@ -331,11 +331,8 @@ public static class CharacterOps
         var pr = state.PolityOf(polityId);
         if (pr.Interior == null) return null;
         var knobs = state.Config.Character;
-        int notables = 0;
-        foreach (var c in state.Characters)
-            if (c.Alive && c.PolityId == polityId
-                && c.Role == CharacterRole.Notable) notables++;
-        if (notables >= knobs.MaxNotablesPerPolity) return null;
+        if (NotableCount(state, polityId) >= knobs.MaxNotablesPerPolity)
+            return null;
         var notable = Mint(state, polityId, CharacterRole.Notable, -1,
                            knobs.RulerMintAgeFraction);
         notable.Notable = type;
@@ -345,6 +342,18 @@ public static class CharacterOps
             Magnitude: 1.0, Valence: 0.5, EventVisibility.Regional,
             new NotableEmergedPayload(notable.Id, notable.Name, (int)type)));
         return notable;
+    }
+
+    /// <summary>Living notable-typed characters of a polity, whatever role
+    /// they hold now — the sparsity cap's count (prophets leading factions
+    /// and magnates in boardrooms count; deposed nobodies do not).</summary>
+    public static int NotableCount(SimState state, int polityId)
+    {
+        int notables = 0;
+        foreach (var c in state.Characters)
+            if (c.Alive && c.PolityId == polityId
+                && c.Notable != NotableType.None) notables++;
+        return notables;
     }
 
     private static Character? RulerOf(SimState state, PolityRecord pr)

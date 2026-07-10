@@ -38,6 +38,16 @@ public class FleetShapeTests
                          active + pr.HullsWrecked + pr.HullsScrapped);
             wreckedLedger += pr.HullsWrecked;
         }
+        // corporate hulls keep the same books (slice G)
+        foreach (var corp in state.Corporations)
+        {
+            int active = 0;
+            foreach (var f in state.Fleets)
+                if (f.OwnerActorId == corp.ActorId) active += f.TotalHulls;
+            Assert.Equal(corp.HullsBuilt,
+                         active + corp.HullsWrecked + corp.HullsScrapped);
+            wreckedLedger += corp.HullsWrecked;
+        }
         // every wrecked hull lies at a real hex (P4)
         Assert.Equal(wreckedLedger, wrecksTotal);
     }

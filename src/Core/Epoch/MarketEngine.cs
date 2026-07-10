@@ -94,6 +94,14 @@ public static class MarketEngine
             int dist = HexGrid.Distance(p.Hex, f.Hex);
             if (dist < bestDist) { bestDist = dist; best = p.Id; }
         }
+        if (best >= 0) return best;
+        // a portless owner (a corporation, slice G) trades at the nearest
+        // sovereign's port — cross-border portfolios attach where they sit
+        foreach (var p in state.Ports)
+        {
+            int dist = HexGrid.Distance(p.Hex, f.Hex);
+            if (dist < bestDist) { bestDist = dist; best = p.Id; }
+        }
         return best;
     }
 
@@ -195,7 +203,7 @@ public static class MarketEngine
         // inputs are bought at market prices on working capital: the owner's
         // ledger may dip within the step — sales revenue lands at
         // distribution, and insolvency is Allocation's credit problem
-        var owner = state.PolityOf(f.OwnerActorId);
+        var owner = state.LedgerOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
@@ -991,7 +999,7 @@ public static class MarketEngine
                     if (s.MarketIndex != mIx) continue;
                     double payout = s.Value * payRatio;
                     PayWages(state, port.Id, payout * laborShare);
-                    var supplier = state.PolityOf(s.OwnerActorId);
+                    var supplier = state.LedgerOf(s.OwnerActorId);
                     supplier.Credits += payout * (1.0 - laborShare);
                     supplier.Receipts += payout * (1.0 - laborShare);
                 }

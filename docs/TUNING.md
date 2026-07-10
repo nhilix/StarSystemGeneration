@@ -38,6 +38,30 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
+## Corporate — niches, charters, operations, deaths (slice G)
+
+The niche watcher raises merchant factions where profit persists
+unclaimed; the charter graduation incorporates them (cartels and pirate
+bands skip the charter — chartered nowhere). Suffix names per niche are
+catalog data (`CorporationOps.Suffix`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Corporate.CharterPersistenceEpochs` | 3 | Only durable opportunities incorporate. | Every price blip births a company. |
+| `Corporate.CharterOpennessGate` | 0.4 | Closed societies never charter (their merchant factions stew). | Everyone charters everything. |
+| `Corporate.FreightNicheMargin` | 0.6 | Only stark gradients read as freight niches. | Freight lines on every lane. |
+| `Corporate.DepositNichePotential` | 0.65 | Only prime rock draws conglomerates. | Corp mines on marginal terrain. |
+| `Corporate.FabricationPriceRatio` | 2.5 | Industrial gaps must gape before combines form. | Combines chase every markup. |
+| `Corporate.CartelValueFloor` | 15 | Cartels need deep black books. | Prohibition instantly breeds cartels. |
+| `Corporate.CartelSkim` | 0.3 | Contraband margins bleed buyer wealth fast. | Cartels are ornamental. |
+| `Corporate.RaidCapacityFloor` | 8 | Pirate bands need rich unguarded lanes. | The black flag over every backwater. |
+| `Corporate.MaxFacilities` | 4 | Bigger conglomerate chains. | Single-asset shops. |
+| `Corporate.LobbyShare` | 0.01 | Corporate money floods host politics (corporate factions bulk up). | Influence rides dividends only. |
+| `Corporate.MagnateReceipts` | 50 | Only booms mint magnates. | Every shopkeeper is famous. |
+| `Corporate.LeanReceiptsFloor` / `NicheDeathEpochs` | 1 / 5 | Corps die the moment margins thin (heavy churn, rich residue). | Zombie companies linger for eras. |
+| `Corporate.NationalizeWealthFactor` | 2.0 | States tolerate de facto powers longer. | Seizure at the first good quarter. (Note: deficit-financed states — negative treasuries — never trigger it; the megacorp outlives the indebted host.) |
+| `Corporate.NationalizeLegitimacyHit` | 0.1 | Seizure wrecks standing (I's news will deepen this). | Consequence-free expropriation. |
+
 ## Economy — demand magnitudes
 
 The three per-capita rates are the economy's metabolism; the elasticities

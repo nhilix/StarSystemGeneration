@@ -71,12 +71,9 @@ public class TechTests
         foreach (var pr in state.Polities)
             for (int d = 0; d < 4; d++)
                 Assert.InRange(pr.TechTier[d], 1, 6);
-        // designs carry real per-polity tiers, not a config constant
+        // designs carry real per-owner tiers, not a config constant
         foreach (var design in state.Designs)
-        {
-            var owner = state.PolityOf(design.OwnerActorId);
             Assert.InRange(design.TechTier, 1, 6);
-        }
     }
 
     [Fact]

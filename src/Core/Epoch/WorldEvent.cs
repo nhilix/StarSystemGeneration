@@ -53,6 +53,11 @@ public enum WorldEventType
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    CorporationChartered = 600,
+    PirateBandFormed = 601,
+    CorporationNationalized = 602,
+    CorporationBankrupt = 603,
+    NicheDied = 604,
     RulerAscended = 700,
     CharacterDied = 701,
     SuccessionCrisis = 702,
@@ -169,6 +174,29 @@ public sealed record FactionFormedPayload(
 /// <summary>A spent interest disbands; its war chest returns to the people.</summary>
 public sealed record FactionDissolvedPayload(
     int FactionId, string Name) : EventPayload;
+
+/// <summary>A persistent niche incorporates through the charter graduation
+/// (economy/corporations.md §Founding). HostPolityId −1 = the outlaw path.</summary>
+public sealed record CorporationCharteredPayload(
+    int CorpId, string Name, int HostPolityId, int Niche) : EventPayload;
+
+/// <summary>The raiding niche's institution — chartered by no one.</summary>
+public sealed record PirateBandFormedPayload(
+    int CorpId, string Name) : EventPayload;
+
+/// <summary>The state seizes a de facto power: assets to the treasury,
+/// scandal to the news (corporations.md §Influence).</summary>
+public sealed record CorporationNationalizedPayload(
+    int CorpId, string Name, int PolityId) : EventPayload;
+
+/// <summary>Default cascade → dissolution (corporations.md §Death).</summary>
+public sealed record CorporationBankruptPayload(
+    int CorpId, string Name) : EventPayload;
+
+/// <summary>The deposit exhausts, the lane closes, or the margin
+/// evaporates — the corporation follows its niche into history.</summary>
+public sealed record NicheDiedPayload(
+    int CorpId, string Name, int Niche) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

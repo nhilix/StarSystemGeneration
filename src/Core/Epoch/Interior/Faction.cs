@@ -55,6 +55,12 @@ public sealed class Faction
     /// <summary>The agenda's ideology pull per IdeologyAxis — null when the
     /// agenda is fiscal.</summary>
     public double[]? IdeologyTarget { get; set; }
+    /// <summary>Corporate basis only: the profit niche this merchant
+    /// faction watches (CorporateNiche id; 0 none).</summary>
+    public int NicheType { get; set; }
+    /// <summary>Consecutive epochs the niche has persisted — the charter
+    /// graduation's clock (economy/corporations.md §Founding).</summary>
+    public int NichePersistence { get; set; }
 
     public Faction(int id, string name, int polityId, FactionBasis basis,
                    long formedYear)

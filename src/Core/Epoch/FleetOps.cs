@@ -527,7 +527,10 @@ public static class FleetOps
     /// moves Built → Wrecked, the chronicle carries the loss (401).</summary>
     public static int Wreck(SimState state, FleetRecord fleet, int count)
     {
-        var pr = state.PolityOf(fleet.OwnerActorId);
+        // whoever owns the hulls owns the ledger entry — polity or
+        // corporation (slice G), the loss conserves the same way
+        var corp = state.CorporationOf(fleet.OwnerActorId);
+        var pr = corp == null ? state.PolityOf(fleet.OwnerActorId) : null;
         int wrecked = 0;
         while (count > 0 && fleet.Hulls.Count > 0)
         {
@@ -536,7 +539,8 @@ public static class FleetOps
             fleet.RemoveHulls(g.DesignId, loss);
             state.Wreckage.Add(new WreckageRecord(state.Wreckage.Count,
                 fleet.Hex, g.DesignId, loss, state.WorldYear));
-            pr.HullsWrecked += loss;
+            if (corp != null) corp.HullsWrecked += loss;
+            else pr!.HullsWrecked += loss;
             wrecked += loss;
             count -= loss;
         }

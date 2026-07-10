@@ -126,6 +126,21 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            CorporationCharteredPayload p =>
+                (CorporateNiche)p.Niche == CorporateNiche.Cartel
+                    ? $"the {p.Name} opens its black books — chartered by no one"
+                    : Invariant($"polity #{p.HostPolityId} charters the {p.Name} (")
+                      + ((CorporateNiche)p.Niche).ToString().ToLowerInvariant()
+                      + ")",
+            PirateBandFormedPayload p =>
+                $"the {p.Name} raise the black flag over an unguarded lane",
+            CorporationNationalizedPayload p =>
+                Invariant($"polity #{p.PolityId} seizes the {p.Name} — ")
+                + "a scandal on every lane",
+            CorporationBankruptPayload p =>
+                $"the {p.Name} collapses under its debts",
+            NicheDiedPayload p =>
+                $"the {p.Name} winds down, its niche gone",
             TechAdvancedPayload p =>
                 Invariant($"polity #{p.PolityId} masters ")
                 + ((TechDomain)p.Domain).ToString().ToLowerInvariant()

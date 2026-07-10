@@ -11,12 +11,18 @@ namespace StarGen.Core.Epoch;
 /// ShipbuildingPriorities by design id (fleets/ships-and-fleets.md).</summary>
 public sealed record DesignBrief(int DesignId, ShipRole Role, ShipSize Size, int Mark);
 
+/// <summary>What a polity perceives of a corporation it charters — enough
+/// to notice a de facto power (economy/corporations.md §Influence).</summary>
+public sealed record CorporateBrief(int CorpId, string Name, double Credits);
+
 public sealed class PerceptionView
 {
     private static readonly IReadOnlyList<ColonyCandidate> NoCandidates =
         new ColonyCandidate[0];
     private static readonly IReadOnlyList<DesignBrief> NoDesigns =
         new DesignBrief[0];
+    private static readonly IReadOnlyList<CorporateBrief> NoCorporations =
+        new CorporateBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -49,6 +55,12 @@ public sealed class PerceptionView
     /// <summary>Colony hulls sitting in own Reserve-posture fleets — an
     /// expedition needs a physical convoy (fleets doc; 0 for non-polities).</summary>
     public int ColonyHullsAvailable { get; }
+    /// <summary>Own liquid treasury — the yardstick a hosted corporation's
+    /// wealth is measured against (slice G).</summary>
+    public double OwnCredits { get; }
+    /// <summary>Corporations this polity charters, by corp registry id —
+    /// the nationalization act's targets (empty otherwise).</summary>
+    public IReadOnlyList<CorporateBrief> HostedCorporations { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -58,8 +70,12 @@ public sealed class PerceptionView
                           double realmSubsistence = 1.0,
                           IReadOnlyList<DesignBrief>? ownDesigns = null,
                           int colonyHullsAvailable = 0,
-                          Temperament? selfTemperament = null)
+                          Temperament? selfTemperament = null,
+                          double ownCredits = 0,
+                          IReadOnlyList<CorporateBrief>? hostedCorporations = null)
     {
+        OwnCredits = ownCredits;
+        HostedCorporations = hostedCorporations ?? NoCorporations;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -120,15 +136,25 @@ public sealed class GenesisController : IController
     public ControllerDecision Decide(PerceptionView perceived)
     {
         var policies = PoliciesFor(perceived);
+        var acts = new List<Act>();
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0
             && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
-            return new ControllerDecision(policies, new Act[]
+            acts.Add(new FoundColonyAct(perceived.SelfId,
+                                        perceived.ColonyCandidates[0].Target));
+        // a chartered corporation that out-wealths the state is a de facto
+        // power; the counter-move is nationalization (corporations.md)
+        foreach (var corp in perceived.HostedCorporations)
+            if (corp.Credits > perceived.OwnCredits
+                    * _config.Corporate.NationalizeWealthFactor
+                && perceived.OwnCredits > 0)
             {
-                new FoundColonyAct(perceived.SelfId, perceived.ColonyCandidates[0].Target),
-            });
-        return new ControllerDecision(policies, NoActs);
+                acts.Add(new NationalizeAct(perceived.SelfId, corp.CorpId));
+                break;   // one scandal per epoch is plenty
+            }
+        return new ControllerDecision(policies,
+            acts.Count == 0 ? NoActs : acts);
     }
 
     /// <summary>Default policies plus a temperament-derived law code (closed

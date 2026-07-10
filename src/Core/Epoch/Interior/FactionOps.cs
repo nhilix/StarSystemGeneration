@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using StarGen.Core.Content;
@@ -229,7 +229,7 @@ public static class FactionOps
 
         if (scan.DissenterShare >= minShare && !Has(FactionBasis.Ideological))
         {
-            var f = Found(state, pr, FactionBasis.Ideological);
+            var f = FoundFaction(state, pr, FactionBasis.Ideological);
             f.IdeologyTarget = (double[])scan.DissenterIdeology.Clone();
             formed++;
         }
@@ -242,7 +242,7 @@ public static class FactionOps
                     share += s.Size;
             if (share / scan.PopTotal >= minShare)
             {
-                var f = Found(state, pr, FactionBasis.Cultural);
+                var f = FoundFaction(state, pr, FactionBasis.Cultural);
                 f.ContextId = scan.LargestMinorityCulture;
                 f.BudgetTarget = BasisBudget[(int)FactionBasis.Cultural];
                 formed++;
@@ -250,7 +250,7 @@ public static class FactionOps
         }
         if (scan.FrontierShare >= minShare && !Has(FactionBasis.Regional))
         {
-            var f = Found(state, pr, FactionBasis.Regional);
+            var f = FoundFaction(state, pr, FactionBasis.Regional);
             f.BudgetTarget = BasisBudget[(int)FactionBasis.Regional];
             formed++;
         }
@@ -258,7 +258,7 @@ public static class FactionOps
         if (scan.CommandRenown * species.Militancy >= knobs.MilitaryRenownToForm
             && !Has(FactionBasis.Military))
         {
-            var f = Found(state, pr, FactionBasis.Military);
+            var f = FoundFaction(state, pr, FactionBasis.Military);
             f.BudgetTarget = BasisBudget[(int)FactionBasis.Military];
             formed++;
         }
@@ -267,29 +267,35 @@ public static class FactionOps
                - knobs.SacralAxisLine > 0.1
             && !Has(FactionBasis.Sacral))
         {
-            var f = Found(state, pr, FactionBasis.Sacral);
+            var f = FoundFaction(state, pr, FactionBasis.Sacral);
             var target = (double[])interior.OfficialIdeology.Clone();
             target[(int)IdeologyAxis.SacralMaterial] = 0.0;
             f.IdeologyTarget = target;
             f.BudgetTarget = BasisBudget[(int)FactionBasis.Sacral];
-            // a prophet seeds the faction that follows (characters.md)
+            // a prophet seeds the faction that follows (characters.md) —
+            // notables stay capped even when a role-holder earns the name
             var leader = state.Characters[f.LeaderCharacterId];
-            leader.Notable = NotableType.Prophet;
-            state.Staged.Add(new StagedEvent(ClockStratum.Generational,
-                WorldEventType.NotableEmerged, new[] { pr.ActorId },
-                state.Actors[pr.ActorId].Seat, Magnitude: 1.0, Valence: 0.0,
-                EventVisibility.Regional,
-                new NotableEmergedPayload(leader.Id, leader.Name,
-                                          (int)NotableType.Prophet)));
+            if (CharacterOps.NotableCount(state, pr.ActorId)
+                < state.Config.Character.MaxNotablesPerPolity)
+            {
+                leader.Notable = NotableType.Prophet;
+                state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+                    WorldEventType.NotableEmerged, new[] { pr.ActorId },
+                    state.Actors[pr.ActorId].Seat, Magnitude: 1.0, Valence: 0.0,
+                    EventVisibility.Regional,
+                    new NotableEmergedPayload(leader.Id, leader.Name,
+                                              (int)NotableType.Prophet)));
+            }
             formed++;
         }
         return formed;
     }
 
     /// <summary>Register a faction with a syllable-flavored name and a
-    /// freshly minted leader; chronicle the coalescence.</summary>
-    private static Faction Found(SimState state, PolityRecord pr,
-                                 FactionBasis basis)
+    /// freshly minted leader; chronicle the coalescence. Public since task
+    /// 7: the niche watcher raises merchant factions through it.</summary>
+    public static Faction FoundFaction(SimState state, PolityRecord pr,
+                                       FactionBasis basis)
     {
         int id = state.Factions.Count;
         ulong seed = state.Config.MasterSeed;
@@ -368,8 +374,11 @@ public static class FactionOps
             faction.Militancy = Clamp01(0.4 * (leader?.Boldness ?? 0.5)
                 + 0.3 * species.Militancy + 0.3 * Math.Min(1.0, faction.Grievance));
 
-            // a spent interest dissolves: wealth returns to the people
-            if (faction.Strength < knobs.DissolveStrengthFloor)
+            // a spent interest dissolves: wealth returns to the people (a
+            // merchant faction watching a live niche is exempt — its base
+            // is the opportunity, not the masses)
+            if (faction.Strength < knobs.DissolveStrengthFloor
+                && faction.NichePersistence <= 0)
             {
                 Dissolve(state, pr, faction);
                 dissolved++;

@@ -88,6 +88,8 @@ public class ShapeAcceptanceTests
             held += s.Wealth;
         foreach (var f in state.Factions)
             held += f.Wealth;   // appeasement is a flow, not a sink (slice G)
+        foreach (var c in state.Corporations)
+            held += c.Credits;  // corporate books are conserved too (slice G)
         Assert.True(minted > 0);
         Assert.Equal(minted, held, minted * 1e-9);
     }

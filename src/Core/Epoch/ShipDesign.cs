@@ -104,7 +104,10 @@ public static class DesignRegistry
     /// neutral temperament.</summary>
     public static DesignSheet SheetOf(SimState state, ShipDesign design)
     {
-        int sp = state.PolityOf(design.OwnerActorId).SpeciesId;
+        // corporations (slice G) fly generic hulls: no species flavor
+        int sp = -1;
+        foreach (var p in state.Polities)
+            if (p.ActorId == design.OwnerActorId) { sp = p.SpeciesId; break; }
         SpeciesProfile? species = sp >= 0 && sp < state.Skeleton.Species.Count
             ? state.Skeleton.Species[sp] : null;
         return DesignMath.Sheet(design.Role, design.Size,

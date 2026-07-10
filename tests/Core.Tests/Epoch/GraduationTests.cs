@@ -76,6 +76,7 @@ public class GraduationTests
                     + p.MilitaryPoints;
         foreach (var seg in state.Segments) held += seg.Wealth;
         foreach (var f in state.Factions) held += f.Wealth;
+        foreach (var c in state.Corporations) held += c.Credits;
         Assert.Equal(minted, held, System.Math.Abs(minted) * 1e-9);
     }
 

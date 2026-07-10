@@ -28,7 +28,8 @@ public static class ArtifactSerializer
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 4), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 4),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
+        ("corporations", 1),
     };
 
     public static string ToText(SimState state)
@@ -281,7 +282,19 @@ public static class ArtifactSerializer
                 fa.FormedYear.ToString(Inv), fa.ContextId.ToString(Inv),
                 fa.LeaderCharacterId.ToString(Inv), B(fa.Active),
                 R(fa.Strength), R(fa.Militancy), R(fa.Grievance), R(fa.Wealth),
-                Vector(fa.BudgetTarget), Vector(fa.IdeologyTarget)));
+                Vector(fa.BudgetTarget), Vector(fa.IdeologyTarget),
+                fa.NicheType.ToString(Inv), fa.NichePersistence.ToString(Inv)));
+
+        Layer(w, "corporations");
+        foreach (var c in state.Corporations)
+            w.WriteLine(Join("CORP", c.Id.ToString(Inv),
+                c.ActorId.ToString(Inv), Name(c.Name),
+                c.HostPolityId.ToString(Inv), ((int)c.Niche).ToString(Inv),
+                c.HomePortId.ToString(Inv), c.FoundedYear.ToString(Inv),
+                B(c.Active), R(c.Credits),
+                c.ExecutiveCharacterId.ToString(Inv),
+                c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
+                c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv)));
         w.WriteLine("END");
     }
 
@@ -588,9 +601,12 @@ public static class ArtifactSerializer
                         break;
                     case "ACTOR":
                         var kind = (ActorKind)int.Parse(f[2], Inv);
-                        IController controller = kind == ActorKind.Polity
-                            ? new GenesisController(config!)
-                            : new TrivialController();
+                        IController controller = kind switch
+                        {
+                            ActorKind.Polity => new GenesisController(config!),
+                            ActorKind.Corporation => new CorporateController(),
+                            _ => new TrivialController(),
+                        };
                         state!.Actors.Add(new Actor(int.Parse(f[1], Inv), kind, f[3],
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), controller)
@@ -837,6 +853,25 @@ public static class ArtifactSerializer
                             Wealth = double.Parse(f[12], Inv),
                             BudgetTarget = ParseVector(f[13]),
                             IdeologyTarget = ParseVector(f[14]),
+                            NicheType = int.Parse(f[15], Inv),
+                            NichePersistence = int.Parse(f[16], Inv),
+                        });
+                        break;
+                    case "CORP":
+                        if (int.Parse(f[1], Inv) != state!.Corporations.Count)
+                            throw new InvalidDataException("corporation ids out of order");
+                        state.Corporations.Add(new Corporation(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv), f[3], int.Parse(f[4], Inv),
+                            (CorporateNiche)int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), long.Parse(f[7], Inv))
+                        {
+                            Active = f[8] == "1",
+                            Credits = double.Parse(f[9], Inv),
+                            ExecutiveCharacterId = int.Parse(f[10], Inv),
+                            HullsBuilt = int.Parse(f[11], Inv),
+                            HullsWrecked = int.Parse(f[12], Inv),
+                            HullsScrapped = int.Parse(f[13], Inv),
+                            LeanEpochs = int.Parse(f[14], Inv),
                         });
                         break;
                     case "EVENT":
@@ -926,6 +961,17 @@ public static class ArtifactSerializer
         ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
             e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
             e.TargetR.ToString(Inv)),
+        CorporationCharteredPayload e => Join("corporationChartered",
+            e.CorpId.ToString(Inv), Name(e.Name),
+            e.HostPolityId.ToString(Inv), e.Niche.ToString(Inv)),
+        PirateBandFormedPayload e => Join("pirateBandFormed",
+            e.CorpId.ToString(Inv), Name(e.Name)),
+        CorporationNationalizedPayload e => Join("corporationNationalized",
+            e.CorpId.ToString(Inv), Name(e.Name), e.PolityId.ToString(Inv)),
+        CorporationBankruptPayload e => Join("corporationBankrupt",
+            e.CorpId.ToString(Inv), Name(e.Name)),
+        NicheDiedPayload e => Join("nicheDied", e.CorpId.ToString(Inv),
+            Name(e.Name), e.Niche.ToString(Inv)),
         TechAdvancedPayload e => Join("techAdvanced", e.PolityId.ToString(Inv),
             e.Domain.ToString(Inv), e.NewTier.ToString(Inv)),
         SchismDeclaredPayload e => Join("schismDeclared",
@@ -1005,6 +1051,17 @@ public static class ArtifactSerializer
         "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "corporationChartered" => new CorporationCharteredPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
+        "pirateBandFormed" => new PirateBandFormedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
+        "corporationNationalized" => new CorporationNationalizedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv)),
+        "corporationBankrupt" => new CorporationBankruptPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
+        "nicheDied" => new NicheDiedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
         "techAdvanced" => new TechAdvancedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
         "schismDeclared" => new SchismDeclaredPayload(int.Parse(f[at + 1], Inv),

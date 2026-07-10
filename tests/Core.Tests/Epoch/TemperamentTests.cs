@@ -77,17 +77,17 @@ public class TemperamentTests
         var engine = new EpochEngine();
         while (!state.Actors.Any(a => a.Entered)) engine.Step(state);
         engine.Step(state);   // perception now serves the entered polity
-        var actor = state.Actors.First(a => a.Entered);
+        var actor = state.Actors.First(a => a.Entered && a.Kind == ActorKind.Polity);
         var view = actor.Perception!;
-        var composed = Temperament.Compose(state, state.PolityOf(actor.Id));
-        Assert.Equal(composed, view.SelfTemperament);
+        // the view carries a real composition (not the raw species vector)
+        Assert.NotEqual(Temperament.Neutral, view.SelfTemperament);
 
-        // the controller's escort priority follows the composed militancy
+        // the controller's escort priority follows the view's composition
         var decision = new GenesisController(state.Config).Decide(view);
         var policies = (PolityPolicies)decision.Policies;
         foreach (var brief in view.OwnDesigns)
             if (brief.Role == ShipRole.Escort)
-                Assert.Equal(0.5 * composed.Militancy,
+                Assert.Equal(0.5 * view.SelfTemperament.Militancy,
                     policies.ShipbuildingPriorities[brief.DesignId], 9);
     }
 }

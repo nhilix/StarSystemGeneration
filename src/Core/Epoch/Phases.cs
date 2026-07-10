@@ -52,11 +52,22 @@ public sealed class PerceptionPhase : ISimPhase
             var temperament = a.Kind == ActorKind.Polity
                 ? Temperament.Compose(state, state.PolityOf(a.Id))
                 : Temperament.Neutral;
+            double ownCredits = 0;
+            List<CorporateBrief>? hosted = null;
+            if (a.Kind == ActorKind.Polity)
+            {
+                ownCredits = state.PolityOf(a.Id).Credits;
+                foreach (var corp in state.Corporations)
+                    if (corp.Active && corp.HostPolityId == a.Id)
+                        (hosted ??= new List<CorporateBrief>())
+                            .Add(new CorporateBrief(corp.Id, corp.Name,
+                                                    corp.Credits));
+            }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
                                               ownPorts, realmSubsistence, designs,
                                               FleetOps.ColonyHullsInReserve(state, a.Id),
-                                              temperament);
+                                              temperament, ownCredits, hosted);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -96,6 +107,7 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var m in state.Markets)
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
         foreach (var pr in state.Polities) pr.Receipts = 0;
+        foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
         MarketEngine.AssembleDemand(state, scratch);
@@ -185,6 +197,8 @@ public sealed class AllocationPhase : ISimPhase
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
+        // corporations run their portfolios on the same markets (slice G)
+        int corporationsActive = CorporationOps.Operate(state);
         // laggards learn from the goods they buy and the wrecks they find
         TechOps.Diffuse(state);
         int advances = 0;
@@ -198,6 +212,9 @@ public sealed class AllocationPhase : ISimPhase
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
         if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
         if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
+        if (corporationsActive > 0)
+            note += $", {corporationsActive} " + (corporationsActive == 1
+                ? "corporation operates" : "corporations operate");
         if (advances > 0) note += $", {advances} tech " + (advances == 1 ? "advance" : "advances");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
@@ -657,15 +674,23 @@ public sealed class ResolutionPhase : ISimPhase
 
     public string Run(SimState state)
     {
-        int acts = 0, founded = 0;
+        int acts = 0, founded = 0, nationalized = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
                 acts++;
                 if (act is FoundColonyAct f && TryFound(state, f)) founded++;
+                if (act is NationalizeAct n
+                    && CorporationOps.Nationalize(state, n.ActorId,
+                                                  n.CorporationId))
+                    nationalized++;
             }
-        return founded == 0 ? $"{acts} acts, 0 resolved"
-            : $"{acts} acts, {founded} " + (founded == 1 ? "port established" : "ports established");
+        string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
+            : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
+        if (nationalized > 0)
+            note += $", {nationalized} " + (nationalized == 1
+                ? "corporation nationalized" : "corporations nationalized");
+        return note;
     }
 
     /// <summary>Every check runs against truth: consequences on truth, even
@@ -897,11 +922,15 @@ public sealed class InteriorPhase : ISimPhase
         // reads the settled state (successions and pressure land before
         // legitimacy) — slice G
         var (deaths, successions, crises) = CharacterOps.Step(state);
+        // the niche watcher raises merchant factions where profit persists
+        // unclaimed (economy/corporations.md §Founding) — slice G
+        CorporationOps.WatchNiches(state);
         var (factionsFormed, factionsDissolved) = FactionOps.Step(state);
         int interiors = InteriorOps.Recompute(state);
         // graduation reads the freshly recomputed grip (legitimacy ×
         // enforcement) — new institutions are born at the epoch's end
         var (schisms, coups, revolts) = GraduationOps.Step(state);
+        int charters = CorporationOps.CharterCheck(state);
 
         string note = entered switch
         {
@@ -931,6 +960,9 @@ public sealed class InteriorPhase : ISimPhase
         if (revolts > 0)
             note += $", {revolts} " + (revolts == 1
                 ? "revolt crushed" : "revolts crushed");
+        if (charters > 0)
+            note += $", {charters} " + (charters == 1
+                ? "corporation chartered" : "corporations chartered");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

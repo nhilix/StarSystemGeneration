@@ -170,7 +170,36 @@ as work lands.
   tiers from `EntryGradeBonus` (Astrogation/Industrial per design) and
   the entry-design grade hack deleted; **retire `Economy.TechTierStub`**.
   Serialize (tech layer), golden regen, knobs `Tech.*`.
-- [ ] **G7 — Corporations**: persistent-niche watcher (price gradients
+- [x] **G7 — Corporations** *(done: `Interior/Corporation.cs`
+  (+`ICreditLedger`, `CorporateController`), `CorporationOps.cs`;
+  events 600–604 (Chartered / PirateBandFormed / Nationalized /
+  Bankrupt / NicheDied); channel 65; corporations ARE actors
+  (Kind.Corporation, controller reattached on load); niche watcher
+  (unserved lane gradients, prohibited margins, unexploited deposits,
+  industrial gaps, lawless rich lanes) feeds merchant factions
+  (Corporate basis + NicheType/NichePersistence on Faction, interior
+  v5); charter graduation incorporates at persistence + CharterOpenness
+  gate (cartels and pirate bands charter nowhere; pirate lords minted);
+  faction leader becomes the executive; operations in Allocation:
+  facility investment by niche, freight-hull purchases posted on
+  gradient lanes, cartel black-book skim (conserved wealth transfer),
+  fleet supply with attrition (FleetOps.Wreck now ledger-aware),
+  dividends + lobby → host corporate faction wealth, magnate notables,
+  bankruptcy/niche-death dissolution with residue (facilities abandon
+  to the sovereign, debt lands on the sovereign — never wiped);
+  NationalizeAct wired through GenesisController (CorporateBrief +
+  OwnCredits on the view) and Resolution; `SimState.LedgerOf` unifies
+  producer/supplier payouts; corp facilities attach to nearest
+  sovereign port; corporations layer v1 (CORP); knobs `Corporate.*`
+  ×15 + TUNING; conservation + hull-ledger tests extended. Seed-42
+  r12: 74 corporations over 40 epochs, ~30 active at end — 418/418
+  green, golden regen. SURPRISE: a dangling-else in dissolution paid
+  the sovereign once per non-home-port segment — a conservation-test
+  catch (mint of ~35k credits at r10) found by per-phase bisection;
+  braces, and the debt now transfers instead of vanishing. NOTE:
+  deficit-financed hosts (negative treasuries) never trigger
+  nationalization — the megacorp outlives the indebted state;
+  flagged in TUNING)*: persistent-niche watcher (price gradients
   across lanes, unserved profitable routes, unexploited deposits,
   prohibited margins; persistence counters over consecutive epochs);
   charter graduation founds (host `CharterOpenness` gate; the merchant

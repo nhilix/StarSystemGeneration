@@ -21,6 +21,56 @@ public sealed class EpochSimConfig
     public CharacterKnobs Character { get; } = new CharacterKnobs();
     public FactionKnobs Faction { get; } = new FactionKnobs();
     public TechKnobs Tech { get; } = new TechKnobs();
+    public CorporateKnobs Corporate { get; } = new CorporateKnobs();
+}
+
+/// <summary>Corporate dials (economy/corporations.md): niche detection
+/// thresholds, the charter clock and gate, operating shares, and the
+/// deaths. Slice G. Name suffixes per niche are catalog data.</summary>
+public sealed class CorporateKnobs
+{
+    /// <summary>Black-book value (demand × price) at a port that reads as
+    /// a profitable prohibited niche — the cartel trigger.</summary>
+    public double CartelValueFloor { get; set; } = 15.0;
+    /// <summary>Share of the home market's black-book value a cartel skims
+    /// from buyer wealth per epoch (a conserved transfer).</summary>
+    public double CartelSkim { get; set; } = 0.3;
+    /// <summary>Host charter policy below which no charter is granted (the
+    /// merchant faction waits, and grieves).</summary>
+    public double CharterOpennessGate { get; set; } = 0.4;
+    /// <summary>Consecutive epochs a niche must persist before the charter
+    /// graduation fires.</summary>
+    public int CharterPersistenceEpochs { get; set; } = 3;
+    /// <summary>Extraction potential at an unexploited port that reads as
+    /// a deposit niche.</summary>
+    public double DepositNichePotential { get; set; } = 0.65;
+    /// <summary>Price-over-founding ratio at which a missing producer reads
+    /// as an industrial gap.</summary>
+    public double FabricationPriceRatio { get; set; } = 2.5;
+    /// <summary>Relative price gradient across an unserved lane that reads
+    /// as a freight niche.</summary>
+    public double FreightNicheMargin { get; set; } = 0.6;
+    /// <summary>Epoch receipts below which a corporation counts as lean —
+    /// enough lean epochs and the niche is dead.</summary>
+    public double LeanReceiptsFloor { get; set; } = 1.0;
+    /// <summary>Share of corporate credits spent lobbying the aligned
+    /// faction per epoch.</summary>
+    public double LobbyShare { get; set; } = 0.01;
+    /// <summary>Epoch receipts that mint the executive a magnate notable.</summary>
+    public double MagnateReceipts { get; set; } = 50.0;
+    /// <summary>Facilities one corporation may hold (portfolio cap).</summary>
+    public int MaxFacilities { get; set; } = 4;
+    /// <summary>Legitimacy a polity eats for nationalizing (the reputation
+    /// damage stub until slice I's news).</summary>
+    public double NationalizeLegitimacyHit { get; set; } = 0.1;
+    /// <summary>Corporate credits over the host treasury at which the
+    /// Intent AI reaches for nationalization (a de facto power).</summary>
+    public double NationalizeWealthFactor { get; set; } = 2.0;
+    /// <summary>Consecutive lean epochs that kill the niche.</summary>
+    public int NicheDeathEpochs { get; set; } = 5;
+    /// <summary>Posted lane capacity that reads as raid-worthy cargo where
+    /// the owner keeps no warships (the pirate-band trigger).</summary>
+    public double RaidCapacityFloor { get; set; } = 8.0;
 }
 
 /// <summary>Tech dials (economy/technology.md): the tier ladder's cost

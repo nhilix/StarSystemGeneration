@@ -15,7 +15,8 @@ public class ShipDesignRegistryTests
         new EpochEngine().Run(state);
         foreach (var a in state.Actors)
         {
-            if (!a.Entered) continue;
+            // corporations (slice G) register only what they operate
+            if (!a.Entered || a.Kind != ActorKind.Polity) continue;
             Assert.NotNull(DesignRegistry.Current(state, a.Id,
                 ShipRole.Freight, ShipSize.Medium));
             Assert.NotNull(DesignRegistry.Current(state, a.Id,

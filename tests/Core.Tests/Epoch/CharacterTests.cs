@@ -53,7 +53,9 @@ public class CharacterTests
             if (pr.Interior == null) continue;
             var living = state.Characters
                 .Where(c => c.Alive && c.PolityId == pr.ActorId).ToList();
-            Assert.InRange(living.Count, 1, 20);   // "perhaps a dozen"
+            // "perhaps a dozen": court + commanders + notables + faction
+            // leaders + corporate boardrooms (slice G task 7) at the top end
+            Assert.InRange(living.Count, 1, 25);
             // the seat never sits empty
             var ruler = state.Characters[pr.Interior.RulerCharacterId];
             Assert.True(ruler.Alive, "a dead ruler holds the seat");
@@ -136,8 +138,9 @@ public class CharacterTests
         foreach (var pr in state.Polities)
         {
             if (pr.Interior == null) continue;
-            int notables = state.Characters.Count(c => c.Alive
-                && c.PolityId == pr.ActorId && c.Role == CharacterRole.Notable);
+            // the cap governs notable-typed characters, whatever role they
+            // hold; deposed nobodies (Notable role, no type) don't count
+            int notables = CharacterOps.NotableCount(state, pr.ActorId);
             Assert.True(notables <= state.Config.Character.MaxNotablesPerPolity,
                 $"polity {pr.ActorId} carries {notables} notables over the cap");
         }
