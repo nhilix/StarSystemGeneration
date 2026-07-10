@@ -17,13 +17,11 @@ Per port market, fixed deterministic order:
    arbitrageurs who see outbound gradients, so a transit hub's price is bid up
    even with zero local consumption. Without this term, goods refuse to enter
    markets that don't personally want them; with it, entrepôts emerge.
-3. **Price adjusts locally** — each (market, good) price is persistent state that
-   drifts toward clearing: excess demand pushes up, glut pushes down, rate-limited.
-   Elasticity derives from the band mix. Markets never perfectly clear —
-   persistent gradients *are* the trade opportunities.
-4. **Freight moves** — three flow generators, all within lane capacity (the
+3. **Freight moves** — three flow generators, all within lane capacity (the
    fleet-capacity interface), all requiring legality at both ends and
-   non-sanctioned relations:
+   non-sanctioned relations. Freight plans against the prices the previous
+   drift posted; the drift then reads what freight actually delivered — an
+   import-fed port prices its arrivals, a blockaded one their absence:
    - **Arbitrage freight**: shipments plan by expected profit against
      **perceived prices** (P3 — fresh at one hop, freshness-discounted with
      distance): end-to-end gap × freshness confidence − Σ(fuel + tariffs + risk
@@ -42,6 +40,11 @@ Per port market, fixed deterministic order:
      military supply lines are this mechanism under different flags.
    Freight is what drags connected markets together; interdiction is what splits
    price zones.
+4. **Price adjusts locally** — each (market, good) price is persistent state that
+   drifts toward clearing over the step's realized supply: excess demand pushes
+   up, glut pushes down, rate-limited. Elasticity derives from the band mix.
+   Markets never perfectly clear — persistent gradients *are* the trade
+   opportunities.
 5. **Clearing & consequences** — consumption satisfies band priority; unmet
    subsistence → famine; unmet standard-of-living → SoL decline (growth,
    legitimacy, migration pressure); unmet industry inputs → facilities

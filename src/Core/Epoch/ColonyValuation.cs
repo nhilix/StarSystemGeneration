@@ -9,9 +9,10 @@ namespace StarGen.Core.Epoch;
 public sealed record ColonyCandidate(HexCoordinate Target, double Score);
 
 /// <summary>Colony-target enumeration and scoring over the natural raster.
-/// Score = terrain potential with contested-influence friction; the price
-/// signal joins the formula when Markets land (slice D). Deterministic:
-/// cells scanned in spiral order, ordered by score desc then spiral index.</summary>
+/// Score = terrain potential with contested-influence friction plus the
+/// price signal (slice D): what the capital's market pays for what the cell
+/// could produce — scarcity steers expansion. Deterministic: cells scanned
+/// in spiral order, ordered by score desc then spiral index.</summary>
 public static class ColonyValuation
 {
     /// <summary>Targets for a polity: non-void cells within
@@ -19,7 +20,7 @@ public static class ColonyValuation
     /// the cell. Target hex = first anchor hex free of ports, else the cell
     /// center (skipped if a port sits there). Score = MeanDensity
     /// + 0.3×Metallicity + 0.4 if the cell has a non-homeworld anchor
-    /// − 0.3 if another polity services the target.</summary>
+    /// − 0.3 if another polity services the target + the price term.</summary>
     public static IReadOnlyList<ColonyCandidate> CandidatesFor(
         SimState state, int polityId, int max = 8)
     {
@@ -31,6 +32,10 @@ public static class ColonyValuation
         var best = new List<ColonyCandidate>();       // kept sorted, capped at max
         var bestSpiral = new List<int>();
         if (ownPorts.Count == 0) return best;
+        // the polity prices the frontier through its capital market (first
+        // port); perfect information until slice I
+        Market? capital = ownPorts[0].Id < state.Markets.Count
+            ? state.Markets[ownPorts[0].Id] : null;
 
         foreach (var cell in sk.Cells)                // spiral order (P6)
         {
@@ -54,10 +59,33 @@ public static class ColonyValuation
             foreach (var p in state.Ports)
                 if (p.OwnerActorId != polityId && PortDomains.Services(sk, cfg, p, hex))
                 { score -= 0.3; break; }
+            if (capital != null)
+                score += PriceTerm(state, capital, cell);
 
             Insert(best, bestSpiral, new ColonyCandidate(hex, score), cell.SpiralIndex, max);
         }
         return best;
+    }
+
+    /// <summary>What the capital market pays for what this cell could
+    /// extract: potential × relative price per raw good, modestly weighted —
+    /// an ore rush is high metallicity times a hungry foundry belt.</summary>
+    private static double PriceTerm(SimState state, Market capital, RegionCell cell)
+    {
+        var eco = state.Config.Economy;
+        var fields = MarketEngine.FieldsAt(state, HexGrid.CellCenter(cell.Coord));
+        double term =
+            Substrate.Potentials.Ore(fields) * Rel(eco, capital, Substrate.GoodId.Ore)
+            + Substrate.Potentials.Volatiles(fields) * Rel(eco, capital, Substrate.GoodId.Volatiles)
+            + Substrate.Potentials.Biosphere(fields) * Rel(eco, capital, Substrate.GoodId.Provisions)
+            + Substrate.Potentials.Exotics(fields) * Rel(eco, capital, Substrate.GoodId.Exotics);
+        return 0.15 * term;
+    }
+
+    private static double Rel(EconomyKnobs eco, Market m, Substrate.GoodId g)
+    {
+        double factor = m.Price[(int)g] / Market.InitialPrice(eco, g);
+        return factor < 0.5 ? 0.5 : factor > 3.0 ? 3.0 : factor;
     }
 
     /// <summary>First anchor hex in the cell with no port on it; else the cell

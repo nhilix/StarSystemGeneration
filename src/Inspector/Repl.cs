@@ -31,9 +31,13 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
-                    Console.WriteLine("emap [domains|lanes] — port-domain / lane-network map of the stepped sim");
+                    Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
+                    Console.WriteLine("emap [domains|lanes|price [good]] — political / lane / per-good price map");
+                    Console.WriteLine("market <portId> — one market's prices, inventory, black book, people, industry");
+                    Console.WriteLine("lanecut <portA> <portB> — toggle a lane cut (debug blockade until slice H)");
                     Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
+                    Console.WriteLine("knobs [filter] — every calibration dial: name, live value, doc (see docs/TUNING.md)");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
                     Console.WriteLine("map layers: density | lean");
@@ -100,12 +104,63 @@ public sealed class Repl
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
-                case "emap" when _sim == null:
+                case "emap" or "estep" or "market" or "lanecut" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "emap":
-                    Console.WriteLine(EpochMapView.Render(_sim!,
-                        parts.Length >= 2 ? parts[1] : "domains"));
+                {
+                    string layer = parts.Length >= 2 ? parts[1] : "domains";
+                    var good = Core.Substrate.GoodId.Provisions;
+                    if (layer == "price" && parts.Length >= 3
+                        && !TryParseGood(parts[2], out good))
+                    { Console.WriteLine($"unknown good '{parts[2]}' — see `goods`"); break; }
+                    Console.WriteLine(EpochMapView.Render(_sim!, layer, good));
+                    break;
+                }
+                case "estep":
+                {
+                    int n = parts.Length >= 2 && int.TryParse(parts[1], out var en)
+                        ? Math.Max(1, en) : 1;
+                    var engine = new Core.Epoch.EpochEngine();
+                    int traceFrom = _sim!.Trace.Count;
+                    for (int i = 0; i < n; i++) engine.Step(_sim);
+                    for (int i = traceFrom; i < _sim.Trace.Count; i++)
+                    {
+                        var t = _sim.Trace[i];
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"  e{t.Epoch} {t.Phase,-10} {t.Note}"));
+                    }
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"now at epoch {_sim.EpochIndex} (y{_sim.WorldYear})"));
+                    break;
+                }
+                case "market" when parts.Length == 2 && int.TryParse(parts[1], out var mp):
+                    Console.WriteLine(MarketView.Render(_sim!, mp));
+                    break;
+                case "market":
+                    Console.WriteLine("usage: market <portId>");
+                    break;
+                case "lanecut" when parts.Length == 3
+                        && int.TryParse(parts[1], out var la) && int.TryParse(parts[2], out var lb):
+                {
+                    int lo = Math.Min(la, lb), hi = Math.Max(la, lb);
+                    Core.Epoch.Lane? lane = null;
+                    foreach (var l in _sim!.Lanes)
+                        if (l.PortAId == lo && l.PortBId == hi) lane = l;
+                    if (lane == null)
+                    { Console.WriteLine($"no lane between ports #{lo} and #{hi}"); break; }
+                    if (_sim.SeveredLanes.Remove(lane.Id))
+                        Console.WriteLine($"lane #{lane.Id} ({lo}<->{hi}) restored");
+                    else
+                    {
+                        _sim.SeveredLanes.Add(lane.Id);
+                        Console.WriteLine($"lane #{lane.Id} ({lo}<->{hi}) CUT — "
+                            + "estep and watch the spike (emap price)");
+                    }
+                    break;
+                }
+                case "lanecut":
+                    Console.WriteLine("usage: lanecut <portA> <portB>");
                     break;
                 case "chronicle" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
@@ -159,6 +214,26 @@ public sealed class Repl
                 case "goods":
                     Console.WriteLine(Core.Substrate.SubstrateView.RenderGoods());
                     break;
+                case "knobs":
+                {
+                    var config = _sim?.Config ?? new Core.Epoch.EpochSimConfig();
+                    string filter = parts.Length >= 2 ? parts[1] : "";
+                    int shown = 0;
+                    foreach (var knob in Core.Epoch.KnobRegistry.All)
+                    {
+                        if (filter.Length > 0 && knob.Name.IndexOf(filter,
+                                StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"  {knob.Name,-42} {knob.Get(config),10:0.####}  {knob.Doc}"));
+                        shown++;
+                    }
+                    Console.WriteLine(shown == 0
+                        ? $"no knobs match '{filter}'"
+                        : $"{shown} knobs" + (_sim == null
+                            ? " (defaults — no sim loaded)"
+                            : " (live values of the loaded sim)"));
+                    break;
+                }
                 case "infra" when parts.Length == 3 && _galaxy?.Skeleton is { } isk
                         && int.TryParse(parts[1], out var iq) && int.TryParse(parts[2], out var ir):
                 {
@@ -210,6 +285,21 @@ public sealed class Repl
                     Console.WriteLine("unrecognized — try 'help'"); break;
             }
         }
+    }
+
+    private static bool TryParseGood(string text, out Core.Substrate.GoodId good)
+    {
+        if (int.TryParse(text, out int id)
+            && id >= 0 && id < Core.Substrate.Goods.All.Count)
+        { good = (Core.Substrate.GoodId)id; return true; }
+        foreach (var def in Core.Substrate.Goods.All)
+            if (string.Equals(def.Name.Replace(" ", ""), text,
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(def.Id.ToString(), text,
+                    StringComparison.OrdinalIgnoreCase))
+            { good = def.Id; return true; }
+        good = Core.Substrate.GoodId.Provisions;
+        return false;
     }
 
     private void Step(int dir) => _spiralIndex = Math.Max(0, _spiralIndex + dir);

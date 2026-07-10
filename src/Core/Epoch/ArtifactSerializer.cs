@@ -13,20 +13,21 @@ namespace StarGen.Core.Epoch;
 /// invariant culture, "\n" newlines, fixed ordering — identical state
 /// serializes byte-identically. The hex tier is never persisted; transients
 /// (perception views, staged events, decisions, the phase trace) are not
-/// state. Controllers reattach on load. Standing policies are not yet
-/// serialized — they are always PolityPolicies.Default in slice B; slice D
-/// bumps the actors layer when they become real state.</summary>
+/// state. Controllers reattach on load. Slice D: config/actors/segments at
+/// v2 (knob families, standing policies + credits, identity layers) and the
+/// appended markets layer (markets, cultures, reserves, loans).</summary>
 public static class ArtifactSerializer
 {
     private const string Header = "STARGEN-EPOCH|1";
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    /// <summary>Layer names and schema versions, in artifact order.</summary>
+    /// <summary>Layer names and schema versions, in artifact order — new
+    /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 1), ("clock", 1), ("raster", 1), ("species", 1),
-        ("actors", 1), ("ports", 1), ("lanes", 1), ("facilities", 1),
-        ("fleets", 1), ("segments", 1), ("events", 1),
+        ("config", 3), ("clock", 1), ("raster", 1), ("species", 1),
+        ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("fleets", 1), ("segments", 2), ("events", 1), ("markets", 1),
     };
 
     public static string ToText(SimState state)
@@ -52,20 +53,10 @@ public static class ArtifactSerializer
             R(gc.HomeworldRatePerCell), R(gc.TraversabilityThreshold)));
         w.WriteLine(Join("ESIM", ec.MasterSeed.ToString(Inv),
             ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
-        w.WriteLine(Join("EGEN", ec.Genesis.EmergenceWindowYears.ToString(Inv)));
-        w.WriteLine(Join("EECO", R(ec.Economy.WarWearinessPerYear),
-            R(ec.Economy.StockpileDecayPerYear), R(ec.Economy.ProvisionsPerPopPerYear)));
-        w.WriteLine(Join("EINF", ec.Infrastructure.ServiceRadiusBaseHexes.ToString(Inv),
-            ec.Infrastructure.ServiceRadiusPerTierHexes.ToString(Inv),
-            ec.Infrastructure.InterPortRangeBaseHexes.ToString(Inv),
-            ec.Infrastructure.InterPortRangePerTierHexes.ToString(Inv),
-            ec.Infrastructure.MaxPortTier.ToString(Inv),
-            ec.Infrastructure.HomeworldPortTier.ToString(Inv)));
-        w.WriteLine(Join("EEXP", R(ec.Expansion.StubIncomePerPortPerYear),
-            R(ec.Expansion.ColonyCost), ec.Expansion.ColonizationReachHexes.ToString(Inv),
-            R(ec.Expansion.PortUpgradeCostBase), R(ec.Expansion.LaneCost),
-            R(ec.Expansion.HomeworldSegmentSize), R(ec.Expansion.ColonySegmentSize),
-            R(ec.Expansion.SegmentGrowthPerYear), R(ec.Expansion.SegmentCapPerTier)));
+        // every calibration dial, name-sorted (the knob registry is the
+        // single index — docs/TUNING.md carries the consequences)
+        foreach (var knob in KnobRegistry.All)
+            w.WriteLine(Join("KNOB", knob.Name, R(knob.Get(ec))));
 
         Layer(w, "clock");
         w.WriteLine(Join("CLOCK", state.EpochIndex.ToString(Inv),
@@ -91,12 +82,27 @@ public static class ArtifactSerializer
 
         Layer(w, "actors");
         foreach (var a in state.Actors)
+        {
             w.WriteLine(Join("ACTOR", a.Id.ToString(Inv), ((int)a.Kind).ToString(Inv),
                 Name(a.Name), a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
                 a.EntryEpoch.ToString(Inv), B(a.Entered)));
+            if (a.Policies is PolityPolicies pp)
+                w.WriteLine(Join("POLICY", a.Id.ToString(Inv),
+                    R(pp.Budget.Development), R(pp.Budget.Military),
+                    R(pp.Budget.Research), R(pp.Budget.Expansion),
+                    R(pp.Budget.Appeasement), R(pp.Budget.Reserves),
+                    R(pp.TaxRate), R(pp.CharterOpenness),
+                    ((int)pp.Doctrine.Posture).ToString(Inv),
+                    R(pp.Doctrine.EngagementBias),
+                    ((int)pp.NativePolicy).ToString(Inv),
+                    DoubleMap(pp.TariffSchedule), IntMap(pp.LawCode),
+                    DoubleMap(pp.ShipbuildingPriorities),
+                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures)));
+        }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
-                p.SpeciesId.ToString(Inv), R(p.ExpansionPoints), R(p.DevelopmentPoints)));
+                p.SpeciesId.ToString(Inv), R(p.Credits),
+                R(p.ExpansionPoints), R(p.DevelopmentPoints)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -123,7 +129,10 @@ public static class ArtifactSerializer
         Layer(w, "segments");
         foreach (var s in state.Segments)
             w.WriteLine(Join("SEGMENT", s.Id.ToString(Inv), s.PortId.ToString(Inv),
-                s.SpeciesId.ToString(Inv), R(s.Size)));
+                s.SpeciesId.ToString(Inv), s.CultureId.ToString(Inv), R(s.Size),
+                R(s.SoL), R(s.Wealth), R(s.LastSubsistence),
+                R(s.Ideology[0]), R(s.Ideology[1]), R(s.Ideology[2]),
+                R(s.Ideology[3])));
 
         Layer(w, "events");
         foreach (var e in state.Log.Events)
@@ -136,7 +145,79 @@ public static class ArtifactSerializer
                 e.Location.R.ToString(Inv), R(e.Magnitude), R(e.Valence),
                 ((int)e.Visibility).ToString(Inv), Payload(e.Payload)));
         }
+
+        Layer(w, "markets");
+        foreach (var c in state.Cultures)
+            w.WriteLine(Join("CULTURE", c.Id.ToString(Inv), Name(c.Name),
+                c.SpeciesId.ToString(Inv)));
+        foreach (var m in state.Markets)
+            for (int g = 0; g < m.Price.Length; g++)
+                w.WriteLine(Join("MARKET", m.PortId.ToString(Inv), g.ToString(Inv),
+                    R(m.Price[g]), R(m.Inventory[g]), R(m.InventoryGrade[g]),
+                    R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
+                    R(m.BlackBookPrice[g])));
+        foreach (var p in state.Polities)
+            for (int g = 0; g < p.ReserveQty.Length; g++)
+                if (p.ReserveQty[g] != 0)
+                    w.WriteLine(Join("RESERVE", p.ActorId.ToString(Inv),
+                        g.ToString(Inv), R(p.ReserveQty[g]), R(p.ReserveGrade[g])));
+        foreach (var l in state.Loans)
+            w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
+                l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
+                R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
+                l.IssuedYear.ToString(Inv), B(l.Closed)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Int-keyed double map as "k:v;k:v" ascending; "-" when empty
+    /// (fields are never blank).</summary>
+    private static string DoubleMap(IReadOnlyDictionary<int, double> map)
+    {
+        if (map.Count == 0) return "-";
+        var keys = new List<int>(map.Keys);
+        keys.Sort();
+        var parts = new string[keys.Count];
+        for (int i = 0; i < keys.Count; i++)
+            parts[i] = keys[i].ToString(Inv) + ":" + R(map[keys[i]]);
+        return string.Join(";", parts);
+    }
+
+    private static string IntMap<T>(IReadOnlyDictionary<int, T> map) where T : struct
+    {
+        if (map.Count == 0) return "-";
+        var keys = new List<int>(map.Keys);
+        keys.Sort();
+        var parts = new string[keys.Count];
+        for (int i = 0; i < keys.Count; i++)
+            parts[i] = keys[i].ToString(Inv) + ":"
+                       + ((int)(object)map[keys[i]]!).ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static Dictionary<int, double> ParseDoubleMap(string field)
+    {
+        var map = new Dictionary<int, double>();
+        if (field == "-" || field.Length == 0) return map;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            map[int.Parse(part.Substring(0, colon), Inv)] =
+                double.Parse(part.Substring(colon + 1), Inv);
+        }
+        return map;
+    }
+
+    private static Dictionary<int, T> ParseIntMap<T>(string field) where T : struct
+    {
+        var map = new Dictionary<int, T>();
+        if (field == "-" || field.Length == 0) return map;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            map[int.Parse(part.Substring(0, colon), Inv)] =
+                (T)(object)int.Parse(part.Substring(colon + 1), Inv);
+        }
+        return map;
     }
 
     public static SimState Load(TextReader reader)
@@ -198,32 +279,12 @@ public static class ArtifactSerializer
                         config.Sim.YearsPerEpoch = int.Parse(f[2], Inv);
                         config.Sim.EpochCount = int.Parse(f[3], Inv);
                         break;
-                    case "EGEN":
-                        config!.Genesis.EmergenceWindowYears = int.Parse(f[1], Inv);
-                        break;
-                    case "EECO":
-                        config!.Economy.WarWearinessPerYear = double.Parse(f[1], Inv);
-                        config.Economy.StockpileDecayPerYear = double.Parse(f[2], Inv);
-                        config.Economy.ProvisionsPerPopPerYear = double.Parse(f[3], Inv);
-                        break;
-                    case "EINF":
-                        config!.Infrastructure.ServiceRadiusBaseHexes = int.Parse(f[1], Inv);
-                        config.Infrastructure.ServiceRadiusPerTierHexes = int.Parse(f[2], Inv);
-                        config.Infrastructure.InterPortRangeBaseHexes = int.Parse(f[3], Inv);
-                        config.Infrastructure.InterPortRangePerTierHexes = int.Parse(f[4], Inv);
-                        config.Infrastructure.MaxPortTier = int.Parse(f[5], Inv);
-                        config.Infrastructure.HomeworldPortTier = int.Parse(f[6], Inv);
-                        break;
-                    case "EEXP":
-                        config!.Expansion.StubIncomePerPortPerYear = double.Parse(f[1], Inv);
-                        config.Expansion.ColonyCost = double.Parse(f[2], Inv);
-                        config.Expansion.ColonizationReachHexes = int.Parse(f[3], Inv);
-                        config.Expansion.PortUpgradeCostBase = double.Parse(f[4], Inv);
-                        config.Expansion.LaneCost = double.Parse(f[5], Inv);
-                        config.Expansion.HomeworldSegmentSize = double.Parse(f[6], Inv);
-                        config.Expansion.ColonySegmentSize = double.Parse(f[7], Inv);
-                        config.Expansion.SegmentGrowthPerYear = double.Parse(f[8], Inv);
-                        config.Expansion.SegmentCapPerTier = double.Parse(f[9], Inv);
+                    case "KNOB":
+                        var knob = KnobRegistry.Find(f[1])
+                            ?? throw new InvalidDataException(
+                                $"unknown knob '{f[1]}'; keep the artifact with "
+                                + "matching code or explicitly regenerate");
+                        knob.Set(config!, double.Parse(f[2], Inv));
                         break;
                     case "CLOCK":
                         state = new SimState(config!, skeleton!)
@@ -273,25 +334,52 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), controller)
                         { Entered = f[7] == "1" });
                         break;
+                    case "POLICY":
+                        state!.Actors[int.Parse(f[1], Inv)].Policies = new PolityPolicies(
+                            new BudgetWeights(double.Parse(f[2], Inv),
+                                double.Parse(f[3], Inv), double.Parse(f[4], Inv),
+                                double.Parse(f[5], Inv), double.Parse(f[6], Inv),
+                                double.Parse(f[7], Inv)),
+                            TaxRate: double.Parse(f[8], Inv),
+                            TariffSchedule: ParseDoubleMap(f[13]),
+                            LawCode: ParseIntMap<LegalityLevel>(f[14]),
+                            CharterOpenness: double.Parse(f[9], Inv),
+                            Doctrine: new MilitaryDoctrine(
+                                (DoctrinePosture)int.Parse(f[10], Inv),
+                                double.Parse(f[11], Inv)),
+                            ShipbuildingPriorities: ParseDoubleMap(f[15]),
+                            StockpileTargets: ParseDoubleMap(f[16]),
+                            DiplomaticPostures: ParseIntMap<DiplomaticPosture>(f[17]),
+                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv));
+                        break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv))
                         {
-                            ExpansionPoints = double.Parse(f[3], Inv),
-                            DevelopmentPoints = double.Parse(f[4], Inv),
+                            Credits = double.Parse(f[3], Inv),
+                            ExpansionPoints = double.Parse(f[4], Inv),
+                            DevelopmentPoints = double.Parse(f[5], Inv),
                         });
                         break;
                     case "PORT":
-                        state!.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Ports.Count)
+                            throw new InvalidDataException("port ids out of order");
+                        state.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
                             int.Parse(f[5], Inv), int.Parse(f[6], Inv)));
+                        // markets parallel ports (market index == port id);
+                        // MARKET records overwrite the founded prices below
+                        state.Markets.Add(new Market(state.Ports.Count - 1,
+                            state.Config.Economy));
                         break;
                     case "LANE":
                         state!.Lanes.Add(new Lane(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             int.Parse(f[3], Inv), int.Parse(f[4], Inv)));
                         break;
                     case "FACILITY":
-                        state!.Facilities.Add(new Facility(int.Parse(f[1], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Facilities.Count)
+                            throw new InvalidDataException("facility ids out of order");
+                        state.Facilities.Add(new Facility(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
@@ -303,9 +391,52 @@ public static class ArtifactSerializer
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv))));
                         break;
                     case "SEGMENT":
-                        state!.Segments.Add(new PopulationSegment(int.Parse(f[1], Inv),
+                        if (int.Parse(f[1], Inv) != state!.Segments.Count)
+                            throw new InvalidDataException("segment ids out of order");
+                        var segment = new PopulationSegment(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
-                            double.Parse(f[4], Inv)));
+                            int.Parse(f[4], Inv), double.Parse(f[5], Inv))
+                        {
+                            SoL = double.Parse(f[6], Inv),
+                            Wealth = double.Parse(f[7], Inv),
+                            LastSubsistence = double.Parse(f[8], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            segment.Ideology[ax] = double.Parse(f[9 + ax], Inv);
+                        state!.Segments.Add(segment);
+                        break;
+                    case "CULTURE":
+                        state!.Cultures.Add(new Culture(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv)));
+                        break;
+                    case "MARKET":
+                    {
+                        var market = state!.Markets[int.Parse(f[1], Inv)];
+                        int good = int.Parse(f[2], Inv);
+                        market.Price[good] = double.Parse(f[3], Inv);
+                        market.Inventory[good] = double.Parse(f[4], Inv);
+                        market.InventoryGrade[good] = double.Parse(f[5], Inv);
+                        market.LastCleared[good] = double.Parse(f[6], Inv);
+                        market.BlackBookDemand[good] = double.Parse(f[7], Inv);
+                        market.BlackBookPrice[good] = double.Parse(f[8], Inv);
+                        break;
+                    }
+                    case "RESERVE":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        int good = int.Parse(f[2], Inv);
+                        pr.ReserveQty[good] = double.Parse(f[3], Inv);
+                        pr.ReserveGrade[good] = double.Parse(f[4], Inv);
+                        break;
+                    }
+                    case "LOAN":
+                        if (int.Parse(f[1], Inv) != state!.Loans.Count)
+                            throw new InvalidDataException("loan ids out of order");
+                        state.Loans.Add(new Loan(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv), int.Parse(f[3], Inv),
+                            double.Parse(f[4], Inv), double.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), int.Parse(f[7], Inv))
+                        { Closed = f[8] == "1" });
                         break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
@@ -358,6 +489,17 @@ public static class ArtifactSerializer
             e.PortBId.ToString(Inv)),
         PortTierRaisedPayload e => Join("portTierRaised", e.PortId.ToString(Inv),
             e.NewTier.ToString(Inv)),
+        FamineStruckPayload e => Join("famineStruck", e.PortId.ToString(Inv),
+            R(e.Shortfall)),
+        FacilityBuiltPayload e => Join("facilityBuilt", e.FacilityId.ToString(Inv),
+            e.TypeId.ToString(Inv), e.Tier.ToString(Inv)),
+        LoanIssuedPayload e => Join("loanIssued", e.LoanId.ToString(Inv),
+            e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv),
+            R(e.Principal)),
+        LoanDefaultedPayload e => Join("loanDefaulted", e.LoanId.ToString(Inv),
+            e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv)),
+        MigrationWavePayload e => Join("migrationWave", e.FromPortId.ToString(Inv),
+            e.ToPortId.ToString(Inv), R(e.Size)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -371,6 +513,17 @@ public static class ArtifactSerializer
             int.Parse(f[at + 2], Inv)),
         "portTierRaised" => new PortTierRaisedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv)),
+        "famineStruck" => new FamineStruckPayload(int.Parse(f[at + 1], Inv),
+            double.Parse(f[at + 2], Inv)),
+        "facilityBuilt" => new FacilityBuiltPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "loanIssued" => new LoanIssuedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            double.Parse(f[at + 4], Inv)),
+        "loanDefaulted" => new LoanDefaultedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "migrationWave" => new MigrationWavePayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), double.Parse(f[at + 3], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

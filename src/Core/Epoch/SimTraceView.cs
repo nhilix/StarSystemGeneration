@@ -70,6 +70,23 @@ public static class SimTraceView
                 Invariant($"a lane opens between ports #{p.PortAId} and #{p.PortBId}"),
             PortTierRaisedPayload p =>
                 Invariant($"port #{p.PortId} rises to tier {p.NewTier}"),
+            FamineStruckPayload p =>
+                Invariant($"famine grips port #{p.PortId} ")
+                + Invariant($"({(int)System.Math.Round(p.Shortfall * 100)}% short)"),
+            FacilityBuiltPayload p => Invariant($"a ")
+                + Substrate.Infrastructure.Get((Substrate.InfraTypeId)p.TypeId)
+                    .Name.ToLowerInvariant()
+                + Invariant($" rises (facility #{p.FacilityId})"),
+            LoanIssuedPayload p =>
+                Invariant($"polity #{p.LenderActorId} lends ")
+                + Invariant($"{(int)System.Math.Round(p.Principal)} credits ")
+                + Invariant($"to polity #{p.BorrowerActorId}"),
+            LoanDefaultedPayload p =>
+                Invariant($"polity #{p.BorrowerActorId} defaults on its debt ")
+                + Invariant($"to polity #{p.LenderActorId}"),
+            MigrationWavePayload p =>
+                Invariant($"refugees flee port #{p.FromPortId} ")
+                + Invariant($"for port #{p.ToPortId}"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

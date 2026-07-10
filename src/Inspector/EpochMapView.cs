@@ -4,6 +4,7 @@ using System.Text;
 using StarGen.Core.Epoch;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
+using Substrate = StarGen.Core.Substrate;
 
 namespace StarGen.Inspector;
 
@@ -15,7 +16,8 @@ namespace StarGen.Inspector;
 /// registry at render time — nothing here is stored state.</summary>
 public static class EpochMapView
 {
-    public static string Render(SimState state, string layer = "domains")
+    public static string Render(SimState state, string layer = "domains",
+                                Substrate.GoodId good = Substrate.GoodId.Provisions)
     {
         var sk = state.Skeleton;
         var offsets = sk.Cells.Select(c => (cell: c, off: HexGrid.ToOffset(c.Coord))).ToList();
@@ -39,6 +41,8 @@ public static class EpochMapView
             else if (layer == "lanes")
                 glyph = portCells.Contains(cell.Coord) ? '*'
                     : laneCells!.Contains(cell.Coord) ? '+' : '.';
+            else if (layer == "price")
+                glyph = PriceGlyph(state, cell, good);
             else
             {
                 PortDomains.OwnersAt(sk, state.Config, state.Ports,
@@ -62,10 +66,45 @@ public static class EpochMapView
             for (int x = 0; x < width; x++) sb.Append(canvas[y, x]);
             sb.AppendLine();
         }
-        sb.AppendLine(layer == "lanes"
-            ? "*=port cell +=lane .=off-network (wilds dark)"
-            : "letter=domain ?=contested overlap .=wilds " + Legend(state));
+        sb.AppendLine(layer switch
+        {
+            "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
+            "price" => $"{Substrate.Goods.Get(good).Name} vs founding price: "
+                       + "_ glut · - cheap · = par · + dear · * scarce · # spike "
+                       + "· ! famine-grade · .=wilds",
+            _ => "letter=domain ?=contested overlap .=wilds " + Legend(state),
+        });
         return sb.ToString();
+    }
+
+    /// <summary>Per-good price shading at the nearest servicing port —
+    /// spikes at blockades, gluts at cut-off producers (market-geography.md:
+    /// the most legible economic layer).</summary>
+    private static char PriceGlyph(SimState state, RegionCell cell,
+                                   Substrate.GoodId good)
+    {
+        var center = HexGrid.CellCenter(cell.Coord);
+        int best = -1, bestDist = int.MaxValue;
+        foreach (var p in state.Ports)
+        {
+            if (!PortDomains.Services(state.Skeleton, state.Config, p, center))
+                continue;
+            int dist = HexGrid.Distance(p.Hex, center);
+            if (dist < bestDist) { bestDist = dist; best = p.Id; }
+        }
+        if (best < 0) return '.';
+        double ratio = state.Markets[best].Price[(int)good]
+                       / Market.InitialPrice(state.Config.Economy, good);
+        return ratio switch
+        {
+            < 0.25 => '_',
+            < 0.6 => '-',
+            < 1.5 => '=',
+            < 3.0 => '+',
+            < 8.0 => '*',
+            < 30.0 => '#',
+            _ => '!',
+        };
     }
 
     private static char OwnerLetter(int actorId) =>

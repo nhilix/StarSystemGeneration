@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using StarGen.Core.Galaxy;
 
 namespace StarGen.Core.Epoch;
 
@@ -20,16 +21,33 @@ public sealed class PerceptionView
     /// <summary>Scored colonization targets within reach, best first
     /// (mechanical enumeration; choosing is the controller's).</summary>
     public IReadOnlyList<ColonyCandidate> ColonyCandidates { get; }
+    /// <summary>The actor's own species profile — an actor perceives its own
+    /// society (null for non-polities and shape-only test skeletons). Law
+    /// codes and temperament-flavored policies derive from it.</summary>
+    public SpeciesProfile? SelfSpecies { get; }
+    /// <summary>Own port count — scales standing policy magnitudes
+    /// (stockpile targets and the like).</summary>
+    public int OwnPortCount { get; }
+    /// <summary>Size-weighted mean subsistence across the realm's segments
+    /// (1.0 when unpeopled) — the consolidation signal: a starving realm
+    /// digests before it expands.</summary>
+    public double RealmSubsistence { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
-                          IReadOnlyList<ColonyCandidate>? colonyCandidates = null)
+                          IReadOnlyList<ColonyCandidate>? colonyCandidates = null,
+                          SpeciesProfile? selfSpecies = null,
+                          int ownPortCount = 0,
+                          double realmSubsistence = 1.0)
     {
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
         ExpansionPoints = expansionPoints;
         ColonyCandidates = colonyCandidates ?? NoCandidates;
+        SelfSpecies = selfSpecies;
+        OwnPortCount = ownPortCount;
+        RealmSubsistence = realmSubsistence;
     }
 }
 
@@ -60,10 +78,10 @@ public sealed class TrivialController : IController
         new ControllerDecision(PolityPolicies.Default, NoActs);
 }
 
-/// <summary>The genesis expansion AI: default standing policies; founds toward
-/// the top colony candidate whenever the expansion treasury affords it.
-/// Constructed with the config — its own policy costs, not world state; the
-/// P2 contract (decide from the view alone) holds.</summary>
+/// <summary>The genesis expansion AI: species-flavored standing policies;
+/// founds toward the top colony candidate whenever the expansion treasury
+/// affords it. Constructed with the config — its own policy costs, not world
+/// state; the P2 contract (decide from the view alone) holds.</summary>
 public sealed class GenesisController : IController
 {
     private static readonly IReadOnlyList<Act> NoActs = new Act[0];
@@ -76,12 +94,62 @@ public sealed class GenesisController : IController
 
     public ControllerDecision Decide(PerceptionView perceived)
     {
+        var policies = PoliciesFor(perceived);
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
+            && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0)
-            return new ControllerDecision(PolityPolicies.Default, new Act[]
+            return new ControllerDecision(policies, new Act[]
             {
                 new FoundColonyAct(perceived.SelfId, perceived.ColonyCandidates[0].Target),
             });
-        return new ControllerDecision(PolityPolicies.Default, NoActs);
+        return new ControllerDecision(policies, NoActs);
+    }
+
+    /// <summary>Default policies plus a species-derived law code (closed
+    /// societies prohibit narcotics, guarded ones restrict them —
+    /// jurisdiction-relative legality, commodities.md) and reserve targets
+    /// scaling with the realm (ControllerKnobs). Deterministic from the view.</summary>
+    private PolityPolicies PoliciesFor(PerceptionView perceived)
+    {
+        var knobs = _config.Controller;
+        var policies = PolityPolicies.Default;
+        var species = perceived.SelfSpecies;
+        if (species != null
+            && species.Openness < knobs.NarcoticsRestrictBelowOpenness)
+            policies = policies with
+            {
+                LawCode = new Dictionary<int, LegalityLevel>
+                {
+                    [(int)Substrate.GoodId.Narcotics] =
+                        species.Openness < knobs.NarcoticsProhibitBelowOpenness
+                            ? LegalityLevel.Prohibited
+                            : LegalityLevel.Restricted,
+                },
+            };
+        if (perceived.OwnPortCount > 0)
+        {
+            // polity procurement (market-geography.md participants): food
+            // security for everyone, construction materials banked (market
+            // leftovers never hold a whole build basket at once), war
+            // materiel by temperament
+            var targets = new Dictionary<int, double>
+            {
+                [(int)Substrate.GoodId.Provisions] =
+                    knobs.ProvisionsReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Alloys] =
+                    knobs.AlloysReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Machinery] =
+                    knobs.MachineryReservePerPort * perceived.OwnPortCount,
+                [(int)Substrate.GoodId.Composites] =
+                    knobs.CompositesReservePerPort * perceived.OwnPortCount,
+            };
+            double militancy = species?.Militancy ?? 0.5;
+            if (militancy > knobs.MilitancyReserveGate)
+                targets[(int)Substrate.GoodId.Armaments] =
+                    militancy * knobs.ArmamentsPerPortPerMilitancy
+                    * perceived.OwnPortCount;
+            policies = policies with { StockpileTargets = targets };
+        }
+        return policies;
     }
 }

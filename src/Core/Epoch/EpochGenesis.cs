@@ -15,6 +15,10 @@ public static class EpochGenesis
     public static SimState Seed(GalaxySkeleton skeleton, EpochSimConfig config)
     {
         var state = new SimState(config, skeleton);
+        // one culture per species (id == species id) until a split mechanic
+        // lands — the slow identity layer's registry
+        foreach (var sp in skeleton.Species)
+            state.Cultures.Add(new Culture(sp.Id, sp.Name, sp.Id));
         int windowEpochs = Math.Max(1, config.Genesis.EmergenceWindowYears
                                        / config.Sim.YearsPerEpoch);
         foreach (var cell in skeleton.Cells)                 // spiral order (P6)
