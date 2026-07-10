@@ -223,8 +223,41 @@ day one of them *does* need to move.
 
 `GalaxyConfig` (`src/Core/Galaxy/`) calibrates nature, not history: arm
 count/tightness/strength, core radius, disc falloff, density target, anchor
-multipliers, `HomeworldRatePerCell` (polity count), traversability
-threshold. Serialized on the artifact's GCONFIG line; tuned last in slice B
-(0.02 → 0.008 for map legibility). They stay outside the epoch registry
-because they configure a different machine (the skeleton builder) — slice F
-replaces most of them with the causal genesis sim.
+multipliers, traversability threshold. Serialized on the artifact's GCONFIG
+line. They stay outside the epoch registry because they configure a
+different machine (the skeleton builder). Slice F reads the shape knobs as
+**potential parameters** (`GalaxyPotential`): where matter wants to be; the
+cosmic sim decides where it ends up. `HomeworldRatePerCell` retired with
+slice F — polity count is causal now (`Evolution.SapienceRate` plus the era
+horizons are the dials).
+
+Slice F adds genesis calibration under its own registry,
+`GalaxyKnobRegistry` (`src/Core/Galaxy/GalaxyKnobRegistry.cs`), serialized
+as name-sorted `GKNOB` lines in the config layer (v4) with the same
+unknown-name load refusal. Same three-surface discipline as the epoch
+registry (artifact, REPL `knobs`, this file).
+
+## Cosmic — the deep-time structure sim
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Cosmic.MergerCount` | 2.0 | More infalling dwarfs: more streams, starburst cohorts, structural variety per seed. | A quiet, textbook spiral. |
+| `Cosmic.MergerScale` | 1.0 | Heavier injections: mergers visibly reshape density/metallicity maps. | Mergers become flavor events. |
+| `Cosmic.StarFormationEfficiency` | 1.0 | Gas burns early: older, dimmer present-day mix, metals arrive sooner, less remaining gas fraction. | Late-blooming galaxy: gas-rich arms, young leans dominate. |
+| `Cosmic.EnrichmentRate` | 1.0 | Faster metallicity floor crossings: life viable earlier and wider (0b reads this directly). | Metal-poor galaxy: emergence compresses toward the late window. |
+| `Cosmic.GlobularCount` | 6.0 | More ancient metal-poor cluster cells (exotic terrain, own star table). | Rarer exotic terrain. |
+| `Cosmic.AgnActivity` | 1.0 | More/wider core sterilization epochs: the inner disc's life starts late, ancient-core powers vanish. | A quiet nucleus; core-adjacent early risers appear. |
+
+## Evolution — life, sapience, the emergence schedule
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Evolution.AbiogenesisRate` | 0.012 | Life starts promptly where viable: more living cells, earlier abiogenesis dates, more origins overall. | Life is precious and late; whole arms stay barren. |
+| `Evolution.MaturationScaleGyr` | 6.0 | Longer road to spaceflight: more origins land past the horizon (fewer polities), precursors thin out. **Must exceed the abio→sapience lag (~4 Gyr) or the clamp erases causal dates.** | Everything reaches flight early: crowded precursor era. |
+| `Evolution.CatastropheFrequency` | 0.0015 | More setbacks: later, scarred emergences, richer catastrophe texture, fewer sapients. | Smooth gardens everywhere. |
+| `Evolution.SpreadRate` | 0.002 | Panspermia clusters life along habitable corridors. | Isolated abiogenesis islands. |
+| `Evolution.SapienceRate` | 0.05 | More origins in every era. **Not a clean polity-count dial**: current-era count also hangs on the era horizons and moves non-monotonically (changing the rate changes *when* cells register, which changes which band they land in). Expect 5–16 polities at radius 12 as seed personality. | Sparse minds; some seeds drop below 2 current polities. |
+| `Evolution.DomainBudgetFraction` | 0.5 | More galaxy claimable by precursors: bigger arcs, denser ruins, more scars shadowing the emergence map. | Precursors stay parochial; archaeology thins. |
+| `Evolution.GrandChance` / `GrandWaveLimit` | 0.15 / 3 | More elder races: galaxy-scale ruin networks, more inter-wave contact. | Grand arcs vanish; pocket rubble only. |
+| `Evolution.BioEngineeringRate` | 0.03 | More engineered gardens: anomalously rich biospheres, uplift-flavored early emergences near old territory. | Biology stays wild. |
+| `Evolution.DormantSurvivalRate` | 0.08 | More live remnants (war machines, defense grids) among the ruins — encounter density for later slices. | Dead archaeology only. |

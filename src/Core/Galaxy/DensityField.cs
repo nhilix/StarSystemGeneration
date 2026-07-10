@@ -4,7 +4,11 @@ using StarGen.Core.Rng;
 
 namespace StarGen.Core.Galaxy;
 
-/// <summary>Tier 1 (spec §4): pure density field = galactic shape × local noise.</summary>
+/// <summary>Tier 1 (spec §4): the per-hex density field. Since slice F it
+/// reads the simulated present-day cell layer (× hex-scale clumping noise)
+/// instead of the analytic shape paint; the shape math lives on as the
+/// potential prior (StarGen.Core.Genesis.GalaxyPotential). Geometry
+/// (membership, rim) is unchanged.</summary>
 public static class DensityField
 {
     /// <summary>World-space length of one cell-lattice step (√273 with the pinned
@@ -38,41 +42,43 @@ public static class DensityField
         return Math.Sqrt(x * x + y * y);
     }
 
-    public static double At(GalaxyConfig config, HexCoordinate hex)
+    /// <summary>Tier-1 per-hex density since slice F: interpolated
+    /// present-day cell density × hex-scale clumping noise
+    /// (cosmic-genesis.md §Tier-1 consequence). The cell layer is the
+    /// simulated residue — itself a pure function of config — so the hex
+    /// tier remains a pure, never-persisted function of (config,
+    /// coordinate). Interpolation is inverse-distance-squared over the
+    /// containing cell and its in-galaxy lattice neighbors, so cell edges
+    /// never print through to hex-level presence.</summary>
+    public static double At(GalaxySkeleton skeleton, HexCoordinate hex)
     {
+        var config = skeleton.Config;
         if (!InGalaxy(config, hex)) return 0.0;
 
         var (wx, wy) = HexGrid.HexToWorld(hex);
-        double rim = WorldRimRadius(config);
-        double shape = ShapeAt(config, wx / rim, wy / rim);
-        if (shape <= 0) return 0.0;
+        var cellCoord = HexGrid.CellOf(hex);
+        double weighted = 0, weights = 0;
+        Accumulate(skeleton, cellCoord, wx, wy, ref weighted, ref weights);
+        foreach (var neighbor in HexGrid.Neighbors(cellCoord))
+            Accumulate(skeleton, neighbor, wx, wy, ref weighted, ref weights);
+        if (weights <= 0) return 0.0;
+        double cellDensity = weighted / weights;
 
         double noise = ValueNoise.Warped(config.MasterSeed,
             RollChannel.NoiseDensityLattice, RollChannel.NoiseWarpLattice,
             wx, wy, octaves: 3, frequency: 0.02, warpStrength: 30.0);
 
-        double v = shape * (0.25 + 1.5 * noise);
-        v *= config.MeanDensityTarget / 0.5;
-        return Math.Clamp(v, 0.0, 1.0);
+        return Math.Clamp(cellDensity * (0.25 + 1.5 * noise), 0.0, 1.0);
     }
 
-    /// <summary>Shape only, normalized coords (|n| = 1 at rim). Disc mean ≈ 0.5.</summary>
-    public static double ShapeAt(GalaxyConfig config, double nx, double ny)
+    private static void Accumulate(GalaxySkeleton skeleton, HexCoordinate cellCoord,
+        double wx, double wy, ref double weighted, ref double weights)
     {
-        double r = Math.Sqrt(nx * nx + ny * ny);
-        if (r >= 1.0) return 0.0;                       // hard zero beyond the rim
-
-        double theta = Math.Atan2(ny, nx);
-        double core = Math.Exp(-(r * r) / (2 * config.CoreRadius * config.CoreRadius));            // bright center
-        double disc = Math.Exp(-(r * r) / (2 * config.DiscFalloff * config.DiscFalloff));            // broad falloff
-
-        // Log-spiral arms: angular distance to the nearest arm ridge at this radius.
-        double armAngle = Math.Log(Math.Max(r, 0.05)) / config.ArmTightness;
-        double phase = (theta - armAngle) * config.ArmCount / (2 * Math.PI);
-        double toRidge = Math.Abs(phase - Math.Round(phase)) * 2;        // 0 at ridge, 1 between
-        double arms = Math.Exp(-(toRidge * toRidge) / (2 * config.ArmWidth * config.ArmWidth))
-                      * (1 - core) * config.ArmStrength;
-
-        return Math.Clamp(core + disc * 0.45 + arms * disc, 0.0, 1.0);
+        if (!skeleton.TryGetCell(cellCoord, out var cell)) return;
+        var (cx, cy) = HexGrid.HexToWorld(HexGrid.CellCenter(cellCoord));
+        double dx = wx - cx, dy = wy - cy;
+        double w = 1.0 / (1.0 + (dx * dx + dy * dy) / (CellLatticeUnit * CellLatticeUnit));
+        weighted += cell.MeanDensity * w;
+        weights += w;
     }
 }

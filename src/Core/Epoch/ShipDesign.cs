@@ -120,7 +120,9 @@ public static class DesignRegistry
     public static void RegisterEntryDesigns(SimState state, int ownerActorId,
                                             double militancy)
     {
-        const double entryGrade = 0.5;   // standard-issue starter components
+        // standard-issue starter components, lifted by maturation quality
+        // and the late-emerger contact bonus (slice F entry conditions)
+        double entryGrade = 0.5 + state.PolityOf(ownerActorId).EntryGradeBonus;
         Register(state, ownerActorId, ShipRole.Freight, ShipSize.Medium, entryGrade);
         Register(state, ownerActorId, ShipRole.Colony, ShipSize.Medium, entryGrade);
         Register(state, ownerActorId, ShipRole.Scout, ShipSize.Light, entryGrade);

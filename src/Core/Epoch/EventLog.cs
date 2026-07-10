@@ -14,7 +14,7 @@ public sealed class EventLog
 
     /// <summary>Appends with the next sequential id (deterministic: callers
     /// stage and finalize in fixed iteration order).</summary>
-    public WorldEvent Append(int worldYear, ClockStratum stratum, WorldEventType type,
+    public WorldEvent Append(long worldYear, ClockStratum stratum, WorldEventType type,
                              IReadOnlyList<int> actors, HexCoordinate location,
                              double magnitude, double valence,
                              EventVisibility visibility, EventPayload? payload)

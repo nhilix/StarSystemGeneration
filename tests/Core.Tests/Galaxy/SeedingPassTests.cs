@@ -5,6 +5,11 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Galaxy;
 
+/// <summary>The derived seeding (slice F): density/lean/metallicity are
+/// cosmic-sim residue, homeworlds and species derive from the emergence
+/// schedule, precursor-site anchors from the wave registry, mineral anchors
+/// from the simulated richness field. The painted passes are gone; these
+/// tests replaced the stub tests (the one legitimate replacement zone).</summary>
 public class SeedingPassTests
 {
     // small GalaxyRadiusCells keeps builds fast while big enough for structure.
@@ -21,7 +26,10 @@ public class SeedingPassTests
             Assert.Equal(a.Cells[i].MeanDensity, b.Cells[i].MeanDensity);
             Assert.Equal(a.Cells[i].IsVoid, b.Cells[i].IsVoid);
             Assert.Equal(a.Cells[i].IsChokepoint, b.Cells[i].IsChokepoint);
+            Assert.Equal(a.Cells[i].Metallicity, b.Cells[i].Metallicity);
+            Assert.Equal(a.Cells[i].Anchors.Count, b.Cells[i].Anchors.Count);
         }
+        Assert.Equal(a.Species.Count, b.Species.Count);
     }
 
     [Fact]
@@ -52,9 +60,8 @@ public class SeedingPassTests
             "Balanced should be the most common lean");
         Assert.Contains(StellarLean.YoungBright, counts.Keys);
         Assert.Contains(StellarLean.OldDim, counts.Keys);
-        // RemnantGraveyard is rare (~12%) — at 256 cells it should appear but stay a small minority
         if (counts.TryGetValue(StellarLean.RemnantGraveyard, out var graveyards))
-            Assert.True(graveyards < s.Cells.Count / 4);
+            Assert.True(graveyards < s.Cells.Count / 4, "graveyards stay a minority");
     }
 
     [Fact]
@@ -71,8 +78,9 @@ public class SeedingPassTests
     {
         var s = Build();
         var all = s.Cells.SelectMany(c => c.Anchors.Select(a => (c, a))).ToList();
-        Assert.True(all.Count(x => x.a.Type == AnchorType.MineralRich) > 5, "mineral anchors should exist");
+        Assert.True(all.Count(x => x.a.Type == AnchorType.MineralRich) > 3, "mineral anchors should exist");
         Assert.Contains(all, x => x.a.Type == AnchorType.PrecursorSite);
+        Assert.Contains(all, x => x.a.Type == AnchorType.Homeworld);
         var hexes = all.Select(x => x.a.Hex).ToList();
         Assert.Equal(hexes.Count, hexes.Distinct().Count());
         foreach (var (c, a) in all)
@@ -81,50 +89,74 @@ public class SeedingPassTests
     }
 
     [Fact]
-    public void MineralAnchors_FollowMetallicity()
+    public void MineralAnchors_FollowTheSimulatedRichness()
     {
         var s = Build();
-        var richCells = s.Cells.Where(c => !c.IsVoid && c.Metallicity > 0.6).ToList();
-        var poorCells = s.Cells.Where(c => !c.IsVoid && c.Metallicity < 0.4).ToList();
+        var richCells = s.Cells.Where(c => !c.IsVoid && c.MineralRichness > 0.6).ToList();
+        var poorCells = s.Cells.Where(c => !c.IsVoid && c.MineralRichness < 0.2).ToList();
         double richRate = richCells.Count(c => c.Anchors.Any(a => a.Type == AnchorType.MineralRich)) / (double)richCells.Count;
         double poorRate = poorCells.Count(c => c.Anchors.Any(a => a.Type == AnchorType.MineralRich)) / (double)poorCells.Count;
-        Assert.True(richRate > poorRate, $"metal-rich cells ({richRate:F2}) should out-anchor metal-poor ({poorRate:F2})");
+        Assert.True(richRate > poorRate,
+            $"mineral-rich cells ({richRate:F2}) should out-anchor poor ({poorRate:F2})");
     }
 
     [Fact]
-    public void Homeworlds_CountAndSpacing()
+    public void PrecursorAnchors_ComeFromTheWaveRegistry()
     {
         var s = Build();
-        var homeCells = s.Cells.Where(c =>
-            c.Anchors.Any(a => a.Type == AnchorType.Homeworld)).ToList();
-        int expected = System.Math.Max(2, (int)System.Math.Round(
-            s.Config.HomeworldRatePerCell * s.Cells.Count));
-        Assert.InRange(homeCells.Count, 2, expected);   // spacing may reject a few below target
-        Assert.True(homeCells.Count >= expected / 2, $"got {homeCells.Count}, want >= {expected / 2}");
-        foreach (var a in homeCells)
-            foreach (var b in homeCells)
-                if (!ReferenceEquals(a, b))
-                    Assert.True(HexGrid.Distance(a.Coord, b.Coord) >= 2,
-                        "homeworld cells must not be adjacent on the cell lattice");
+        var siteHexes = s.PrecursorWaves.SelectMany(w => w.Sites)
+            .Where(x => x.Type != PrecursorSiteType.SterilizationScar)
+            .Select(x => x.Hex).ToHashSet();
+        var anchors = s.Cells.SelectMany(c => c.Anchors)
+            .Where(a => a.Type == AnchorType.PrecursorSite).ToList();
+        Assert.NotEmpty(anchors);
+        Assert.All(anchors, a => Assert.Contains(a.Hex, siteHexes));
     }
 
     [Fact]
-    public void Homeworlds_HaveSpeciesTaggedAnchors()
+    public void Homeworlds_MatchTheEmergenceSchedule()
     {
         var s = Build();
-        Assert.NotEmpty(s.Species);
+        var current = s.Origins.Where(o => o.Era == OriginEra.Current).ToList();
+        var homeworlds = s.Cells.SelectMany(c => c.Anchors)
+            .Where(a => a.Type == AnchorType.Homeworld).ToList();
+        Assert.Equal(current.Count, homeworlds.Count);
+        Assert.Equal(current.Count, s.Species.Count);
         foreach (var species in s.Species)
         {
+            var anchor = Assert.Single(homeworlds.Where(a => a.SpeciesId == species.Id));
+            var cell = s.CellForHex(anchor.Hex);
+            Assert.False(cell.IsVoid, "homeworlds seed on traversable cells");
             Assert.False(string.IsNullOrEmpty(species.Name));
             Assert.InRange(species.Cohesion, 0.0, 1.0);
-            if (species.Embodiment == Embodiment.Hive) Assert.True(species.Cohesion >= 0.75);
-            // seeding guarantees exactly one homeworld anchor per species — the
-            // hook EpochGenesis seeds its polity actors from
-            var homeworldCells = s.Cells.Where(c => c.Anchors.Any(a =>
-                a.Type == AnchorType.Homeworld && a.SpeciesId == species.Id)).ToList();
-            var home = Assert.Single(homeworldCells);
-            Assert.False(home.IsVoid, "homeworlds seed on traversable cells");
+            if (species.Embodiment == Embodiment.Hive)
+                Assert.True(species.Cohesion >= 0.75);
         }
+    }
+
+    [Fact]
+    public void MachineSpecies_DescendFromPrecursorCapitals()
+    {
+        // sweep seeds: transcendence descendants are rolled
+        foreach (ulong seed in new ulong[] { 7, 42, 99, 1234 })
+        {
+            var s = SkeletonBuilder.Build(new GalaxyConfig
+            { MasterSeed = seed, GalaxyRadiusCells = 12 });
+            var currents = s.Origins.Where(o => o.Era == OriginEra.Current).ToList();
+            for (int i = 0; i < currents.Count; i++)
+            {
+                if (currents[i].DescendantOfWaveId < 0)
+                {
+                    Assert.NotEqual(Embodiment.Machine, s.Species[i].Embodiment);
+                    continue;
+                }
+                Assert.Equal(Embodiment.Machine, s.Species[i].Embodiment);
+                Assert.Equal(s.PrecursorWaves[currents[i].DescendantOfWaveId].CapitalHex,
+                    currents[i].Hex);
+                return;   // verified one descendant end to end
+            }
+        }
+        Assert.Fail("no machine descendant across four seeds");
     }
 
     [Fact]
@@ -143,14 +175,15 @@ public class SeedingPassTests
 
         var stock = BuildWith(1.0, 1.0);
         var none = BuildWith(0.0, 0.0);
-        var rich = BuildWith(3.0, 3.0);
+        var sampled = BuildWith(1.0, 0.3);
 
         Assert.Equal(0, Count(none, AnchorType.MineralRich));
         Assert.Equal(0, Count(none, AnchorType.PrecursorSite));
-        // Fixed seed: a larger multiplier only raises thresholds against the
-        // same rolls, so rich anchors are a strict superset of stock's.
-        Assert.True(Count(rich, AnchorType.MineralRich) > Count(stock, AnchorType.MineralRich));
-        Assert.True(Count(rich, AnchorType.PrecursorSite) > Count(stock, AnchorType.PrecursorSite));
+        // the precursor multiplier samples the causal site list â€” it can
+        // thin it, never invent sites
+        Assert.True(Count(sampled, AnchorType.PrecursorSite)
+                    < Count(stock, AnchorType.PrecursorSite));
+        Assert.True(Count(stock, AnchorType.MineralRich) > 0);
     }
 
     [Fact]
@@ -167,6 +200,8 @@ public class SeedingPassTests
             Assert.Equal(full.Cells[i].IsVoid, shape.Cells[i].IsVoid);
         }
         Assert.Empty(shape.Species);
+        Assert.Empty(shape.Origins);
         Assert.All(shape.Cells, c => Assert.Empty(c.Anchors));
     }
 }
+

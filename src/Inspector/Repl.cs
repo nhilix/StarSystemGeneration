@@ -38,12 +38,19 @@ public sealed class Repl
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
                     Console.WriteLine("lanecut <portA> <portB> — toggle a lane cut (debug blockade until slice H)");
-                    Console.WriteLine("chronicle [actorId] — the event log, optionally one actor's biography view");
+                    Console.WriteLine("chronicle [actorId|deep] — the event log; one biography; or the deep-time strata only");
+                    Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
+                    Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
+                    Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
+                    Console.WriteLine("   cosmic layers: gas | stars | metals · life layers: life | bio | waves");
+                    Console.WriteLine("ewatch [n] [layer] — step n epochs, the emap layer animating in place");
+                    Console.WriteLine("features — the cosmic feature registry (mergers, globulars, nebulae, AGN epochs)");
+                    Console.WriteLine("precursors [waveId] — the precursor registry, or one wave's arc + typed sites");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
                     Console.WriteLine("knobs [filter] — every calibration dial: name, live value, doc (see docs/TUNING.md)");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
-                    Console.WriteLine("map layers: density | lean");
+                    Console.WriteLine("map layers: density | lean | gas | metal | age | minerals | bio | emergence | features");
                     Console.WriteLine("find criteria: overlay | <overlay-id> | settled | sapient");
                     break;
                 case "seed" when parts.Length == 2 && ulong.TryParse(parts[1], out var s):
@@ -214,17 +221,184 @@ public sealed class Repl
                     break;
                 case "chronicle":
                 {
-                    int filter = parts.Length >= 2 && int.TryParse(parts[1], out var cf) ? cf : -1;
+                    bool deepOnly = parts.Length >= 2 && parts[1] == "deep";
+                    int filter = !deepOnly && parts.Length >= 2
+                        && int.TryParse(parts[1], out var cf) ? cf : -1;
                     var events = filter >= 0 ? _sim!.Log.ForActor(filter) : _sim!.Log.Events;
                     int shown = 0;
                     foreach (var e in events)
                     {
+                        if (deepOnly && e.Stratum is not (Core.Epoch.ClockStratum.Cosmic
+                            or Core.Epoch.ClockStratum.Evolutionary)) continue;
                         Console.WriteLine("  " + Core.Epoch.SimTraceView.Describe(e));
                         shown++;
                     }
                     if (shown == 0) Console.WriteLine("  (no events)");
                     break;
                 }
+                case "watch" when parts.Length >= 2 && ulong.TryParse(parts[1], out var wseed):
+                {
+                    // the whole story as one in-place animation: cosmic gas,
+                    // then life + precursor waves, then political domains —
+                    // every simulation step is a frame over the same map
+                    int wradius = parts.Length >= 3 && int.TryParse(parts[2], out var wrr) ? wrr : 12;
+                    int wepochs = parts.Length >= 4 && int.TryParse(parts[3], out var wee) ? wee : 40;
+                    int frameMs = parts.Length >= 5 && int.TryParse(parts[4], out var wms) ? wms : 30;
+                    var wconfig = new GalaxyConfig { MasterSeed = wseed, GalaxyRadiusCells = wradius };
+                    var animator = new FrameAnimator(frameMs);
+                    int gEvery = animator.InPlace ? 1 : 40;   // pipes get samples
+                    try
+                    {
+                        var skeleton = SkeletonBuilder.Build(wconfig,
+                            f =>
+                            {
+                                if ((f.Step + 1) % gEvery == 0 || f.Step == f.StepCount - 1)
+                                    animator.Frame(GenesisWatchView.CosmicFrameText(f, "gas"));
+                            },
+                            f =>
+                            {
+                                if ((f.Step + 1) % gEvery == 0 || f.Step == f.StepCount - 1)
+                                    animator.Frame(GenesisWatchView.EvoFrameText(f, "life"));
+                            });
+                        var wecfg = new Core.Epoch.EpochSimConfig { MasterSeed = wseed };
+                        wecfg.Sim.EpochCount = wepochs;
+                        var westate = Core.Epoch.EpochGenesis.Seed(skeleton, wecfg);
+                        var wengine = new Core.Epoch.EpochEngine();
+                        int eEvery = animator.InPlace ? 1 : 10;
+                        for (int i = 0; i < wepochs; i++)
+                        {
+                            wengine.Step(westate);
+                            // no header line: the emap legend already names the
+                            // domains, and extra chrome only risks wrap drift
+                            if ((i + 1) % eEvery == 0 || i == wepochs - 1)
+                                animator.Frame(EpochMapView.Render(westate, "domains",
+                                    Core.Substrate.GoodId.Provisions));
+                        }
+                        animator.Done();
+                        _sim = westate;
+                        _seed = wseed;
+                        _galaxy = new GalaxyContext(wconfig) { Skeleton = skeleton };
+                        Console.WriteLine($"watch complete — sim loaded at epoch {westate.EpochIndex} "
+                            + "(emap/market/fleet/chronicle ready); the watched run is "
+                            + "byte-identical to an unwatched one");
+                    }
+                    finally { animator.Done(); }
+                    break;
+                }
+                case "watch":
+                    Console.WriteLine("usage: watch <seed> [radiusCells=12] [epochs=40] [frameMs=30]");
+                    break;
+                case "gwatch":
+                {
+                    if (_galaxy == null)
+                    { Console.WriteLine("build a galaxy first (galaxy <seed>)"); break; }
+                    string clock = parts.Length >= 2 ? parts[1].ToLowerInvariant() : "cosmic";
+                    bool life = clock is "life" or "evo" or "evolution";
+                    string wlayer = parts.Length >= 3 ? parts[2].ToLowerInvariant()
+                        : life ? "life" : "gas";
+                    var ganimator = new FrameAnimator(frameDelayMs: 30);
+                    int every = parts.Length >= 4 && int.TryParse(parts[3], out var ev)
+                        ? Math.Max(1, ev) : (ganimator.InPlace ? 1 : (life ? 25 : 10));
+                    var wconfig = _galaxy.Config;
+                    Console.WriteLine($"replaying genesis for seed {wconfig.MasterSeed} — "
+                        + $"{(life ? "evolutionary" : "cosmic")} clock, layer {wlayer}, "
+                        + $"every {every} steps (observation never changes the run)");
+                    try
+                    {
+                        var wsw = System.Diagnostics.Stopwatch.StartNew();
+                        var watched = SkeletonBuilder.Build(wconfig,
+                            life ? null : f =>
+                            {
+                                if ((f.Step + 1) % every == 0 || f.Step == f.StepCount - 1)
+                                    ganimator.Frame(GenesisWatchView.CosmicFrameText(f, wlayer));
+                            },
+                            life ? f =>
+                            {
+                                if ((f.Step + 1) % every == 0 || f.Step == f.StepCount - 1)
+                                    ganimator.Frame(GenesisWatchView.EvoFrameText(f, wlayer));
+                            } : null);
+                        wsw.Stop();
+                        ganimator.Done();
+                        _galaxy = new GalaxyContext(wconfig) { Skeleton = watched };
+                        Console.WriteLine($"genesis complete in {wsw.ElapsedMilliseconds} ms — "
+                            + "byte-identical to the unwatched build");
+                    }
+                    finally { ganimator.Done(); }
+                    break;
+                }
+                case "ewatch" when _sim == null:
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "ewatch":
+                {
+                    int n = parts.Length >= 2 && int.TryParse(parts[1], out var wn)
+                        ? Math.Max(1, wn) : 5;
+                    string wlayer = parts.Length >= 3 ? parts[2] : "domains";
+                    var eanimator = new FrameAnimator(frameDelayMs: 30);
+                    var wengine = new Core.Epoch.EpochEngine();
+                    try
+                    {
+                        for (int i = 0; i < n; i++)
+                        {
+                            wengine.Step(_sim!);
+                            eanimator.Frame(EpochMapView.Render(_sim!, wlayer,
+                                Core.Substrate.GoodId.Provisions));
+                        }
+                    }
+                    finally { eanimator.Done(); }
+                    break;
+                }
+                case "features" when _galaxy?.Skeleton is { } fsk:
+                {
+                    if (fsk.Features.Count == 0)
+                    { Console.WriteLine("  (no features — build a galaxy first?)"); break; }
+                    foreach (var feat in fsk.Features)
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"  #{feat.Id,-3} {feat.Type,-16} {feat.Name,-12} {Core.Epoch.SimTraceView.YearLabel((long)(feat.DateGyr * 1e9)),-9} {feat.Cells.Count} ")
+                            + (feat.Cells.Count == 1 ? "cell" : "cells"));
+                    break;
+                }
+                case "features":
+                    Console.WriteLine("build a galaxy first (galaxy <seed>)");
+                    break;
+                case "precursors" when _galaxy?.Skeleton is { } psk
+                        && parts.Length >= 2 && int.TryParse(parts[1], out var waveId):
+                {
+                    if (waveId < 0 || waveId >= psk.PrecursorWaves.Count)
+                    { Console.WriteLine($"no wave #{waveId}"); break; }
+                    var w = psk.PrecursorWaves[waveId];
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"  the {w.Name} civilization — {w.Class} wave, vigor {w.Vigor:F2}"));
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"  rose {Core.Epoch.SimTraceView.YearLabel(w.RoseYear)}, fell {Core.Epoch.SimTraceView.YearLabel(w.FellYear)} — {w.EndCause}"));
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"  capital ({w.CapitalHex.Q},{w.CapitalHex.R}) · {w.Cells.Count} cells · {w.Lanes.Count} lanes")
+                        + (w.DescendantOriginId >= 0
+                            ? FormattableString.Invariant(
+                                $" · machine descendant: origin #{w.DescendantOriginId}") : ""));
+                    foreach (var site in w.Sites)
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"    {site.Type,-20} at ({site.Hex.Q},{site.Hex.R})")
+                            + (site.Dormant ? "  [DORMANT]" : "")
+                            + (site.OtherWaveId >= 0
+                                ? FormattableString.Invariant(
+                                    $"  (with wave #{site.OtherWaveId})") : ""));
+                    break;
+                }
+                case "precursors" when _galaxy?.Skeleton is { } psk2:
+                {
+                    if (psk2.PrecursorWaves.Count == 0)
+                    { Console.WriteLine("  (no precursor waves)"); break; }
+                    foreach (var w in psk2.PrecursorWaves)
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"  #{w.Id,-3} {w.Name,-12} {w.Class,-7} rose {Core.Epoch.SimTraceView.YearLabel(w.RoseYear),-9} fell {Core.Epoch.SimTraceView.YearLabel(w.FellYear),-9} {w.EndCause,-16} {w.Cells.Count,3} cells {w.Sites.Count,3} sites")
+                            + (w.DescendantOriginId >= 0 ? "  → machine descendant" : ""));
+                    Console.WriteLine("  (precursors <id> for one wave's arc + sites)");
+                    break;
+                }
+                case "precursors":
+                    Console.WriteLine("build a galaxy first (galaxy <seed>)");
+                    break;
                 case "esave" when parts.Length == 2 && _sim != null:
                     try
                     {

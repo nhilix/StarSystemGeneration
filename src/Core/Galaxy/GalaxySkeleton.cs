@@ -14,6 +14,22 @@ public sealed class GalaxySkeleton
     public GalaxyConfig Config { get; }
     public IReadOnlyList<RegionCell> Cells => _cells;
     public List<SpeciesProfile> Species { get; } = new();
+    /// <summary>Discrete cosmic features (slice F): identity, date, cell
+    /// footprint — written by the cosmic sim, persisted as the features
+    /// layer.</summary>
+    public List<GalacticFeature> Features { get; } = new();
+    /// <summary>The deep-time chronicle: cosmic (0–99) and evolutionary
+    /// (100–199) events in the standard grammar. EpochGenesis copies them
+    /// into the sim's event log so one history reads bottom-to-top.</summary>
+    public List<Epoch.WorldEvent> DeepTimeEvents { get; } = new();
+    /// <summary>The emergence schedule (slice F): every sapient origin —
+    /// precursor, current, and pre-spaceflight — written by the evolution
+    /// sim, persisted as the origins layer.</summary>
+    public List<SapientOrigin> Origins { get; } = new();
+    /// <summary>The precursor registry (slice F): per wave — vigor class,
+    /// extent, lane network, end cause, typed sites. The galaxy's
+    /// archaeology, persisted as the precursors layer.</summary>
+    public List<PrecursorWave> PrecursorWaves { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();
@@ -35,6 +51,28 @@ public sealed class GalaxySkeleton
     }
 
     public RegionCell CellAt(HexCoordinate cellCoord) => _byCoord[cellCoord];
+
+    private HashSet<HexCoordinate>? _globularCells;
+
+    /// <summary>Whether a cell hosts a globular cluster — feature cells
+    /// carry hex-tier star-table overrides (cosmic-genesis.md §Features).
+    /// Cached from the feature registry on first ask.</summary>
+    public bool IsGlobularCellAt(HexCoordinate cellCoord)
+    {
+        if (_globularCells == null)
+        {
+            _globularCells = new HashSet<HexCoordinate>();
+            foreach (var feature in Features)
+                if (feature.Type == GalacticFeatureType.GlobularCluster)
+                    foreach (var coord in feature.Cells)
+                        _globularCells.Add(coord);
+        }
+        return _globularCells.Contains(cellCoord);
+    }
+
+    /// <summary>Drop feature-derived caches — called wherever Features is
+    /// rebuilt (a re-run cosmic sim must never serve stale overrides).</summary>
+    internal void InvalidateFeatureCaches() => _globularCells = null;
 
     public bool TryGetCell(HexCoordinate cellCoord, out RegionCell cell) =>
         _byCoord.TryGetValue(cellCoord, out cell!);

@@ -8,22 +8,60 @@ namespace StarGen.Core.Tests.Epoch;
 public class EpochGenesisTests
 {
     [Fact]
-    public void SeedsOnePolityPerHomeworldAnchor_AtAnchorHexes()
+    public void SeedsOnePolityPerCurrentOrigin_InScheduleOrder()
     {
         var (sk, state) = EpochTestKit.Seeded();
-        var anchors = sk.Cells.SelectMany(c => c.Anchors)
-                              .Where(a => a.Type == AnchorType.Homeworld).ToList();
-        Assert.True(anchors.Count >= 2, "seeding pass should place at least two homeworlds");
-        Assert.Equal(anchors.Count, state.Actors.Count);
+        var current = sk.Origins.Where(o => o.Era == OriginEra.Current)
+            .OrderBy(o => o.SpaceflightYear).ThenBy(o => o.Id).ToList();
+        Assert.True(current.Count >= 2, "the schedule should carry at least two polities");
+        Assert.Equal(current.Count, state.Actors.Count);
         Assert.All(state.Actors, a => Assert.Equal(ActorKind.Polity, a.Kind));
-        Assert.Equal(anchors.Select(a => a.Hex), state.Actors.Select(a => a.Seat));
-        // polity records pair actors with their founding species, actor-id order
+        // actor order == spaceflight-date order; seats are origin homeworlds
+        Assert.Equal(current.Select(o => o.Hex), state.Actors.Select(a => a.Seat));
+        for (int i = 1; i < state.Actors.Count; i++)
+            Assert.True(state.Actors[i].EntryEpoch >= state.Actors[i - 1].EntryEpoch,
+                "entry epochs follow the schedule");
+        // polity records pair actors with their founding species; each seat's
+        // homeworld anchor carries the same species id
         Assert.Equal(state.Actors.Count, state.Polities.Count);
-        Assert.Equal(anchors.Select(a => a.SpeciesId), state.Polities.Select(p => p.SpeciesId));
         Assert.Equal(state.Actors.Select(a => a.Id), state.Polities.Select(p => p.ActorId));
-        // named for their species
-        Assert.Equal(anchors.Select(a => sk.Species[a.SpeciesId].Name),
-                     state.Actors.Select(a => a.Name));
+        for (int i = 0; i < state.Actors.Count; i++)
+        {
+            var anchor = sk.CellForHex(state.Actors[i].Seat).Anchors
+                .Single(a => a.Type == AnchorType.Homeworld
+                             && a.Hex.Equals(state.Actors[i].Seat));
+            Assert.Equal(anchor.SpeciesId, state.Polities[i].SpeciesId);
+            Assert.Equal(sk.Species[anchor.SpeciesId].Name, state.Actors[i].Name);
+        }
+    }
+
+    [Fact]
+    public void EntryConditions_CarryMaturationAndContactBonus()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        Assert.All(state.Polities, p => Assert.InRange(p.EntryGradeBonus, 0.0, 0.15));
+        if (state.Actors.Count >= 2)
+        {
+            // the latest emerger carries at least the contact share of the
+            // earliest one's bonus deficit (latecomers are behind, not hopeless)
+            var byEntry = state.Actors.OrderBy(a => a.EntryEpoch).ToList();
+            if (byEntry[0].EntryEpoch != byEntry[byEntry.Count - 1].EntryEpoch)
+                Assert.True(
+                    state.Polities[byEntry[byEntry.Count - 1].Id].EntryGradeBonus
+                    > state.Polities[byEntry[0].Id].EntryGradeBonus - 0.05,
+                    "late emergers should not start strictly worse-equipped");
+        }
+    }
+
+    [Fact]
+    public void DeepTimeChronicle_SeedsTheLog()
+    {
+        var (sk, state) = EpochTestKit.Seeded();
+        Assert.Equal(sk.DeepTimeEvents.Count,
+            state.Log.Events.Count(e => e.Stratum is ClockStratum.Cosmic
+                                        or ClockStratum.Evolutionary));
+        Assert.True(state.Log.Events.Count > 0, "the deep chronicle is the log's floor");
+        Assert.Equal(ClockStratum.Cosmic, state.Log.Events[0].Stratum);
     }
 
     [Fact]

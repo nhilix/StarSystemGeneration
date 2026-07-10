@@ -36,8 +36,8 @@ public enum RollChannel : ulong
     NoiseStellarLattice = 26,
     NoiseMetalLattice = 27,
     AnchorPlacement = 28,      // cell-keyed: RollContext coordinate = cell coords
-    AnchorKind = 29,
-    HomeworldPlacement = 30,
+    AnchorKind = 29,           // mineral roll (0) + site-anchor sampling gate (1) since slice F
+    HomeworldPlacement = 30,   // retired (slice F: homeworlds derive from origins) - value must not be reused
     SpeciesEmbodiment = 31,
     SpeciesTemperament = 32,   // subIndex = temperament axis ordinal
     SimExpansion = 33,         // reserved - stage-1 expansion is roll-free; value must not be reused
@@ -52,5 +52,30 @@ public enum RollChannel : ulong
     EpochStubName = 39,        // retired (slice B) - value must not be reused
 
     // --- Epoch frame (slice B). ---
-    EpochEntrySchedule = 40,   // stub emergence schedule until slice F: actor = polity id
+    EpochEntrySchedule = 40,   // retired (slice F: entry derives from the emergence schedule) - value must not be reused
+
+    // --- Cosmic clock (slice F). Rolls keyed (step, cell spiral index). ---
+    CosmicInflowClump = 41,    // inflow clumping noise per (step, cell)
+    CosmicSfTrigger = 42,      // star-formation trigger noise per (step, cell)
+    CosmicMergerSchedule = 43, // merger count/bearing/epoch/mass: actor = merger index, subIndex = field
+    CosmicGlobularPlace = 44,  // globular count/cell picks: actor = globular index
+    CosmicAgnTrigger = 45,     // accretion-epoch gate: step-keyed
+    CosmicFeatureName = 46,    // feature name syllables: actor = feature ordinal, subIndex = syllable
+
+    // --- Evolutionary clock (slice F). Rolls keyed (step, cell spiral index). ---
+    EvoAbiogenesis = 47,       // life-starts gate per (step, cell)
+    EvoCatastrophe = 48,       // mass-extinction gate per (step, cell); subIndex 1 = full-reset roll
+    EvoSpread = 49,            // panspermia gate per (step, target cell); subIndex = neighbor ordinal
+    EvoSapience = 50,          // sapience-registration gate per (step, cell); subIndex 1 = homeworld hex pick
+    EvoMaturation = 51,        // maturation-duration variance per origin (actor = origin id)
+
+    // --- Precursor arcs (slice F). Rolls keyed (step, wave id) unless noted. ---
+    WaveVigor = 52,            // class + vigor draws: actor = wave id, subIndex = field
+    WaveExpand = 53,           // expansion picks: subIndex = claim ordinal
+    WaveEnd = 54,              // end-cause draw + decline variance
+    WaveContact = 55,          // inter-wave contact resolution
+    WaveEngineer = 56,         // biosphere-engineering gate: actor = cell, subIndex = wave
+    WaveDormant = 57,          // dormant-survival roll per site: actor = wave, subIndex = site ordinal
+    WaveName = 58,             // wave name syllables: actor = wave id, subIndex = syllable
+    WaveDescendant = 59,       // machine-descendant gate + entry-date roll
 }

@@ -63,6 +63,36 @@ public static class SimTraceView
     {
         string what = e.Payload switch
         {
+            DwarfGalaxyMergedPayload p =>
+                $"the {p.Name} Merger begins — a dwarf galaxy falls in",
+            AgnIgnitedPayload p =>
+                Invariant($"the galactic nucleus ignites — a sterilizing wave ")
+                + Invariant($"sweeps the inner {p.WaveRadiusCells} rings"),
+            GlobularFormedPayload p =>
+                $"the {p.Name} Cluster condenses, ancient and metal-poor",
+            FirstLifePayload => "first life stirs in the galaxy",
+            SapienceEmergedPayload p =>
+                Invariant($"a sapient species awakens (origin #{p.OriginId})"),
+            SpaceflightReachedPayload p =>
+                Invariant($"origin #{p.OriginId} reaches spaceflight"),
+            PrecursorWaveRosePayload p =>
+                $"the {p.Name} civilization rises "
+                + $"({((Galaxy.VigorClass)p.VigorClass).ToString().ToLowerInvariant()} wave)",
+            PrecursorWaveFellPayload p =>
+                $"the {p.Name} civilization "
+                + (Galaxy.WaveEndCause)p.EndCause switch
+                {
+                    Galaxy.WaveEndCause.War => "shatters in war",
+                    Galaxy.WaveEndCause.CascadeCollapse => "collapses into silence",
+                    Galaxy.WaveEndCause.Transcendence => "transcends, leaving empty halls",
+                    Galaxy.WaveEndCause.Plague => "dies of plague",
+                    _ => "is absorbed",
+                }
+                + Invariant($" ({p.ExtentCells} cells of ruins)"),
+            PrecursorContactPayload p =>
+                Invariant($"precursor civilizations #{p.WaveAId} and #{p.WaveBId} meet — ")
+                + p.Resolution switch
+                { 0 => "war", 1 => "absorption", _ => "an ancient border is drawn" },
             PolityEmergedPayload p => $"{p.PolityName} enters the galactic stage",
             PortEstablishedPayload p =>
                 Invariant($"{p.PolityName} establishes a port (#{p.PortId})"),
@@ -100,7 +130,14 @@ public static class SimTraceView
         };
         string family = e.Family.ToString().ToLowerInvariant();
         string vis = e.Visibility.ToString().ToLowerInvariant();
-        return Invariant($"y{e.WorldYear,-5} {family,-12} {what} ")
+        return Invariant($"{YearLabel(e.WorldYear),-9} {family,-12} {what} ")
             + Invariant($"at ({e.Location.Q},{e.Location.R}) [{vis}]");
     }
+
+    /// <summary>World-year label at any zoom (P8): deep time reads in Gyr /
+    /// Myr, the generational clock in plain years.</summary>
+    public static string YearLabel(long worldYear) =>
+        worldYear <= -1_000_000_000 ? Invariant($"{worldYear / 1e9:F2}Gy")
+        : worldYear <= -1_000_000 ? Invariant($"{worldYear / 1e6:F0}My")
+        : Invariant($"y{worldYear}");
 }
