@@ -119,7 +119,14 @@ Architecture decisions (made at kickoff, flag deviations):
       the parked machinery-upkeep calibration question addressed here
       (fleet upkeep lands on the same markets). Full `dotnet test` green,
       hex-tier untouched.
-- [ ] 9. **Fresh-eyes whole-branch review** subagent + one fix wave.
+- [x] 9. **Fresh-eyes whole-branch review** subagent + one fix wave.
+      Findings fixed: yard priorities follow the lineage across mark
+      advances (no one-epoch stall, no paper class launches); posted
+      capacity and traffic multiply by readiness (the design's
+      availability term); FLEET hull-map load validates design ids.
+      Verified clean by the reviewer: credit + hull conservation end to
+      end, determinism (no dictionary-order leaks, invariant culture),
+      serializer round-trips, hex tier untouched.
 - [ ] 10. **USER: REPL eyeball** — posted routes visibly carrying freight
       (shipment counts rise where fleets post; a lane without hulls moves
       nothing) and a colony convoy founding a port. Tune knobs as directed.
