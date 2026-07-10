@@ -77,19 +77,17 @@ public static class CorporationOps
         var knobs = state.Config.Corporate;
         var eco = state.Config.Economy;
 
-        // unserved profitable lanes → freight line
+        // unserved profitable lanes → freight line. "Profitable" runs the
+        // arbitrage's own math (net of freight, fuel, tax, labor share, on
+        // real source inventory) — a raw price gap with nothing to ship or
+        // no margin after costs is a mirage that starves its line
         foreach (var lane in state.Lanes)                     // id order (P6)
         {
-            var src = state.Ports[lane.PortAId];
-            if (src.OwnerActorId != pr.ActorId) continue;
+            var srcPort = state.Ports[lane.PortAId];
+            if (srcPort.OwnerActorId != pr.ActorId) continue;
             if (FleetOps.PostedCapacity(state, lane) > 0) continue;
-            var a = state.Markets[lane.PortAId];
-            var b = state.Markets[lane.PortBId];
-            for (int g = 0; g < a.Price.Length; g++)
-                if (Math.Abs(a.Price[g] - b.Price[g])
-                    > knobs.FreightNicheMargin
-                      * Math.Max(Math.Min(a.Price[g], b.Price[g]), 0.01))
-                    return (CorporateNiche.Freight, lane.Id);
+            if (LaneCarriesProfit(state, lane, knobs.FreightNicheMargin))
+                return (CorporateNiche.Freight, lane.Id);
         }
         // profitable prohibited niches → cartel
         foreach (var port in state.Ports)
@@ -146,6 +144,36 @@ public static class CorporationOps
                     return (CorporateNiche.Raiding, lane.Id);
             }
         return (CorporateNiche.None, -1);
+    }
+
+    /// <summary>Would a hauler on this lane actually clear the freight-niche
+    /// margin? Mirrors MarketEngine.Arbitrage's per-unit economics.</summary>
+    private static bool LaneCarriesProfit(SimState state, Lane lane,
+                                          double margin)
+    {
+        var eco = state.Config.Economy;
+        var portA = state.Ports[lane.PortAId];
+        var portB = state.Ports[lane.PortBId];
+        int dist = HexGrid.Distance(portA.Hex, portB.Hex);
+        for (int g = 0; g < Goods.All.Count; g++)
+        {
+            var (src, dst) = state.Markets[lane.PortAId].Price[g]
+                             <= state.Markets[lane.PortBId].Price[g]
+                ? (portA, portB) : (portB, portA);
+            var mSrc = state.Markets[src.Id];
+            if (mSrc.Inventory[g] <= 0) continue;
+            double pSrc = mSrc.Price[g];
+            double pDst = state.Markets[dst.Id].Price[g];
+            double freight = eco.FreightCostPerUnitPerHex * dist;
+            double fuel = eco.FuelPerUnitPerHex * dist
+                          * mSrc.Price[(int)GoodId.Fuel];
+            double dstTax = (state.Actors[dst.OwnerActorId].Policies
+                as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+            double expectedNet = pDst * (1.0 - dstTax) * (1.0 - eco.LaborShare);
+            if (expectedNet > (pSrc + freight + fuel) * (1.0 + margin))
+                return true;
+        }
+        return false;
     }
 
     private static bool HasFacilityKind(SimState state, Port port, bool extraction)
@@ -206,6 +234,10 @@ public static class CorporationOps
                 double openness = (state.Actors[pr.ActorId].Policies
                     as PolityPolicies ?? PolityPolicies.Default).CharterOpenness;
                 if (openness < knobs.CharterOpennessGate) continue;
+                // an unfunded venture is a stillbirth: the merchants keep
+                // collecting until the war chest can capitalize the charter
+                // (cartels need no works — they charter on nerve alone)
+                if (faction.Wealth < knobs.CharterCapitalFloor) continue;
             }
             Charter(state, pr, faction, outlaw);
             chartered++;
@@ -384,10 +416,15 @@ public static class CorporationOps
                 }
             }
 
-            // deaths: the balance sheet or the niche gives out
+            // deaths: the balance sheet or the niche gives out — but a
+            // founding gets its build-out grace before the lean clock
+            // starts (facilities take epochs to fund, build, and spin up)
             if (corp.Credits < 0)
                 Dissolve(state, corp, WorldEventType.CorporationBankrupt);
-            else if (corp.Niche != CorporateNiche.Raiding)
+            else if (corp.Niche != CorporateNiche.Raiding
+                     && (state.WorldYear - corp.FoundedYear)
+                        / Math.Max(1, state.Config.Sim.YearsPerEpoch)
+                        > knobs.FoundingGraceEpochs)
             {
                 corp.LeanEpochs = corp.Receipts < knobs.LeanReceiptsFloor
                     ? corp.LeanEpochs + 1 : 0;
@@ -439,49 +476,91 @@ public static class CorporationOps
         }
     }
 
+    /// <summary>The facility a builder corp intends next — extraction reads
+    /// its terrain, fabrication chases the widest price-over-founding gap.
+    /// Shared by the demand pull and the investment step, so the goods the
+    /// price signal hauls in are the goods that get built with.</summary>
+    private static InfraTypeId PlannedFacility(SimState state, Corporation corp)
+    {
+        var port = state.Ports[corp.HomePortId];
+        if (corp.Niche == CorporateNiche.Extraction)
+        {
+            var fields = MarketEngine.FieldsAt(state, port.Hex);
+            var pick = InfraTypeId.Mine;
+            double best = Potentials.Ore(fields);
+            if (Potentials.Volatiles(fields) > best)
+            { pick = InfraTypeId.Skimmer; best = Potentials.Volatiles(fields); }
+            if (Potentials.Exotics(fields) > best)
+                pick = InfraTypeId.ExcavationSite;
+            return pick;
+        }
+        var market = state.Markets[port.Id];
+        var type = InfraTypeId.Fabricator;
+        double bestSignal = 0;
+        foreach (var candidate in new[] { InfraTypeId.Refinery,
+            InfraTypeId.Chemworks, InfraTypeId.Fabricator,
+            InfraTypeId.Foundry, InfraTypeId.ExoticsLab,
+            InfraTypeId.ComputeCore })
+        {
+            var def = Infrastructure.Get(candidate);
+            double signal = 0;
+            foreach (var good in def.Produces)
+                signal = Math.Max(signal, market.Price[(int)good]
+                    / Market.InitialPrice(state.Config.Economy, good));
+            if (signal > bestSignal) { bestSignal = signal; type = candidate; }
+        }
+        return type;
+    }
+
+    /// <summary>True while a builder corp still wants and can fund another
+    /// facility — the same gate the demand pull and the investment use.</summary>
+    private static bool WantsFacility(SimState state, Corporation corp)
+    {
+        int owned = 0;
+        foreach (var f in state.Facilities)
+            if (f.OwnerActorId == corp.ActorId) owned++;
+        return owned < state.Config.Corporate.MaxFacilities;
+    }
+
+    /// <summary>Corporate demand registers at the home market each Markets
+    /// phase (the slice-E lesson, again: without a price signal nothing
+    /// hauls the goods in, and every founding starves at an empty market —
+    /// 42 of 47 corp deaths were exactly this stillbirth). Builders pull
+    /// their planned build basket; freight lines pull hull components.</summary>
+    public static void AddCorporateDemand(SimState state, MarketStepScratch scratch)
+    {
+        foreach (var corp in state.Corporations)              // id order (P6)
+        {
+            if (!corp.Active) continue;
+            int home = corp.HomePortId;
+            switch (corp.Niche)
+            {
+                case CorporateNiche.Extraction:
+                case CorporateNiche.Fabrication:
+                    if (!WantsFacility(state, corp)) break;
+                    var def = Infrastructure.Get(PlannedFacility(state, corp));
+                    foreach (var q in def.BuildCost)
+                        scratch.Demand[home][(int)q.Good] += q.Quantity;
+                    break;
+                case CorporateNiche.Freight:
+                    if (corp.Credits <= 0) break;
+                    scratch.Demand[home][(int)GoodId.ShipComponents]
+                        += state.Config.Corporate.FreightPullComponents;
+                    break;
+            }
+        }
+    }
+
     /// <summary>Conglomerates and combines build where their niche points:
     /// the build basket is drawn from the home market and paid at founding
     /// prices from corporate credits (construction wages recycle, P4).</summary>
     private static void InvestFacilities(SimState state, Corporation corp,
                                          CorporationPolicies policies)
     {
-        var knobs = state.Config.Corporate;
-        int owned = 0;
-        foreach (var f in state.Facilities)
-            if (f.OwnerActorId == corp.ActorId) owned++;
-        if (owned >= knobs.MaxFacilities) return;
-
+        if (!WantsFacility(state, corp)) return;
         var port = state.Ports[corp.HomePortId];
         var market = state.Markets[port.Id];
-        InfraTypeId type;
-        if (corp.Niche == CorporateNiche.Extraction)
-        {
-            var fields = MarketEngine.FieldsAt(state, port.Hex);
-            type = InfraTypeId.Mine;
-            double best = Potentials.Ore(fields);
-            if (Potentials.Volatiles(fields) > best)
-            { type = InfraTypeId.Skimmer; best = Potentials.Volatiles(fields); }
-            if (Potentials.Exotics(fields) > best)
-                type = InfraTypeId.ExcavationSite;
-        }
-        else
-        {
-            // the widest price-over-founding gap picks the works
-            type = InfraTypeId.Fabricator;
-            double bestSignal = 0;
-            foreach (var candidate in new[] { InfraTypeId.Refinery,
-                InfraTypeId.Chemworks, InfraTypeId.Fabricator,
-                InfraTypeId.Foundry, InfraTypeId.ExoticsLab,
-                InfraTypeId.ComputeCore })
-            {
-                var def = Infrastructure.Get(candidate);
-                double signal = 0;
-                foreach (var good in def.Produces)
-                    signal = Math.Max(signal, market.Price[(int)good]
-                        / Market.InitialPrice(state.Config.Economy, good));
-                if (signal > bestSignal) { bestSignal = signal; type = candidate; }
-            }
-        }
+        var type = PlannedFacility(state, corp);
         var build = Infrastructure.Get(type);
         double value = 0;
         foreach (var q in build.BuildCost)
@@ -507,11 +586,26 @@ public static class CorporationOps
 
     /// <summary>Freight lines buy hulls (components at market price, wages
     /// recycle) and post them on the best gradient lane at home — corporate
-    /// capacity thickens the same freight web everyone trades on.</summary>
+    /// capacity thickens the same freight web everyone trades on. Hulls are
+    /// sourced from whichever host-polity market actually stocks components
+    /// (internal logistics at cost: a frontier line commissions its ships
+    /// at the yard port and sails them over) — the home market alone was
+    /// the stillbirth trap.</summary>
     private static void InvestFleet(SimState state, Corporation corp,
                                     CorporationPolicies policies)
     {
-        var market = state.Markets[state.Ports[corp.HomePortId].Id];
+        int hostId = state.Ports[corp.HomePortId].OwnerActorId;
+        Market? market = null;
+        foreach (var port in state.Ports)                     // id order (P6)
+        {
+            if (port.OwnerActorId != hostId) continue;
+            var m = state.Markets[port.Id];
+            if (market == null
+                || m.Inventory[(int)GoodId.ShipComponents]
+                   > market.Inventory[(int)GoodId.ShipComponents])
+                market = m;
+        }
+        if (market == null) return;
         var design = DesignRegistry.Current(state, corp.ActorId,
                 ShipRole.Freight, ShipSize.Medium)
             ?? DesignRegistry.Register(state, corp.ActorId,
@@ -550,7 +644,7 @@ public static class CorporationOps
         market.LastCleared[(int)GoodId.ShipComponents] += components;
         double cost = components * price;
         corp.Credits -= cost;
-        MarketEngine.PayWages(state, corp.HomePortId, cost);
+        MarketEngine.PayWages(state, market.PortId, cost);   // the yard's crews
 
         FleetRecord? fleet = null;
         foreach (var f in state.Fleets)

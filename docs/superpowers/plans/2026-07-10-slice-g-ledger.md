@@ -282,4 +282,23 @@ as work lands.
 
 ## Surprises
 
-- (running list)
+- **Corporate stillbirths were a founding supply race** (user-flagged at
+  eyeball): 42 of 47 corp deaths on seed 42 never acquired one asset and
+  died at exactly NicheDeathEpochs — freight lines with 13k credits
+  couldn't buy a single hull because their frontier home markets held no
+  ship components and corporations registered NO demand pull (the same
+  price-signal gap polities hit in slice E, fixed then with
+  MilitaryPullComponents); fabricator baskets (10 alloys + 10 machinery)
+  likewise never assembled; freight niches were detected on raw price
+  gaps that arbitrage's full cost math (freight+fuel+tax+labor, real
+  inventory) could never profitably serve; and works chartered with 0–3
+  credits against 110-credit baskets. Fixes: `AddCorporateDemand` (the
+  planned build basket / hull components pull at the home market, shared
+  `PlannedFacility` chooser), freight-niche detection now runs the
+  arbitrage's own profitability test, hulls source from any host-polity
+  market ("internal logistics at cost" — commissioned at the yard,
+  sailed home), `CharterCapitalFloor` (200) gates undercapitalized
+  charters (cartels exempt), and `FoundingGraceEpochs` (4) precedes the
+  lean clock. Result: stillbirths 42 → ~6 hard-luck cases, 56 corps
+  chartered / 30 alive at seed-42 end, minimum lifespan ~9 epochs,
+  freight lines actually post hulls and book haulage.

@@ -35,6 +35,10 @@ public sealed class CorporateKnobs
     /// <summary>Share of the home market's black-book value a cartel skims
     /// from buyer wealth per epoch (a conserved transfer).</summary>
     public double CartelSkim { get; set; } = 0.3;
+    /// <summary>War-chest credits a merchant faction needs before its
+    /// charter fires — an unfunded venture is a stillbirth (cartels are
+    /// exempt: they charter on nerve, not works).</summary>
+    public double CharterCapitalFloor { get; set; } = 200.0;
     /// <summary>Host charter policy below which no charter is granted (the
     /// merchant faction waits, and grieves).</summary>
     public double CharterOpennessGate { get; set; } = 0.4;
@@ -47,9 +51,16 @@ public sealed class CorporateKnobs
     /// <summary>Price-over-founding ratio at which a missing producer reads
     /// as an industrial gap.</summary>
     public double FabricationPriceRatio { get; set; } = 2.5;
+    /// <summary>Epochs after founding before the lean clock starts — the
+    /// build-out grace (funding, hauling the basket, construction, spin-up).</summary>
+    public int FoundingGraceEpochs { get; set; } = 4;
     /// <summary>Relative price gradient across an unserved lane that reads
     /// as a freight niche.</summary>
     public double FreightNicheMargin { get; set; } = 0.6;
+    /// <summary>Ship-components demand a funded freight line registers at
+    /// its home market per epoch — the price signal that hauls its hulls'
+    /// makings in (the slice-E lesson applied to corporations).</summary>
+    public double FreightPullComponents { get; set; } = 6.0;
     /// <summary>Epoch receipts below which a corporation counts as lean —
     /// enough lean epochs and the niche is dead.</summary>
     public double LeanReceiptsFloor { get; set; } = 1.0;

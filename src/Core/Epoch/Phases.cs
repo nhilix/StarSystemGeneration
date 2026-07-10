@@ -115,6 +115,7 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AddConstructionPull(state, scratch);
         MarketEngine.AddMilitaryDemand(state, scratch);
         MarketEngine.AddResearchDemand(state, scratch);
+        CorporationOps.AddCorporateDemand(state, scratch);
         FleetOps.AddUpkeepDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —

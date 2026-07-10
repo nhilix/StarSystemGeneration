@@ -49,6 +49,9 @@ catalog data (`CorporationOps.Suffix`).
 |---|---|---|---|
 | `Corporate.CharterPersistenceEpochs` | 3 | Only durable opportunities incorporate. | Every price blip births a company. |
 | `Corporate.CharterOpennessGate` | 0.4 | Closed societies never charter (their merchant factions stew). | Everyone charters everything. |
+| `Corporate.CharterCapitalFloor` | 200 | Only well-funded ventures incorporate (fewer, real corps — the stillbirth cure). | Penniless charters die in their build-out. |
+| `Corporate.FoundingGraceEpochs` | 4 | Long build-out runway before the lean clock starts. | Foundings must earn immediately or die. |
+| `Corporate.FreightPullComponents` | 6 | Freight lines pull hull components toward their frontier homes. | Lines depend on yard-port sourcing alone. |
 | `Corporate.FreightNicheMargin` | 0.6 | Only stark gradients read as freight niches. | Freight lines on every lane. |
 | `Corporate.DepositNichePotential` | 0.65 | Only prime rock draws conglomerates. | Corp mines on marginal terrain. |
 | `Corporate.FabricationPriceRatio` | 2.5 | Industrial gaps must gape before combines form. | Combines chase every markup. |
