@@ -257,13 +257,18 @@ as work lands.
   per ~10-polity galaxy per 40 epochs, characters within the sparsity
   band, tech tiers 1–3 no runaway. Golden regenerated (freight income
   changed histories) — 418/418 green)*.
-- [ ] **G10 — eyeball gate**: a polity readable as a story (form, reign,
-  succession, a faction rising on real grievance and graduating — a
-  schism visible on the domain map, a corporation founded from a
-  visible niche, a tech gap visible on the map). User runs REPL.
-- [ ] **G11 — merge decision + wrap-up**: merge to main · HANDOFF ·
-  write Slice H kickoff prompt (relations & war) · flip kickoff
-  checkbox · push only on user say-so.
+- [x] **G10 — eyeball gate — accepted 2026-07-10** after one
+  user-flagged investigation wave: corporate stillbirths (see
+  Surprises — the founding supply race). Story surfaces verified on
+  seed 42 r12: the Mivo Front's coup in polity #1, the Kaor League
+  schism cascade out of polity #0, polity #9's cursed throne, the
+  Astrogation reach gap on `emap tech`, and a corp registry with real
+  lifecycles.
+- [x] **G11 — merge + wrap-up**: merged to main locally · HANDOFF
+  updated · Slice H kickoff prompt written
+  (`2026-07-10-slice-h-kickoff-prompt.md`) · kickoff checkbox flipped ·
+  golden frozen at the final format (last regen: the corp founding
+  fixes) · push on user say-so.
 
 ## Decisions
 
