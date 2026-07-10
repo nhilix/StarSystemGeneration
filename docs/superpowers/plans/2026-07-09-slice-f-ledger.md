@@ -167,17 +167,25 @@ mechanics changes beyond genesis inputs and entry-time state.
       cells) — deterministic, causal ordering preserved, never touches
       precursors. Golden regen: seed 42 r12 now 10 polities, epochs
       0–20.
-- [ ] 12. **USER: REPL eyeball** — maps that visibly tell the formation
+- [x] 12. **USER: REPL eyeball — accepted 2026-07-10 ("looks good")**
+      after two watch waves: (1) watch mode rebuilt as the user asked —
+      one `watch` command running cosmic → life/waves → domains with
+      every sim step an in-place ANSI frame (FrameAnimator); (2) epoch
+      frame headers dropped + all frame lines clipped to terminal width
+      (the domains legend grew past the terminal and wrap-drift left
+      stale rows). Maps, registries, deep chronicle, and the arcs
+      accepted as rendered. — maps that visibly tell the formation
       story (a pointable merger stream, metal-rich arms vs burned-out
       core, life clustered where stability allowed) and a precursor arc
       readable end-to-end (rise, extent, dated fall, ruins at its ports,
       a polity entering late because that wave's war sterilized its
       cradle) — watched live via `gwatch`.
-- [ ] 13. **Golden freeze + wrap-up** — golden frozen at final format ·
-      USER merge decision · HANDOFF · **write Slice G kickoff prompt**
-      (interior & corporations — consumes E's commander slots and D's
-      niches; read the roadmap row) · flip the kickoff checkbox · push
-      only on user say-so.
+- [x] 13. **Golden freeze + wrap-up** — golden frozen at the final format
+      (last regen: task 11 fix wave; the watch work is Inspector-only,
+      no history change; red window closed) · USER merge decision given
+      2026-07-10 ("lets wrap up slice F") · merged to main · HANDOFF ·
+      Slice G kickoff prompt written · kickoff checkbox flipped · push
+      awaits user say-so.
 
 ## Notes / surprises
 
