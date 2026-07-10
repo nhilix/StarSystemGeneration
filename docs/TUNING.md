@@ -223,12 +223,13 @@ day one of them *does* need to move.
 
 `GalaxyConfig` (`src/Core/Galaxy/`) calibrates nature, not history: arm
 count/tightness/strength, core radius, disc falloff, density target, anchor
-multipliers, `HomeworldRatePerCell` (polity count), traversability
-threshold. Serialized on the artifact's GCONFIG line; tuned last in slice B
-(0.02 → 0.008 for map legibility). They stay outside the epoch registry
-because they configure a different machine (the skeleton builder). Slice F
-reads the shape knobs as **potential parameters** (`GalaxyPotential`): where
-matter wants to be; the cosmic sim decides where it ends up.
+multipliers, traversability threshold. Serialized on the artifact's GCONFIG
+line. They stay outside the epoch registry because they configure a
+different machine (the skeleton builder). Slice F reads the shape knobs as
+**potential parameters** (`GalaxyPotential`): where matter wants to be; the
+cosmic sim decides where it ends up. `HomeworldRatePerCell` retired with
+slice F — polity count is causal now (`Evolution.SapienceRate` plus the era
+horizons are the dials).
 
 Slice F adds genesis calibration under its own registry,
 `GalaxyKnobRegistry` (`src/Core/Galaxy/GalaxyKnobRegistry.cs`), serialized

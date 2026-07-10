@@ -44,6 +44,11 @@ public sealed class PolityRecord
     /// <summary>Mean grade of the reserve stock per good (0 when empty).</summary>
     public double[] ReserveGrade { get; } = new double[Goods.All.Count];
 
+    /// <summary>Starting-kit quality from the emergence schedule (slice F):
+    /// entry designs register at grade 0.5 + this. Maturation richness plus
+    /// the late-emerger contact bonus — latecomers are behind, not hopeless.</summary>
+    public double EntryGradeBonus { get; set; }
+
     public PolityRecord(int actorId, int speciesId)
     {
         ActorId = actorId;

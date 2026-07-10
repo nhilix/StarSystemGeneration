@@ -52,6 +52,24 @@ public sealed class GalaxySkeleton
 
     public RegionCell CellAt(HexCoordinate cellCoord) => _byCoord[cellCoord];
 
+    private HashSet<HexCoordinate>? _globularCells;
+
+    /// <summary>Whether a cell hosts a globular cluster — feature cells
+    /// carry hex-tier star-table overrides (cosmic-genesis.md §Features).
+    /// Cached from the feature registry on first ask.</summary>
+    public bool IsGlobularCellAt(HexCoordinate cellCoord)
+    {
+        if (_globularCells == null)
+        {
+            _globularCells = new HashSet<HexCoordinate>();
+            foreach (var feature in Features)
+                if (feature.Type == GalacticFeatureType.GlobularCluster)
+                    foreach (var coord in feature.Cells)
+                        _globularCells.Add(coord);
+        }
+        return _globularCells.Contains(cellCoord);
+    }
+
     public bool TryGetCell(HexCoordinate cellCoord, out RegionCell cell) =>
         _byCoord.TryGetValue(cellCoord, out cell!);
 

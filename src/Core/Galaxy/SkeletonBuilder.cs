@@ -24,8 +24,8 @@ public static class SkeletonBuilder
     {
         var skeleton = BuildShape(config, cosmicObserver);
         Genesis.EvolutionSim.Run(skeleton, evoObserver);
-        PassResourceAnchors(skeleton);
-        PassHomeworlds(skeleton);
+        PassSpecies(skeleton);
+        PassDerivedAnchors(skeleton);
         return skeleton;
     }
 
@@ -102,34 +102,72 @@ public static class SkeletonBuilder
         for (int i = 0; i < n; i++) s.Cells[i].IsChokepoint = articulation[i];
     }
 
-    /// <summary>Spec §5 pass 3: strategic anchors. Closed vocabulary, one per
-    /// hex. Reads the simulated metallicity/lean since slice F.</summary>
-    internal static void PassResourceAnchors(GalaxySkeleton s)
+    /// <summary>Species profiles, one per current-era sapient origin
+    /// (spec §6 vocabulary over slice F's causal inputs): machine species
+    /// descend from precursor capitals; organic embodiments fit their
+    /// origin cell's simulated character. Species id == its origin's index
+    /// among current-era origins, in origin-id order.</summary>
+    internal static void PassSpecies(GalaxySkeleton s)
+    {
+        foreach (var origin in s.Origins)
+        {
+            if (origin.Era != OriginEra.Current) continue;
+            int id = s.Species.Count;
+            s.Species.Add(DeriveSpecies(s, origin, id));
+        }
+    }
+
+    /// <summary>Anchors derive from the genesis registries (slice F —
+    /// passes 3–4's rolled paint retired): homeworlds at current-era origin
+    /// hexes, precursor-site anchors at wave site hexes, mineral anchors
+    /// rolled against the *simulated* mineral richness (ore geography traces
+    /// to actual ancient supernovae). One anchor per hex; homeworlds claim
+    /// first, sites next, minerals probe around both.</summary>
+    internal static void PassDerivedAnchors(GalaxySkeleton s)
     {
         var config = s.Config;
-        foreach (var cell in s.Cells)
-        {
-            var ctx = new RollContext(config.MasterSeed, cell.Coord);
 
-            if (!cell.IsVoid)
+        int speciesId = 0;
+        foreach (var origin in s.Origins)
+        {
+            if (origin.Era != OriginEra.Current) continue;
+            s.CellAt(origin.CellCoord).Anchors.Add(new Anchor
             {
-                double mineralChance = (0.10 + 0.25 * cell.Metallicity) * config.MineralAnchorMultiplier;
-                if (ctx.NextDouble(RollChannel.AnchorKind, 0) < mineralChance)
-                    cell.Anchors.Add(new Anchor
-                    {
-                        Type = AnchorType.MineralRich,
-                        Hex = PickAnchorHex(s, cell, 0),
-                    });
+                Type = AnchorType.Homeworld, Hex = origin.Hex, SpeciesId = speciesId++,
+            });
+        }
+
+        // wave sites → anchors (deduped by hex; multiplier samples them)
+        foreach (var wave in s.PrecursorWaves)
+            foreach (var site in wave.Sites)
+            {
+                if (site.Type == PrecursorSiteType.SterilizationScar) continue;
+                var cell = s.CellForHex(site.Hex);
+                bool taken = false;
+                foreach (var a in cell.Anchors)
+                    if (a.Hex.Equals(site.Hex)) { taken = true; break; }
+                if (taken) continue;
+                if (config.PrecursorAnchorMultiplier < 1.0)
+                {
+                    var gate = new RollContext(config.MasterSeed, site.Hex);
+                    if (gate.NextDouble(RollChannel.AnchorKind, 1)
+                        >= config.PrecursorAnchorMultiplier) continue;
+                }
+                cell.Anchors.Add(new Anchor
+                { Type = AnchorType.PrecursorSite, Hex = site.Hex });
             }
 
-            // Precursor sites roll everywhere — a site deep in a void is a story (spec §5).
-            double precursorChance = (0.02 + (cell.Lean == StellarLean.RemnantGraveyard ? 0.02 : 0.0))
-                                     * config.PrecursorAnchorMultiplier;
-            if (ctx.NextDouble(RollChannel.AnchorKind, 1) < precursorChance)
+        foreach (var cell in s.Cells)
+        {
+            if (cell.IsVoid) continue;
+            var ctx = new RollContext(config.MasterSeed, cell.Coord);
+            double mineralChance = (0.05 + 0.30 * cell.MineralRichness)
+                * config.MineralAnchorMultiplier;
+            if (ctx.NextDouble(RollChannel.AnchorKind, 0) < mineralChance)
                 cell.Anchors.Add(new Anchor
                 {
-                    Type = AnchorType.PrecursorSite,
-                    Hex = PickAnchorHex(s, cell, 1),
+                    Type = AnchorType.MineralRich,
+                    Hex = PickAnchorHex(s, cell, 0),
                 });
         }
     }
@@ -153,56 +191,34 @@ public static class SkeletonBuilder
         return members[0];   // unreachable: a cell never carries 91 anchors
     }
 
-    /// <summary>Spec §5 pass 4 + §6: homeworld anchors + species profiles. The
-    /// roll sequence is unchanged from the founding-polity era (anchor placement
-    /// stays seed-stable); polity founding itself moved to the epoch sim, which
-    /// reads these anchors (EpochGenesis).</summary>
-    internal static void PassHomeworlds(GalaxySkeleton s)
+    /// <summary>Species from origin context (spec §6 vocabulary, causal
+    /// inputs): machine embodiment comes only from precursor descent; the
+    /// organic table probes for a fit against the origin cell's simulated
+    /// character. Temperament axes stay seeded rolls keyed to the origin
+    /// cell (the species-profile seed); catastrophe-scarred origins lean
+    /// harder (militancy floor rises with setbacks).</summary>
+    private static SpeciesProfile DeriveSpecies(GalaxySkeleton s,
+        SapientOrigin origin, int id)
     {
-        var config = s.Config;
-        int target = Math.Max(2, (int)Math.Round(config.HomeworldRatePerCell * s.Cells.Count));
-        int minSpacing = Math.Max(2, config.GalaxyRadiusCells
-            / Math.Max(1, (int)Math.Ceiling(Math.Sqrt(target))));
+        var cell = s.CellAt(origin.CellCoord);
+        var ctx = new RollContext(s.Config.MasterSeed, cell.Coord);
 
-        var candidates = s.Cells.Where(c => !c.IsVoid)
-            .Select(c => (cell: c,
-                order: new RollContext(config.MasterSeed, c.Coord)
-                    .NextDouble(RollChannel.HomeworldPlacement)))
-            .OrderBy(t => t.order).ThenBy(t => t.cell.SpiralIndex)
-            .Select(t => t.cell);
-
-        var placed = new List<RegionCell>();
-        foreach (var cell in candidates)
+        Embodiment embodiment;
+        if (origin.DescendantOfWaveId >= 0)
+            embodiment = Embodiment.Machine;   // homeworld is the old capital
+        else
         {
-            if (placed.Count >= target) break;
-            bool tooClose = placed.Any(p =>
-                HexGrid.Distance(p.Coord, cell.Coord) < minSpacing);
-            if (tooClose) continue;
-
-            int id = placed.Count;
-            var species = RollSpecies(s, cell, id);
-            s.Species.Add(species);
-            cell.Anchors.Add(new Anchor
+            var embodimentTable = new WeightedTable<Embodiment>(
+                (Embodiment.TerranAnalog, 44), (Embodiment.Aquatic, 16),
+                (Embodiment.Cryophilic, 13), (Embodiment.Lithic, 16),
+                (Embodiment.Hive, 11));
+            embodiment = Embodiment.TerranAnalog;
+            for (int attempt = 0; attempt < 3; attempt++)
             {
-                Type = AnchorType.Homeworld, Hex = PickAnchorHex(s, cell, 2), SpeciesId = id,
-            });
-            placed.Add(cell);
-        }
-    }
-
-    private static SpeciesProfile RollSpecies(GalaxySkeleton s, RegionCell cell, int id)
-    {
-        var config = s.Config;
-        var ctx = new RollContext(config.MasterSeed, cell.Coord);
-        var embodimentTable = new WeightedTable<Embodiment>(
-            (Embodiment.TerranAnalog, 40), (Embodiment.Aquatic, 15), (Embodiment.Cryophilic, 12),
-            (Embodiment.Lithic, 15), (Embodiment.Hive, 10), (Embodiment.Machine, 8));
-
-        Embodiment embodiment = Embodiment.TerranAnalog;
-        for (int attempt = 0; attempt < 3; attempt++)
-        {
-            embodiment = embodimentTable.Pick(ctx.NextDouble(RollChannel.SpeciesEmbodiment, attempt));
-            if (FitsCell(s, cell, embodiment)) break;
+                embodiment = embodimentTable.Pick(
+                    ctx.NextDouble(RollChannel.SpeciesEmbodiment, attempt));
+                if (FitsCell(cell, embodiment)) break;
+            }
         }
 
         double Axis(int i) => 0.15 + 0.7 * ctx.NextDouble(RollChannel.SpeciesTemperament, 0, i);
@@ -215,28 +231,20 @@ public static class SkeletonBuilder
         };
         if (embodiment == Embodiment.Hive)
             species.Cohesion = Math.Max(species.Cohesion, 0.75);   // hive correlation (spec §6)
+        if (origin.Setbacks > 0)   // a scarred cradle breeds vigilance
+            species.Militancy = Math.Max(species.Militancy,
+                Math.Min(0.35 + 0.1 * origin.Setbacks, 0.65));
         return species;
     }
 
-    private static bool FitsCell(GalaxySkeleton s, RegionCell cell, Embodiment e) => e switch
+    private static bool FitsCell(RegionCell cell, Embodiment e) => e switch
     {
         Embodiment.Cryophilic => cell.Lean == StellarLean.OldDim,
         Embodiment.Aquatic or Embodiment.TerranAnalog =>
             cell.Lean == StellarLean.Balanced || cell.Lean == StellarLean.YoungBright,
         Embodiment.Lithic => cell.Metallicity > 0.4,
-        Embodiment.Machine => NeighborhoodHasPrecursor(s, cell),
         _ => true,
     };
-
-    private static bool NeighborhoodHasPrecursor(GalaxySkeleton s, RegionCell cell)
-    {
-        if (cell.Anchors.Any(a => a.Type == AnchorType.PrecursorSite)) return true;
-        foreach (var neighborCoord in HexGrid.Neighbors(cell.Coord))
-            if (s.TryGetCell(neighborCoord, out var neighbor)
-                && neighbor.Anchors.Any(a => a.Type == AnchorType.PrecursorSite))
-                return true;
-        return false;
-    }
 
     private static string SpeciesName(RollContext ctx, int id)
     {

@@ -25,13 +25,27 @@ public sealed class RegionContext
 
         var region = new RegionContext
         {
-            StarTypeModifier = LeanModifier(cell.Lean),
+            // globular clusters override the lean table outright: ancient,
+            // compact, metal-poor — their own star mix (slice F features)
+            StarTypeModifier = s.IsGlobularCellAt(cell.Coord)
+                ? GlobularModifier : LeanModifier(cell.Lean),
             BeltModifier = k => k == BodyKind.PlanetoidBelt ? 0.5 + cell.Metallicity : 1.0,
         };
         foreach (var anchor in cell.Anchors)
             if (anchor.Hex.Equals(hex)) { region.AnchorAt = anchor; break; }
         return region;
     }
+
+    /// <summary>The globular star table: dense ancient dwarfs and remnants,
+    /// essentially no young bright stars.</summary>
+    private static double GlobularModifier(StarTypeDef def) => def.Id switch
+    {
+        "ember_dwarf" or "amber_dwarf" => 2.5,
+        "ashen_remnant" or "collapsed_core" => 2.0,
+        "gold_main" => 0.4,
+        "white_blaze" or "blue_titan" => 0.05,
+        _ => 1.0,
+    };
 
     private static Func<StarTypeDef, double> LeanModifier(StellarLean lean) => lean switch
     {

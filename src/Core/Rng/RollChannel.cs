@@ -36,8 +36,8 @@ public enum RollChannel : ulong
     NoiseStellarLattice = 26,
     NoiseMetalLattice = 27,
     AnchorPlacement = 28,      // cell-keyed: RollContext coordinate = cell coords
-    AnchorKind = 29,
-    HomeworldPlacement = 30,
+    AnchorKind = 29,           // mineral roll (0) + site-anchor sampling gate (1) since slice F
+    HomeworldPlacement = 30,   // retired (slice F: homeworlds derive from origins) - value must not be reused
     SpeciesEmbodiment = 31,
     SpeciesTemperament = 32,   // subIndex = temperament axis ordinal
     SimExpansion = 33,         // reserved - stage-1 expansion is roll-free; value must not be reused
@@ -52,7 +52,7 @@ public enum RollChannel : ulong
     EpochStubName = 39,        // retired (slice B) - value must not be reused
 
     // --- Epoch frame (slice B). ---
-    EpochEntrySchedule = 40,   // stub emergence schedule until slice F: actor = polity id
+    EpochEntrySchedule = 40,   // retired (slice F: entry derives from the emergence schedule) - value must not be reused
 
     // --- Cosmic clock (slice F). Rolls keyed (step, cell spiral index). ---
     CosmicInflowClump = 41,    // inflow clumping noise per (step, cell)

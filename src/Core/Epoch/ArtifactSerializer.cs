@@ -25,8 +25,8 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 4), ("clock", 1), ("raster", 1), ("species", 1),
-        ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("config", 5), ("clock", 1), ("raster", 1), ("species", 1),
+        ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
     };
 
@@ -45,12 +45,14 @@ public static class ArtifactSerializer
         w.WriteLine(Header);
 
         Layer(w, "config");
+        // config v5: HomeworldRatePerCell retired (polity count is causal —
+        // the emergence schedule decides)
         w.WriteLine(Join("GCONFIG", gc.MasterSeed.ToString(Inv),
             gc.GalaxyRadiusCells.ToString(Inv), R(gc.MeanDensityTarget),
             gc.ArmCount.ToString(Inv), R(gc.ArmTightness), R(gc.ArmWidth),
             R(gc.ArmStrength), R(gc.CoreRadius), R(gc.DiscFalloff),
             R(gc.MineralAnchorMultiplier), R(gc.PrecursorAnchorMultiplier),
-            R(gc.HomeworldRatePerCell), R(gc.TraversabilityThreshold)));
+            R(gc.TraversabilityThreshold)));
         // galaxy-side genesis dials, name-sorted (config layer v4)
         foreach (var gknob in GalaxyKnobRegistry.All)
             w.WriteLine(Join("GKNOB", gknob.Name, R(gknob.Get(gc))));
@@ -105,7 +107,8 @@ public static class ArtifactSerializer
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
                 p.SpeciesId.ToString(Inv), R(p.Credits),
-                R(p.ExpansionPoints), R(p.DevelopmentPoints)));
+                R(p.ExpansionPoints), R(p.DevelopmentPoints),
+                R(p.EntryGradeBonus)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -307,8 +310,7 @@ public static class ArtifactSerializer
                             DiscFalloff = double.Parse(f[9], Inv),
                             MineralAnchorMultiplier = double.Parse(f[10], Inv),
                             PrecursorAnchorMultiplier = double.Parse(f[11], Inv),
-                            HomeworldRatePerCell = double.Parse(f[12], Inv),
-                            TraversabilityThreshold = double.Parse(f[13], Inv),
+                            TraversabilityThreshold = double.Parse(f[12], Inv),
                         });
                         break;
                     case "GKNOB":
@@ -403,6 +405,7 @@ public static class ArtifactSerializer
                             Credits = double.Parse(f[3], Inv),
                             ExpansionPoints = double.Parse(f[4], Inv),
                             DevelopmentPoints = double.Parse(f[5], Inv),
+                            EntryGradeBonus = double.Parse(f[6], Inv),
                         });
                         break;
                     case "PORT":

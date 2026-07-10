@@ -122,7 +122,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       feeding the evolution loop, dormant remnants); typed sites →
       anchors via pre-commitment. Gate: waves/sites bounded; arcs
       chronicle end-to-end; scars visibly delay downstream emergence.
-- [ ] 7. **Seeding + entry integration** — homeworld anchors + species
+- [x] 7. **Seeding + entry integration** — homeworld anchors + species
       profiles from origins (machine species from precursor capitals);
       mineral anchors from the field; `PassResourceAnchors`/
       `PassHomeworlds` deleted; `EpochGenesis.Seed` consumes the
@@ -232,3 +232,17 @@ mechanics changes beyond genesis inputs and entry-time state.
   (scars ~30%, dormant <10%); machine descendants 1–4 per galaxy;
   genesis total 127 ms at r21 — budget holds. Channels 52–59; events
   103–105.
+- **Task-7 integration**: passes 3–4 deleted (species from origins,
+  machine embodiment only via precursor descent; homeworld anchors at
+  origin hexes claim first, site anchors dedupe by hex, mineral anchors
+  roll against simulated MineralRichness). Channels 30 + 40 retired.
+  `HomeworldRatePerCell` retired (config layer v5, GCONFIG reshaped);
+  actors layer v3 (POLITY carries EntryGradeBonus = 0.05×richness +
+  0.10×lateness — entry designs register at 0.5 + bonus, the contact
+  bonus within F's boundary). EpochGenesis: current origins project
+  date→window preserving spacing, actor order = schedule order,
+  deep-time chronicle seeds the log floor. Globular cells override the
+  hex-tier star table via the feature registry (RegionContext).
+- Golden regen (task 7): seed 42 r12 = **8 polities** staggered epochs
+  0–20; the epoch-0 elder ends with 27 ports vs 8 for the y475-entry
+  latecomers — asymmetric emergence with visible compounding.
