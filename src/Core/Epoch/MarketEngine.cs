@@ -94,6 +94,14 @@ public static class MarketEngine
             int dist = HexGrid.Distance(p.Hex, f.Hex);
             if (dist < bestDist) { bestDist = dist; best = p.Id; }
         }
+        if (best >= 0) return best;
+        // a portless owner (a corporation, slice G) trades at the nearest
+        // sovereign's port — cross-border portfolios attach where they sit
+        foreach (var p in state.Ports)
+        {
+            int dist = HexGrid.Distance(p.Hex, f.Hex);
+            if (dist < bestDist) { bestDist = dist; best = p.Id; }
+        }
         return best;
     }
 
@@ -163,16 +171,17 @@ public static class MarketEngine
         }
     }
 
-    /// <summary>Convert inputs to output through the best recipe the config
-    /// tech stub allows: advanced variants first (higher grade base), falling
-    /// back by producible quantity. Inputs are drawn from the market at its
-    /// mean grades and paid for from the owner's credits.</summary>
+    /// <summary>Convert inputs to output through the best recipe the owner's
+    /// Industrial tier allows (slice G: per-polity tech, the stub retired):
+    /// advanced variants first (higher grade base), falling back by
+    /// producible quantity. Inputs are drawn from the market at its mean
+    /// grades and paid for from the owner's credits.</summary>
     private static void RunRecipe(SimState state, MarketStepScratch scratch,
                                   int mIx, Facility f,
                                   IReadOnlyList<Recipe> recipes, double capacity)
     {
         var market = state.Markets[mIx];
-        int techTier = state.Config.Economy.TechTierStub;
+        int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
         Recipe? pick = null;
         double pickQty = 0, pickWorth = 0;
         foreach (var r in recipes)
@@ -194,7 +203,7 @@ public static class MarketEngine
         // inputs are bought at market prices on working capital: the owner's
         // ledger may dip within the step — sales revenue lands at
         // distribution, and insolvency is Allocation's credit problem
-        var owner = state.PolityOf(f.OwnerActorId);
+        var owner = state.LedgerOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
@@ -380,10 +389,10 @@ public static class MarketEngine
     public static void AddIndustrialDemand(SimState state, MarketStepScratch scratch)
     {
         int years = state.Config.Sim.YearsPerEpoch;
-        int techTier = state.Config.Economy.TechTierStub;
         foreach (var f in state.Facilities)               // id order (P6)
         {
             if (!IsActive(state, f)) continue;
+            int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
             int mIx = AttachedMarketIndex(state, f);
             if (mIx < 0) continue;
             var def = Infrastructure.Get((InfraTypeId)f.TypeId);
@@ -478,6 +487,30 @@ public static class MarketEngine
             if (at < 0) continue;
             scratch.Demand[at][(int)GoodId.ShipComponents]
                 += fleet.MilitaryPullComponents;
+        }
+    }
+
+    /// <summary>A funded research line pulls its feedstocks (slice G,
+    /// technology.md): exotics and compute demand registers at the capital,
+    /// so the price signal sites the labs and cores research bottlenecks on.</summary>
+    public static void AddResearchDemand(SimState state, MarketStepScratch scratch)
+    {
+        var tech = state.Config.Tech;
+        foreach (var pr in state.Polities)                // actor-id order (P6)
+        {
+            var actor = state.Actors[pr.ActorId];
+            if (!actor.Entered) continue;
+            var budget = (actor.Policies as PolityPolicies
+                          ?? PolityPolicies.Default).Budget;
+            if (budget.Research <= 0) continue;
+            int capital = -1;
+            foreach (var port in state.Ports)             // id order (P6)
+                if (port.OwnerActorId == pr.ActorId) { capital = port.Id; break; }
+            if (capital < 0) continue;
+            scratch.Demand[capital][(int)GoodId.RefinedExotics]
+                += tech.ResearchPullExotics;
+            scratch.Demand[capital][(int)GoodId.Compute]
+                += tech.ResearchPullCompute;
         }
     }
 
@@ -765,7 +798,11 @@ public static class MarketEngine
                 if (drawn <= 0) continue;
                 mSrc.LastCleared[g] += drawn;
                 exporter.Credits -= drawn * (pSrc + freight + fuel);
-                scratch.PoolByMarket[src.Id] += drawn * (pSrc + freight + fuel);
+                scratch.PoolByMarket[src.Id] += drawn * (pSrc + fuel);
+                // the freight fee pays whoever posted the hulls — freight
+                // lines (and merchant marines) book real revenue (slice G;
+                // corporations.md: unserved *profitable* lanes)
+                PayHaulers(state, lane, drawn * freight);
                 if (tariff > 0)
                 {
                     exporter.Credits -= drawn * tariff;
@@ -796,6 +833,37 @@ public static class MarketEngine
             }
         }
         return (shipments, units);
+    }
+
+    /// <summary>The freight fee splits across the lane's posted fleets by
+    /// hull count — a conserved exporter→hauler flow (P4). The lane always
+    /// has haulers when freight moved (capacity IS their hulls).</summary>
+    private static void PayHaulers(SimState state, Lane lane, double fee)
+    {
+        if (fee <= 0) return;
+        int hulls = 0;
+        foreach (var fleet in state.Fleets)
+            if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
+                hulls += fleet.TotalHulls;
+        if (hulls <= 0)
+        {
+            // shouldn't happen (capacity implies hulls), but a fee must
+            // land somewhere: the source port's sovereign takes it
+            var fallback = state.LedgerOf(
+                state.Ports[lane.PortAId].OwnerActorId);
+            fallback.Credits += fee;
+            fallback.Receipts += fee;
+            return;
+        }
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Posted
+                || fleet.TargetId != lane.Id || fleet.TotalHulls == 0) continue;
+            var owner = state.LedgerOf(fleet.OwnerActorId);
+            double share = fee * fleet.TotalHulls / hulls;
+            owner.Credits += share;
+            owner.Receipts += share;
+        }
     }
 
     /// <summary>Polity procurement: buy toward standing stockpile targets
@@ -966,7 +1034,7 @@ public static class MarketEngine
                     if (s.MarketIndex != mIx) continue;
                     double payout = s.Value * payRatio;
                     PayWages(state, port.Id, payout * laborShare);
-                    var supplier = state.PolityOf(s.OwnerActorId);
+                    var supplier = state.LedgerOf(s.OwnerActorId);
                     supplier.Credits += payout * (1.0 - laborShare);
                     supplier.Receipts += payout * (1.0 - laborShare);
                 }

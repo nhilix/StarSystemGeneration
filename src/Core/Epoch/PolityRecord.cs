@@ -8,7 +8,7 @@ namespace StarGen.Core.Epoch;
 /// SimState.Polities, actor-id order (P6). Slice D: real market income
 /// (transaction tax + tariffs + state facility revenue) replaces the slice-B
 /// stub as the treasuries' source.</summary>
-public sealed class PolityRecord
+public sealed class PolityRecord : ICreditLedger
 {
     public int ActorId { get; }
     public int SpeciesId { get; }
@@ -45,9 +45,23 @@ public sealed class PolityRecord
     public double[] ReserveGrade { get; } = new double[Goods.All.Count];
 
     /// <summary>Starting-kit quality from the emergence schedule (slice F):
-    /// entry designs register at grade 0.5 + this. Maturation richness plus
-    /// the late-emerger contact bonus — latecomers are behind, not hopeless.</summary>
+    /// maturation richness plus the late-emerger contact bonus. Slice G
+    /// converts it into starting Astrogation/Industrial tech tiers (its
+    /// design intent) — latecomers are behind, not hopeless.</summary>
     public double EntryGradeBonus { get; set; }
+
+    /// <summary>Per-domain tech tier, indexed by <see cref="TechDomain"/> —
+    /// the qualitative ladder (slice G). Seeded at entry; ceilings and
+    /// regions derive via <see cref="Tech"/>.</summary>
+    public int[] TechTier { get; } =
+        { Tech.EraStandardTier, Tech.EraStandardTier,
+          Tech.EraStandardTier, Tech.EraStandardTier };
+    /// <summary>Accumulated research toward each domain's next tier.</summary>
+    public double[] TechProgress { get; } = new double[4];
+
+    /// <summary>The polity's inside (slice G): form, official ideology,
+    /// legitimacy/cohesion/enforcement. Seated at entry, null before.</summary>
+    public PolityInterior? Interior { get; set; }
 
     public PolityRecord(int actorId, int speciesId)
     {

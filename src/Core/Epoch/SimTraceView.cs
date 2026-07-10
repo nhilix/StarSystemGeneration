@@ -126,6 +126,79 @@ public static class SimTraceView
             ConvoyDispatchedPayload p =>
                 Invariant($"a convoy (fleet #{p.FleetId}) departs port ")
                 + Invariant($"#{p.FromPortId} for ({p.TargetQ},{p.TargetR})"),
+            CorporationCharteredPayload p =>
+                (CorporateNiche)p.Niche == CorporateNiche.Cartel
+                    ? $"the {p.Name} opens its black books — chartered by no one"
+                    : Invariant($"polity #{p.HostPolityId} charters the {p.Name} (")
+                      + ((CorporateNiche)p.Niche).ToString().ToLowerInvariant()
+                      + ")",
+            PirateBandFormedPayload p =>
+                $"the {p.Name} raise the black flag over an unguarded lane",
+            CorporationNationalizedPayload p =>
+                Invariant($"polity #{p.PolityId} seizes the {p.Name} — ")
+                + "a scandal on every lane",
+            CorporationBankruptPayload p =>
+                $"the {p.Name} collapses under its debts",
+            NicheDiedPayload p =>
+                $"the {p.Name} winds down, its niche gone",
+            TechAdvancedPayload p =>
+                Invariant($"polity #{p.PolityId} masters ")
+                + ((TechDomain)p.Domain).ToString().ToLowerInvariant()
+                + Invariant($" tier {p.NewTier}"),
+            SchismDeclaredPayload p =>
+                Invariant($"the {p.FactionName} leads {p.Ports} ")
+                + (p.Ports == 1 ? "domain" : "domains")
+                + Invariant($" out of polity #{p.OldPolityId} — ")
+                + Invariant($"{p.NewPolityName} declares itself (polity #{p.NewPolityId})"),
+            CoupStruckPayload p =>
+                Invariant($"{p.CharacterName} of the {p.FactionName} seizes ")
+                + Invariant($"power in polity #{p.PolityId}")
+                + (p.Contested ? " — loyalists refuse the palace" : ""),
+            RevoltCrushedPayload p =>
+                Invariant($"the {p.FactionName} rises and is crushed in ")
+                + Invariant($"polity #{p.PolityId}; {p.MartyrName} is martyred"),
+            GovernmentReformedPayload p =>
+                Invariant($"polity #{p.PolityId} is remade: ")
+                + GovernmentForms.Get((GovernmentFormId)p.OldForm).Name
+                + " gives way to "
+                + GovernmentForms.Get((GovernmentFormId)p.NewForm).Name,
+            FactionFormedPayload p =>
+                Invariant($"the {p.Name} coalesces in polity #{p.PolityId} (")
+                + ((FactionBasis)p.Basis).ToString().ToLowerInvariant()
+                + " interest)",
+            FactionDissolvedPayload p =>
+                $"the {p.Name} disbands, its moment passed",
+            RulerAscendedPayload p =>
+                Invariant($"{p.CharacterName} takes the seat of polity ")
+                + Invariant($"#{p.PolityId}")
+                + (p.DynastyId >= 0
+                    ? Invariant($" (house #{p.DynastyId})") : ""),
+            CharacterDiedPayload p =>
+                p.CharacterName + (CharacterRole)p.Role switch
+                {
+                    CharacterRole.Ruler => ", the ruler,",
+                    CharacterRole.Heir => ", the heir,",
+                    CharacterRole.Marshal => ", the marshal,",
+                    CharacterRole.Commander => ", the commander,",
+                    CharacterRole.FactionLeader => ", the faction leader,",
+                    CharacterRole.Executive => ", the executive,",
+                    _ => "",
+                }
+                + Invariant($" dies at {p.AgeYears}"),
+            SuccessionCrisisPayload p =>
+                Invariant($"the death of {p.DeadRulerName} leaves polity ")
+                + Invariant($"#{p.PolityId} without a clear successor"),
+            NotableEmergedPayload p =>
+                p.CharacterName + (NotableType)p.NotableType switch
+                {
+                    NotableType.Founder => " is hailed as a founder",
+                    NotableType.WarHero => " returns a war hero",
+                    NotableType.Prophet => " speaks and crowds gather",
+                    NotableType.PirateLord => " is whispered of on every lane",
+                    NotableType.Magnate => " corners the market",
+                    NotableType.Explorer => " returns from the ruins famous",
+                    _ => " becomes notable",
+                },
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

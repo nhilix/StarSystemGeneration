@@ -7,6 +7,16 @@ public sealed record BudgetWeights(
     double Development, double Military, double Research,
     double Expansion, double Appeasement, double Reserves);
 
+/// <summary>The research budget's standing split across the four tech
+/// domains (economy/technology.md §Advancement) — the contract's
+/// "research (per tech domain)" weights. Normalized shares.</summary>
+public sealed record ResearchSplit(
+    double Industrial, double Military, double Astrogation, double Life)
+{
+    public static ResearchSplit Default { get; } =
+        new ResearchSplit(0.35, 0.15, 0.30, 0.20);
+}
+
 public enum LegalityLevel { Legal, Restricted, Prohibited }
 
 public enum DiplomaticPosture { Hostile, Wary, Neutral, Cordial, Friendly }
@@ -38,7 +48,8 @@ public sealed record PolityPolicies(
     IReadOnlyDictionary<int, double> ShipbuildingPriorities,
     IReadOnlyDictionary<int, double> StockpileTargets,
     IReadOnlyDictionary<int, DiplomaticPosture> DiplomaticPostures,
-    NativePolicy NativePolicy) : PolicySet
+    NativePolicy NativePolicy,
+    ResearchSplit Research) : PolicySet
 {
     private static readonly IReadOnlyDictionary<int, double> NoWeights =
         new Dictionary<int, double>();
@@ -58,7 +69,8 @@ public sealed record PolityPolicies(
         ShipbuildingPriorities: NoWeights,
         StockpileTargets: NoWeights,
         DiplomaticPostures: NoPostures,
-        NativePolicy: NativePolicy.Protectorate);
+        NativePolicy: NativePolicy.Protectorate,
+        Research: ResearchSplit.Default);
 }
 
 /// <summary>Corporate investment split across asset classes, consumed by Allocation.</summary>

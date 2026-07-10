@@ -53,9 +53,21 @@ public class AllocationTests
             Assert.True(lane.PortAId < lane.PortBId);
             var a = s1.Ports[lane.PortAId];
             var b = s1.Ports[lane.PortBId];
-            // same polity's paired infrastructure, in range at current tiers
-            Assert.Equal(a.OwnerActorId, b.OwnerActorId);
-            Assert.True(LaneMath.InRange(s1.Config, a, b), "lane endpoints out of range");
+            // same polity's paired infrastructure at build time; a schism
+            // (slice G) may since have drawn a border across the lane
+            if (a.OwnerActorId != b.OwnerActorId)
+                Assert.Contains(s1.Log.Events,
+                    e => e.Type == WorldEventType.SchismDeclared);
+            // in range at current tiers + the best Astrogation bonus any
+            // builder could have had (slice G stretches the reach)
+            int maxAstro = 0;
+            foreach (var pr in s1.Polities)
+                maxAstro = System.Math.Max(maxAstro,
+                    pr.TechTier[(int)TechDomain.Astrogation]);
+            int bonus = s1.Config.Tech.AstroRangePerTierHexes
+                        * System.Math.Max(0, maxAstro - Tech.EraStandardTier);
+            Assert.True(LaneMath.InRange(s1.Config, a, b, bonus),
+                "lane endpoints out of range");
         }
         // development raised some colony port above its founding tier
         Assert.Contains(s1.Ports, p => p.Tier > 1 && p.FoundedYear > 0);

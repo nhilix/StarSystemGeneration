@@ -136,8 +136,9 @@ public class EconomyStateTests
         Assert.True(eco.LoanTermYears > 0);
         Assert.True(eco.ConditionDecayPerYear > 0);
         Assert.True(eco.ConditionRecoveryPerYear > 0);
-        // the config-level tech stub must allow standard capital recipes
-        Assert.True(eco.TechTierStub >= 2);
+        // the era-standard entry tier must allow standard capital recipes
+        // (slice G: the config stub retired for per-polity tech)
+        Assert.True(Tech.EraStandardTier >= 2);
     }
 
     [Fact]

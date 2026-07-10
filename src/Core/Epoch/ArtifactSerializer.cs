@@ -26,9 +26,10 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 3), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("actors", 4), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1),
+        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
+        ("corporations", 1),
     };
 
     public static string ToText(SimState state)
@@ -110,7 +111,10 @@ public static class ArtifactSerializer
                     ((int)pp.NativePolicy).ToString(Inv),
                     DoubleMap(pp.TariffSchedule), IntMap(pp.LawCode),
                     DoubleMap(pp.ShipbuildingPriorities),
-                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures)));
+                    DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures),
+                    // actors v4 (slice G): the research split rides along
+                    R(pp.Research.Industrial), R(pp.Research.Military),
+                    R(pp.Research.Astrogation), R(pp.Research.Life)));
         }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
@@ -240,7 +244,78 @@ public static class ArtifactSerializer
                     site.Hex.Q.ToString(Inv), site.Hex.R.ToString(Inv),
                     B(site.Dormant), site.OtherWaveId.ToString(Inv)));
         }
+
+        Layer(w, "interior");
+        foreach (var p in state.Polities)
+            if (p.Interior is { } interior)
+                w.WriteLine(Join("INTR", p.ActorId.ToString(Inv),
+                    ((int)interior.FormId).ToString(Inv),
+                    R(interior.OfficialIdeology[0]), R(interior.OfficialIdeology[1]),
+                    R(interior.OfficialIdeology[2]), R(interior.OfficialIdeology[3]),
+                    R(interior.Legitimacy), R(interior.Cohesion),
+                    R(interior.Enforcement), R(interior.LastMeanSoL),
+                    interior.RulerCharacterId.ToString(Inv),
+                    interior.FoundingCultureId.ToString(Inv)));
+        foreach (var c in state.Characters)
+            w.WriteLine(Join("CHAR", c.Id.ToString(Inv), Name(c.Name),
+                c.SpeciesId.ToString(Inv), c.CultureId.ToString(Inv),
+                c.PolityId.ToString(Inv), ((int)c.Role).ToString(Inv),
+                c.InstitutionId.ToString(Inv), ((int)c.Notable).ToString(Inv),
+                c.BirthYear.ToString(Inv), B(c.Alive), c.DeathYear.ToString(Inv),
+                R(c.IdeologyPosition[0]), R(c.IdeologyPosition[1]),
+                R(c.IdeologyPosition[2]), R(c.IdeologyPosition[3]),
+                R(c.Boldness), R(c.Zeal), R(c.Competence), R(c.Ambition),
+                R(c.Renown), c.DynastyId.ToString(Inv)));
+        foreach (var d in state.Dynasties)
+            w.WriteLine(Join("DYNA", d.Id.ToString(Inv), Name(d.Name),
+                d.FounderCharacterId.ToString(Inv), d.PolityId.ToString(Inv),
+                R(d.Prestige)));
+        foreach (var p in state.Polities)
+            w.WriteLine(Join("TECH", p.ActorId.ToString(Inv),
+                p.TechTier[0].ToString(Inv), p.TechTier[1].ToString(Inv),
+                p.TechTier[2].ToString(Inv), p.TechTier[3].ToString(Inv),
+                R(p.TechProgress[0]), R(p.TechProgress[1]),
+                R(p.TechProgress[2]), R(p.TechProgress[3])));
+        foreach (var fa in state.Factions)
+            w.WriteLine(Join("FACT", fa.Id.ToString(Inv), Name(fa.Name),
+                fa.PolityId.ToString(Inv), ((int)fa.Basis).ToString(Inv),
+                fa.FormedYear.ToString(Inv), fa.ContextId.ToString(Inv),
+                fa.LeaderCharacterId.ToString(Inv), B(fa.Active),
+                R(fa.Strength), R(fa.Militancy), R(fa.Grievance), R(fa.Wealth),
+                Vector(fa.BudgetTarget), Vector(fa.IdeologyTarget),
+                fa.NicheType.ToString(Inv), fa.NichePersistence.ToString(Inv)));
+
+        Layer(w, "corporations");
+        foreach (var c in state.Corporations)
+            w.WriteLine(Join("CORP", c.Id.ToString(Inv),
+                c.ActorId.ToString(Inv), Name(c.Name),
+                c.HostPolityId.ToString(Inv), ((int)c.Niche).ToString(Inv),
+                c.HomePortId.ToString(Inv), c.FoundedYear.ToString(Inv),
+                B(c.Active), R(c.Credits),
+                c.ExecutiveCharacterId.ToString(Inv),
+                c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
+                c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv),
+                c.TargetId.ToString(Inv)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Fixed-length double vector as "v;v;…"; "-" when null.</summary>
+    private static string Vector(double[]? values)
+    {
+        if (values == null) return "-";
+        var parts = new string[values.Length];
+        for (int i = 0; i < values.Length; i++) parts[i] = R(values[i]);
+        return string.Join(";", parts);
+    }
+
+    private static double[]? ParseVector(string field)
+    {
+        if (field == "-" || field.Length == 0) return null;
+        var parts = field.Split(';');
+        var values = new double[parts.Length];
+        for (int i = 0; i < parts.Length; i++)
+            values[i] = double.Parse(parts[i], Inv);
+        return values;
     }
 
     /// <summary>Hex coordinate list as "q:r;q:r"; "-" when empty.</summary>
@@ -527,9 +602,12 @@ public static class ArtifactSerializer
                         break;
                     case "ACTOR":
                         var kind = (ActorKind)int.Parse(f[2], Inv);
-                        IController controller = kind == ActorKind.Polity
-                            ? new GenesisController(config!)
-                            : new TrivialController();
+                        IController controller = kind switch
+                        {
+                            ActorKind.Polity => new GenesisController(config!),
+                            ActorKind.Corporation => new CorporateController(),
+                            _ => new TrivialController(),
+                        };
                         state!.Actors.Add(new Actor(int.Parse(f[1], Inv), kind, f[3],
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), controller)
@@ -551,7 +629,10 @@ public static class ArtifactSerializer
                             ShipbuildingPriorities: ParseDoubleMap(f[15]),
                             StockpileTargets: ParseDoubleMap(f[16]),
                             DiplomaticPostures: ParseIntMap<DiplomaticPosture>(f[17]),
-                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv));
+                            NativePolicy: (NativePolicy)int.Parse(f[12], Inv),
+                            Research: new ResearchSplit(double.Parse(f[18], Inv),
+                                double.Parse(f[19], Inv), double.Parse(f[20], Inv),
+                                double.Parse(f[21], Inv)));
                         break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
@@ -697,6 +778,104 @@ public static class ArtifactSerializer
                             int.Parse(f[6], Inv), int.Parse(f[7], Inv))
                         { Closed = f[8] == "1" });
                         break;
+                    case "INTR":
+                    {
+                        var interior = new PolityInterior
+                        {
+                            FormId = (GovernmentFormId)int.Parse(f[2], Inv),
+                            Legitimacy = double.Parse(f[7], Inv),
+                            Cohesion = double.Parse(f[8], Inv),
+                            Enforcement = double.Parse(f[9], Inv),
+                            LastMeanSoL = double.Parse(f[10], Inv),
+                            RulerCharacterId = int.Parse(f[11], Inv),
+                            FoundingCultureId = int.Parse(f[12], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            interior.OfficialIdeology[ax] = double.Parse(f[3 + ax], Inv);
+                        state!.PolityOf(int.Parse(f[1], Inv)).Interior = interior;
+                        break;
+                    }
+                    case "CHAR":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Characters.Count)
+                            throw new InvalidDataException("character ids out of order");
+                        var character = new Character(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            int.Parse(f[5], Inv), long.Parse(f[9], Inv))
+                        {
+                            Role = (CharacterRole)int.Parse(f[6], Inv),
+                            InstitutionId = int.Parse(f[7], Inv),
+                            Notable = (NotableType)int.Parse(f[8], Inv),
+                            Alive = f[10] == "1",
+                            DeathYear = long.Parse(f[11], Inv),
+                            Boldness = double.Parse(f[16], Inv),
+                            Zeal = double.Parse(f[17], Inv),
+                            Competence = double.Parse(f[18], Inv),
+                            Ambition = double.Parse(f[19], Inv),
+                            Renown = double.Parse(f[20], Inv),
+                            DynastyId = int.Parse(f[21], Inv),
+                        };
+                        for (int ax = 0; ax < 4; ax++)
+                            character.IdeologyPosition[ax] =
+                                double.Parse(f[12 + ax], Inv);
+                        state.Characters.Add(character);
+                        break;
+                    }
+                    case "DYNA":
+                        if (int.Parse(f[1], Inv) != state!.Dynasties.Count)
+                            throw new InvalidDataException("dynasty ids out of order");
+                        state.Dynasties.Add(new Dynasty(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv))
+                        { Prestige = double.Parse(f[5], Inv) });
+                        break;
+                    case "TECH":
+                    {
+                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        for (int d = 0; d < 4; d++)
+                        {
+                            pr.TechTier[d] = int.Parse(f[2 + d], Inv);
+                            pr.TechProgress[d] = double.Parse(f[6 + d], Inv);
+                        }
+                        break;
+                    }
+                    case "FACT":
+                        if (int.Parse(f[1], Inv) != state!.Factions.Count)
+                            throw new InvalidDataException("faction ids out of order");
+                        state.Factions.Add(new Faction(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), (FactionBasis)int.Parse(f[4], Inv),
+                            long.Parse(f[5], Inv))
+                        {
+                            ContextId = int.Parse(f[6], Inv),
+                            LeaderCharacterId = int.Parse(f[7], Inv),
+                            Active = f[8] == "1",
+                            Strength = double.Parse(f[9], Inv),
+                            Militancy = double.Parse(f[10], Inv),
+                            Grievance = double.Parse(f[11], Inv),
+                            Wealth = double.Parse(f[12], Inv),
+                            BudgetTarget = ParseVector(f[13]),
+                            IdeologyTarget = ParseVector(f[14]),
+                            NicheType = int.Parse(f[15], Inv),
+                            NichePersistence = int.Parse(f[16], Inv),
+                        });
+                        break;
+                    case "CORP":
+                        if (int.Parse(f[1], Inv) != state!.Corporations.Count)
+                            throw new InvalidDataException("corporation ids out of order");
+                        state.Corporations.Add(new Corporation(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv), f[3], int.Parse(f[4], Inv),
+                            (CorporateNiche)int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), long.Parse(f[7], Inv))
+                        {
+                            Active = f[8] == "1",
+                            Credits = double.Parse(f[9], Inv),
+                            ExecutiveCharacterId = int.Parse(f[10], Inv),
+                            HullsBuilt = int.Parse(f[11], Inv),
+                            HullsWrecked = int.Parse(f[12], Inv),
+                            HullsScrapped = int.Parse(f[13], Inv),
+                            LeanEpochs = int.Parse(f[14], Inv),
+                            TargetId = int.Parse(f[15], Inv),
+                        });
+                        break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -784,6 +963,50 @@ public static class ArtifactSerializer
         ConvoyDispatchedPayload e => Join("convoyDispatched", e.FleetId.ToString(Inv),
             e.FromPortId.ToString(Inv), e.TargetQ.ToString(Inv),
             e.TargetR.ToString(Inv)),
+        CorporationCharteredPayload e => Join("corporationChartered",
+            e.CorpId.ToString(Inv), Name(e.Name),
+            e.HostPolityId.ToString(Inv), e.Niche.ToString(Inv)),
+        PirateBandFormedPayload e => Join("pirateBandFormed",
+            e.CorpId.ToString(Inv), Name(e.Name)),
+        CorporationNationalizedPayload e => Join("corporationNationalized",
+            e.CorpId.ToString(Inv), Name(e.Name), e.PolityId.ToString(Inv)),
+        CorporationBankruptPayload e => Join("corporationBankrupt",
+            e.CorpId.ToString(Inv), Name(e.Name)),
+        NicheDiedPayload e => Join("nicheDied", e.CorpId.ToString(Inv),
+            Name(e.Name), e.Niche.ToString(Inv)),
+        TechAdvancedPayload e => Join("techAdvanced", e.PolityId.ToString(Inv),
+            e.Domain.ToString(Inv), e.NewTier.ToString(Inv)),
+        SchismDeclaredPayload e => Join("schismDeclared",
+            e.FactionId.ToString(Inv), Name(e.FactionName),
+            e.OldPolityId.ToString(Inv), e.NewPolityId.ToString(Inv),
+            Name(e.NewPolityName), e.Ports.ToString(Inv)),
+        CoupStruckPayload e => Join("coupStruck", e.CharacterId.ToString(Inv),
+            Name(e.CharacterName), e.FactionId.ToString(Inv),
+            Name(e.FactionName), e.PolityId.ToString(Inv), B(e.Contested)),
+        RevoltCrushedPayload e => Join("revoltCrushed",
+            e.CharacterId.ToString(Inv), Name(e.MartyrName),
+            e.FactionId.ToString(Inv), Name(e.FactionName),
+            e.PolityId.ToString(Inv)),
+        GovernmentReformedPayload e => Join("governmentReformed",
+            e.PolityId.ToString(Inv), e.OldForm.ToString(Inv),
+            e.NewForm.ToString(Inv)),
+        FactionFormedPayload e => Join("factionFormed",
+            e.FactionId.ToString(Inv), Name(e.Name), e.Basis.ToString(Inv),
+            e.PolityId.ToString(Inv)),
+        FactionDissolvedPayload e => Join("factionDissolved",
+            e.FactionId.ToString(Inv), Name(e.Name)),
+        RulerAscendedPayload e => Join("rulerAscended",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.PolityId.ToString(Inv), e.DynastyId.ToString(Inv)),
+        CharacterDiedPayload e => Join("characterDied",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.Role.ToString(Inv), e.AgeYears.ToString(Inv)),
+        SuccessionCrisisPayload e => Join("successionCrisis",
+            e.CharacterId.ToString(Inv), Name(e.DeadRulerName),
+            e.PolityId.ToString(Inv)),
+        NotableEmergedPayload e => Join("notableEmerged",
+            e.CharacterId.ToString(Inv), Name(e.CharacterName),
+            e.NotableType.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -830,6 +1053,43 @@ public static class ArtifactSerializer
         "convoyDispatched" => new ConvoyDispatchedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             int.Parse(f[at + 4], Inv)),
+        "corporationChartered" => new CorporationCharteredPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
+        "pirateBandFormed" => new PirateBandFormedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
+        "corporationNationalized" => new CorporationNationalizedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv)),
+        "corporationBankrupt" => new CorporationBankruptPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
+        "nicheDied" => new NicheDiedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
+        "techAdvanced" => new TechAdvancedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "schismDeclared" => new SchismDeclaredPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            f[at + 5], int.Parse(f[at + 6], Inv)),
+        "coupStruck" => new CoupStruckPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4],
+            int.Parse(f[at + 5], Inv), f[at + 6] == "1"),
+        "revoltCrushed" => new RevoltCrushedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4],
+            int.Parse(f[at + 5], Inv)),
+        "governmentReformed" => new GovernmentReformedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
+            int.Parse(f[at + 3], Inv)),
+        "factionFormed" => new FactionFormedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv)),
+        "factionDissolved" => new FactionDissolvedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2]),
+        "rulerAscended" => new RulerAscendedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv)),
+        "characterDied" => new CharacterDiedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), long.Parse(f[at + 4], Inv)),
+        "successionCrisis" => new SuccessionCrisisPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
+        "notableEmerged" => new NotableEmergedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

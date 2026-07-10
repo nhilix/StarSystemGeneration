@@ -179,4 +179,4 @@ but AI-only.
    temperament composition; read the roadmap row before writing) · flip
    the box below · push only on user say-so.
 
-- [ ] Slice G complete
+- [x] Slice G complete

@@ -71,9 +71,10 @@ public class MarketSupplyTests
         Assert.True(m.Inventory[(int)GoodId.Alloys] > 0);
         Assert.True(m.Inventory[(int)GoodId.Ore] < 1000.0);        // consumed
         Assert.True(m.InventoryGrade[(int)GoodId.Alloys] > 0);
-        // grade capped by the config tech stub's ceiling
+        // grade capped by the owner's Industrial ceiling (slice G)
         Assert.True(m.InventoryGrade[(int)GoodId.Alloys]
-                    <= Grades.TechCeiling(state.Config.Economy.TechTierStub));
+                    <= Tech.Ceiling(state, port.OwnerActorId,
+                                    TechDomain.Industrial));
     }
 
     [Fact]
@@ -164,6 +165,11 @@ public class MarketSupplyTests
         foreach (var pr in state.Polities)
         {
             if (!state.Actors[pr.ActorId].Entered) continue;
+            // schedule entries only — schism states (slice G) inherit
+            // existing industry, they don't found homeworlds
+            if (!state.Log.Events.Any(e =>
+                    e.Type == WorldEventType.PolityEmerged
+                    && e.Actors.Contains(pr.ActorId))) continue;
             int starters = 0;
             foreach (var f in state.Facilities)
                 if (f.OwnerActorId == pr.ActorId

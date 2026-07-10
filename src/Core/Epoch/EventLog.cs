@@ -45,4 +45,14 @@ public sealed class EventLog
                     break;
                 }
     }
+
+    /// <summary>Per-character view: characters have their own id space and
+    /// ride payloads (ICharacterPayload), not the Actors list — a life
+    /// reconstructs from the log with no extra authoring (P8).</summary>
+    public IEnumerable<WorldEvent> ForCharacter(int characterId)
+    {
+        foreach (var e in _events)
+            if (e.Payload is ICharacterPayload p && p.CharacterId == characterId)
+                yield return e;
+    }
 }

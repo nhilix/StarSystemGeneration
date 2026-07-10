@@ -49,10 +49,25 @@ public sealed class PerceptionPhase : ISimPhase
                 }
                 if (sizeSum > 0) realmSubsistence = subSum / sizeSum;
             }
+            var temperament = a.Kind == ActorKind.Polity
+                ? Temperament.Compose(state, state.PolityOf(a.Id))
+                : Temperament.Neutral;
+            double ownCredits = 0;
+            List<CorporateBrief>? hosted = null;
+            if (a.Kind == ActorKind.Polity)
+            {
+                ownCredits = state.PolityOf(a.Id).Credits;
+                foreach (var corp in state.Corporations)
+                    if (corp.Active && corp.HostPolityId == a.Id)
+                        (hosted ??= new List<CorporateBrief>())
+                            .Add(new CorporateBrief(corp.Id, corp.Name,
+                                                    corp.Credits));
+            }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
                                               ownPorts, realmSubsistence, designs,
-                                              FleetOps.ColonyHullsInReserve(state, a.Id));
+                                              FleetOps.ColonyHullsInReserve(state, a.Id),
+                                              temperament, ownCredits, hosted);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -92,12 +107,15 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var m in state.Markets)
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
         foreach (var pr in state.Polities) pr.Receipts = 0;
+        foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
         MarketEngine.AssembleDemand(state, scratch);
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
         MarketEngine.AddMilitaryDemand(state, scratch);
+        MarketEngine.AddResearchDemand(state, scratch);
+        CorporationOps.AddCorporateDemand(state, scratch);
         FleetOps.AddUpkeepDemand(state, scratch);
         MarketEngine.AddReExportDemand(state, scratch);
         // freight before the price drift: the drift reads realized supply —
@@ -151,7 +169,10 @@ public sealed class AllocationPhase : ISimPhase
                 if (p.OwnerActorId == pr.ActorId) ownPorts.Add(p);
             if (ownPorts.Count == 0) continue;
             earning++;
-            var budget = (actor.Policies as PolityPolicies ?? PolityPolicies.Default).Budget;
+            var policies = actor.Policies as PolityPolicies ?? PolityPolicies.Default;
+            // standing weights bend toward strong factions' agendas before
+            // they spend — pressure is mechanical, bounded by form tolerance
+            var budget = FactionOps.PressedBudget(state, pr, policies.Budget);
             // budget the epoch's receipts, not the balance: development is
             // deficit-financed through downturns; credit picks up the slack
             double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
@@ -160,6 +181,14 @@ public sealed class AllocationPhase : ISimPhase
             pr.MilitaryPoints += allocatable * budget.Military;
             pr.Credits -= allocatable
                 * (budget.Expansion + budget.Development + budget.Military);
+            // the appeasement line buys factions off — a treasury→faction
+            // flow, conserved (P4); without factions the line stays liquid
+            pr.Credits -= FactionOps.SpendAppeasement(state, pr,
+                allocatable * budget.Appeasement, allocatable);
+            // research: the standing split converts exotics × compute into
+            // ladder progress; the spend recycles as lab wages (slice G)
+            pr.Credits -= TechOps.Research(state, pr, policies.Research,
+                allocatable * budget.Research);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             portsRaised += RaisePorts(state, pr, ownPorts);
             facilitiesBuilt += BuildFacilities(state, pr, ownPorts);
@@ -169,6 +198,13 @@ public sealed class AllocationPhase : ISimPhase
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
         }
+        // corporations run their portfolios on the same markets (slice G)
+        int corporationsActive = CorporationOps.Operate(state);
+        // laggards learn from the goods they buy and the wrecks they find
+        TechOps.Diffuse(state);
+        int advances = 0;
+        foreach (var staged in state.Staged)
+            if (staged.Type == WorldEventType.TechAdvanced) advances++;
         int borrowed = Borrow(state);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
@@ -177,6 +213,10 @@ public sealed class AllocationPhase : ISimPhase
         if (facilitiesBuilt > 0) note += $", {facilitiesBuilt} " + (facilitiesBuilt == 1 ? "facility built" : "facilities built");
         if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
         if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
+        if (corporationsActive > 0)
+            note += $", {corporationsActive} " + (corporationsActive == 1
+                ? "corporation operates" : "corporations operate");
+        if (advances > 0) note += $", {advances} tech " + (advances == 1 ? "advance" : "advances");
         if (borrowed > 0) note += $", {borrowed} " + (borrowed == 1 ? "loan issued" : "loans issued");
         if (defaults > 0) note += $", {defaults} " + (defaults == 1 ? "default" : "defaults");
         return note;
@@ -223,7 +263,8 @@ public sealed class AllocationPhase : ISimPhase
             {
                 var center = HexGrid.CellCenter(cell.Coord);
                 if (HexGrid.Distance(port.Hex, center)
-                    > PortDomains.ServiceRadius(cfg, port.Tier)) continue;
+                    > PortDomains.ServiceRadius(cfg, port.Tier)
+                      + TechOps.AstroRadiusBonus(state, pr.ActorId)) continue;
                 if (cell.IsVoid) continue;
                 var fields = MarketEngine.FieldsAt(state, center);
                 var site = new Substrate.CellSite(fields,
@@ -520,6 +561,8 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int built = 0;
+        // Astrogation stretches the pairing reach (slice G)
+        int rangeBonus = TechOps.AstroRangeBonus(state, pr.ActorId);
         while (pr.DevelopmentPoints >= cfg.Expansion.LaneCost)
         {
             Port? bestA = null, bestB = null;
@@ -529,7 +572,7 @@ public sealed class AllocationPhase : ISimPhase
                 {
                     var a = ownPorts[i]; var b = ownPorts[j];
                     if (a.Id > b.Id) (a, b) = (b, a);
-                    if (!LaneMath.InRange(cfg, a, b)) continue;
+                    if (!LaneMath.InRange(cfg, a, b, rangeBonus)) continue;
                     if (LaneExists(state, a.Id, b.Id)) continue;
                     int dist = HexGrid.Distance(a.Hex, b.Hex);
                     if (dist < bestDist
@@ -632,15 +675,23 @@ public sealed class ResolutionPhase : ISimPhase
 
     public string Run(SimState state)
     {
-        int acts = 0, founded = 0;
+        int acts = 0, founded = 0, nationalized = 0;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
                 acts++;
                 if (act is FoundColonyAct f && TryFound(state, f)) founded++;
+                if (act is NationalizeAct n
+                    && CorporationOps.Nationalize(state, n.ActorId,
+                                                  n.CorporationId))
+                    nationalized++;
             }
-        return founded == 0 ? $"{acts} acts, 0 resolved"
-            : $"{acts} acts, {founded} " + (founded == 1 ? "port established" : "ports established");
+        string note = $"{acts} acts, " + (founded == 0 ? "0 resolved"
+            : $"{founded} " + (founded == 1 ? "port established" : "ports established"));
+        if (nationalized > 0)
+            note += $", {nationalized} " + (nationalized == 1
+                ? "corporation nationalized" : "corporations nationalized");
+        return note;
     }
 
     /// <summary>Every check runs against truth: consequences on truth, even
@@ -726,13 +777,18 @@ public sealed class ResolutionPhase : ISimPhase
                             tier: 1, state.WorldYear);
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
-        state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+        var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
             record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize)
         {
             // the expedition cost recycles to the settlers — treasury
             // spending is somebody's income, never destroyed (P4)
             Wealth = cfg.Expansion.ColonyCost,
-        });
+        };
+        // settlers sent by the state carry the official line (slice G)
+        if (record.Interior != null)
+            for (int ax = 0; ax < 4; ax++)
+                colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
+        state.Segments.Add(colonySegment);
         // the expedition ships the equipment for what it came for: the
         // founding facility matches the site's best extraction potential,
         // plus a subsistence farm when that isn't farming — the export
@@ -751,6 +807,9 @@ public sealed class ResolutionPhase : ISimPhase
             ClockStratum.Generational, WorldEventType.PortEstablished,
             new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
             EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
+        // a founding convoy mints its founder (characters.md §Notables)
+        CharacterOps.MintNotable(state, act.ActorId, NotableType.Founder,
+                                 act.Target);
         return true;
     }
 
@@ -814,12 +873,26 @@ public sealed class InteriorPhase : ISimPhase
             state.Ports.Add(port);
             state.Markets.Add(new Market(port.Id, state.Config.Economy));
             int species = state.PolityOf(a.Id).SpeciesId;
-            state.Segments.Add(new PopulationSegment(state.Segments.Count, port.Id,
+            var homeSegment = new PopulationSegment(state.Segments.Count, port.Id,
                 species, species, state.Config.Expansion.HomeworldSegmentSize)
             {
                 Wealth = state.Config.Expansion.HomeworldSegmentSize
                          * state.Config.Economy.InitialWealthPerPop,
-            });
+            };
+            // the founding population starts at its species' ideology tilt;
+            // the interior seats there too (popular == official at birth).
+            // Shape-only test skeletons carry no species — no interior then.
+            if (species >= 0 && species < state.Skeleton.Species.Count)
+            {
+                var tilt = GovernmentForms.SpeciesIdeologyTilt(
+                    state.Skeleton.Species[species]);
+                for (int ax = 0; ax < 4; ax++) homeSegment.Ideology[ax] = tilt[ax];
+                state.Segments.Add(homeSegment);
+                InteriorOps.SeatAtEntry(state, state.PolityOf(a.Id));
+                CharacterOps.SeatLeadership(state, state.PolityOf(a.Id));
+                TechOps.SeedEntryTiers(state, state.PolityOf(a.Id));
+            }
+            else state.Segments.Add(homeSegment);
             // a civilization at spaceflight arrives with industry: the
             // starter chain (raw → alloys/fuel → machinery) and the one-time
             // credit endowment — the only mint; conserved thereafter (P4)
@@ -846,6 +919,19 @@ public sealed class InteriorPhase : ISimPhase
         int migrations = Migrate(state, preexisting);
         int grown = Demographics(state, preexisting);
         DriftIdeology(state, preexisting);
+        // lives run, then interests organize, then the polity's inside
+        // reads the settled state (successions and pressure land before
+        // legitimacy) — slice G
+        var (deaths, successions, crises) = CharacterOps.Step(state);
+        // the niche watcher raises merchant factions where profit persists
+        // unclaimed (economy/corporations.md §Founding) — slice G
+        CorporationOps.WatchNiches(state);
+        var (factionsFormed, factionsDissolved) = FactionOps.Step(state);
+        int interiors = InteriorOps.Recompute(state);
+        // graduation reads the freshly recomputed grip (legitimacy ×
+        // enforcement) — new institutions are born at the epoch's end
+        var (schisms, coups, revolts) = GraduationOps.Step(state);
+        int charters = CorporationOps.CharterCheck(state);
 
         string note = entered switch
         {
@@ -857,6 +943,30 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
         if (migrations > 0)
             note += $", {migrations} " + (migrations == 1 ? "flow migrates" : "flows migrate");
+        if (deaths > 0)
+            note += $", {deaths} " + (deaths == 1 ? "life ends" : "lives end");
+        if (successions > 0)
+            note += $", {successions} " + (successions == 1 ? "succession" : "successions")
+                    + (crises > 0 ? $" ({crises} contested)" : "");
+        if (factionsFormed > 0)
+            note += $", {factionsFormed} " + (factionsFormed == 1
+                ? "faction coalesces" : "factions coalesce");
+        if (factionsDissolved > 0)
+            note += $", {factionsDissolved} " + (factionsDissolved == 1
+                ? "faction disbands" : "factions disband");
+        if (schisms > 0)
+            note += $", {schisms} " + (schisms == 1 ? "schism" : "schisms");
+        if (coups > 0)
+            note += $", {coups} " + (coups == 1 ? "coup" : "coups");
+        if (revolts > 0)
+            note += $", {revolts} " + (revolts == 1
+                ? "revolt crushed" : "revolts crushed");
+        if (charters > 0)
+            note += $", {charters} " + (charters == 1
+                ? "corporation chartered" : "corporations chartered");
+        if (interiors > 0)
+            note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
+                    + " recomputed";
         return note;
     }
 
@@ -889,7 +999,10 @@ public sealed class InteriorPhase : ISimPhase
             if (cap <= 0 || portTotal >= cap) continue;
             double vitality = seg.LastSubsistence * (0.5 + seg.SoL);
             double step = seg.Size * cfg.SegmentGrowthPerYear * years
-                          * vitality * (1.0 - portTotal / cap);
+                          * vitality * (1.0 - portTotal / cap)
+                          // medicine and agronomy: the Life domain (slice G)
+                          * TechOps.LifeGrowthFactor(state,
+                                state.Ports[seg.PortId].OwnerActorId);
             if (step <= 0) continue;
             seg.Size = System.Math.Min(seg.Size + cap - portTotal, seg.Size + step);
             grown++;

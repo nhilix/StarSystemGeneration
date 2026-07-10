@@ -24,8 +24,9 @@ public sealed class PopulationSegment
     public int PortId { get; }
     public int SpeciesId { get; }
     /// <summary>The slow identity layer — travels with migrants, never blends
-    /// away (conquest and migration add segments).</summary>
-    public int CultureId { get; }
+    /// away (conquest and migration add segments). Settable since slice G:
+    /// a regional schism splits the culture (the registry's split mechanic).</summary>
+    public int CultureId { get; set; }
     public double Size { get; set; }
     /// <summary>Standard of living in [0,1] — derives from what the segment's
     /// income actually clears at local prices; feeds growth, legitimacy, and

@@ -82,14 +82,19 @@ public class EpochGenesisTests
         Assert.All(state.Actors, a => Assert.True(a.Entered));
         foreach (var a in state.Actors)
         {
-            var home = state.Ports.First(p => p.OwnerActorId == a.Id);
-            Assert.Equal(a.Seat, home.Hex);
+            // schedule entries only — schism states (slice G) are born of
+            // existing ports, not homeworld foundings
+            if (!state.Log.Events.Any(e =>
+                    e.Type == WorldEventType.PolityEmerged
+                    && e.Actors.Contains(a.Id))) continue;
+            var home = state.Ports.First(p => p.Hex.Equals(a.Seat));
             // founded at HomeworldPortTier; development may have raised it since
             Assert.InRange(home.Tier, state.Config.Infrastructure.HomeworldPortTier,
                            state.Config.Infrastructure.MaxPortTier);
             Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, home.FoundedYear);
-            var seg = Assert.Single(state.Segments, s => s.PortId == home.Id);
-            Assert.Equal(state.PolityOf(a.Id).SpeciesId, seg.SpeciesId);
+            // the founding population administers there (diasporas may too)
+            Assert.Contains(state.Segments, s => s.PortId == home.Id
+                && s.SpeciesId == state.PolityOf(a.Id).SpeciesId);
         }
     }
 

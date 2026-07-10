@@ -58,7 +58,7 @@ public static class DesignRegistry
     {
         var design = new ShipDesign(state.Designs.Count, ownerActorId, role, size,
             mark, name ?? ShipCatalog.CellName(role, size), grade,
-            state.Config.Economy.TechTierStub, state.WorldYear);
+            TechOps.DesignTier(state, ownerActorId, role), state.WorldYear);
         state.Designs.Add(design);
         return design;
     }
@@ -104,7 +104,10 @@ public static class DesignRegistry
     /// neutral temperament.</summary>
     public static DesignSheet SheetOf(SimState state, ShipDesign design)
     {
-        int sp = state.PolityOf(design.OwnerActorId).SpeciesId;
+        // corporations (slice G) fly generic hulls: no species flavor
+        int sp = -1;
+        foreach (var p in state.Polities)
+            if (p.ActorId == design.OwnerActorId) { sp = p.SpeciesId; break; }
         SpeciesProfile? species = sp >= 0 && sp < state.Skeleton.Species.Count
             ? state.Skeleton.Species[sp] : null;
         return DesignMath.Sheet(design.Role, design.Size,
@@ -120,9 +123,9 @@ public static class DesignRegistry
     public static void RegisterEntryDesigns(SimState state, int ownerActorId,
                                             double militancy)
     {
-        // standard-issue starter components, lifted by maturation quality
-        // and the late-emerger contact bonus (slice F entry conditions)
-        double entryGrade = 0.5 + state.PolityOf(ownerActorId).EntryGradeBonus;
+        // standard-issue starter components — maturation quality now enters
+        // through starting tech tiers (slice G), not a grade hack
+        const double entryGrade = 0.5;
         Register(state, ownerActorId, ShipRole.Freight, ShipSize.Medium, entryGrade);
         Register(state, ownerActorId, ShipRole.Colony, ShipSize.Medium, entryGrade);
         Register(state, ownerActorId, ShipRole.Scout, ShipSize.Light, entryGrade);

@@ -38,10 +38,13 @@ public static class LaneMath
         cfg.Infrastructure.InterPortRangeBaseHexes
         + cfg.Infrastructure.InterPortRangePerTierHexes * (tier - 1);
 
-    /// <summary>Pairable iff both ends reach: distance ≤ min of the two ranges.</summary>
-    public static bool InRange(EpochSimConfig cfg, Port a, Port b)
+    /// <summary>Pairable iff both ends reach: distance ≤ min of the two
+    /// ranges, plus the builder's Astrogation bonus (slice G).</summary>
+    public static bool InRange(EpochSimConfig cfg, Port a, Port b,
+                               int astroBonusHexes = 0)
     {
-        int range = System.Math.Min(InterPortRange(cfg, a.Tier), InterPortRange(cfg, b.Tier));
+        int range = System.Math.Min(InterPortRange(cfg, a.Tier), InterPortRange(cfg, b.Tier))
+                    + astroBonusHexes;
         return StarGen.Core.Galaxy.HexGrid.Distance(a.Hex, b.Hex) <= range;
     }
 

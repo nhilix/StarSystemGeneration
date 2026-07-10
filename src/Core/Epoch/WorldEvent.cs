@@ -41,11 +41,27 @@ public enum WorldEventType
     LoanIssued = 204,
     LoanDefaulted = 205,
     MigrationWave = 206,
+    TechAdvanced = 207,
     PolityEmerged = 300,
     PortEstablished = 301,
+    SchismDeclared = 302,
+    CoupStruck = 303,
+    FactionFormed = 304,
+    FactionDissolved = 305,
+    RevoltCrushed = 306,
+    GovernmentReformed = 307,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    CorporationChartered = 600,
+    PirateBandFormed = 601,
+    CorporationNationalized = 602,
+    CorporationBankrupt = 603,
+    NicheDied = 604,
+    RulerAscended = 700,
+    CharacterDied = 701,
+    SuccessionCrisis = 702,
+    NotableEmerged = 703,
 }
 
 public static class WorldEventTypes
@@ -149,6 +165,96 @@ public sealed record FleetAttritionPayload(
 /// make founding physical (fleets doc §Postures, space-and-travel.md).</summary>
 public sealed record ConvoyDispatchedPayload(
     int FleetId, int FromPortId, int TargetQ, int TargetR) : EventPayload;
+
+/// <summary>An interest coalesces into a faction
+/// (factions-and-government.md §Faction formation).</summary>
+public sealed record FactionFormedPayload(
+    int FactionId, string Name, int Basis, int PolityId) : EventPayload;
+
+/// <summary>A spent interest disbands; its war chest returns to the people.</summary>
+public sealed record FactionDissolvedPayload(
+    int FactionId, string Name) : EventPayload;
+
+/// <summary>A persistent niche incorporates through the charter graduation
+/// (economy/corporations.md §Founding). HostPolityId −1 = the outlaw path.</summary>
+public sealed record CorporationCharteredPayload(
+    int CorpId, string Name, int HostPolityId, int Niche) : EventPayload;
+
+/// <summary>The raiding niche's institution — chartered by no one.</summary>
+public sealed record PirateBandFormedPayload(
+    int CorpId, string Name) : EventPayload;
+
+/// <summary>The state seizes a de facto power: assets to the treasury,
+/// scandal to the news (corporations.md §Influence).</summary>
+public sealed record CorporationNationalizedPayload(
+    int CorpId, string Name, int PolityId) : EventPayload;
+
+/// <summary>Default cascade → dissolution (corporations.md §Death).</summary>
+public sealed record CorporationBankruptPayload(
+    int CorpId, string Name) : EventPayload;
+
+/// <summary>The deposit exhausts, the lane closes, or the margin
+/// evaporates — the corporation follows its niche into history.</summary>
+public sealed record NicheDiedPayload(
+    int CorpId, string Name, int Niche) : EventPayload;
+
+/// <summary>Payloads that name an individual — the biography index key
+/// (characters have their own id space; the event's Actors list carries the
+/// institution). P8: a life reconstructs from the log by this interface.</summary>
+public interface ICharacterPayload
+{
+    int CharacterId { get; }
+}
+
+/// <summary>A research threshold crossing climbs a domain's tier ladder
+/// (economy/technology.md §Advancement).</summary>
+public sealed record TechAdvancedPayload(
+    int PolityId, int Domain, int NewTier) : EventPayload;
+
+/// <summary>Domains secede as a new polity — a faction graduates
+/// (factions-and-government.md §Graduation).</summary>
+public sealed record SchismDeclaredPayload(
+    int FactionId, string FactionName, int OldPolityId, int NewPolityId,
+    string NewPolityName, int Ports) : EventPayload;
+
+/// <summary>A throne-seeking faction replaces the leadership; ideology
+/// lurches. Contested coups record the civil war slice H will fight.</summary>
+public sealed record CoupStruckPayload(
+    int CharacterId, string CharacterName, int FactionId, string FactionName,
+    int PolityId, bool Contested) : EventPayload, ICharacterPayload;
+
+/// <summary>A crushed graduation: martyrs, repression, compounding grievance.</summary>
+public sealed record RevoltCrushedPayload(
+    int CharacterId, string MartyrName, int FactionId, string FactionName,
+    int PolityId) : EventPayload, ICharacterPayload;
+
+/// <summary>The government form changes through a graduation event — a
+/// chronicle landmark (§Government forms).</summary>
+public sealed record GovernmentReformedPayload(
+    int PolityId, int OldForm, int NewForm) : EventPayload;
+
+/// <summary>A character takes a polity's seat — by succession, crisis
+/// resolution, or founding (the first ruler ascends silently at entry;
+/// only real transitions chronicle).</summary>
+public sealed record RulerAscendedPayload(
+    int CharacterId, string CharacterName, int PolityId, int DynastyId)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A role-holder or notable dies; the age is world-years lived.</summary>
+public sealed record CharacterDiedPayload(
+    int CharacterId, string CharacterName, int Role, long AgeYears)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A seat empties with no clear successor — resolved as politics
+/// until the war machinery (H) can escalate it (characters.md §Succession).</summary>
+public sealed record SuccessionCrisisPayload(
+    int CharacterId, string DeadRulerName, int PolityId)
+    : EventPayload, ICharacterPayload;
+
+/// <summary>A threshold event mints a named notable (characters.md §Notables).</summary>
+public sealed record NotableEmergedPayload(
+    int CharacterId, string CharacterName, int NotableType)
+    : EventPayload, ICharacterPayload;
 
 /// <summary>One record of the single append-only stream — the event grammar v2
 /// (narrative/chronicle-and-poi.md): one schema across all four clocks.

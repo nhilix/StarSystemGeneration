@@ -109,7 +109,7 @@ public class EconomyArtifactTests
         var state = EpochTestKit.Seeded(42, 8).State;
         state.Config.Economy.LaborShare = 0.33;
         state.Config.Economy.PriceDriftMaxPerYear = 0.07;
-        state.Config.Economy.TechTierStub = 3;
+        state.Config.Tech.BaseThreshold = 40;   // slice G: real tech knobs
         state.Config.Population.MigrationRatePerYear = 0.009;
         state.Config.Infrastructure.FacilitiesPerPortTier = 5;
         state.Config.Sim.EpochCount = 4;
@@ -119,7 +119,7 @@ public class EconomyArtifactTests
 
         Assert.Equal(0.33, loaded.Config.Economy.LaborShare);
         Assert.Equal(0.07, loaded.Config.Economy.PriceDriftMaxPerYear);
-        Assert.Equal(3, loaded.Config.Economy.TechTierStub);
+        Assert.Equal(40, loaded.Config.Tech.BaseThreshold);
         Assert.Equal(0.009, loaded.Config.Population.MigrationRatePerYear);
         Assert.Equal(5, loaded.Config.Infrastructure.FacilitiesPerPortTier);
     }

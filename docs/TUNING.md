@@ -38,6 +38,33 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
+## Corporate — niches, charters, operations, deaths (slice G)
+
+The niche watcher raises merchant factions where profit persists
+unclaimed; the charter graduation incorporates them (cartels and pirate
+bands skip the charter — chartered nowhere). Suffix names per niche are
+catalog data (`CorporationOps.Suffix`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Corporate.CharterPersistenceEpochs` | 3 | Only durable opportunities incorporate. | Every price blip births a company. |
+| `Corporate.CharterOpennessGate` | 0.4 | Closed societies never charter (their merchant factions stew). | Everyone charters everything. |
+| `Corporate.CharterCapitalFloor` | 200 | Only well-funded ventures incorporate (fewer, real corps — the stillbirth cure). | Penniless charters die in their build-out. |
+| `Corporate.FoundingGraceEpochs` | 4 | Long build-out runway before the lean clock starts. | Foundings must earn immediately or die. |
+| `Corporate.FreightPullComponents` | 6 | Freight lines pull hull components toward their frontier homes. | Lines depend on yard-port sourcing alone. |
+| `Corporate.FreightNicheMargin` | 0.6 | Only stark gradients read as freight niches. | Freight lines on every lane. |
+| `Corporate.DepositNichePotential` | 0.65 | Only prime rock draws conglomerates. | Corp mines on marginal terrain. |
+| `Corporate.FabricationPriceRatio` | 2.5 | Industrial gaps must gape before combines form. | Combines chase every markup. |
+| `Corporate.CartelValueFloor` | 15 | Cartels need deep black books. | Prohibition instantly breeds cartels. |
+| `Corporate.CartelSkim` | 0.3 | Contraband margins bleed buyer wealth fast. | Cartels are ornamental. |
+| `Corporate.RaidCapacityFloor` | 8 | Pirate bands need rich unguarded lanes. | The black flag over every backwater. |
+| `Corporate.MaxFacilities` | 4 | Bigger conglomerate chains. | Single-asset shops. |
+| `Corporate.LobbyShare` | 0.01 | Corporate money floods host politics (corporate factions bulk up). | Influence rides dividends only. |
+| `Corporate.MagnateReceipts` | 50 | Only booms mint magnates. | Every shopkeeper is famous. |
+| `Corporate.LeanReceiptsFloor` / `NicheDeathEpochs` | 1 / 5 | Corps die the moment margins thin (heavy churn, rich residue). | Zombie companies linger for eras. |
+| `Corporate.NationalizeWealthFactor` | 2.0 | States tolerate de facto powers longer. | Seizure at the first good quarter. (Note: deficit-financed states — negative treasuries — never trigger it; the megacorp outlives the indebted host.) |
+| `Corporate.NationalizeLegitimacyHit` | 0.1 | Seizure wrecks standing (I's news will deepen this). | Consequence-free expropriation. |
+
 ## Economy — demand magnitudes
 
 The three per-capita rates are the economy's metabolism; the elasticities
@@ -84,8 +111,10 @@ shape how demand bends under price.
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
 | `Economy.ConditionRecoveryPerYear` | 0.05 | Repairs snap back. | Long scars from every shortage/war. |
 | `Economy.StockpileDecayPerYear` | 0.002 | Reserves cost more to hold (provisions ×10, organics ×5, medicine ×3 in code). | Cheap insurance; sieges (H) get longer. |
-| `Economy.TechTierStub` | 2 | 3 unlocks advanced recipes everywhere (pre-G). 1 locks capital goods entirely — the economy dies. | — |
 | `Economy.WarWearinessPerYear` | 0.003 | (Inert until H.) | — |
+
+*`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
+per-domain — see the Tech family.*
 
 ## Population — demographics, migration, ideology
 
@@ -104,6 +133,73 @@ propagates: how early people die, how early they run, and how fast.
 | `Population.HungerIdeologyLine` | 0.7 | Hardship radicalizes (Authority/Sacral) at the first pinch. | Only catastrophe moves belief. |
 | `Population.ProsperityIdeologyLine` | 0.7 | (Lower = comfort liberalizes sooner: Individual/Open.) | Prosperity must be extreme to matter. |
 | `Population.SoLDriftPerYear` | 0.02 | Living standards re-rate quickly with market outcomes. | SoL is a long memory. |
+
+## Interior — legitimacy, cohesion, enforcement (slice G)
+
+The polity's inside: how fast the official line chases the people, what
+makes a government legitimate, and what strains a realm apart. Form
+multipliers (catalog) scale the legitimacy weights per government form.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Interior.OfficialDriftPerYear` | 0.008 | Governments track their people (smaller ideology gaps, fewer ideological factions). | Frozen official lines; gap-driven grievance builds. |
+| `Interior.SoLTrendGain` | 3.0 | Downturns crater legitimacy immediately (volatile politics). | Only SoL *levels* matter; slow declines pass unpunished. |
+| `Interior.LegitimacyProsperityWeight` | 0.30 | Bread buys loyalty everywhere. | Prosperity politically irrelevant. |
+| `Interior.LegitimacyIdeologyWeight` | 0.25 | Alignment with the popular line dominates (assemblies/theocracies swing harder). | Doctrine gaps forgiven. |
+| `Interior.LegitimacyRulerWeight` | 0.20 | Rulers carry the state (autocracies live and die by prestige — G2). | Impersonal states. |
+| `Interior.LegitimacyWarWeight` | 0.10 | (Neutral 0.5 until H wires war outcomes.) | — |
+| `Interior.LegitimacyAccommodationWeight` | 0.15 | Minority cultures strain legitimacy hard (conquest empires wobble — H). | Multicultural realms stable by default. |
+| `Interior.StrainPerPort` | 0.008 | Big realms fray: cohesion caps empire size. | Size costs nothing. |
+| `Interior.StrainPerCulture` | 0.05 | Every absorbed culture is a future schism seed. | Homogeneous and mosaic empires equally solid. |
+| `Interior.StrainDistanceWeight` | 0.15 | Far-flung domains slip the capital's grip (frontier factions). | Distance is administrative trivia. |
+| `Interior.EnforcementBase` | 0.4 | States keep order without navies (graduations rarer). | Order rests entirely on hulls. |
+| `Interior.EnforcementPerWarshipPerPort` | 0.04 | Navies double as interior police (militant realms suppress factions). | Fleets are outward-facing only. |
+
+## Character — mortality, succession, renown (slice G)
+
+Species lifespans (human-analog 80y, aquatic 90, cryophilic 120, lithic
+400, hive/machine effectively ageless) are structural catalog data —
+`CharacterOps.Lifespan`. These dials shape how lives end and what deaths
+cost.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Character.MortalityShapePerYear` | 0.15 | Shorter reigns, faster court turnover, more successions per era. | Rulers linger far past their span. |
+| `Character.AssassinationBasePerYear` | 0.02 | Illegitimate thrones are death sentences (ambition × unpopularity). | Palace intrigue toothless. |
+| `Character.MachineDeprecationPerYear` | 0.002 | Machine consensus nodes cycle visibly. | Effectively immortal machine minds. |
+| `Character.CrisisLegitimacyHit` | 0.15 | Heirless successions destabilize hard (G5 graduations feed on it). | Crises are paperwork. |
+| `Character.DynastyPrestigePerReignYear` | 0.01 | Old houses accumulate towering legitimacy. | Dynasties are just names. |
+| `Character.PrestigePerRenown` | 0.02 | Famous rulers carry states single-handed. | Legitimacy ignores the person. |
+| `Character.RenownAscension` / `RenownNotable` | 2 / 5 | Seats and feats mint reputation faster. | Renown must be earned across eras. |
+| `Character.RulerMintAgeFraction` / `HeirMintAgeFraction` | 0.45 / 0.25 | Older courts: shorter reigns, more successions. | Child-kings reign for generations. |
+| `Character.MaxNotablesPerPolity` | 6 | More chronicle color per realm. | Only the singular get remembered. |
+
+## Faction — formation, pressure, appeasement, grievance (slice G)
+
+Six bases coalesce from real state; strength presses budgets and the
+official line; the appeasement budget line buys peace priced off the same
+base it draws on; the unmet fraction compounds into the grievance that
+graduation (task 5) spends. Per-basis budget agendas are catalog data
+(`FactionOps.BasisBudget`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Faction.FormMinShare` | 0.15 | Only mass movements coalesce (fewer, bigger factions). | Every grumble organizes. |
+| `Faction.IdeologyGapToForm` | 0.25 | Dissent must be radical to organize. | Politics fragments on nuance. |
+| `Faction.FrontierDistanceFraction` | 0.5 | Only the deep frontier feels neglected. | Every suburb is a separatist. |
+| `Faction.SacralAxisLine` | 0.35 | Only the devout base faith movements. | Broad revivalist politics. |
+| `Faction.MilitaryRenownToForm` | 12 | Officer factions need storied brass (they'll mostly wait for H's wars). | Peacetime juntas everywhere. |
+| `Faction.PressureRatePerYear` | 0.01 | Budgets and doctrine bend fast to strong factions. | Standing policy shrugs off politics. |
+| `Faction.MaxBudgetPressure` | 0.35 | One faction can redirect a third of spending per epoch. | Pressure is cosmetic. |
+| `Faction.AppeasementDemandShare` | 0.2 | Peace is expensive: appeasement lines fall short, grievance compounds (more graduations). **The interior-drama dial.** | Cheap peace; factions stay bought. |
+| `Faction.GrievancePerYear` | 0.02 | Neglect radicalizes within a generation. | Long-suffering interests. |
+| `Faction.GrievanceDecayPerYear` | 0.008 | Paying late still forgives. | Grievance is forever (every polity eventually cracks). |
+| `Faction.DissolveStrengthFloor` | 0.05 | Factions need standing membership to persist. | Zombie movements linger. |
+| `Faction.PatronRenownWeight` / `WealthStrengthWeight` | 0.01 / 0.1 | Famous leaders and fat war chests carry factions past their base. | Strength is purely demographic. |
+| `Faction.GraduationGripFactor` | 4.0 | States hold together; factions grumble for centuries. **The graduation-pacing dial** (seed 42 r12: 9 graduations / 40 epochs at default). | Every polity cracks within a generation. |
+| `Faction.CoupIdeologyLurch` | 0.5 | Coups remake the official line overnight (forms reseat often). | Palace coups change faces, not policy. |
+| `Faction.CoupLegitimacyHit` / `RevoltLegitimacyHit` | 0.15 / 0.1 | Political violence delegitimizes hard (cascading instability). | Consequence-free putsches. |
+| `Faction.RevoltGrievanceKeep` | 0.75 | Repression compounds: crushed movements return angrier. | Crushing a revolt actually settles it. |
 
 ## Infrastructure — port physics and construction
 
@@ -152,6 +248,27 @@ player, P2) replace the AI and bring their own numbers.
 | `Controller.MilitancyReserveGate` | 0.2 | Only genuine hawks arm. | Everyone keeps a little powder dry. |
 | `Controller.NarcoticsProhibitBelowOpenness` | 0.35 | More theocratic drug bans → bigger black books. | Prohibition rare. |
 | `Controller.NarcoticsRestrictBelowOpenness` | 0.55 | Wider restricted band (friction, not bans). | Narcotics broadly legal. |
+
+## Tech — ladder costs, research, diffusion (slice G)
+
+Four per-polity domains (Industrial / Military / Astrogation / Life) on
+geometric tier ladders; research consumes Refined Exotics × Compute in
+Allocation; trade and salvage keep laggards in the race. Grade ceilings
+per tier are structural (`Grades.TechCeiling`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Tech.BaseThreshold` | 25 | Slow, era-scale advancement. | Tier churn every few epochs. |
+| `Tech.ThresholdGrowth` | 2.0 | High tiers are civilizational projects (runaway impossible). | Leaders sprint away from the pack. |
+| `Tech.ProgressPerExotic` | 1.0 | Research cheap in feedstock (exotics labs matter less). | Every tier costs mountains of exotics. |
+| `Tech.ComputeBoost` | 0.5 | Compute cores double research; digital economies lead. | Compute ornamental. |
+| `Tech.ResearchPullExotics` / `PullCompute` | 6 / 3 | Stronger lab price signal: exotics/compute chains spin up early. | Research starves for want of markets (tiers freeze). |
+| `Tech.TradeDiffusionPerYear` | 0.15 | Open borders equalize tech in a few generations. | Gaps persist for eras. |
+| `Tech.TradeVolumeSaturation` | 10 | Only heavy trade teaches. | A trickle of goods carries blueprints. |
+| `Tech.SalvagePerHullPerYear` | 0.02 | Battlefields are universities (H's wars will spread arms tech fast). | Wrecks are just metal. |
+| `Tech.AstroRadiusPerTierHexes` | 3 | Astrogation leaders visibly out-reach neighbors (the tech map gap). | Reach is pure port tier. |
+| `Tech.AstroRangePerTierHexes` | 4 | High-astro realms lace longer lanes. | Lane webs identical across tech. |
+| `Tech.LifeGrowthPerTier` | 0.15 | Medicine compounds: Life leaders out-populate everyone. | Demography ignores the clinics. |
 
 ## Fleet — yards, posted freight, supply, attrition, lineages
 
@@ -216,6 +333,23 @@ day one of them *does* need to move.
   (`InteriorPhase.StarterIndustry`): agri t2 + mine/skimmer/refinery/foundry t1.
 - **Ideology drift shape** — the prosperity comfort ×3 factor and famine
   severity scaling: `InteriorPhase.DriftIdeology`.
+- **Faction basis agendas** — the per-basis budget-emphasis vectors and the
+  basis name suffixes: `FactionOps.BasisBudget` / `Suffix` (slice G).
+- **Temperament composition maps** — the ideology→trait map, the per-basis
+  faction pulls, and the ruler boldness/zeal skews:
+  `Interior/Temperament.cs` (slice G). The *weights* between the four terms
+  are per-form catalog data (`GovernmentForm.Composition`).
+- **Species lifespans** — human-analog 80 / aquatic 90 / cryophilic 120 /
+  lithic 400 / hive & machine 10,000 world-years, and the age curve's
+  0.55-of-span onset: `CharacterOps.Lifespan` / `AgeHazardPerYear`
+  (slice G). Species-real mortality is a mechanic, not a dial.
+- **Government form catalog** — the eight forms' ideology seats, species
+  gates, succession rules, inertia/tolerance/floor values, legitimacy
+  multipliers, and temperament-composition weights:
+  `src/Core/Epoch/Interior/GovernmentForm.cs` (slice G, chassis-catalog
+  pattern). The **species→ideology entry tilt** coefficients live beside
+  them (`SpeciesIdeologyTilt`) — they define where societies *start*, not
+  how the sim is tuned.
 - **Numerical guards** — ε = 1e-9 in the drift ratio, the 0.05 condition
   floor, hex-tier constants (`StableHash`, `ValueNoise` lattices).
 

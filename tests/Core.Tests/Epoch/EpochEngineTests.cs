@@ -42,9 +42,17 @@ public class EpochEngineTests
         Assert.All(state.Actors, a => Assert.True(a.Entered));
         var emergences = state.Log.Events
             .Where(e => e.Type == WorldEventType.PolityEmerged).ToList();
-        Assert.Equal(state.Actors.Count, emergences.Count);
+        // every polity actor either emerged on the schedule or seceded;
+        // corporations charter separately (slice G)
+        var schisms = state.Log.Events
+            .Where(e => e.Type == WorldEventType.SchismDeclared)
+            .Select(e => ((SchismDeclaredPayload)e.Payload!).NewPolityId)
+            .ToHashSet();
+        Assert.Equal(state.Actors.Count(a => a.Kind == ActorKind.Polity),
+                     emergences.Count + schisms.Count);
         foreach (var a in state.Actors)
         {
+            if (a.Kind != ActorKind.Polity || schisms.Contains(a.Id)) continue;
             var e = Assert.Single(emergences, e => e.Actors.Contains(a.Id));
             // events carry their world-year, dated at the entering epoch
             Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, e.WorldYear);

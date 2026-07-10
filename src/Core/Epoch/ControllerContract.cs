@@ -11,12 +11,18 @@ namespace StarGen.Core.Epoch;
 /// ShipbuildingPriorities by design id (fleets/ships-and-fleets.md).</summary>
 public sealed record DesignBrief(int DesignId, ShipRole Role, ShipSize Size, int Mark);
 
+/// <summary>What a polity perceives of a corporation it charters — enough
+/// to notice a de facto power (economy/corporations.md §Influence).</summary>
+public sealed record CorporateBrief(int CorpId, string Name, double Credits);
+
 public sealed class PerceptionView
 {
     private static readonly IReadOnlyList<ColonyCandidate> NoCandidates =
         new ColonyCandidate[0];
     private static readonly IReadOnlyList<DesignBrief> NoDesigns =
         new DesignBrief[0];
+    private static readonly IReadOnlyList<CorporateBrief> NoCorporations =
+        new CorporateBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -28,9 +34,14 @@ public sealed class PerceptionView
     /// (mechanical enumeration; choosing is the controller's).</summary>
     public IReadOnlyList<ColonyCandidate> ColonyCandidates { get; }
     /// <summary>The actor's own species profile — an actor perceives its own
-    /// society (null for non-polities and shape-only test skeletons). Law
-    /// codes and temperament-flavored policies derive from it.</summary>
+    /// society (null for non-polities and shape-only test skeletons).
+    /// Embodiment facts live here; decision personality does NOT — that is
+    /// the temperament composition below.</summary>
     public SpeciesProfile? SelfSpecies { get; }
+    /// <summary>The temperament composition (slice G): species × official
+    /// ideology × ruler × faction pressure, weighted by government form.
+    /// The ONLY personality Intent may read — fixed species vectors retired.</summary>
+    public Temperament SelfTemperament { get; }
     /// <summary>Own port count — scales standing policy magnitudes
     /// (stockpile targets and the like).</summary>
     public int OwnPortCount { get; }
@@ -44,6 +55,12 @@ public sealed class PerceptionView
     /// <summary>Colony hulls sitting in own Reserve-posture fleets — an
     /// expedition needs a physical convoy (fleets doc; 0 for non-polities).</summary>
     public int ColonyHullsAvailable { get; }
+    /// <summary>Own liquid treasury — the yardstick a hosted corporation's
+    /// wealth is measured against (slice G).</summary>
+    public double OwnCredits { get; }
+    /// <summary>Corporations this polity charters, by corp registry id —
+    /// the nationalization act's targets (empty otherwise).</summary>
+    public IReadOnlyList<CorporateBrief> HostedCorporations { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -52,8 +69,13 @@ public sealed class PerceptionView
                           int ownPortCount = 0,
                           double realmSubsistence = 1.0,
                           IReadOnlyList<DesignBrief>? ownDesigns = null,
-                          int colonyHullsAvailable = 0)
+                          int colonyHullsAvailable = 0,
+                          Temperament? selfTemperament = null,
+                          double ownCredits = 0,
+                          IReadOnlyList<CorporateBrief>? hostedCorporations = null)
     {
+        OwnCredits = ownCredits;
+        HostedCorporations = hostedCorporations ?? NoCorporations;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -64,6 +86,9 @@ public sealed class PerceptionView
         RealmSubsistence = realmSubsistence;
         OwnDesigns = ownDesigns ?? NoDesigns;
         ColonyHullsAvailable = colonyHullsAvailable;
+        SelfTemperament = selfTemperament
+            ?? (selfSpecies != null
+                ? Temperament.FromSpecies(selfSpecies) : Temperament.Neutral);
     }
 }
 
@@ -111,34 +136,58 @@ public sealed class GenesisController : IController
     public ControllerDecision Decide(PerceptionView perceived)
     {
         var policies = PoliciesFor(perceived);
+        var acts = new List<Act>();
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0
             && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
-            return new ControllerDecision(policies, new Act[]
+            acts.Add(new FoundColonyAct(perceived.SelfId,
+                                        perceived.ColonyCandidates[0].Target));
+        // a chartered corporation that out-wealths the state is a de facto
+        // power; the counter-move is nationalization (corporations.md)
+        foreach (var corp in perceived.HostedCorporations)
+            if (corp.Credits > perceived.OwnCredits
+                    * _config.Corporate.NationalizeWealthFactor
+                && perceived.OwnCredits > 0)
             {
-                new FoundColonyAct(perceived.SelfId, perceived.ColonyCandidates[0].Target),
-            });
-        return new ControllerDecision(policies, NoActs);
+                acts.Add(new NationalizeAct(perceived.SelfId, corp.CorpId));
+                break;   // one scandal per epoch is plenty
+            }
+        return new ControllerDecision(policies,
+            acts.Count == 0 ? NoActs : acts);
     }
 
-    /// <summary>Default policies plus a species-derived law code (closed
+    /// <summary>Default policies plus a temperament-derived law code (closed
     /// societies prohibit narcotics, guarded ones restrict them —
     /// jurisdiction-relative legality, commodities.md) and reserve targets
-    /// scaling with the realm (ControllerKnobs). Deterministic from the view.</summary>
+    /// scaling with the realm (ControllerKnobs). Personality comes from the
+    /// temperament composition (slice G), never a fixed species vector — a
+    /// nation's laws liberalize as its politics do. Deterministic from the view.</summary>
     private PolityPolicies PoliciesFor(PerceptionView perceived)
     {
         var knobs = _config.Controller;
         var policies = PolityPolicies.Default;
-        var species = perceived.SelfSpecies;
-        if (species != null
-            && species.Openness < knobs.NarcoticsRestrictBelowOpenness)
+        var temperament = perceived.SelfTemperament;
+        // the research split follows temperament: hawks fund the arsenal,
+        // expansionists the astrogators; the rest splits industry and life
+        double militarySplit = 0.10 + 0.20 * temperament.Militancy;
+        double astroSplit = 0.20 + 0.20 * temperament.Expansionism;
+        double lifeSplit = 0.15;
+        policies = policies with
+        {
+            Research = new ResearchSplit(
+                Industrial: 1.0 - militarySplit - astroSplit - lifeSplit,
+                Military: militarySplit, Astrogation: astroSplit,
+                Life: lifeSplit),
+        };
+        if (perceived.SelfSpecies != null
+            && temperament.Openness < knobs.NarcoticsRestrictBelowOpenness)
             policies = policies with
             {
                 LawCode = new Dictionary<int, LegalityLevel>
                 {
                     [(int)Substrate.GoodId.Narcotics] =
-                        species.Openness < knobs.NarcoticsProhibitBelowOpenness
+                        temperament.Openness < knobs.NarcoticsProhibitBelowOpenness
                             ? LegalityLevel.Prohibited
                             : LegalityLevel.Restricted,
                 },
@@ -166,7 +215,7 @@ public sealed class GenesisController : IController
                 [(int)Substrate.GoodId.Fuel] =
                     knobs.FuelReservePerPort * perceived.OwnPortCount,
             };
-            double militancy = species?.Militancy ?? 0.5;
+            double militancy = temperament.Militancy;
             if (militancy > knobs.MilitancyReserveGate)
                 targets[(int)Substrate.GoodId.Armaments] =
                     militancy * knobs.ArmamentsPerPortPerMilitancy
@@ -178,7 +227,7 @@ public sealed class GenesisController : IController
             // the yard queue by temperament: everyone hauls; a realm without
             // a colony convoy ready keeps one building whenever it means to
             // expand; warships by militancy (doctrine flavors, not war — H)
-            double militancy = perceived.SelfSpecies?.Militancy ?? 0.5;
+            double militancy = temperament.Militancy;
             var builds = new Dictionary<int, double>();
             foreach (var brief in perceived.OwnDesigns)
                 switch (brief.Role)

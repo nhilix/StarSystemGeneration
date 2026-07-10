@@ -72,9 +72,11 @@ public class ShapeAcceptanceTests
     {
         var state = Run(seed);
         var eco = state.Config.Economy;
+        // the mint fires once per schedule emergence — schism states (slice
+        // G) split existing ledgers instead of minting
         double minted = 0;
-        foreach (var a in state.Actors)
-            if (a.Entered)
+        foreach (var e in state.Log.Events)
+            if (e.Type == StarGen.Core.Epoch.WorldEventType.PolityEmerged)
                 minted += eco.InitialCreditsPerPolity
                           + state.Config.Expansion.HomeworldSegmentSize
                             * eco.InitialWealthPerPop;
@@ -84,6 +86,10 @@ public class ShapeAcceptanceTests
                     + p.MilitaryPoints;
         foreach (var s in state.Segments)
             held += s.Wealth;
+        foreach (var f in state.Factions)
+            held += f.Wealth;   // appeasement is a flow, not a sink (slice G)
+        foreach (var c in state.Corporations)
+            held += c.Credits;  // corporate books are conserved too (slice G)
         Assert.True(minted > 0);
         Assert.Equal(minted, held, minted * 1e-9);
     }

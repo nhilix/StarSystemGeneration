@@ -1,0 +1,309 @@
+# Slice G Ledger — Interior & Corporations
+
+Branch `slice-g-interior` off main (216cee8). Scope nod: 2026-07-10.
+Kickoff: `2026-07-10-slice-g-kickoff-prompt.md`. This file is the
+resumability record: ordered tasks, gates, decisions, surprises — updated
+as work lands.
+
+## Standing gates (every task)
+
+- `dotnet test` green; hex-tier (Phase-1) suite never breaks.
+- Determinism byte-identity for same config (SimTraceView render).
+- Artifact save/load stays green; any new cross-step state serializes in
+  the same task; golden regenerated same-commit when history changes;
+  `LoadThenContinue_EqualsTheStraightRun` is the strongest gate.
+- Credits conserve to the mint (appeasement/research/dividends are flows,
+  never sinks or mints).
+- Every new calibration constant → `KnobRegistry` + TUNING.md row; catalog
+  data is data-as-code with a TUNING structural note.
+- Every new `src/Core` file gets a two-line `.meta` with a fresh guid.
+- New event types in stable blocks: political 3xx (next free 302),
+  corporate 6xx (opens here), character 7xx (opens here); evolutionary
+  next 106, economic next 207, military next 403. `RollChannel` appends
+  from **60**.
+
+## Tasks
+
+- [x] **G0 — branch + ledger** (this commit).
+- [x] **G1 — Government forms + polity interior state** *(done: catalog +
+  seating in `Interior/GovernmentForm.cs`, state in `PolityInterior.cs`,
+  recompute in `InteriorOps.cs`; homeworld segments + official line seed
+  from the species ideology tilt; colony segments carry the official
+  line; interior layer v1 (INTR); knobs `Interior.*` ×12 + TUNING rows;
+  golden regen — 382/382 green)*: eight-form
+  catalog (data-as-code: seat in ideology space × species, succession
+  rule, policy inertia, faction tolerance, legitimacy source); polity
+  interior state (government form, official ideology 4-vector,
+  legitimacy, cohesion, enforcement) seated at entry from species +
+  popular ideology; Interior-phase recompute each epoch (legitimacy =
+  f(SoL trend, official-vs-popular ideology gap, war-outcome stub,
+  ruler prestige [enters with G2], cultural accommodation); cohesion =
+  segment-aggregated legitimacy discounted by structural strain: size,
+  culture count, capital distance). Serialize (interior layer v1),
+  golden regen, knobs `Interior.*`.
+- [x] **G2 — Characters** *(done: `Interior/Character.cs` (+Dynasty),
+  `CharacterOps.cs`; events 700–703 RulerAscended/CharacterDied/
+  SuccessionCrisis/NotableEmerged with `ICharacterPayload` biography
+  index (`EventLog.ForCharacter`); channels 60–62; courts seated at
+  entry (ruler+heir(dynastic)+marshal), per-epoch death checks with
+  species-real age curve + ruler assassination hazard, succession per
+  form (heir → crisis → fresh house; committee forms mint; machine
+  forks silently), commanders fill warship/expedition fleets, founder
+  notables on colony foundings (capped), dynastic prestige feeds the
+  ruler legitimacy term; interior layer v2 (CHAR/DYNA); knobs
+  `Character.*` ×11 + TUNING; golden regen — 390/390 green. DECISION:
+  characters are registry-level with payload-referenced events, NOT
+  Actors entries — the actor-substrate/controller slot is play-scope
+  (P2), out of G's boundary)*: registry + deterministic on-demand generation
+  (culture syllable names, ideology position + boldness/zeal/competence/
+  ambition, species-real lifespans incl. hive continuity + machine
+  fork/deprecate); role slots (ruler/heir/marshal per form; fleet
+  commanders fill `FleetRecord.CommanderId`; faction leaders arrive in
+  G3, corp execs in G7); aging + per-epoch death checks (age curve +
+  hazards: war for commanders, assassination ∝ faction militancy × own
+  ambition × unpopularity); succession per form + succession-crisis
+  events; dynasties + prestige (feeds legitimacy); notables capped per
+  polity (founder from colony foundings now; war hero/pirate lord/
+  explorer when their triggers exist); renown from event participation;
+  biography derivable from the log (P8 test). Events open 7xx block.
+  Channels append from 60. Serialize (characters/dynasties), golden
+  regen, knobs `Character.*`.
+- [x] **G3 — Factions** *(done: `Interior/Faction.cs`, `FactionOps.cs`;
+  events 304 FactionFormed / 305 FactionDissolved; channel 63
+  FactionSeed; one active faction per (polity, basis); leaders minted
+  as characters (sacral leaders are Prophet notables); budget pressure
+  via `PressedBudget` in Allocation (bounded by form tolerance,
+  redirects never mints); appeasement pays each faction up to
+  strength × `AppeasementDemandShare` × the allocatable base, rationed
+  pro-rata — treasury→faction-wealth flow in the conservation test;
+  grievance accrues on the unmet fraction, decays appeased;
+  dissolution returns wealth to segments; interior layer v3 (FACT);
+  knobs `Faction.*` ×13 + TUNING; golden regen — 396/396 green.
+  SURPRISE: with demand priced off receipts and decay at 0.04/yr the
+  system self-appeased to zero grievance galaxy-wide — demand now
+  prices off the same allocatable base as the pool (share 0.2) and
+  decay dropped to 0.008/yr; seed-42 grievances now range 0–5.2 and
+  differentiate polities)*: registry; six-basis formation from real state
+  (ideological cluster distance, culture minority, frontier distance,
+  corporate dividends [wired live in G7], veteran/commander networks,
+  sacral surge); strength (pop share + wealth + patron renown), agenda
+  (policy deltas), militancy; Interior-phase pressure (bounded
+  budget/policy drift toward strong factions' agendas); appeasement
+  spending (`Budget.Appeasement` treasury flow → faction wealth,
+  conserved); grievance accrual for unappeased strong factions; faction
+  leaders minted as characters. Events in 3xx. Serialize, golden regen,
+  knobs `Faction.*`.
+- [x] **G4 — Temperament composition** *(done: `Interior/Temperament.cs`
+  — `Compose` blends species/ideology/ruler/faction terms by the form's
+  CompositionWeights; ideology→trait map + per-basis faction pulls are
+  structural catalog (TUNING note next sweep); PerceptionView gains
+  `SelfTemperament` (computed in Perception, P3-clean, species-only
+  fallback for shape skeletons); GenesisController law code, armaments
+  reserves, and yard priorities read the composition — fixed species
+  reads retired from Intent; no new knobs (mappings are structural);
+  golden regen — 400/400 green)*: species disposition × official
+  ideology × ruler personality × faction pressure, weighted by
+  government form; composition computed at Perception (P3-clean, rides
+  the view); `GenesisController` and other Intent paths consume it;
+  fixed `SpeciesProfile` temperament reads retire from Intent. Knobs
+  `Temperament.*`, golden regen.
+- [x] **G5 — Graduation** *(done: `Interior/GraduationOps.cs`; events
+  302 SchismDeclared, 303 CoupStruck, 306 RevoltCrushed, 307
+  GovernmentReformed; channel 64; one attempt per polity per epoch (the
+  loudest faction past legitimacy × enforcement × GraduationGripFactor);
+  success p = pressure/(pressure+grip), else revolt. Schism: seceding
+  ports (frontier / culture-majority) walk with facilities, fleets
+  (+hull-ledger transfer), pop-share of every treasury/reserve, war
+  chest as founding treasury, entry designs seeded, culture split for
+  regional schisms (`PopulationSegment.CultureId` now settable), leader
+  crowned, court refills; degenerate schisms (0 or all ports) become
+  revolts. Coup: leader takes the seat, deposed ruler lives disgraced,
+  ideology lurches `CoupIdeologyLurch`, form reseats (307 landmark),
+  contested flag = civil-war stub for H, chest funds the regime.
+  Revolt: martyred leader (RevoltCrushed is the death record), strength
+  halved, grievance ×`RevoltGrievanceKeep` compounds, legitimacy hit.
+  Knobs ×5 + TUNING; seed-42 r12: 5 schisms / 2 coups / 2 revolts, 10 →
+  15 polities. Several older tests amended: sovereignty can now move
+  (ports/lanes/leaders), schism states don't mint or found homeworlds —
+  conservation test counts PolityEmerged events. 406/406 green, golden
+  regen)*: threshold `strength × grievance >
+  legitimacy × enforcement`; basis-routed: **schism** (regional/
+  cultural: domains secede — new polity actor + record, culture split
+  via the Culture registry, ports/segments/facilities/fleets
+  reassigned, name from its own culture; credits split conserved),
+  **coup** (throne-seeking: ruler replaced by faction leader, ideology
+  lurch, possible form change; contested → civil-war *event stub* for
+  H), **revolt** (failed graduation: unrest damage, martyrs,
+  compounding grievance), **charter** stub (economic basis: waits for
+  G7 corporations; grievance holds meanwhile). Form changes are
+  chronicle landmarks. Events in 3xx. Serialize, golden regen.
+- [x] **G6 — Tech domains** *(done: `Interior/TechState.cs` (TechDomain,
+  Tech.Ceiling/Region/Tier/Threshold), `Interior/TechOps.cs`; event 207
+  TechAdvanced (economic block); PolityRecord.TechTier[4]+Progress[4];
+  `ResearchSplit` standing policy on PolityPolicies (actors layer v4;
+  GenesisController splits by temperament); research in Allocation draws
+  RefinedExotics × Compute from own markets, spend recycles as wages;
+  `MarketEngine.AddResearchDemand` sites the labs; geometric thresholds;
+  trade diffusion (cross-border lanes × posted capacity × openness,
+  structurally capped one tier below source) + salvage diffusion
+  (out-graded wreckage in reach teaches Military/Industrial); entry
+  tiers from the emergence schedule (EntryGradeBonus ≥ 0.10 lifts
+  Astrogation/Industrial; militants arrive armed) and the entry-design
+  grade hack deleted; schism states inherit parent science; consumers
+  rewired: MarketEngine recipes + grade ceilings (Industrial),
+  ShipDesign.Register per-role region, lane range + siting radius
+  (Astrogation), segment growth (Life); **Economy.TechTierStub
+  retired**; TECH lines (interior v4); knobs `Tech.*` ×12 + TUNING;
+  seed-42: tiers 1–3 differentiated, 13 advances — 412/412 green,
+  golden regen)*: per-polity 4-domain tier state
+  (Industrial/Military/Astrogation/Life) + progress; research as
+  Allocation execution (Research budget split, consumes Refined
+  Exotics × Compute effectiveness from own markets, spend recycles as
+  wages — conserved); geometric tier thresholds; `TechAdvance` event;
+  `Tech.Ceiling(polity, domain)` / `Tech.Region(polity, domain)`;
+  consumers rewired: recipe gating + grade ceilings (MarketEngine),
+  design sheets (ShipDesign), port service/inter-port radii
+  (Astrogation), pop growth (Life), doctrine hooks reserved for H
+  (Military); trade-contact diffusion (∝ volume × openness, capped one
+  tier below source) + salvage diffusion (wreckage grade above own
+  ceiling; precursor digging is I); espionage slot reserved; starting
+  tiers from `EntryGradeBonus` (Astrogation/Industrial per design) and
+  the entry-design grade hack deleted; **retire `Economy.TechTierStub`**.
+  Serialize (tech layer), golden regen, knobs `Tech.*`.
+- [x] **G7 — Corporations** *(done: `Interior/Corporation.cs`
+  (+`ICreditLedger`, `CorporateController`), `CorporationOps.cs`;
+  events 600–604 (Chartered / PirateBandFormed / Nationalized /
+  Bankrupt / NicheDied); channel 65; corporations ARE actors
+  (Kind.Corporation, controller reattached on load); niche watcher
+  (unserved lane gradients, prohibited margins, unexploited deposits,
+  industrial gaps, lawless rich lanes) feeds merchant factions
+  (Corporate basis + NicheType/NichePersistence on Faction, interior
+  v5); charter graduation incorporates at persistence + CharterOpenness
+  gate (cartels and pirate bands charter nowhere; pirate lords minted);
+  faction leader becomes the executive; operations in Allocation:
+  facility investment by niche, freight-hull purchases posted on
+  gradient lanes, cartel black-book skim (conserved wealth transfer),
+  fleet supply with attrition (FleetOps.Wreck now ledger-aware),
+  dividends + lobby → host corporate faction wealth, magnate notables,
+  bankruptcy/niche-death dissolution with residue (facilities abandon
+  to the sovereign, debt lands on the sovereign — never wiped);
+  NationalizeAct wired through GenesisController (CorporateBrief +
+  OwnCredits on the view) and Resolution; `SimState.LedgerOf` unifies
+  producer/supplier payouts; corp facilities attach to nearest
+  sovereign port; corporations layer v1 (CORP); knobs `Corporate.*`
+  ×15 + TUNING; conservation + hull-ledger tests extended. Seed-42
+  r12: 74 corporations over 40 epochs, ~30 active at end — 418/418
+  green, golden regen. SURPRISE: a dangling-else in dissolution paid
+  the sovereign once per non-home-port segment — a conservation-test
+  catch (mint of ~35k credits at r10) found by per-phase bisection;
+  braces, and the debt now transfers instead of vanishing. NOTE:
+  deficit-financed hosts (negative treasuries) never trigger
+  nationalization — the megacorp outlives the indebted state;
+  flagged in TUNING)*: persistent-niche watcher (price gradients
+  across lanes, unserved profitable routes, unexploited deposits,
+  prohibited margins; persistence counters over consecutive epochs);
+  charter graduation founds (host `CharterOpenness` gate; the merchant
+  faction incorporates; founding niche stamps character: extraction /
+  freight / fabricator / **cartel**; pirate bands registry-level until
+  H); corporate actor (ActorKind.Corporation) + `CorporateController`
+  (policies: investment, route bids, dividend rate, lobby targets,
+  risk appetite; acts per contract); portfolio: facilities
+  (OwnerActorId), freighters via the fleet interface, internal
+  logistics at cost (own-network transfers skip market transactions,
+  net buys/sells at endpoints); dividends → host-polity faction wealth
+  (conserved); lobbying strengthens aligned factions / nudges policies
+  within bounds; `NationalizeAct` resolution (assets to state, scandal,
+  corp flight); deaths: bankruptcy cascade, nationalization, niche
+  death — residue. Events open 6xx block. Serialize (corporations
+  layer), golden regen, knobs `Corporate.*`.
+- [x] **G8 — REPL surfaces** *(done: `Inspector/InteriorView.cs` —
+  `polity [id]` panel (form, legitimacy/cohesion bars, official line,
+  reign with dynasty + since-year from the log, court, tech tiers,
+  factions with strength/grievance bars, hosted charters),
+  `characters [polityId]` roster, `bio <charId>` (P8: personality +
+  the life's events from `ForCharacter`), `tech` table with progress
+  percentages, `corps` registry (niche, host, credits, portfolio,
+  exec, dead-with-residue lines); `emap tech` layer (owner Astrogation
+  tier digit — the reach gap visible); help text updated; chronicle
+  prose landed with each task; watch untouched, Inspector-only change
+  — 418/418, no golden change. Golden freeze happens after the G9 fix
+  wave)*: `polity <id>` panel (form,
+  legitimacy, cohesion, ruler + reign + dynasty, factions with
+  strength/grievance bars, tech tiers); `characters [polityId]` +
+  `bio <charId>` (biography from the log); `tech` panel + `map` tech
+  layer; `corps` registry dump (niche, portfolio, dividends, host);
+  chronicle prose for every new event type in `SimTraceView.Describe`;
+  `watch` stays intact (byte-neutral observation). Golden frozen once
+  at slice end.
+- [x] **G9 — fresh-eyes whole-branch review + fix wave** *(done: one
+  subagent reviewed the full branch diff; 7 confirmed findings, all
+  fixed in one wave: (1) coups now found a house whenever the
+  resulting form is lineage-based (was: only on form change — dynastic
+  thrones went permanently houseless); (2) freight fees now pay the
+  posting fleets (`MarketEngine.PayHaulers`, exporter→hauler conserved
+  flow) — freight corporations were structurally revenue-less and
+  died on schedule; (3) dead executives refill like any court, and
+  magnate minting is Alive-guarded + chronicled + renowned; (4)
+  graduation skips dead-leader factions (never crown a corpse); (5)
+  schism seat selection iterates ports in id order, not the HashSet
+  (P6 hardening); (6) pirate bands store haven port in HomePortId and
+  the hunted lane in new `Corporation.TargetId` (serialized); (7)
+  capped diffusion stops climbing at source−1 instead of clamping
+  after emitting phantom TechAdvance events. Review also explicitly
+  cleared conservation, determinism keying, serialization field
+  orders, and registry lifecycle paths. TUNING sweep complete
+  (Interior/Character/Faction/Tech/Corporate tables + structural
+  notes). Shape bands verified at seeds 42/7/1234: graduations 5–6
+  per ~10-polity galaxy per 40 epochs, characters within the sparsity
+  band, tech tiers 1–3 no runaway. Golden regenerated (freight income
+  changed histories) — 418/418 green)*.
+- [x] **G10 — eyeball gate — accepted 2026-07-10** after one
+  user-flagged investigation wave: corporate stillbirths (see
+  Surprises — the founding supply race). Story surfaces verified on
+  seed 42 r12: the Mivo Front's coup in polity #1, the Kaor League
+  schism cascade out of polity #0, polity #9's cursed throne, the
+  Astrogation reach gap on `emap tech`, and a corp registry with real
+  lifecycles.
+- [x] **G11 — merge + wrap-up**: merged to main locally · HANDOFF
+  updated · Slice H kickoff prompt written
+  (`2026-07-10-slice-h-kickoff-prompt.md`) · kickoff checkbox flipped ·
+  golden frozen at the final format (last regen: the corp founding
+  fixes) · push on user say-so.
+
+## Decisions
+
+- New code lives in `src/Core/Epoch/Interior/` (namespace
+  `StarGen.Core.Epoch` stays flat — the folder is organization only),
+  so the interior systems don't drown the phase files.
+- Knob families planned: `Interior`, `Character`, `Faction`,
+  `Temperament`, `Tech`, `Corporate` on EpochSimConfig.
+- `TechAdvance` sits in the **economic 2xx block (207)** — research is
+  an Allocation/economy mechanic per the design doc; the political
+  block keeps graduation events.
+- Factions/characters/dynasties get their own id spaces (not actor
+  ids); corporations ARE actors (ActorKind.Corporation) once chartered.
+- `EntryGradeBonus` maps to starting tech tiers (its design intent);
+  whether the field itself survives is decided in G6.
+
+## Surprises
+
+- **Corporate stillbirths were a founding supply race** (user-flagged at
+  eyeball): 42 of 47 corp deaths on seed 42 never acquired one asset and
+  died at exactly NicheDeathEpochs — freight lines with 13k credits
+  couldn't buy a single hull because their frontier home markets held no
+  ship components and corporations registered NO demand pull (the same
+  price-signal gap polities hit in slice E, fixed then with
+  MilitaryPullComponents); fabricator baskets (10 alloys + 10 machinery)
+  likewise never assembled; freight niches were detected on raw price
+  gaps that arbitrage's full cost math (freight+fuel+tax+labor, real
+  inventory) could never profitably serve; and works chartered with 0–3
+  credits against 110-credit baskets. Fixes: `AddCorporateDemand` (the
+  planned build basket / hull components pull at the home market, shared
+  `PlannedFacility` chooser), freight-niche detection now runs the
+  arbitrage's own profitability test, hulls source from any host-polity
+  market ("internal logistics at cost" — commissioned at the yard,
+  sailed home), `CharterCapitalFloor` (200) gates undercapitalized
+  charters (cartels exempt), and `FoundingGraceEpochs` (4) precedes the
+  lean clock. Result: stillbirths 42 → ~6 hard-luck cases, 56 corps
+  chartered / 30 alive at seed-42 end, minimum lifespan ~9 epochs,
+  freight lines actually post hulls and book haulage.

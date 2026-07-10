@@ -50,6 +50,18 @@ public sealed class SimState
     /// split mechanic lands.</summary>
     public List<Culture> Cultures { get; } = new List<Culture>();
     public List<Loan> Loans { get; } = new List<Loan>();
+    /// <summary>Sparse by construction (characters.md): role occupants and
+    /// notables only, own id space, minted on demand deterministically.</summary>
+    public List<Character> Characters { get; } = new List<Character>();
+    public List<Dynasty> Dynasties { get; } = new List<Dynasty>();
+    /// <summary>Interest blocs inside polities — pressure without a
+    /// controller slot until graduation (frame/actors.md). Dead factions
+    /// stay as history.</summary>
+    public List<Faction> Factions { get; } = new List<Faction>();
+    /// <summary>Emergent economic institutions (economy/corporations.md) —
+    /// actors of Kind.Corporation with conserved books. Dead corps stay as
+    /// history.</summary>
+    public List<Corporation> Corporations { get; } = new List<Corporation>();
     /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
     /// never serialized; slice H replaces this with real interdiction.</summary>
     public HashSet<int> SeveredLanes { get; } = new HashSet<int>();
@@ -64,6 +76,28 @@ public sealed class SimState
     {
         Config = config;
         Skeleton = skeleton;
+    }
+
+    /// <summary>The conserved credit book behind any earning actor — a
+    /// polity's record or a corporation's (slice G). Production and payouts
+    /// move money through this, never caring who is earning (P4).</summary>
+    public ICreditLedger LedgerOf(int actorId)
+    {
+        if (actorId < Polities.Count && Polities[actorId].ActorId == actorId)
+            return Polities[actorId];
+        foreach (var p in Polities)
+            if (p.ActorId == actorId) return p;
+        foreach (var c in Corporations)
+            if (c.ActorId == actorId) return c;
+        throw new KeyNotFoundException($"no credit ledger for actor {actorId}");
+    }
+
+    /// <summary>The corporation record behind an actor id, or null.</summary>
+    public Corporation? CorporationOf(int actorId)
+    {
+        foreach (var c in Corporations)
+            if (c.ActorId == actorId) return c;
+        return null;
     }
 
     /// <summary>The polity record for an actor id (registry is actor-id ordered

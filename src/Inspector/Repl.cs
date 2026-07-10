@@ -32,7 +32,10 @@ public sealed class Repl
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
                     Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
-                    Console.WriteLine("emap [domains|lanes|traffic|price [good]] — political / lane / posted-traffic / price map");
+                    Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech] — political / lane / traffic / price / tech map");
+                    Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
+                    Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
+                    Console.WriteLine("tech — per-polity domain tiers + progress · corps — the corporation registry");
                     Console.WriteLine("market <portId> — one market's prices, inventory, black book, people, industry");
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
@@ -115,8 +118,35 @@ public sealed class Repl
                     break;
                 }
                 case "emap" or "estep" or "market" or "lanecut" or "fleet"
-                    or "designs" or "fleetpost" when _sim == null:
+                    or "designs" or "fleetpost" or "polity" or "characters"
+                    or "bio" or "tech" or "corps" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "polity" when parts.Length >= 2 && int.TryParse(parts[1], out var pid):
+                    Console.WriteLine(InteriorView.RenderPolity(_sim!, pid));
+                    break;
+                case "polity":
+                    foreach (var a in _sim!.Actors)
+                        if (a.Kind == Core.Epoch.ActorKind.Polity && a.Entered)
+                            Console.WriteLine(InteriorView.RenderPolity(_sim!, a.Id));
+                    break;
+                case "characters" when parts.Length >= 2 && int.TryParse(parts[1], out var cpid):
+                    Console.WriteLine(InteriorView.RenderCharacters(_sim!, cpid));
+                    break;
+                case "characters":
+                    Console.WriteLine(InteriorView.RenderCharacters(_sim!));
+                    break;
+                case "bio" when parts.Length >= 2 && int.TryParse(parts[1], out var cid):
+                    Console.WriteLine(InteriorView.RenderBiography(_sim!, cid));
+                    break;
+                case "bio":
+                    Console.WriteLine("bio <characterId> — see 'characters' for ids");
+                    break;
+                case "tech":
+                    Console.WriteLine(InteriorView.RenderTech(_sim!));
+                    break;
+                case "corps":
+                    Console.WriteLine(InteriorView.RenderCorporations(_sim!));
                     break;
                 case "fleet" when parts.Length >= 2 && int.TryParse(parts[1], out var fid):
                     Console.WriteLine(FleetView.RenderOne(_sim!, fid));

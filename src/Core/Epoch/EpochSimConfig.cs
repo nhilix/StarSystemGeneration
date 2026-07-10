@@ -1,4 +1,4 @@
-namespace StarGen.Core.Epoch;
+﻿namespace StarGen.Core.Epoch;
 
 /// <summary>Epoch-sim input: identity + the calibration knob families, seeded
 /// defaults. All rates are per world-year — the epoch is an integration step,
@@ -17,6 +17,235 @@ public sealed class EpochSimConfig
     public ExpansionKnobs Expansion { get; } = new ExpansionKnobs();
     public ControllerKnobs Controller { get; } = new ControllerKnobs();
     public FleetKnobs Fleet { get; } = new FleetKnobs();
+    public InteriorKnobs Interior { get; } = new InteriorKnobs();
+    public CharacterKnobs Character { get; } = new CharacterKnobs();
+    public FactionKnobs Faction { get; } = new FactionKnobs();
+    public TechKnobs Tech { get; } = new TechKnobs();
+    public CorporateKnobs Corporate { get; } = new CorporateKnobs();
+}
+
+/// <summary>Corporate dials (economy/corporations.md): niche detection
+/// thresholds, the charter clock and gate, operating shares, and the
+/// deaths. Slice G. Name suffixes per niche are catalog data.</summary>
+public sealed class CorporateKnobs
+{
+    /// <summary>Black-book value (demand × price) at a port that reads as
+    /// a profitable prohibited niche — the cartel trigger.</summary>
+    public double CartelValueFloor { get; set; } = 15.0;
+    /// <summary>Share of the home market's black-book value a cartel skims
+    /// from buyer wealth per epoch (a conserved transfer).</summary>
+    public double CartelSkim { get; set; } = 0.3;
+    /// <summary>War-chest credits a merchant faction needs before its
+    /// charter fires — an unfunded venture is a stillbirth (cartels are
+    /// exempt: they charter on nerve, not works).</summary>
+    public double CharterCapitalFloor { get; set; } = 200.0;
+    /// <summary>Host charter policy below which no charter is granted (the
+    /// merchant faction waits, and grieves).</summary>
+    public double CharterOpennessGate { get; set; } = 0.4;
+    /// <summary>Consecutive epochs a niche must persist before the charter
+    /// graduation fires.</summary>
+    public int CharterPersistenceEpochs { get; set; } = 3;
+    /// <summary>Extraction potential at an unexploited port that reads as
+    /// a deposit niche.</summary>
+    public double DepositNichePotential { get; set; } = 0.65;
+    /// <summary>Price-over-founding ratio at which a missing producer reads
+    /// as an industrial gap.</summary>
+    public double FabricationPriceRatio { get; set; } = 2.5;
+    /// <summary>Epochs after founding before the lean clock starts — the
+    /// build-out grace (funding, hauling the basket, construction, spin-up).</summary>
+    public int FoundingGraceEpochs { get; set; } = 4;
+    /// <summary>Relative price gradient across an unserved lane that reads
+    /// as a freight niche.</summary>
+    public double FreightNicheMargin { get; set; } = 0.6;
+    /// <summary>Ship-components demand a funded freight line registers at
+    /// its home market per epoch — the price signal that hauls its hulls'
+    /// makings in (the slice-E lesson applied to corporations).</summary>
+    public double FreightPullComponents { get; set; } = 6.0;
+    /// <summary>Epoch receipts below which a corporation counts as lean —
+    /// enough lean epochs and the niche is dead.</summary>
+    public double LeanReceiptsFloor { get; set; } = 1.0;
+    /// <summary>Share of corporate credits spent lobbying the aligned
+    /// faction per epoch.</summary>
+    public double LobbyShare { get; set; } = 0.01;
+    /// <summary>Epoch receipts that mint the executive a magnate notable.</summary>
+    public double MagnateReceipts { get; set; } = 50.0;
+    /// <summary>Facilities one corporation may hold (portfolio cap).</summary>
+    public int MaxFacilities { get; set; } = 4;
+    /// <summary>Legitimacy a polity eats for nationalizing (the reputation
+    /// damage stub until slice I's news).</summary>
+    public double NationalizeLegitimacyHit { get; set; } = 0.1;
+    /// <summary>Corporate credits over the host treasury at which the
+    /// Intent AI reaches for nationalization (a de facto power).</summary>
+    public double NationalizeWealthFactor { get; set; } = 2.0;
+    /// <summary>Consecutive lean epochs that kill the niche.</summary>
+    public int NicheDeathEpochs { get; set; } = 5;
+    /// <summary>Posted lane capacity that reads as raid-worthy cargo where
+    /// the owner keeps no warships (the pirate-band trigger).</summary>
+    public double RaidCapacityFloor { get; set; } = 8.0;
+}
+
+/// <summary>Tech dials (economy/technology.md): the tier ladder's cost
+/// curve, research input conversion, diffusion rates, and what Astrogation
+/// and Life buy per tier. Slice G. Grade ceilings per tier are the Grade
+/// system's structural ladder (Grades.TechCeiling).</summary>
+public sealed class TechKnobs
+{
+    /// <summary>Extra inter-port lane reach per Astrogation tier above era
+    /// standard, in hexes.</summary>
+    public int AstroRangePerTierHexes { get; set; } = 4;
+    /// <summary>Extra port service radius per Astrogation tier above era
+    /// standard, in hexes — whose ports reach farther, visibly.</summary>
+    public int AstroRadiusPerTierHexes { get; set; } = 3;
+    /// <summary>Progress points to leave tier 1; each further tier costs
+    /// ×ThresholdGrowth more (geometric investment thresholds).</summary>
+    public double BaseThreshold { get; set; } = 25.0;
+    /// <summary>Research effectiveness multiplier at compute parity with
+    /// exotics (compute multiplies, never substitutes).</summary>
+    public double ComputeBoost { get; set; } = 0.5;
+    /// <summary>Population growth multiplier per Life tier above standard.</summary>
+    public double LifeGrowthPerTier { get; set; } = 0.15;
+    /// <summary>Research progress per Refined Exotics unit consumed.</summary>
+    public double ProgressPerExotic { get; set; } = 1.0;
+    /// <summary>Refined Exotics demand a funded research line registers at
+    /// the capital per epoch — the price signal that sites exotics labs.</summary>
+    public double ResearchPullExotics { get; set; } = 6.0;
+    /// <summary>Compute demand the research line registers likewise.</summary>
+    public double ResearchPullCompute { get; set; } = 3.0;
+    /// <summary>Military/Industrial progress per wrecked hull per world-year
+    /// while out-graded wreckage sits in reach (salvage diffusion; full
+    /// consumption including precursor digging is slice I).</summary>
+    public double SalvagePerHullPerYear { get; set; } = 0.02;
+    /// <summary>Ladder cost growth per tier (geometric).</summary>
+    public double ThresholdGrowth { get; set; } = 2.0;
+    /// <summary>Progress per world-year of full-volume open trade with a
+    /// partner ≥2 tiers ahead (capped one tier below the source).</summary>
+    public double TradeDiffusionPerYear { get; set; } = 0.15;
+    /// <summary>Posted lane capacity at which trade diffusion saturates.</summary>
+    public double TradeVolumeSaturation { get; set; } = 10.0;
+}
+
+/// <summary>Faction dials (polity/factions-and-government.md): formation
+/// thresholds, pressure and appeasement rates, grievance. Slice G. Per-basis
+/// budget agendas are catalog data (FactionOps.BasisBudget).</summary>
+public sealed class FactionKnobs
+{
+    /// <summary>Share of the polity's epoch receipts a full-strength faction
+    /// demands as appeasement — payouts cap here (no infinite war chests),
+    /// and grievance accrues on the unmet fraction.</summary>
+    public double AppeasementDemandShare { get; set; } = 0.2;
+    /// <summary>How far the official line lurches toward the coup faction's
+    /// target when the palace falls.</summary>
+    public double CoupIdeologyLurch { get; set; } = 0.5;
+    /// <summary>Legitimacy lost by a successful coup.</summary>
+    public double CoupLegitimacyHit { get; set; } = 0.15;
+    /// <summary>Strength below which a faction dissolves (its trigger has
+    /// passed; wealth returns to the segments).</summary>
+    public double DissolveStrengthFloor { get; set; } = 0.05;
+    /// <summary>Multiplier on legitimacy × enforcement in the graduation
+    /// test — how much grip a state gets per point of either. Lower it and
+    /// every polity cracks; raise it and factions grumble forever.</summary>
+    public double GraduationGripFactor { get; set; } = 4.0;
+    /// <summary>Population share an interest needs to coalesce (intolerant
+    /// forms raise it — hives barely factionalize).</summary>
+    public double FormMinShare { get; set; } = 0.15;
+    /// <summary>Mean port distance (as a fraction of colonization reach)
+    /// past which a domain counts as frontier.</summary>
+    public double FrontierDistanceFraction { get; set; } = 0.5;
+    /// <summary>Grievance decay per world-year when fully appeased.</summary>
+    public double GrievanceDecayPerYear { get; set; } = 0.008;
+    /// <summary>Grievance accrual per world-year of unappeased strength.</summary>
+    public double GrievancePerYear { get; set; } = 0.02;
+    /// <summary>Mean ideology-axis distance from the official line past
+    /// which segments count as dissenters.</summary>
+    public double IdeologyGapToForm { get; set; } = 0.25;
+    /// <summary>Cap on how far one faction bends the budget or the official
+    /// line in one epoch.</summary>
+    public double MaxBudgetPressure { get; set; } = 0.35;
+    /// <summary>Officer renown × species militancy needed for a military
+    /// faction to coalesce.</summary>
+    public double MilitaryRenownToForm { get; set; } = 12.0;
+    /// <summary>Faction-strength weight of a patron's renown.</summary>
+    public double PatronRenownWeight { get; set; } = 0.01;
+    /// <summary>Budget/ideology drift toward agendas per world-year at full
+    /// strength and tolerance.</summary>
+    public double PressureRatePerYear { get; set; } = 0.01;
+    /// <summary>Fraction of grievance a crushed revolt keeps (a successful
+    /// graduation spends all of it) — repression compounds.</summary>
+    public double RevoltGrievanceKeep { get; set; } = 0.75;
+    /// <summary>Legitimacy lost crushing a revolt.</summary>
+    public double RevoltLegitimacyHit { get; set; } = 0.1;
+    /// <summary>Sacral-axis position below which segments read as a faith
+    /// movement's base.</summary>
+    public double SacralAxisLine { get; set; } = 0.35;
+    /// <summary>Faction-strength weight of its wealth share.</summary>
+    public double WealthStrengthWeight { get; set; } = 0.1;
+}
+
+/// <summary>Character dials (polity/characters.md): mortality, succession
+/// fallout, renown magnitudes, dynastic prestige, sparsity caps. Slice G.
+/// Species lifespans are structural catalog data (CharacterOps.Lifespan).</summary>
+public sealed class CharacterKnobs
+{
+    /// <summary>Ruler assassination hazard per world-year at full ambition
+    /// and zero legitimacy (scales by both).</summary>
+    public double AssassinationBasePerYear { get; set; } = 0.02;
+    /// <summary>Legitimacy lost outright when a succession has no heir.</summary>
+    public double CrisisLegitimacyHit { get; set; } = 0.15;
+    /// <summary>Dynastic prestige accrued per world-year of reign.</summary>
+    public double DynastyPrestigePerReignYear { get; set; } = 0.01;
+    /// <summary>Heir mint age as a fraction of species lifespan.</summary>
+    public double HeirMintAgeFraction { get; set; } = 0.25;
+    /// <summary>Flat deprecation hazard per world-year for machine minds
+    /// (they fork replacements instead of aging).</summary>
+    public double MachineDeprecationPerYear { get; set; } = 0.002;
+    /// <summary>Living notables a polity carries at most (sparsity, P8).</summary>
+    public int MaxNotablesPerPolity { get; set; } = 6;
+    /// <summary>Death hazard per world-year at exactly one lifespan (the
+    /// age curve rises quadratically past 55% of span to reach this).</summary>
+    public double MortalityShapePerYear { get; set; } = 0.15;
+    /// <summary>Ruler-prestige legitimacy gain per point of ruler renown +
+    /// dynastic prestige (0.5 is the neutral prestige term).</summary>
+    public double PrestigePerRenown { get; set; } = 0.02;
+    /// <summary>Renown for taking a seat.</summary>
+    public double RenownAscension { get; set; } = 2.0;
+    /// <summary>Renown for being minted a notable.</summary>
+    public double RenownNotable { get; set; } = 5.0;
+    /// <summary>Ruler/marshal/commander mint age as a lifespan fraction.</summary>
+    public double RulerMintAgeFraction { get; set; } = 0.45;
+}
+
+/// <summary>Polity-interior dials (polity/factions-and-government.md):
+/// official-ideology drift, the legitimacy term weights (form multipliers
+/// scale them — catalog data), structural strain, and enforcement. Slice G.</summary>
+public sealed class InteriorKnobs
+{
+    /// <summary>Official-ideology drift toward the popular line per
+    /// world-year at zero form inertia (forms scale it down).</summary>
+    public double OfficialDriftPerYear { get; set; } = 0.008;
+    /// <summary>How strongly the SoL *trend* (this epoch vs last) moves the
+    /// prosperity legitimacy term beyond the SoL level itself.</summary>
+    public double SoLTrendGain { get; set; } = 3.0;
+    /// <summary>Base weight of the prosperity term in legitimacy.</summary>
+    public double LegitimacyProsperityWeight { get; set; } = 0.30;
+    /// <summary>Base weight of the official-vs-popular alignment term.</summary>
+    public double LegitimacyIdeologyWeight { get; set; } = 0.25;
+    /// <summary>Base weight of the ruler-prestige term.</summary>
+    public double LegitimacyRulerWeight { get; set; } = 0.20;
+    /// <summary>Base weight of the war-outcome term (neutral until H).</summary>
+    public double LegitimacyWarWeight { get; set; } = 0.10;
+    /// <summary>Base weight of the cultural-accommodation term.</summary>
+    public double LegitimacyAccommodationWeight { get; set; } = 0.15;
+    /// <summary>Cohesion strain per owned port beyond the first — size
+    /// carries its successor states inside it.</summary>
+    public double StrainPerPort { get; set; } = 0.008;
+    /// <summary>Cohesion strain per culture beyond the founding one.</summary>
+    public double StrainPerCulture { get; set; } = 0.05;
+    /// <summary>Cohesion strain at mean port distance = colonization reach.</summary>
+    public double StrainDistanceWeight { get; set; } = 0.15;
+    /// <summary>Enforcement floor — a state with no navy still polices.</summary>
+    public double EnforcementBase { get; set; } = 0.4;
+    /// <summary>Enforcement per warship hull per owned port.</summary>
+    public double EnforcementPerWarshipPerPort { get; set; } = 0.04;
 }
 
 /// <summary>Clock and stepping knobs (frame/time.md). Structural — serialized
@@ -142,9 +371,8 @@ public sealed class EconomyKnobs
     /// <summary>Fractional condition recovery per world-year toward the met
     /// upkeep fraction.</summary>
     public double ConditionRecoveryPerYear { get; set; } = 0.05;
-    /// <summary>Config-level producer tech tier until tech domains land
-    /// (slice G). 2 = standard capital recipes run, advanced stay gated.</summary>
-    public int TechTierStub { get; set; } = 2;
+    // Economy.TechTierStub retired (slice G): producer tech is per-polity,
+    // per-domain — PolityRecord.TechTier via the Tech interface.
 }
 
 /// <summary>Population dials, per world-year where a rate: demographics,
