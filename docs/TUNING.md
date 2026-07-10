@@ -226,5 +226,23 @@ count/tightness/strength, core radius, disc falloff, density target, anchor
 multipliers, `HomeworldRatePerCell` (polity count), traversability
 threshold. Serialized on the artifact's GCONFIG line; tuned last in slice B
 (0.02 → 0.008 for map legibility). They stay outside the epoch registry
-because they configure a different machine (the skeleton builder) — slice F
-replaces most of them with the causal genesis sim.
+because they configure a different machine (the skeleton builder). Slice F
+reads the shape knobs as **potential parameters** (`GalaxyPotential`): where
+matter wants to be; the cosmic sim decides where it ends up.
+
+Slice F adds genesis calibration under its own registry,
+`GalaxyKnobRegistry` (`src/Core/Galaxy/GalaxyKnobRegistry.cs`), serialized
+as name-sorted `GKNOB` lines in the config layer (v4) with the same
+unknown-name load refusal. Same three-surface discipline as the epoch
+registry (artifact, REPL `knobs`, this file).
+
+## Cosmic — the deep-time structure sim
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Cosmic.MergerCount` | 2.0 | More infalling dwarfs: more streams, starburst cohorts, structural variety per seed. | A quiet, textbook spiral. |
+| `Cosmic.MergerScale` | 1.0 | Heavier injections: mergers visibly reshape density/metallicity maps. | Mergers become flavor events. |
+| `Cosmic.StarFormationEfficiency` | 1.0 | Gas burns early: older, dimmer present-day mix, metals arrive sooner, less remaining gas fraction. | Late-blooming galaxy: gas-rich arms, young leans dominate. |
+| `Cosmic.EnrichmentRate` | 1.0 | Faster metallicity floor crossings: life viable earlier and wider (0b reads this directly). | Metal-poor galaxy: emergence compresses toward the late window. |
+| `Cosmic.GlobularCount` | 6.0 | More ancient metal-poor cluster cells (exotic terrain, own star table). | Rarer exotic terrain. |
+| `Cosmic.AgnActivity` | 1.0 | More/wider core sterilization epochs: the inner disc's life starts late, ancient-core powers vanish. | A quiet nucleus; core-adjacent early risers appear. |

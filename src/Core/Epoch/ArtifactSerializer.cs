@@ -25,7 +25,7 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 3), ("clock", 1), ("raster", 1), ("species", 1),
+        ("config", 4), ("clock", 1), ("raster", 1), ("species", 1),
         ("actors", 2), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
     };
@@ -51,6 +51,9 @@ public static class ArtifactSerializer
             R(gc.ArmStrength), R(gc.CoreRadius), R(gc.DiscFalloff),
             R(gc.MineralAnchorMultiplier), R(gc.PrecursorAnchorMultiplier),
             R(gc.HomeworldRatePerCell), R(gc.TraversabilityThreshold)));
+        // galaxy-side genesis dials, name-sorted (config layer v4)
+        foreach (var gknob in GalaxyKnobRegistry.All)
+            w.WriteLine(Join("GKNOB", gknob.Name, R(gknob.Get(gc))));
         w.WriteLine(Join("ESIM", ec.MasterSeed.ToString(Inv),
             ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
         // every calibration dial, name-sorted (the knob registry is the
@@ -307,6 +310,13 @@ public static class ArtifactSerializer
                             HomeworldRatePerCell = double.Parse(f[12], Inv),
                             TraversabilityThreshold = double.Parse(f[13], Inv),
                         });
+                        break;
+                    case "GKNOB":
+                        var gknob = GalaxyKnobRegistry.Find(f[1])
+                            ?? throw new InvalidDataException(
+                                $"unknown galaxy knob '{f[1]}'; keep the artifact with "
+                                + "matching code or explicitly regenerate");
+                        gknob.Set(skeleton!.Config, double.Parse(f[2], Inv));
                         break;
                     case "ESIM":
                         config = new EpochSimConfig { MasterSeed = ulong.Parse(f[1], Inv) };

@@ -1,6 +1,12 @@
 STARGEN-EPOCH|1
-LAYER|config|3
+LAYER|config|4
 GCONFIG|42|12|0.5|3|0.35|0.18|0.9|0.18|0.55|1|1|0.008|0.25
+GKNOB|Cosmic.AgnActivity|1
+GKNOB|Cosmic.EnrichmentRate|1
+GKNOB|Cosmic.GlobularCount|6
+GKNOB|Cosmic.MergerCount|2
+GKNOB|Cosmic.MergerScale|1
+GKNOB|Cosmic.StarFormationEfficiency|1
 ESIM|42|25|40
 KNOB|Controller.AlloysReservePerPort|3
 KNOB|Controller.ArmamentsPerPortPerMilitancy|2
