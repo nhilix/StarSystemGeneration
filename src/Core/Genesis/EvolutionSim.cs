@@ -37,6 +37,10 @@ public sealed class EvoState
     public int[] LastCatastropheStep { get; }
     /// <summary>Cell already registered a sapient origin.</summary>
     public bool[] OriginRegistered { get; }
+    /// <summary>Hospitability multiplier from precursor sterilization scars
+    /// (1 = unscarred): wars and collapses delay or erase downstream life —
+    /// the emergence map carries their shadows.</summary>
+    public double[] ScarPenalty { get; }
     public int[][] Neighbors { get; }
 
     public EvoState(GalaxySkeleton skeleton, int[][] neighbors)
@@ -46,8 +50,19 @@ public sealed class EvoState
         Alive = new bool[n]; AbioStep = new int[n]; Richness = new double[n];
         Setbacks = new int[n]; LastCatastropheStep = new int[n];
         OriginRegistered = new bool[n];
+        ScarPenalty = new double[n];
         Neighbors = neighbors;
-        for (int i = 0; i < n; i++) { AbioStep[i] = -1; LastCatastropheStep[i] = -1000; }
+        for (int i = 0; i < n; i++)
+        { AbioStep[i] = -1; LastCatastropheStep[i] = -1000; ScarPenalty[i] = 1.0; }
+    }
+
+    /// <summary>Kill the biosphere at a cell (sterilization event).</summary>
+    public void Sterilize(int i, int step)
+    {
+        Alive[i] = false;
+        Richness[i] = 0.0;
+        AbioStep[i] = -1;
+        LastCatastropheStep[i] = step;
     }
 }
 
@@ -110,6 +125,7 @@ public static class EvolutionSim
         skeleton.Origins.Clear();
         var s = new EvoState(skeleton, BuildNeighbors(skeleton));
         var config = skeleton.Config;
+        var arcs = new PrecursorArcEngine(skeleton, s);
         bool firstLife = false;
 
         for (int step = 0; step < Steps; step++)
@@ -119,6 +135,8 @@ public static class EvolutionSim
             Catastrophes(s, config, step);
             Spread(s, config, step);
             RegisterSapience(s, config, step);
+            arcs.Step(step);   // precursor waves live *inside* the loop:
+                               // their scars and gardens shape what follows
             observer?.Invoke(new EvoFrame(step, Steps,
                 -CosmicSim.SpanGyr + (step + 1) * GyrPerStep, s));
         }
@@ -167,7 +185,8 @@ public static class EvolutionSim
         for (int i = 0; i < cells.Count; i++)
         {
             if (s.Alive[i] || !ViableAt(cells[i], step)) continue;
-            double chance = config.Evolution.AbiogenesisRate * Hospitability(cells[i]);
+            double chance = config.Evolution.AbiogenesisRate
+                * Hospitability(cells[i]) * s.ScarPenalty[i];
             if (EpochRolls.NextDouble(config.MasterSeed, RollChannel.EvoAbiogenesis,
                     step, i) >= chance) continue;
             s.Alive[i] = true;
@@ -188,8 +207,8 @@ public static class EvolutionSim
         for (int i = 0; i < cells.Count; i++)
         {
             if (!s.Alive[i]) continue;
-            s.Richness[i] = Math.Min(1.0,
-                s.Richness[i] + RichnessGrowthPerStep * Hospitability(cells[i]));
+            s.Richness[i] = Math.Min(1.0, s.Richness[i]
+                + RichnessGrowthPerStep * Hospitability(cells[i]) * s.ScarPenalty[i]);
         }
     }
 
@@ -250,7 +269,7 @@ public static class EvolutionSim
                 int source = neighbors[k];
                 if (!s.Alive[source]) continue;
                 double chance = config.Evolution.SpreadRate * s.Richness[source]
-                    * Hospitability(cells[i]);
+                    * Hospitability(cells[i]) * s.ScarPenalty[i];
                 if (EpochRolls.NextDouble(config.MasterSeed, RollChannel.EvoSpread,
                         step, i, k) < chance)
                 { seeded[i] = true; break; }

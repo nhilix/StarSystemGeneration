@@ -26,6 +26,10 @@ public sealed class GalaxySkeleton
     /// precursor, current, and pre-spaceflight — written by the evolution
     /// sim, persisted as the origins layer.</summary>
     public List<SapientOrigin> Origins { get; } = new();
+    /// <summary>The precursor registry (slice F): per wave — vigor class,
+    /// extent, lane network, end cause, typed sites. The galaxy's
+    /// archaeology, persisted as the precursors layer.</summary>
+    public List<PrecursorWave> PrecursorWaves { get; } = new();
 
     private readonly List<RegionCell> _cells = new();
     private readonly Dictionary<HexCoordinate, RegionCell> _byCoord = new();

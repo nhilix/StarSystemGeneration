@@ -256,3 +256,7 @@ registry (artifact, REPL `knobs`, this file).
 | `Evolution.CatastropheFrequency` | 0.0015 | More setbacks: later, scarred emergences, richer catastrophe texture, fewer sapients. | Smooth gardens everywhere. |
 | `Evolution.SpreadRate` | 0.002 | Panspermia clusters life along habitable corridors. | Isolated abiogenesis islands. |
 | `Evolution.SapienceRate` | 0.05 | **The polity-count dial** (with the era horizons): more origins in every era. | Sparse minds; some seeds drop below 2 current polities. |
+| `Evolution.DomainBudgetFraction` | 0.5 | More galaxy claimable by precursors: bigger arcs, denser ruins, more scars shadowing the emergence map. | Precursors stay parochial; archaeology thins. |
+| `Evolution.GrandChance` / `GrandWaveLimit` | 0.15 / 3 | More elder races: galaxy-scale ruin networks, more inter-wave contact. | Grand arcs vanish; pocket rubble only. |
+| `Evolution.BioEngineeringRate` | 0.03 | More engineered gardens: anomalously rich biospheres, uplift-flavored early emergences near old territory. | Biology stays wild. |
+| `Evolution.DormantSurvivalRate` | 0.08 | More live remnants (war machines, defense grids) among the ruins — encounter density for later slices. | Dead archaeology only. |

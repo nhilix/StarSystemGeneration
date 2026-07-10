@@ -31,6 +31,9 @@ public enum WorldEventType
     FirstLife = 100,
     SapienceEmerged = 101,
     SpaceflightReached = 102,
+    PrecursorWaveRose = 103,
+    PrecursorWaveFell = 104,
+    PrecursorContact = 105,
     LaneOpened = 200,
     PortTierRaised = 201,
     FamineStruck = 202,
@@ -88,6 +91,20 @@ public sealed record SapienceEmergedPayload(int OriginId) : EventPayload;
 /// <summary>An origin reaches spaceflight in deep time — a precursor wave
 /// begins (current-era origins emerge through the epoch sim instead).</summary>
 public sealed record SpaceflightReachedPayload(int OriginId) : EventPayload;
+
+/// <summary>A precursor wave plants its capital and begins its arc.</summary>
+public sealed record PrecursorWaveRosePayload(
+    int WaveId, string Name, int VigorClass) : EventPayload;
+
+/// <summary>A wave's cause-typed ending — its residue signature is in the
+/// precursor registry (life-and-precursors.md §The coarse civ-arc sim).</summary>
+public sealed record PrecursorWaveFellPayload(
+    int WaveId, string Name, int EndCause, int ExtentCells) : EventPayload;
+
+/// <summary>Two live waves met: war, absorption, or partition — borders
+/// that predate all current life.</summary>
+public sealed record PrecursorContactPayload(
+    int WaveAId, int WaveBId, int Resolution) : EventPayload;
 
 public sealed record PolityEmergedPayload(string PolityName) : EventPayload;
 

@@ -49,6 +49,22 @@ public sealed class EvolutionKnobs
     /// fast once richness allows, so dates stay causal (viability + growth
     /// decide, not a long lottery).</summary>
     public double SapienceRate { get; set; } = 0.05;
+
+    // -- precursor-wave dials (life-and-precursors.md §Precursor waves) --
+    /// <summary>Share of all cells claimable by precursor waves across deep
+    /// time — wave count is emergent from this budget, not a flat cap.</summary>
+    public double DomainBudgetFraction { get; set; } = 0.5;
+    /// <summary>Chance a wave draws the grand class (per-class limit and
+    /// budget permitting).</summary>
+    public double GrandChance { get; set; } = 0.15;
+    /// <summary>Grand waves per galaxy at most (the elder races are few).</summary>
+    public double GrandWaveLimit { get; set; } = 3.0;
+    /// <summary>Peak-phase biosphere-engineering chance per owned living
+    /// cell per step (seeding, terraforming, uplift).</summary>
+    public double BioEngineeringRate { get; set; } = 0.03;
+    /// <summary>Share of end-state sites that stay live (dormant war
+    /// machines, defense grids, functioning megastructures).</summary>
+    public double DormantSurvivalRate { get; set; } = 0.08;
 }
 
 /// <summary>Cosmic-clock dials (genesis/cosmic-genesis.md §Knobs): the deep-time

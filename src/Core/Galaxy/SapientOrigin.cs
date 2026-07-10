@@ -40,4 +40,8 @@ public sealed class SapientOrigin
     /// <summary>Catastrophes the biosphere endured before sapience.</summary>
     public int Setbacks { get; set; }
     public OriginEra Era { get; set; }
+    /// <summary>Machine descendants: the precursor wave whose ending seeded
+    /// this origin (its homeworld is that wave's capital); -1 = an organic
+    /// origin.</summary>
+    public int DescendantOfWaveId { get; set; } = -1;
 }

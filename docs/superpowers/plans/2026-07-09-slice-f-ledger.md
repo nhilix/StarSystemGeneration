@@ -115,7 +115,7 @@ mechanics changes beyond genesis inputs and entry-time state.
       knob family; evolutionary chronicle (events 100–199). Gate:
       schedule shape bands (dates spread across the window, homeworld
       count sane); determinism.
-- [ ] 6. **Precursor waves** — vigor classes, domain-budget wave count,
+- [x] 6. **Precursor waves** — vigor classes, domain-budget wave count,
       coarse civ-arc sim on the raster (rise/peak/decline, cause-typed
       endings, inter-wave contact); four living-residue channels
       (machine descendants, biosphere engineering, sterilization scars
@@ -218,3 +218,17 @@ mechanics changes beyond genesis inputs and entry-time state.
   0.7 Gyr (structural cuts); the current band compresses onto the
   emergence window at EpochGenesis.Seed (task 7) — honest narrative
   compression per frame/time.md.
+- **Task-6 architecture**: precursor arcs run *interleaved inside the
+  evolution loop* (PrecursorArcEngine.Step per evo step), not as a
+  post-pass — so sterilization scars (ScarPenalty 0.25 on hospitability)
+  genuinely delay downstream abiogenesis/growth/spread, engineering
+  bumps richness mid-history (uplift emerges on the schedule), and
+  machine descendants append to the one origins list. Every precursor
+  origin waves; extent is budget/class-limited (grand ≤ 3, 117-cell
+  grand wave seen at r21). End-cause weights per class are a structural
+  catalog (pockets collapse, grands transcend/war). Lane networks are
+  expansion trees (cells−1 lanes, adjacency-verified).
+- Wave shapes (seed 42): r8 28 waves / r12 44 / r21 81; sites 117–342
+  (scars ~30%, dormant <10%); machine descendants 1–4 per galaxy;
+  genesis total 127 ms at r21 — budget holds. Channels 52–59; events
+  103–105.

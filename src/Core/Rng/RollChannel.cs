@@ -68,4 +68,14 @@ public enum RollChannel : ulong
     EvoSpread = 49,            // panspermia gate per (step, target cell); subIndex = neighbor ordinal
     EvoSapience = 50,          // sapience-registration gate per (step, cell); subIndex 1 = homeworld hex pick
     EvoMaturation = 51,        // maturation-duration variance per origin (actor = origin id)
+
+    // --- Precursor arcs (slice F). Rolls keyed (step, wave id) unless noted. ---
+    WaveVigor = 52,            // class + vigor draws: actor = wave id, subIndex = field
+    WaveExpand = 53,           // expansion picks: subIndex = claim ordinal
+    WaveEnd = 54,              // end-cause draw + decline variance
+    WaveContact = 55,          // inter-wave contact resolution
+    WaveEngineer = 56,         // biosphere-engineering gate: actor = cell, subIndex = wave
+    WaveDormant = 57,          // dormant-survival roll per site: actor = wave, subIndex = site ordinal
+    WaveName = 58,             // wave name syllables: actor = wave id, subIndex = syllable
+    WaveDescendant = 59,       // machine-descendant gate + entry-date roll
 }

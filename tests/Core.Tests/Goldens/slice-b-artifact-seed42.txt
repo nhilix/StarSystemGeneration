@@ -8,7 +8,12 @@ GKNOB|Cosmic.MergerCount|2
 GKNOB|Cosmic.MergerScale|1
 GKNOB|Cosmic.StarFormationEfficiency|1
 GKNOB|Evolution.AbiogenesisRate|0.012
+GKNOB|Evolution.BioEngineeringRate|0.03
 GKNOB|Evolution.CatastropheFrequency|0.0015
+GKNOB|Evolution.DomainBudgetFraction|0.5
+GKNOB|Evolution.DormantSurvivalRate|0.08
+GKNOB|Evolution.GrandChance|0.15
+GKNOB|Evolution.GrandWaveLimit|3
 GKNOB|Evolution.MaturationScaleGyr|6
 GKNOB|Evolution.SapienceRate|0.05
 GKNOB|Evolution.SpreadRate|0.002
