@@ -103,7 +103,7 @@ public sealed class MarketsPhase : ISimPhase
         // freight before the price drift: the drift reads realized supply —
         // an import-fed port prices its arrivals, a blockaded one their
         // absence (markets.md §The market step; amended in slice D)
-        int shipments = MarketEngine.MoveFreight(state, scratch);
+        var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
@@ -113,7 +113,9 @@ public sealed class MarketsPhase : ISimPhase
                 && MarketEngine.AttachedMarketIndex(state, f) >= 0) producing++;
         string note = $"{producing} facilities supply {state.Markets.Count} markets";
         if (shipments > 0)
-            note += $", {shipments} " + (shipments == 1 ? "shipment" : "shipments");
+            note += System.FormattableString.Invariant(
+                $", {shipments} ") + (shipments == 1 ? "shipment" : "shipments")
+                + System.FormattableString.Invariant($" ({units:0} units)");
         if (famines > 0)
             note += $", {famines} " + (famines == 1 ? "famine" : "famines");
         return note;

@@ -254,7 +254,7 @@ public static class KnobRegistry
           c => c.Fleet.StarterFreightHulls,
           (c, v) => c.Fleet.StarterFreightHulls = (int)Math.Round(v)),
         K("Fleet.UpkeepFuelShare",
-          "share of fleet upkeep drawn as fuel (rest armaments/machinery)",
+          "share of fleet upkeep drawn as fuel (rest armaments/components)",
           c => c.Fleet.UpkeepFuelShare, (c, v) => c.Fleet.UpkeepFuelShare = v),
         K("Fleet.UpkeepUnitsPerPointPerYear",
           "goods units per point of fleet Upkeep vector per year",

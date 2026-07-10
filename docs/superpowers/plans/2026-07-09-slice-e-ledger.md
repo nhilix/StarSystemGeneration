@@ -113,7 +113,7 @@ Architecture decisions (made at kickoff, flag deviations):
 - [x] 7. **REPL surface** — `fleet [id]` dump (composition, posture,
       vectors, supply), `designs [actor]`, `emap traffic`, debug posture
       command; help text. Gate: piped-stdin smoke via bash printf.
-- [ ] 8. **Shape acceptance + calibration** — 40-epoch runs across seeds:
+- [x] 8. **Shape acceptance + calibration** — 40-epoch runs across seeds:
       fleet counts bounded, freight capacity sane (posted routes carry it),
       colonies still found, credits conserve to the mint, hulls conserve;
       the parked machinery-upkeep calibration question addressed here
@@ -193,3 +193,31 @@ Architecture decisions (made at kickoff, flag deviations):
 - Military treasuries still over-accumulate (28–63k by epoch 40) despite
   upkeep purchases — the main task-8 calibration target (hull costs,
   upkeep rate, or a militancy-scaled Budget.Military).
+- **Task-8 calibration findings** (all A/B'd on seed 42, radius 12):
+  - **Supply met is need-weighted, not min**: under min-met an armaments
+    (or machinery) drought erased whole navies within epochs; weighted-met
+    hollows them to degraded readiness instead — militia rot, not
+    evaporation. Shipment *counts* fell 5× with more surviving capacity
+    while famines stayed flat: one full hold replaces five drip runs, so
+    the Markets note now reports **units moved** beside the count.
+  - **Civilian hull upkeep draws Ship Components (spares), not
+    Machinery** — coupling the merchant marine to the economy's dominant
+    sink starved freight; components also finally get an ongoing sink and
+    freight out to colony ports where fleets home.
+  - **The parked D machinery-upkeep question is answered: catalog
+    machinery-upkeep coefficients halved** (Infrastructure.cs). At the old
+    rates no machinery remained for Ship Components production, which
+    gated hulls, which gated expansion once founding needed convoys —
+    foundings collapsed 96 → 21 per history. After halving: 43 foundings,
+    famines 737 (main) → ~197, freight ~180 units/epoch late-game.
+    Machinery is still the dominant sink at half rate. **Flag at eyeball.**
+  - A militancy-scaled Budget.Military was tried and dropped (famines
+    worsened ~15%; budget weights stay the controller's taste for G).
+  - **Expansion is now industrially gated** (43 vs D's 96 foundings/
+    history): a real navy bottleneck, not a bug — pace is the user's
+    taste call at the eyeball. Military treasuries still accumulate
+    (~20-90k); acceptable until controllers get smarter (G).
+- FleetShapeTests: hull ledger conserves across seeds (built == active +
+  wrecked + scrapped, wreck records match), fleet registry bounded,
+  posted capacity nonzero late-game. TUNING.md gains the Fleet family
+  table + chassis-catalog structural note.

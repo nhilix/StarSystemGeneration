@@ -636,14 +636,16 @@ public static class MarketEngine
     /// freight + fuel + tariffs with legality at both ends, and polity
     /// procurement toward stockpile targets. Perfect-info prices until I;
     /// explicit escrowed contract objects await carriers (E). Returns the
-    /// shipment count for the phase note.</summary>
-    public static int MoveFreight(SimState state, MarketStepScratch scratch)
+    /// shipment count and the units moved for the phase note — counts alone
+    /// mislead once capacity is real (one full hold reads like a fifth of
+    /// five drip runs).</summary>
+    public static (int Shipments, double Units) MoveFreight(
+        SimState state, MarketStepScratch scratch)
     {
-        int shipments = 0;
-        shipments += ReleaseReserves(state, scratch);
-        shipments += Arbitrage(state, scratch);
+        int shipments = ReleaseReserves(state, scratch);
+        var (trades, units) = Arbitrage(state, scratch);
         Procure(state, scratch);
-        return shipments;
+        return (shipments + trades, units);
     }
 
     /// <summary>Internal logistics, D scale: a polity whose port starved last
@@ -687,11 +689,12 @@ public static class MarketEngine
     /// purchase and are paid as the destination's suppliers; every cost is a
     /// conserved ledger move (fees into the source pool, tariffs to the
     /// destination polity).</summary>
-    private static int Arbitrage(SimState state, MarketStepScratch scratch)
+    private static (int Trades, double Units) Arbitrage(
+        SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
-        int years = state.Config.Sim.YearsPerEpoch;
         int shipments = 0;
+        double units = 0;
         foreach (var lane in state.Lanes)                 // id order (P6)
         {
             if (scratch.Severed.Contains(lane.Id)) continue;
@@ -789,9 +792,10 @@ public static class MarketEngine
                 scratch.LaneCapacityUsed[lane.Id] += drawn;
                 capacity -= drawn;
                 shipments++;
+                units += drawn;
             }
         }
-        return shipments;
+        return (shipments, units);
     }
 
     /// <summary>Polity procurement: buy toward standing stockpile targets

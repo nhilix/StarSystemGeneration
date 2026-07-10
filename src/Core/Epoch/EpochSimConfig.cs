@@ -297,7 +297,9 @@ public sealed class FleetKnobs
     /// posted capacity; without them nothing moves at epoch one.</summary>
     public int StarterFreightHulls { get; set; } = 4;
     /// <summary>Share of fleet upkeep drawn as Fuel; the rest is Armaments
-    /// for warships, Machinery for civilian hulls.</summary>
+    /// for warships, Ship Components (spares) for civilian hulls — kept off
+    /// Machinery deliberately: the facility-upkeep sink already dominates
+    /// that market, and coupling the merchant marine to it starved freight.</summary>
     public double UpkeepFuelShare { get; set; } = 0.4;
     /// <summary>Goods units drawn per point of a fleet's Upkeep vector per
     /// world-year — the fleet-supply magnitude dial.</summary>

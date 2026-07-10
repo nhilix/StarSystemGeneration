@@ -385,7 +385,8 @@ public static class FleetOps
     /// <summary>Fleet supply (fleets/ships-and-fleets.md §Movement and
     /// supply), run by Allocation after postures: every fleet draws upkeep
     /// from its home-port market — fuel plus armaments for warship hulls,
-    /// machinery for civilian ones — paid from the military treasury at
+    /// ship components (spares) for civilian ones — paid from the military
+    /// treasury at
     /// market prices, the spend recycling to the home port's households
     /// (navy money is somebody's income). Readiness drifts toward the met
     /// fraction (the facility-condition convention); below the attrition
@@ -407,7 +408,7 @@ public static class FleetOps
 
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? knobs.ReserveUpkeepFactor : 1.0;
-            double fuelNeed = 0, armsNeed = 0, machNeed = 0;
+            double fuelNeed = 0, armsNeed = 0, partsNeed = 0;
             foreach (var g in fleet.Hulls)                // design-id order
             {
                 var design = state.Designs[g.DesignId];
@@ -419,16 +420,22 @@ public static class FleetOps
                 if (ShipCatalog.IsWarship(design.Role))
                     armsNeed += draw * (1 - knobs.UpkeepFuelShare);
                 else
-                    machNeed += draw * (1 - knobs.UpkeepFuelShare);
+                    partsNeed += draw * (1 - knobs.UpkeepFuelShare);
             }
 
-            double met = 1.0;
-            met = Math.Min(met, DrawUpkeep(state, pr, market,
-                (int)GoodId.Fuel, fuelNeed));
-            met = Math.Min(met, DrawUpkeep(state, pr, market,
-                (int)GoodId.Armaments, armsNeed));
-            met = Math.Min(met, DrawUpkeep(state, pr, market,
-                (int)GoodId.Machinery, machNeed));
+            // met is need-weighted, not min: an armaments drought hollows a
+            // fueled fleet toward degraded readiness instead of erasing it —
+            // militia rot, not evaporation (attrition still bites below the
+            // floor when fuel fails too)
+            double totalNeed = fuelNeed + armsNeed + partsNeed;
+            double met = totalNeed <= 0 ? 1.0
+                : (DrawUpkeep(state, pr, market, (int)GoodId.Fuel, fuelNeed)
+                       * fuelNeed
+                   + DrawUpkeep(state, pr, market, (int)GoodId.Armaments, armsNeed)
+                       * armsNeed
+                   + DrawUpkeep(state, pr, market,
+                         (int)GoodId.ShipComponents, partsNeed)
+                       * partsNeed) / totalNeed;
 
             if (met >= fleet.Readiness)
                 fleet.Readiness = Math.Min(met, fleet.Readiness
@@ -522,7 +529,7 @@ public static class FleetOps
                 scratch.Demand[fleet.HomePortId][(int)GoodId.Fuel]
                     += draw * knobs.UpkeepFuelShare;
                 int rest = ShipCatalog.IsWarship(design.Role)
-                    ? (int)GoodId.Armaments : (int)GoodId.Machinery;
+                    ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
                 scratch.Demand[fleet.HomePortId][rest]
                     += draw * (1 - knobs.UpkeepFuelShare);
             }

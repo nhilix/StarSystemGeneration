@@ -31,7 +31,7 @@ public class FleetSupplyTests
         var market = state.Markets[port.Id];
         market.Deposit((int)GoodId.Fuel, 500, 0.5);
         market.Deposit((int)GoodId.Armaments, 500, 0.5);
-        market.Deposit((int)GoodId.Machinery, 500, 0.5);
+        market.Deposit((int)GoodId.ShipComponents, 500, 0.5);   // civilian spares
         pr.MilitaryPoints = 1000;
         var home = FleetOps.HomeFleet(state, pr.ActorId, port);
         Assert.True(home.TotalHulls > 0);
