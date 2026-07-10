@@ -86,12 +86,12 @@ mechanics changes beyond genesis inputs and entry-time state.
 
 - [x] 0. **Branch + ledger** — branch `slice-f-deep-genesis` from main;
       this file.
-- [ ] 1. **Potential prior + Cosmic knobs** — `GalaxyPotential` (shape
+- [x] 1. **Potential prior + Cosmic knobs** — `GalaxyPotential` (shape
       function as time-varying potential: fixed arm pattern, deepening
       core, merger perturbation slots), `Cosmic` knob family +
       galaxy-side knob registry + TUNING rows. Gate: potential unit
       tests; registry tests (order, uniqueness, round-trip).
-- [ ] 2. **Cosmic field stack + step loop** — working field arrays;
+- [x] 2. **Cosmic field stack + step loop** — working field arrays;
       inflow → transport → star formation → aging → death/enrichment
       over ~100–150 steps; observer hook. Gate: mass/metals conservation
       (P4 ledger); determinism (identical fields for same config); runs
@@ -159,4 +159,16 @@ mechanics changes beyond genesis inputs and entry-time state.
 
 ## Notes / surprises
 
-- (running log)
+- **Metal units are narrative units** (task 2): with MetalYield 0.15,
+  end-of-history stellar metallicity StarZ lands at median ≈ 0.017, core
+  max ≈ 0.06 (seed 42, radius 8). `LifeViableZFloor` = 0.012 sits inside
+  that distribution: ~62% of cells cross, staggered from step ~20 to the
+  final step — the causal-staggering shape 0b consumes. If yield or
+  enrichment mechanics change, re-place the floor (diagnose with a
+  crossing histogram, don't trust the old constant).
+- **Potential has no upper clamp** (task 1): the density paint's [0,1]
+  clamp saturated the core and hid the core-deepening term; the potential
+  is relative (gradients + normalized residue), so only the zero floor
+  survives. Core peaks ≈ 1.45.
+- Cosmic budget: radius 21 (1,615 cells) full run = **53 ms** Release —
+  well inside the ~1s class with evolution still to come.

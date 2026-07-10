@@ -53,4 +53,8 @@ public enum RollChannel : ulong
 
     // --- Epoch frame (slice B). ---
     EpochEntrySchedule = 40,   // stub emergence schedule until slice F: actor = polity id
+
+    // --- Cosmic clock (slice F). Rolls keyed (step, cell spiral index). ---
+    CosmicInflowClump = 41,    // inflow clumping noise per (step, cell)
+    CosmicSfTrigger = 42,      // star-formation trigger noise per (step, cell)
 }
