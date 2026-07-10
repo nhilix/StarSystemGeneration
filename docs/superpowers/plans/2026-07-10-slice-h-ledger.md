@@ -1,0 +1,128 @@
+# Slice H Ledger — Relations & War
+
+Branch `slice-h-war` off main (076861a). Scope nod: 2026-07-10 ("read the
+kickoff and begin"). Kickoff: `2026-07-10-slice-h-kickoff-prompt.md`. This
+file is the resumability record: ordered tasks, gates, decisions,
+surprises — updated as work lands.
+
+## Standing gates (every task)
+
+- `dotnet test` green; hex-tier (Phase-1) suite never breaks.
+- Determinism byte-identity for same config (SimTraceView render).
+- Artifact save/load stays green; any new cross-step state serializes in
+  the same task; golden regenerated same-commit when history changes;
+  `LoadThenContinue_EqualsTheStraightRun` is the strongest gate.
+- Credits conserve to the mint (reparations, tribute, war loans, seizures
+  are flows, never sinks or mints); the hull ledger conserves through
+  battles (losses become wreckage at real hexes).
+- Any new goods consumer registers a demand pull at Markets (the
+  founding-supply-race lesson, three strikes); grace periods precede
+  death clocks; step-transient fields provably zero at epoch boundaries.
+- Every new calibration constant → `KnobRegistry` + TUNING.md row;
+  catalog data (casus-belli menu, treaty rungs) is data-as-code with a
+  TUNING structural note.
+- Every new `src/Core` file gets a two-line `.meta` with a fresh guid.
+- Event blocks: military appends from **403**, diplomatic **5xx opens
+  here**, political next 308, economic 208, corporate 605, character
+  704. `RollChannel` appends from **66** (never reuse 35/36).
+- Brace every else. No PowerShell `-replace` file reshaping. No
+  `required` members (netstandard2.1).
+
+## Tasks
+
+- [x] **H0 — branch + ledger** (this commit).
+- [ ] **H1 — Contact + relations registry**: `PolityRelation` pair state
+  (warmth, tension, treaty rung, standing claims with legible sources),
+  reach-overlap contact detection, first-contact event (500) with
+  initial stance from temperament compositions × strangeness ×
+  reputation stub; per-epoch warmth/tension recompute from real sources
+  (trade volume, dynastic ties, honored alliances, shared wars won /
+  contested-overlap zones, claims, interdiction strain, faction
+  agitation, ideology gap × zeal); tension decays only as sources
+  resolve. Relations layer v1. Knobs `Relations.*`. Perception carries a
+  relations brief; DiplomaticPostures written by Intent from it.
+- [ ] **H2 — Treaty ladder rungs 1–3**: offer/accept/break through
+  Resolution (standing offers on the relation, mutual consent), teeth:
+  trade pact (tariff cuts, lane priority), non-aggression (spark
+  de-escalation, tension damping), defense alliance (join defensive
+  wars, attackers price allied fleets). Warmth gates ascent; breaking =
+  public event + warmth crash. Events 501/502.
+- [ ] **H3 — Federation + vassalage**: federation merge gate (sustained
+  alliance + high warmth + ideology compat + openness + cohesions) →
+  NEW fused polity (population-weighted composition, fresh name, form
+  from combined ideology, multi-species membership); vassalage (imposed
+  by settlement or chosen under threat; tribute flow in Allocation,
+  foreign-policy lock, defensive obligation; exits: absorption /
+  secession). Events 503–50x.
+- [ ] **H4 — Dynastic instruments**: marriage/wardship acts between
+  dynastic-form polities → warmth now, succession claims later
+  (claims point back as tension); rare personal-union fast path
+  deferred unless cheap.
+- [ ] **H5 — Casus belli + spark + declaration**: four-category menu
+  computed from real state (economic: resource seizure/chokepoint/
+  punitive; ideological: crusade/liberation/containment; political:
+  succession claims/military-grievance discharge/vassal enforcement or
+  secession; spark: border incidents in contested-overlap space,
+  escalation ∝ tension, fizzles are events too); DeclareWarAct carries
+  objectives + settlement demand; War registry (belligerents via
+  defense alliances, war leaders, objectives). Events 403+ military.
+- [ ] **H6 — War conduct**: theater/objective model each epoch —
+  assignment per doctrine + commander personality; engagement
+  resolution on fleet vectors × fortification (Fortress facility joins
+  BuildableTypes, Military-tier-gated) × supply reach × commander
+  competence + seeded rolls; outcomes decisive/attrition/stalemate;
+  hull losses conserve to wreckage; facility condition damage; captures
+  transfer intact; sieges structured by defender reserves + fortress
+  tier + relief; fallen ports transfer domains with segments intact;
+  real interdiction (blockade fleets sever lanes) replaces
+  SimState.SeveredLanes. Named battles with commanders (war-hero mints,
+  commander hazard). Wars named ("the <name> War").
+- [ ] **H7 — War economy, weariness, termination, settlement**:
+  armaments/fuel drain through existing upkeep + mobilization demand;
+  war loans; weariness through the interior (losses + SoL decline shift
+  ideology → peace/military factions → legitimacy war term armed,
+  `Economy.WarWearinessPerYear` live or retired deliberately); break
+  conditions (political collapse, exhaustion, capital loss); settlement
+  negotiated from per-objective outcomes (cessions, reparations,
+  tribute, vassalization, white peace); aftermath residue: standing
+  claims, veterans → military factions, war heroes, debt overhang.
+- [ ] **H8 — Native policy + emergence crises**: PreSpaceflight origins
+  get projected emergence dates; inside claimed space the host's
+  NativePolicy resolves (uplift → client vassal; integrate → member +
+  cultural faction; exploit/protectorate-cage → suppressed emergence =
+  standing liberation casus belli + graduation path); free-space
+  emergences found polities as slice F does.
+- [ ] **H9 — Civil wars**: G's contested coups fight through the war
+  machinery against a provisional polity (reuse graduation founding
+  flows, no forks).
+- [ ] **H10 — REPL surfaces**: `relations [id]` panel (per-pair warmth/
+  tension/treaty/claims with sources), `wars` / `war <id>` panel
+  (objectives, fronts, sieges, commanders), `emap` war/tension layers,
+  chronicle prose for every new event, `watch` intact.
+- [ ] **H11 — fresh-eyes whole-branch review + one fix wave**; TUNING
+  sweep; shape bands at seeds 42/7/1234 (wars start AND end; most pairs
+  at peace most of the time; no permanent galaxy-wide war; federations/
+  vassalizations rare but present).
+- [ ] **H12 — eyeball gate**: a war readable as a story (tension loading,
+  spark, declaration with casus belli, named battles, a siege, the
+  settlement ceding a port, the grudge left behind).
+- [ ] **H13 — merge + wrap-up**: merge · HANDOFF · Slice I kickoff prompt
+  · flip the kickoff checkbox · golden frozen · push on user say-so.
+
+## Decisions
+
+- New code lives in `src/Core/Epoch/Interpolity/` (namespace stays flat
+  `StarGen.Core.Epoch` — folder is organization only), mirroring G's
+  `Interior/`.
+- Relations/war registries serialize as two appended layers:
+  `relations` v1, `wars` v1 (after `corporations`).
+- Knob families: `Relations`, `War` (+ additions to existing families
+  only where the dial already belongs there).
+- Warmth/tension recompute and native emergence run in the Interior
+  phase; treaty/act resolution and engagement resolution run in
+  Resolution (assignment reads doctrine written at Intent — no decision
+  points outside Intent).
+
+## Surprises
+
+- (none yet)
