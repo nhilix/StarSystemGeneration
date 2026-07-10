@@ -54,6 +54,7 @@ public sealed class PerceptionPhase : ISimPhase
                 : Temperament.Neutral;
             double ownCredits = 0;
             List<CorporateBrief>? hosted = null;
+            List<RelationBrief>? relations = null;
             if (a.Kind == ActorKind.Polity)
             {
                 ownCredits = state.PolityOf(a.Id).Credits;
@@ -62,12 +63,28 @@ public sealed class PerceptionPhase : ISimPhase
                         (hosted ??= new List<CorporateBrief>())
                             .Add(new CorporateBrief(corp.Id, corp.Name,
                                                     corp.Credits));
+                foreach (var rel in state.Relations)  // creation order (P6)
+                {
+                    if (!rel.Involves(a.Id)) continue;
+                    int held = 0, against = 0;
+                    foreach (var c in rel.Claims)
+                        if (!c.Released)
+                        {
+                            if (c.HolderPolityId == a.Id) held++;
+                            else against++;
+                        }
+                    (relations ??= new List<RelationBrief>())
+                        .Add(new RelationBrief(rel.OtherOf(a.Id), rel.Warmth,
+                            rel.Tension, rel.Rung, rel.OfferedRung,
+                            rel.OfferedById, held, against));
+                }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
                                               ownPorts, realmSubsistence, designs,
                                               FleetOps.ColonyHullsInReserve(state, a.Id),
-                                              temperament, ownCredits, hosted);
+                                              temperament, ownCredits, hosted,
+                                              relations);
             perceiving++;
         }
         return $"{perceiving} actors perceive (perfect-info stub)";
@@ -928,6 +945,9 @@ public sealed class InteriorPhase : ISimPhase
         CorporationOps.WatchNiches(state);
         var (factionsFormed, factionsDissolved) = FactionOps.Step(state);
         int interiors = InteriorOps.Recompute(state);
+        // the outside: contact, standing claims, warmth/tension — reads the
+        // freshly recomputed interiors (ideology gaps, zeal) — slice H
+        var (contacts, claimsRaised) = RelationsOps.Step(state);
         // graduation reads the freshly recomputed grip (legitimacy ×
         // enforcement) — new institutions are born at the epoch's end
         var (schisms, coups, revolts) = GraduationOps.Step(state);
@@ -964,6 +984,12 @@ public sealed class InteriorPhase : ISimPhase
         if (charters > 0)
             note += $", {charters} " + (charters == 1
                 ? "corporation chartered" : "corporations chartered");
+        if (contacts > 0)
+            note += $", {contacts} first " + (contacts == 1
+                ? "contact" : "contacts");
+        if (claimsRaised > 0)
+            note += $", {claimsRaised} " + (claimsRaised == 1
+                ? "claim raised" : "claims raised");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";

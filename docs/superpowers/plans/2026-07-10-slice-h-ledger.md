@@ -31,7 +31,21 @@ surprises — updated as work lands.
 ## Tasks
 
 - [x] **H0 — branch + ledger** (this commit).
-- [ ] **H1 — Contact + relations registry**: `PolityRelation` pair state
+- [x] **H1 — Contact + relations registry** *(done: `Interpolity/
+  PolityRelation.cs` (relation + RelationClaim + TreatyRung), 
+  `RelationsOps.cs` (geometry survey, contact, kin claims, drift);
+  events 500 FirstContact / 501 ClaimRaised / 502 ClaimReleased;
+  relations layer v1 (REL/CLM); knobs `Relations.*` ×18 + TUNING;
+  RelationBrief on PerceptionView → GenesisController writes
+  DiplomaticPostures (5 buckets on net warmth−tension, structural);
+  RelationsOps.Step runs in Interior after InteriorOps.Recompute;
+  tension model: drift toward source-computed target, rise fast / relax
+  slow — target falls only when sources resolve; warmth: baseline −
+  openness-filtered strangeness + trade + treaty + dynastic − ideology
+  gap; kin claims raise/release from segment sweeps; seed-42 r12:
+  101 relations / 105 pairs over 40 epochs, 5 kin claims; golden regen
+  (EVENT ids shift + REL/CLM/KNOB/POLICY lines only — economy
+  byte-untouched); 428/428 green)*: `PolityRelation` pair state
   (warmth, tension, treaty rung, standing claims with legible sources),
   reach-overlap contact detection, first-contact event (500) with
   initial stance from temperament compositions × strangeness ×

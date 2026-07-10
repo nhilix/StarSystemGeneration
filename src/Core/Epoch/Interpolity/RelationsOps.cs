@@ -1,0 +1,359 @@
+using System;
+using System.Collections.Generic;
+using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
+
+namespace StarGen.Core.Epoch;
+
+/// <summary>Contact and the per-pair relations gauges
+/// (interpolity/relations.md): polities meet when reach overlaps; warmth and
+/// tension drift toward targets recomputed from live, legible sources every
+/// Interior phase. Pure state mechanics — no decisions (those are Intent's),
+/// no rolls: friction is causal, only the spark (war.md, H5) rolls.</summary>
+public static class RelationsOps
+{
+    /// <summary>One epoch of relations upkeep: contact detection, standing
+    /// claim bookkeeping, warmth/tension drift. Returns counts for the
+    /// phase note.</summary>
+    public static (int Contacts, int ClaimsRaised) Step(SimState state)
+    {
+        var geometry = SurveyGeometry(state);
+        int contacts = Contact(state, geometry);
+        int claimsRaised = KinClaims(state);
+        Recompute(state, geometry);
+        return (contacts, claimsRaised);
+    }
+
+    /// <summary>Per unordered polity pair: nearest port distance and the
+    /// contested-overlap count (port pairs whose service areas touch — the
+    /// space model's organic borders).</summary>
+    private sealed class PairGeometry
+    {
+        public int MinPortDistance = int.MaxValue;
+        public int OverlapPairs;
+    }
+
+    private static Dictionary<(int A, int B), PairGeometry> SurveyGeometry(
+        SimState state)
+    {
+        var cfg = state.Config;
+        var geometry = new Dictionary<(int, int), PairGeometry>();
+        // service reach per port owner is owner-wide — cache the tech bonus
+        var radiusBonus = new Dictionary<int, int>();
+        for (int i = 0; i < state.Ports.Count; i++)
+        {
+            var pa = state.Ports[i];
+            if (!state.Actors[pa.OwnerActorId].Entered) continue;
+            for (int j = i + 1; j < state.Ports.Count; j++)
+            {
+                var pb = state.Ports[j];
+                if (pb.OwnerActorId == pa.OwnerActorId
+                    || !state.Actors[pb.OwnerActorId].Entered) continue;
+                var key = pa.OwnerActorId < pb.OwnerActorId
+                    ? (pa.OwnerActorId, pb.OwnerActorId)
+                    : (pb.OwnerActorId, pa.OwnerActorId);
+                if (!geometry.TryGetValue(key, out var g))
+                    geometry[key] = g = new PairGeometry();
+                int dist = HexGrid.Distance(pa.Hex, pb.Hex);
+                if (dist < g.MinPortDistance) g.MinPortDistance = dist;
+                if (!radiusBonus.TryGetValue(pa.OwnerActorId, out int bonusA))
+                    radiusBonus[pa.OwnerActorId] = bonusA =
+                        TechOps.AstroRadiusBonus(state, pa.OwnerActorId);
+                if (!radiusBonus.TryGetValue(pb.OwnerActorId, out int bonusB))
+                    radiusBonus[pb.OwnerActorId] = bonusB =
+                        TechOps.AstroRadiusBonus(state, pb.OwnerActorId);
+                if (dist <= PortDomains.ServiceRadius(cfg, pa.Tier) + bonusA
+                            + PortDomains.ServiceRadius(cfg, pb.Tier) + bonusB)
+                    g.OverlapPairs++;
+            }
+        }
+        return geometry;
+    }
+
+    // ---- contact ----
+
+    /// <summary>Polities meet when reach overlaps — a first-contact event
+    /// and a relation seeded at its source-computed targets (the initial
+    /// stance: temperament compositions × strangeness × reputation, which
+    /// is P3's and arrives in slice I).</summary>
+    private static int Contact(SimState state,
+        Dictionary<(int A, int B), PairGeometry> geometry)
+    {
+        var knobs = state.Config.Relations;
+        int contacts = 0;
+        // deterministic order: ascending (A, B) — geometry keys sorted
+        var keys = new List<(int A, int B)>(geometry.Keys);
+        keys.Sort();
+        foreach (var key in keys)
+        {
+            var g = geometry[key];
+            if (g.MinPortDistance > knobs.ContactReachHexes) continue;
+            if (state.RelationOf(key.A, key.B) != null) continue;
+            var relation = new PolityRelation(key.A, key.B, state.EpochIndex);
+            state.Relations.Add(relation);
+            // seed at the drift targets: the stance two strangers open with
+            relation.Warmth = WarmthTarget(state, relation, tradeCapacity: 0);
+            relation.Tension = TensionTarget(state, relation, g.OverlapPairs);
+            contacts++;
+            var seatA = state.Actors[key.A].Seat;
+            var seatB = state.Actors[key.B].Seat;
+            state.Staged.Add(new StagedEvent(
+                ClockStratum.Generational, WorldEventType.FirstContact,
+                new[] { key.A, key.B },
+                HexGrid.Round((seatA.Q + seatB.Q) * 0.5, (seatA.R + seatB.R) * 0.5),
+                Magnitude: 1.0, Valence: 0.0, EventVisibility.Public,
+                new FirstContactPayload(key.A, key.B,
+                    state.Actors[key.A].Name, state.Actors[key.B].Name)));
+        }
+        return contacts;
+    }
+
+    // ---- standing claims ----
+
+    /// <summary>Cultural-kin claims: a polity whose founding culture lives
+    /// under the other's rule holds a standing claim until the kin are gone
+    /// (assimilated, migrated, or liberated). Raised and released as
+    /// chronicle events; released claims stay as history.</summary>
+    private static int KinClaims(SimState state)
+    {
+        var floor = state.Config.Relations.KinClaimSegmentFloor;
+        int raised = 0;
+        foreach (var relation in state.Relations)             // creation order (P6)
+        {
+            for (int side = 0; side < 2; side++)
+            {
+                int holder = side == 0 ? relation.PolityAId : relation.PolityBId;
+                int other = relation.OtherOf(holder);
+                var holderInterior = state.PolityOf(holder).Interior;
+                if (holderInterior == null) continue;
+                int kinCulture = holderInterior.FoundingCultureId;
+                double kinSize = 0;
+                foreach (var s in state.Segments)
+                    if (s.Size > 0 && s.CultureId == kinCulture
+                        && state.Ports[s.PortId].OwnerActorId == other)
+                        kinSize += s.Size;
+                bool live = relation.HasLiveClaim(ClaimType.CulturalKin,
+                                                  holder, kinCulture);
+                if (kinSize >= floor && !live)
+                {
+                    relation.Claims.Add(new RelationClaim(ClaimType.CulturalKin,
+                        holder, kinCulture, state.WorldYear));
+                    raised++;
+                    state.Staged.Add(new StagedEvent(
+                        ClockStratum.Generational, WorldEventType.ClaimRaised,
+                        new[] { holder, other }, state.Actors[holder].Seat,
+                        Magnitude: kinSize, Valence: -0.3,
+                        EventVisibility.Regional,
+                        new ClaimRaisedPayload(holder, other,
+                            (int)ClaimType.CulturalKin, kinCulture)));
+                }
+                else if (kinSize < floor && live)
+                    Release(state, relation, ClaimType.CulturalKin, holder,
+                            kinCulture);
+            }
+        }
+        return raised;
+    }
+
+    /// <summary>Release every live claim matching (type, holder, subject) —
+    /// the source resolved; tension may now decay.</summary>
+    public static void Release(SimState state, PolityRelation relation,
+                               ClaimType type, int holder, int subjectId)
+    {
+        foreach (var c in relation.Claims)
+        {
+            if (c.Released || c.Type != type || c.HolderPolityId != holder
+                || c.SubjectId != subjectId) continue;
+            c.Released = true;
+            c.ReleasedYear = state.WorldYear;
+            state.Staged.Add(new StagedEvent(
+                ClockStratum.Generational, WorldEventType.ClaimReleased,
+                new[] { holder, relation.OtherOf(holder) },
+                state.Actors[holder].Seat, Magnitude: 1.0, Valence: 0.3,
+                EventVisibility.Regional,
+                new ClaimReleasedPayload(holder, relation.OtherOf(holder),
+                                         (int)type, subjectId)));
+        }
+    }
+
+    // ---- warmth / tension ----
+
+    /// <summary>Drift every relation's gauges toward their source-computed
+    /// targets: rise fast, relax slow — and the tension target only falls
+    /// when sources actually resolve.</summary>
+    private static void Recompute(SimState state,
+        Dictionary<(int A, int B), PairGeometry> geometry)
+    {
+        var knobs = state.Config.Relations;
+        int years = state.Config.Sim.YearsPerEpoch;
+        foreach (var relation in state.Relations)             // creation order (P6)
+        {
+            double trade = CrossTradeCapacity(state, relation);
+            geometry.TryGetValue((relation.PolityAId, relation.PolityBId),
+                                 out var g);
+            double warmthTarget = WarmthTarget(state, relation, trade);
+            double tensionTarget = TensionTarget(state, relation,
+                                                 g?.OverlapPairs ?? 0);
+            double warmthRate = Math.Min(1.0, knobs.WarmthDriftPerYear * years);
+            relation.Warmth += (warmthTarget - relation.Warmth) * warmthRate;
+            double tensionRate = Math.Min(1.0,
+                (tensionTarget > relation.Tension
+                    ? knobs.TensionRisePerYear
+                    : knobs.TensionRelaxPerYear) * years);
+            relation.Tension += (tensionTarget - relation.Tension) * tensionRate;
+        }
+    }
+
+    /// <summary>The warmth target from live sources. Terms land in
+    /// LastWarmthTerms for the REPL: [0] baseline − strangeness,
+    /// [1] trade, [2] treaty, [3] dynastic ties, [4] −ideology cooling.</summary>
+    public static double WarmthTarget(SimState state, PolityRelation relation,
+                                      double tradeCapacity)
+    {
+        var knobs = state.Config.Relations;
+        var a = state.PolityOf(relation.PolityAId);
+        var b = state.PolityOf(relation.PolityBId);
+        var tempA = Temperament.Compose(state, a);
+        var tempB = Temperament.Compose(state, b);
+        double meanOpenness = 0.5 * (tempA.Openness + tempB.Openness);
+        double strangeness = Strangeness(state, a, b) * (1.0 - meanOpenness);
+        double ideoGap = IdeologyGap(a, b);
+        var t = relation.LastWarmthTerms;
+        t[0] = 0.5 - knobs.StrangenessWeight * strangeness;
+        t[1] = knobs.TradeWarmthWeight
+               * Math.Min(1.0, tradeCapacity / knobs.TradeSaturation);
+        t[2] = knobs.TreatyWarmthWeight * (int)relation.Rung
+               / (double)(int)TreatyRung.DefenseAlliance;
+        t[3] = knobs.DynasticTieWarmth * Math.Min(relation.DynasticTies, 3);
+        t[4] = -knobs.IdeologyGapCooling * ideoGap;
+        return Clamp01(t[0] + t[1] + t[2] + t[3] + t[4]);
+    }
+
+    /// <summary>The tension target from live sources. Terms land in
+    /// LastTensionTerms for the REPL: [0] overlap, [1] claims,
+    /// [2] interdiction, [3] ideology gap × zeal, [4] agitation,
+    /// [5] militancy.</summary>
+    public static double TensionTarget(SimState state, PolityRelation relation,
+                                       int overlapPairs)
+    {
+        var knobs = state.Config.Relations;
+        var a = state.PolityOf(relation.PolityAId);
+        var b = state.PolityOf(relation.PolityBId);
+        var tempA = Temperament.Compose(state, a);
+        var tempB = Temperament.Compose(state, b);
+        int liveClaims = 0;
+        foreach (var c in relation.Claims)
+            if (!c.Released) liveClaims++;
+        var t = relation.LastTensionTerms;
+        t[0] = knobs.OverlapTensionWeight
+               * Math.Min(1.0, overlapPairs / knobs.OverlapSaturation);
+        t[1] = Math.Min(1.0, knobs.ClaimTensionWeight * liveClaims);
+        t[2] = knobs.InterdictionTensionWeight
+               * InterdictionStrain(state, relation);
+        t[3] = knobs.IdeologyTensionWeight * IdeologyGap(a, b)
+               * MeanRulerZeal(state, a, b);
+        t[4] = knobs.AgitationTensionWeight
+               * Math.Max(MilitaryAgitation(state, a.ActorId),
+                          MilitaryAgitation(state, b.ActorId));
+        t[5] = knobs.MilitancyTensionWeight
+               * 0.5 * (tempA.Militancy + tempB.Militancy);
+        return Clamp01(t[0] + t[1] + t[2] + t[3] + t[4] + t[5]);
+    }
+
+    /// <summary>How alien two polities read to each other before openness
+    /// filters it: embodiment mismatch plus disposition distance. Zero for
+    /// one species meeting itself (schism siblings).</summary>
+    public static double Strangeness(SimState state, PolityRecord a,
+                                     PolityRecord b)
+    {
+        if (a.SpeciesId == b.SpeciesId) return 0.0;
+        if (a.SpeciesId < 0 || b.SpeciesId < 0
+            || a.SpeciesId >= state.Skeleton.Species.Count
+            || b.SpeciesId >= state.Skeleton.Species.Count) return 0.5;
+        var sa = state.Skeleton.Species[a.SpeciesId];
+        var sb = state.Skeleton.Species[b.SpeciesId];
+        double traits = (Math.Abs(sa.Expansionism - sb.Expansionism)
+                         + Math.Abs(sa.Cohesion - sb.Cohesion)
+                         + Math.Abs(sa.Militancy - sb.Militancy)
+                         + Math.Abs(sa.Openness - sb.Openness)
+                         + Math.Abs(sa.Industry - sb.Industry)
+                         + Math.Abs(sa.Adaptability - sb.Adaptability)) / 6.0;
+        return Clamp01((sa.Embodiment == sb.Embodiment ? 0.0 : 0.5) + traits);
+    }
+
+    /// <summary>Mean official-ideology axis distance (0 when either interior
+    /// is unseated — shape skeletons).</summary>
+    private static double IdeologyGap(PolityRecord a, PolityRecord b)
+    {
+        if (a.Interior == null || b.Interior == null) return 0.0;
+        double gap = 0;
+        for (int ax = 0; ax < 4; ax++)
+            gap += Math.Abs(a.Interior.OfficialIdeology[ax]
+                            - b.Interior.OfficialIdeology[ax]);
+        return gap / 4.0;
+    }
+
+    /// <summary>Ideological friction scales with who holds the thrones —
+    /// zealots read doctrine gaps as casus belli material.</summary>
+    private static double MeanRulerZeal(SimState state, PolityRecord a,
+                                        PolityRecord b)
+    {
+        return 0.5 * (RulerZeal(state, a) + RulerZeal(state, b));
+        static double RulerZeal(SimState state, PolityRecord pr)
+        {
+            int id = pr.Interior?.RulerCharacterId ?? -1;
+            return id >= 0 && id < state.Characters.Count
+                ? state.Characters[id].Zeal : 0.5;
+        }
+    }
+
+    /// <summary>Military-faction pressure inside a polity — the sword
+    /// agitating for discharge (strength × militancy of the loudest).</summary>
+    private static double MilitaryAgitation(SimState state, int polityId)
+    {
+        double agitation = 0;
+        foreach (var faction in state.Factions)               // id order (P6)
+            if (faction.Active && faction.PolityId == polityId
+                && faction.Basis == FactionBasis.Military)
+                agitation = Math.Max(agitation,
+                                     faction.Strength * faction.Militancy);
+        return agitation;
+    }
+
+    /// <summary>Blockade fleets of one of the pair stationed at the other's
+    /// ports — interdiction strain (real interdiction, H6 posts them).</summary>
+    private static double InterdictionStrain(SimState state,
+                                             PolityRelation relation)
+    {
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Blockade || fleet.TargetId < 0
+                || fleet.TargetId >= state.Ports.Count
+                || fleet.TotalHulls == 0) continue;
+            if (!relation.Involves(fleet.OwnerActorId)) continue;
+            if (state.Ports[fleet.TargetId].OwnerActorId
+                == relation.OtherOf(fleet.OwnerActorId)) return 1.0;
+        }
+        return 0.0;
+    }
+
+    /// <summary>Posted freight capacity on lanes joining the pair's ports —
+    /// the trade-volume warmth source (physical, derivable).</summary>
+    public static double CrossTradeCapacity(SimState state,
+                                            PolityRelation relation)
+    {
+        double capacity = 0;
+        foreach (var lane in state.Lanes)                     // id order (P6)
+        {
+            int ownerA = state.Ports[lane.PortAId].OwnerActorId;
+            int ownerB = state.Ports[lane.PortBId].OwnerActorId;
+            if (ownerA == ownerB) continue;
+            if (!relation.Involves(ownerA) || !relation.Involves(ownerB))
+                continue;
+            capacity += FleetOps.PostedCapacity(state, lane);
+        }
+        return capacity;
+    }
+
+    private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
+}

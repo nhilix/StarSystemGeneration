@@ -201,6 +201,34 @@ graduation (task 5) spends. Per-basis budget agendas are catalog data
 | `Faction.CoupLegitimacyHit` / `RevoltLegitimacyHit` | 0.15 / 0.1 | Political violence delegitimizes hard (cascading instability). | Consequence-free putsches. |
 | `Faction.RevoltGrievanceKeep` | 0.75 | Repression compounds: crushed movements return angrier. | Crushing a revolt actually settles it. |
 
+## Relations — contact, warmth/tension sources (slice H)
+
+The pressure gauge war reads and the ladder peace climbs: polities meet
+when reach overlaps, then warmth and tension drift toward targets
+recomputed from live sources each epoch. Tension decays only when its
+sources resolve (the target holds while they stand). The five-stance
+bucket thresholds Intent maps net warmth−tension to are structural
+controller behavior (`GenesisController.StanceOf`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Relations.ContactReachHexes` | 24 | Empires "meet" across wilds they can't reach. | Neighbors stay strangers until borders touch. |
+| `Relations.WarmthDriftPerYear` | 0.02 | Friendships (and estrangements) form within a generation. | Centuries-old stances outlive their causes. |
+| `Relations.TensionRisePerYear` | 0.05 | Borders load within an epoch of friction appearing. | Slow-burn buildups; sparks find less powder. |
+| `Relations.TensionRelaxPerYear` | 0.012 | Resolved grudges cool fast (short memories). | Tension outlives its sources for centuries. **Keep below the rise rate.** |
+| `Relations.StrangenessWeight` | 0.35 | Alien embodiment poisons first contact (xenophobic galaxy). | Everyone meets as potential friends. |
+| `Relations.TradeWarmthWeight` / `TradeSaturation` | 0.30 / 10 | Trade is peace: posted cross-border freight buys real warmth. | Commerce is diplomatically inert. |
+| `Relations.TreatyWarmthWeight` | 0.25 | Honored rungs compound into trust (federation gate nears). | Treaties are paper. |
+| `Relations.DynasticTieWarmth` | 0.10 | Marriages buy real peace this generation (H4). | Dynastic instruments are ceremony. |
+| `Relations.IdeologyGapCooling` | 0.20 | Doctrinal opposites can't stay friends. | Ideology no bar to friendship. |
+| `Relations.OverlapTensionWeight` / `OverlapSaturation` | 0.35 / 4 | Contested service areas are the war engine (organic borders). | Interleaved empires coexist calmly. |
+| `Relations.ClaimTensionWeight` | 0.18 | Each standing claim keeps a border hot (grudges drive history). | Claims are legal fictions. |
+| `Relations.IdeologyTensionWeight` | 0.30 | Zealot thrones read doctrine gaps as war material. | Crusades need more than doctrine. |
+| `Relations.MilitancyTensionWeight` | 0.20 | Hawkish compositions keep every border loaded. | Only concrete friction counts. |
+| `Relations.AgitationTensionWeight` | 0.15 | Military factions drag their polity toward war. | The sword waits quietly. |
+| `Relations.InterdictionTensionWeight` | 0.40 | Blockades near-guarantee escalation. | Sieges read as negotiation. |
+| `Relations.KinClaimSegmentFloor` | 0.5 | Only large stranded kin populations raise claims. | Every diaspora is an irredenta. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs

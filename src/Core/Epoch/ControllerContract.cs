@@ -15,6 +15,14 @@ public sealed record DesignBrief(int DesignId, ShipRole Role, ShipSize Size, int
 /// to notice a de facto power (economy/corporations.md §Influence).</summary>
 public sealed record CorporateBrief(int CorpId, string Name, double Credits);
 
+/// <summary>What a polity perceives of one relation it holds — the gauges
+/// and the table state its diplomacy works (interpolity/relations.md).
+/// Perfect-info stub: reads the true relation until slice I stales it.</summary>
+public sealed record RelationBrief(
+    int OtherPolityId, double Warmth, double Tension, TreatyRung Rung,
+    TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
+    int LiveClaimsAgainst);
+
 public sealed class PerceptionView
 {
     private static readonly IReadOnlyList<ColonyCandidate> NoCandidates =
@@ -23,6 +31,8 @@ public sealed class PerceptionView
         new DesignBrief[0];
     private static readonly IReadOnlyList<CorporateBrief> NoCorporations =
         new CorporateBrief[0];
+    private static readonly IReadOnlyList<RelationBrief> NoRelations =
+        new RelationBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -61,6 +71,10 @@ public sealed class PerceptionView
     /// <summary>Corporations this polity charters, by corp registry id —
     /// the nationalization act's targets (empty otherwise).</summary>
     public IReadOnlyList<CorporateBrief> HostedCorporations { get; }
+    /// <summary>The polity's relations, one brief per met polity in
+    /// relation-registry order (empty otherwise) — what the diplomatic
+    /// postures and treaty acts are written from (slice H).</summary>
+    public IReadOnlyList<RelationBrief> Relations { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -72,10 +86,12 @@ public sealed class PerceptionView
                           int colonyHullsAvailable = 0,
                           Temperament? selfTemperament = null,
                           double ownCredits = 0,
-                          IReadOnlyList<CorporateBrief>? hostedCorporations = null)
+                          IReadOnlyList<CorporateBrief>? hostedCorporations = null,
+                          IReadOnlyList<RelationBrief>? relations = null)
     {
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
+        Relations = relations ?? NoRelations;
         SelfId = selfId;
         WorldYear = worldYear;
         KnownPolityIds = knownPolityIds;
@@ -222,6 +238,15 @@ public sealed class GenesisController : IController
                     * perceived.OwnPortCount;
             policies = policies with { StockpileTargets = targets };
         }
+        if (perceived.Relations.Count > 0)
+        {
+            // the standing stance per met polity: net warmth − tension in
+            // five buckets — what treaty seeking and the war appetite read
+            var postures = new Dictionary<int, DiplomaticPosture>();
+            foreach (var rel in perceived.Relations)
+                postures[rel.OtherPolityId] = StanceOf(rel);
+            policies = policies with { DiplomaticPostures = postures };
+        }
         if (perceived.OwnDesigns.Count > 0)
         {
             // the yard queue by temperament: everyone hauls; a realm without
@@ -252,5 +277,17 @@ public sealed class GenesisController : IController
             policies = policies with { ShipbuildingPriorities = builds };
         }
         return policies;
+    }
+
+    /// <summary>Net warmth − tension mapped to the five-stance scale
+    /// (structural controller behavior, not a knob).</summary>
+    private static DiplomaticPosture StanceOf(RelationBrief rel)
+    {
+        double net = rel.Warmth - rel.Tension;
+        return net <= -0.35 ? DiplomaticPosture.Hostile
+            : net <= -0.10 ? DiplomaticPosture.Wary
+            : net < 0.15 ? DiplomaticPosture.Neutral
+            : net < 0.40 ? DiplomaticPosture.Cordial
+            : DiplomaticPosture.Friendly;
     }
 }

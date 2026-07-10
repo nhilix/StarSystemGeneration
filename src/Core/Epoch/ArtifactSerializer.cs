@@ -29,7 +29,7 @@ public static class ArtifactSerializer
         ("actors", 4), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
-        ("corporations", 1),
+        ("corporations", 1), ("relations", 1),
     };
 
     public static string ToText(SimState state)
@@ -296,6 +296,23 @@ public static class ArtifactSerializer
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
                 c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv),
                 c.TargetId.ToString(Inv)));
+
+        Layer(w, "relations");
+        foreach (var r in state.Relations)
+        {
+            w.WriteLine(Join("REL", r.PolityAId.ToString(Inv),
+                r.PolityBId.ToString(Inv), r.MetEpoch.ToString(Inv),
+                R(r.Warmth), R(r.Tension), ((int)r.Rung).ToString(Inv),
+                ((int)r.OfferedRung).ToString(Inv), r.OfferedById.ToString(Inv),
+                r.OfferEpoch.ToString(Inv), r.DynasticTies.ToString(Inv),
+                r.VassalPolityId.ToString(Inv)));
+            foreach (var c in r.Claims)
+                w.WriteLine(Join("CLM", r.PolityAId.ToString(Inv),
+                    r.PolityBId.ToString(Inv), ((int)c.Type).ToString(Inv),
+                    c.HolderPolityId.ToString(Inv), c.SubjectId.ToString(Inv),
+                    c.RaisedYear.ToString(Inv), B(c.Released),
+                    c.ReleasedYear.ToString(Inv)));
+        }
         w.WriteLine("END");
     }
 
@@ -876,6 +893,37 @@ public static class ArtifactSerializer
                             TargetId = int.Parse(f[15], Inv),
                         });
                         break;
+                    case "REL":
+                        state!.Relations.Add(new PolityRelation(
+                            int.Parse(f[1], Inv), int.Parse(f[2], Inv),
+                            int.Parse(f[3], Inv))
+                        {
+                            Warmth = double.Parse(f[4], Inv),
+                            Tension = double.Parse(f[5], Inv),
+                            Rung = (TreatyRung)int.Parse(f[6], Inv),
+                            OfferedRung = (TreatyRung)int.Parse(f[7], Inv),
+                            OfferedById = int.Parse(f[8], Inv),
+                            OfferEpoch = int.Parse(f[9], Inv),
+                            DynasticTies = int.Parse(f[10], Inv),
+                            VassalPolityId = int.Parse(f[11], Inv),
+                        });
+                        break;
+                    case "CLM":
+                    {
+                        var rel = state!.RelationOf(int.Parse(f[1], Inv),
+                                int.Parse(f[2], Inv))
+                            ?? throw new InvalidDataException(
+                                "claim on an unknown relation");
+                        rel.Claims.Add(new RelationClaim(
+                            (ClaimType)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            long.Parse(f[6], Inv))
+                        {
+                            Released = f[7] == "1",
+                            ReleasedYear = long.Parse(f[8], Inv),
+                        });
+                        break;
+                    }
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -1007,6 +1055,15 @@ public static class ArtifactSerializer
         NotableEmergedPayload e => Join("notableEmerged",
             e.CharacterId.ToString(Inv), Name(e.CharacterName),
             e.NotableType.ToString(Inv)),
+        FirstContactPayload e => Join("firstContact",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName)),
+        ClaimRaisedPayload e => Join("claimRaised",
+            e.HolderPolityId.ToString(Inv), e.AgainstPolityId.ToString(Inv),
+            e.ClaimType.ToString(Inv), e.SubjectId.ToString(Inv)),
+        ClaimReleasedPayload e => Join("claimReleased",
+            e.HolderPolityId.ToString(Inv), e.AgainstPolityId.ToString(Inv),
+            e.ClaimType.ToString(Inv), e.SubjectId.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1090,6 +1147,14 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv)),
         "notableEmerged" => new NotableEmergedPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv)),
+        "firstContact" => new FirstContactPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "claimRaised" => new ClaimRaisedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
+        "claimReleased" => new ClaimReleasedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

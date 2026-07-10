@@ -199,6 +199,16 @@ public static class SimTraceView
                     NotableType.Explorer => " returns from the ruins famous",
                     _ => " becomes notable",
                 },
+            FirstContactPayload p =>
+                $"{p.PolityAName} and {p.PolityBName} make first contact",
+            ClaimRaisedPayload p =>
+                Invariant($"polity #{p.HolderPolityId} raises a ")
+                + ClaimName((ClaimType)p.ClaimType)
+                + Invariant($" claim against polity #{p.AgainstPolityId}"),
+            ClaimReleasedPayload p =>
+                Invariant($"polity #{p.HolderPolityId} lets its ")
+                + ClaimName((ClaimType)p.ClaimType)
+                + Invariant($" claim against polity #{p.AgainstPolityId} rest"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();
@@ -206,6 +216,15 @@ public static class SimTraceView
         return Invariant($"{YearLabel(e.WorldYear),-9} {family,-12} {what} ")
             + Invariant($"at ({e.Location.Q},{e.Location.R}) [{vis}]");
     }
+
+    private static string ClaimName(ClaimType type) => type switch
+    {
+        ClaimType.CulturalKin => "cultural-kin",
+        ClaimType.LostTerritory => "lost-territory",
+        ClaimType.Succession => "succession",
+        ClaimType.Liberation => "liberation",
+        _ => "standing",
+    };
 
     /// <summary>World-year label at any zoom (P8): deep time reads in Gyr /
     /// Myr, the generational clock in plain years.</summary>

@@ -22,6 +22,65 @@ public sealed class EpochSimConfig
     public FactionKnobs Faction { get; } = new FactionKnobs();
     public TechKnobs Tech { get; } = new TechKnobs();
     public CorporateKnobs Corporate { get; } = new CorporateKnobs();
+    public RelationsKnobs Relations { get; } = new RelationsKnobs();
+}
+
+/// <summary>Relations dials (interpolity/relations.md): contact reach, the
+/// warmth/tension drift rates, and the source-term weights behind both
+/// targets. Slice H. The stance buckets Intent maps net warmth−tension to
+/// are structural controller behavior.</summary>
+public sealed class RelationsKnobs
+{
+    /// <summary>Nearest cross-owner port distance (hexes) at which two
+    /// polities meet — reach overlap makes contact (news-borne contact is
+    /// slice I).</summary>
+    public int ContactReachHexes { get; set; } = 24;
+    /// <summary>Fractional warmth drift toward its source target per
+    /// world-year (both directions — warmth cools as fast as it builds).</summary>
+    public double WarmthDriftPerYear { get; set; } = 0.02;
+    /// <summary>Fractional tension rise toward a higher target per
+    /// world-year — friction loads fast.</summary>
+    public double TensionRisePerYear { get; set; } = 0.05;
+    /// <summary>Fractional tension relaxation toward a lower target per
+    /// world-year — grudges unload slowly, and only once sources resolve.</summary>
+    public double TensionRelaxPerYear { get; set; } = 0.012;
+    /// <summary>Warmth-baseline cut per point of openness-filtered
+    /// strangeness (embodiment + disposition distance).</summary>
+    public double StrangenessWeight { get; set; } = 0.35;
+    /// <summary>Warmth-target weight of saturated cross-border trade.</summary>
+    public double TradeWarmthWeight { get; set; } = 0.30;
+    /// <summary>Posted cross-border freight capacity at which the trade
+    /// warmth term saturates.</summary>
+    public double TradeSaturation { get; set; } = 10.0;
+    /// <summary>Warmth-target weight of the treaty ladder at its top rung.</summary>
+    public double TreatyWarmthWeight { get; set; } = 0.25;
+    /// <summary>Warmth per live dynastic instrument (marriage/wardship),
+    /// counted up to three.</summary>
+    public double DynasticTieWarmth { get; set; } = 0.10;
+    /// <summary>Warmth cut per point of official-ideology gap.</summary>
+    public double IdeologyGapCooling { get; set; } = 0.20;
+    /// <summary>Tension-target weight of saturated service-area overlap
+    /// (the contested-influence zones).</summary>
+    public double OverlapTensionWeight { get; set; } = 0.35;
+    /// <summary>Overlapping cross-owner port pairs at which the overlap
+    /// tension term saturates.</summary>
+    public double OverlapSaturation { get; set; } = 4.0;
+    /// <summary>Tension per live standing claim (saturating at 1).</summary>
+    public double ClaimTensionWeight { get; set; } = 0.18;
+    /// <summary>Tension-target weight of ideology gap × mean ruler zeal.</summary>
+    public double IdeologyTensionWeight { get; set; } = 0.30;
+    /// <summary>Tension-target weight of the pair's mean composed militancy —
+    /// hawks keep borders loaded even without grievances.</summary>
+    public double MilitancyTensionWeight { get; set; } = 0.20;
+    /// <summary>Tension-target weight of the loudest military faction's
+    /// strength × militancy on either side.</summary>
+    public double AgitationTensionWeight { get; set; } = 0.15;
+    /// <summary>Tension-target weight while either blockades the other's
+    /// ports — interdiction strain.</summary>
+    public double InterdictionTensionWeight { get; set; } = 0.40;
+    /// <summary>Kin population living under the other's rule at which a
+    /// cultural-kin claim raises (and below which it releases).</summary>
+    public double KinClaimSegmentFloor { get; set; } = 0.5;
 }
 
 /// <summary>Corporate dials (economy/corporations.md): niche detection

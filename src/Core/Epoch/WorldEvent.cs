@@ -53,6 +53,9 @@ public enum WorldEventType
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    FirstContact = 500,
+    ClaimRaised = 501,
+    ClaimReleased = 502,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -197,6 +200,23 @@ public sealed record CorporationBankruptPayload(
 /// evaporates — the corporation follows its niche into history.</summary>
 public sealed record NicheDiedPayload(
     int CorpId, string Name, int Niche) : EventPayload;
+
+/// <summary>Two polities meet — reach overlapped (interpolity/relations.md
+/// §Contact). The relation seeds at its first-stance targets.</summary>
+public sealed record FirstContactPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName)
+    : EventPayload;
+
+/// <summary>A standing claim raises — a tension source that persists until
+/// its cause resolves (§Relations state per pair).</summary>
+public sealed record ClaimRaisedPayload(
+    int HolderPolityId, int AgainstPolityId, int ClaimType, int SubjectId)
+    : EventPayload;
+
+/// <summary>A standing claim's cause resolved; the grudge may now cool.</summary>
+public sealed record ClaimReleasedPayload(
+    int HolderPolityId, int AgainstPolityId, int ClaimType, int SubjectId)
+    : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the
