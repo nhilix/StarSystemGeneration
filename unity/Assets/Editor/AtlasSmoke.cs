@@ -48,6 +48,9 @@ namespace StarGen.AtlasView.EditorTools
             map.Show(host.Model, eye);
             lanes.Show(host.Model, eye);
             ports.Show(host.Model, eye);
+            // Aspect before FitTo, so framing and band calibration match
+            // the shot Capture renders (not the editor game view's aspect).
+            cam.aspect = (float)Width / Height;
             rig.FitTo(map.MapBounds);
             lanes.SetBand(rig.Band);
             ports.SetBand(rig.Band);
@@ -58,8 +61,11 @@ namespace StarGen.AtlasView.EditorTools
                 + $"band {rig.Band}");
 
             // Second shot down the continuum: Region band centered on the
-            // first port — per-hex organic borders should resolve.
-            float extent = Mathf.Max(map.MapBounds.extents.x, map.MapBounds.extents.y);
+            // first port — per-hex organic borders should resolve. Extent
+            // matches CameraRig.FitTo's formula so the band label agrees
+            // with what the interactive rig would publish.
+            float extent = Mathf.Max(map.MapBounds.extents.y,
+                                     map.MapBounds.extents.x / cam.aspect);
             var (px, py) = StarGen.Core.Galaxy.HexGrid.HexToWorld(host.State.Ports[0].Hex);
             cam.transform.position = new Vector3((float)px, (float)py, -10f);
             cam.orthographicSize = extent * 0.12f;

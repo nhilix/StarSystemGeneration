@@ -30,6 +30,14 @@ namespace StarGen.AtlasView
         private void Awake() =>
             GetComponent<MeshRenderer>().material = new Material(Shader.Find("Sprites/Default"));
 
+        private void OnDestroy()
+        {
+            if (_mesh != null) DestroySafe(_mesh);
+            var renderer = GetComponent<MeshRenderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+                DestroySafe(renderer.sharedMaterial);
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
             _model = model;

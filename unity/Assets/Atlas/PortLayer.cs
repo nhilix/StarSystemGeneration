@@ -20,6 +20,20 @@ namespace StarGen.AtlasView
         private void Awake() =>
             GetComponent<MeshRenderer>().material = new Material(Shader.Find("Sprites/Default"));
 
+        private void OnDestroy()
+        {
+            if (_mesh != null) DestroyResource(_mesh);
+            var renderer = GetComponent<MeshRenderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+                DestroyResource(renderer.sharedMaterial);
+        }
+
+        private static void DestroyResource(Object o)
+        {
+            if (Application.isPlaying) Destroy(o);
+            else DestroyImmediate(o);
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
             _markers = PortLens.Markers(model, eye);
@@ -64,11 +78,7 @@ namespace StarGen.AtlasView
                 triangles[t + 4] = v + 2;
                 triangles[t + 5] = v + 3;
             }
-            if (_mesh != null)
-            {
-                if (Application.isPlaying) Destroy(_mesh);
-                else DestroyImmediate(_mesh);
-            }
+            if (_mesh != null) DestroyResource(_mesh);
             _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
             _mesh.SetVertices(vertices);
             _mesh.SetColors(colors);

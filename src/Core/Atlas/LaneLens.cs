@@ -15,7 +15,7 @@ public readonly record struct LaneSegment(
 /// <summary>The lanes lens — built highways as literal lines
 /// (space-and-travel.md §P1). Severance derives from blockade fleets at
 /// render time (FleetOps.SeveredLaneIds); quarantine reads the lane's own
-/// lapse clock against the eye's world-year.</summary>
+/// lapse clock against the state's world-year.</summary>
 public static class LaneLens
 {
     private static readonly Rgba OpenColor = new(255, 190, 80, 170);

@@ -42,9 +42,22 @@ to start K1 in the same session.
       atlas-smoke-region.png at the repo root — the pre-eyeball
       verification loop. First shot verified: the P1 image reads
       (year 1000, 98 ports, 464 lanes).
-- [ ] **T5 — Fresh-eyes whole-branch review** subagent + one fix wave
-- [ ] **T6 — Gates**: `dotnet test` green · golden untouched ·
-      determinism untouched · atlas renders seed 42 in-editor
+- [x] **T5 — Fresh-eyes whole-branch review** + one fix wave. Verdict:
+      "a clean K1" — hard rules verified holding (Core purity, meta
+      completeness, no sim drift, deterministic iteration, query-time
+      derivation). 1 plausible-bug + 6 notes; fixed: OnDestroy
+      mesh/material release on all three layers, scene-save prompt
+      before setup discards an open scene, smoke aspect set before
+      FitTo (+ rig-matching extent), LaneLens doc-comment drift,
+      remoteness test now uses a live far cell (not the void gate).
+      Riding to K2 (flagged): per-hex OwnersAt is O(hexes×ports) —
+      the K4 animation hot spot; HUD doesn't consume pointer events
+      (provisional IMGUI).
+- [x] **T6 — Gates** (post-fix-wave): `dotnet test` 590/590 (562
+      baseline + 28 atlas) · golden untouched, determinism suites in
+      that count (reviewer verified zero sim-behavior diff) · Unity
+      EditMode 6/6 headless · AtlasSmoke renders seed 42 (galaxy +
+      region shots).
 - [ ] **T7 — USER: atlas eyeball** (P1 image: wilds dark, domain glows
       with organic borders + contested overlap, lanes as highways; zoom
       galaxy→hex; nature lenses toggle)

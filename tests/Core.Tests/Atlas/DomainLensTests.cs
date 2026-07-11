@@ -125,10 +125,18 @@ public class DomainLensTests
         var (model, state, port) = WithPort();
         var eye = EyeContext.God(state.WorldYear);
         int radius = PortDomains.ServiceRadius(state.Config, port.Tier);
-        var inside = port.Hex;
-        var outside = new HexCoordinate(port.Hex.Q + radius + 1, port.Hex.R + radius + 1);
-        var hexes = new[] { inside, outside };
-        var shades = DomainLens.HexShades(model, eye, hexes);
+        // A LIVE cell beyond the radius — remoteness must go dark on its
+        // own, not through the void gate.
+        HexCoordinate? outside = null;
+        foreach (var cell in model.Cells)
+        {
+            if (cell.IsVoid) continue;
+            var center = HexGrid.CellCenter(cell.Coord);
+            if (HexGrid.Distance(port.Hex, center) > radius) { outside = center; break; }
+        }
+        Assert.NotNull(outside);
+        var shades = DomainLens.HexShades(model, eye,
+                                          new[] { port.Hex, outside!.Value });
         Assert.Equal(2, shades.Count);
         Assert.True(shades[0].A > 0);
         Assert.Equal(0, shades[1].A);

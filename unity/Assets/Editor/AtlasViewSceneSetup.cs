@@ -25,6 +25,10 @@ namespace StarGen.AtlasView.EditorTools
 
         private static void Build()
         {
+            // Never silently discard someone's open scene (batchmode always
+            // proceeds; the dialog only appears for a human).
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                return;
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,
                                                     NewSceneMode.Single);
 
