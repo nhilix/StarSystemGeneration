@@ -92,7 +92,7 @@ public class PoiCompilerTests
             foundedYear: 0);
         state.Ports.Add(colony);
         state.Markets.Add(new Market(1, state.Config.Economy));
-        // founded 100 years ago, nobody lives there: a dead city
+        // empty for 100 years (well past the grace window): a dead city
         new ChroniclePhase().Run(state);
         var poi = Assert.Single(state.Pois,
             p => p.Type == PoiType.Ruins && p.SubjectId == colony.Id);
@@ -100,9 +100,21 @@ public class PoiCompilerTests
 
         // settlers return: the ruins come back to life
         int sp = state.PolityOf(1).SpeciesId;
-        state.Segments.Add(new PopulationSegment(1, colony.Id, sp, sp, 2.0));
+        var settlers = new PopulationSegment(1, colony.Id, sp, sp, 2.0);
+        state.Segments.Add(settlers);
         new ChroniclePhase().Run(state);
         Assert.True(poi.Depleted);
+
+        // and when they leave again, the grace window restarts from the
+        // last populated year — no same-epoch re-ruining (review fix 2)
+        settlers.Size = 0;
+        state.WorldYear += 25;
+        new ChroniclePhase().Run(state);
+        Assert.Single(state.Pois, p => p.Type == PoiType.Ruins);
+        state.WorldYear += 50;                            // grace expires
+        new ChroniclePhase().Run(state);
+        Assert.Equal(2, state.Pois.FindAll(
+            p => p.Type == PoiType.Ruins).Count);
     }
 
     [Fact]

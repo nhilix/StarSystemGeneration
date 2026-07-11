@@ -21,6 +21,10 @@ public sealed class Port
     /// Allocation-phase investment.</summary>
     public int Tier { get; set; }
     public int FoundedYear { get; }
+    /// <summary>Last world-year anyone lived here (updated each Chronicle;
+    /// founding counts) — the dead-city grace clock reads how long the
+    /// port has sat EMPTY, not how old it is (slice I, ports layer v2).</summary>
+    public long LastPopulatedYear { get; set; }
 
     public Port(int id, int ownerActorId, HexCoordinate hex, int tier, int foundedYear)
     {
@@ -29,6 +33,7 @@ public sealed class Port
         Hex = hex;
         Tier = tier;
         FoundedYear = foundedYear;
+        LastPopulatedYear = foundedYear;
     }
 }
 

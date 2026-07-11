@@ -265,6 +265,12 @@ public static class CorporationOps
                 continue;
             var pr = state.PolityOf(faction.PolityId);
             bool outlaw = (CorporateNiche)faction.NicheType == CorporateNiche.Cartel;
+            // a salvage expedition needs a harbor: a host that lost every
+            // port between detection and charter keeps waiting (review fix 4)
+            if ((CorporateNiche)faction.NicheType == CorporateNiche.Salvage
+                && NearestOwnPort(state, pr.ActorId,
+                    state.Pois[faction.ContextId].Hex, int.MaxValue) < 0)
+                continue;
             if (!outlaw)
             {
                 double openness = (state.Actors[pr.ActorId].Policies

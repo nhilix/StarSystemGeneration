@@ -26,7 +26,7 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 5), ("ports", 1), ("lanes", 2), ("facilities", 1),
+        ("actors", 5), ("ports", 2), ("lanes", 2), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
         ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
@@ -126,9 +126,10 @@ public static class ArtifactSerializer
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
+            // ports v2 (slice I): the dead-city grace clock rides along
             w.WriteLine(Join("PORT", p.Id.ToString(Inv), p.OwnerActorId.ToString(Inv),
                 p.Hex.Q.ToString(Inv), p.Hex.R.ToString(Inv), p.Tier.ToString(Inv),
-                p.FoundedYear.ToString(Inv)));
+                p.FoundedYear.ToString(Inv), p.LastPopulatedYear.ToString(Inv)));
 
         Layer(w, "lanes");
         foreach (var l in state.Lanes)
@@ -873,7 +874,8 @@ public static class ArtifactSerializer
                             throw new InvalidDataException("port ids out of order");
                         state.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
-                            int.Parse(f[5], Inv), int.Parse(f[6], Inv)));
+                            int.Parse(f[5], Inv), int.Parse(f[6], Inv))
+                        { LastPopulatedYear = long.Parse(f[7], Inv) });
                         // markets parallel ports (market index == port id);
                         // MARKET records overwrite the founded prices below
                         state.Markets.Add(new Market(state.Ports.Count - 1,

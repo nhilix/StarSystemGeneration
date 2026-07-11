@@ -81,6 +81,33 @@ public class SalvageTests
         field.HullsSalvaged = (int)field.Magnitude;   // stripped bare
         new ChroniclePhase().Run(state);
         Assert.True(field.Depleted, "a 10-hull field fades when stripped");
+        // the same wrecks must never re-anchor a fresh field (review fix 1:
+        // wreckage records are immutable — a resurrected POI would mint the
+        // same salvage forever)
+        new ChroniclePhase().Run(state);
+        new ChroniclePhase().Run(state);
+        Assert.Single(state.Pois, p => p.Type == PoiType.Battlefield);
+        Assert.True(field.Depleted);
+    }
+
+    [Fact]
+    public void FreshWrecks_ReopenAStrippedField()
+    {
+        var (state, home, field) = BattlefieldFixture();
+        field.HullsSalvaged = (int)field.Magnitude;
+        new ChroniclePhase().Run(state);
+        Assert.True(field.Depleted);
+        // a new battle over the old ground: the SAME record reopens
+        var fleet = new FleetRecord(state.Fleets.Count, 0, field.Hex);
+        fleet.AddHulls(state.Designs[0].Id, 5, 0.5);
+        state.Fleets.Add(fleet);
+        state.PolityOf(0).HullsBuilt += 5;
+        FleetOps.Wreck(state, fleet, 5, quiet: true);
+        new ChroniclePhase().Run(state);
+        Assert.Single(state.Pois, p => p.Type == PoiType.Battlefield);
+        Assert.False(field.Depleted);
+        Assert.Equal(15.0, field.Magnitude, 6);
+        Assert.Equal(5.0, field.SalvageRemaining, 6);   // only the new hulls
     }
 
     [Fact]

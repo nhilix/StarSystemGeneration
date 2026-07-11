@@ -73,11 +73,18 @@ public static class PoiCompiler
         {
             int total = hulls[hex];
             if (total < knobs.BattlefieldHullFloor) continue;
-            var standing = LiveAt(state, hex);
-            if (standing != null && standing.Type == PoiType.Battlefield)
+            // one battlefield per hex, EVER: wreckage records are immutable,
+            // so a stripped field must not re-anchor from the same wrecks
+            // (the precursor Charted() rule, same reason — review fix 1).
+            // Fresh wrecks landing on old ground reopen the field instead.
+            var standing = BattlefieldAt(state, hex);
+            if (standing != null)
             {
-                // the field grows; already-salvaged hulls stay drawn
-                if (total > standing.Magnitude) standing.Magnitude = total;
+                if (total > standing.Magnitude)
+                {
+                    standing.Magnitude = total;
+                    standing.Depleted = false;   // new battles, new salvage
+                }
                 continue;
             }
             var poi = Anchor(state, PoiType.Battlefield, hex, total);
@@ -90,6 +97,16 @@ public static class PoiCompiler
                 hex, Magnitude: total, Valence: -0.4, EventVisibility.Public,
                 new BattlefieldMarkedPayload(poi.Id, total)));
         }
+    }
+
+    /// <summary>The battlefield record at a hex, live or stripped — there
+    /// is at most one, ever (TechOps.FieldRemaining relies on this too).</summary>
+    private static PoiRecord? BattlefieldAt(SimState state, HexCoordinate hex)
+    {
+        foreach (var poi in state.Pois)                   // id order (P6)
+            if (poi.Type == PoiType.Battlefield && poi.Hex.Equals(hex))
+                return poi;
+        return null;
     }
 
     /// <summary>Owners of the hulls lying at a hex, ascending actor id.</summary>
@@ -121,7 +138,8 @@ public static class PoiCompiler
     }
 
     /// <summary>Dead cities: a standing port whose people are gone (and
-    /// stayed gone past the grace window) anchors ruins — suppressed
+    /// stayed gone past the grace window — measured from the last year
+    /// anyone lived here, review fix 2) anchors ruins — suppressed
     /// settlement, a piracy shadow, salvage in the walls.</summary>
     private static void CompileRuins(SimState state, List<StagedEvent> events)
     {
@@ -129,9 +147,13 @@ public static class PoiCompiler
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var port in state.Ports)                 // id order (P6)
         {
-            if (port.FoundedYear + knobs.RuinsDeadEpochs * years
+            if (Population(state, port.Id) >= 0.01)
+            {
+                port.LastPopulatedYear = state.WorldYear;
+                continue;
+            }
+            if (port.LastPopulatedYear + (long)knobs.RuinsDeadEpochs * years
                 > state.WorldYear) continue;
-            if (Population(state, port.Id) >= 0.01) continue;
             var standing = LiveAt(state, port.Hex);
             if (standing != null && standing.Type == PoiType.Ruins
                 && standing.SubjectId == port.Id) continue;

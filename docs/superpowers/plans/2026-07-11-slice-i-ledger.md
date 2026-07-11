@@ -141,8 +141,23 @@ scope restated in-session.
       is the per-audience reputation matrix. Watch verified
       byte-identical. Eyeball seed 42: Veka believes a 285-strength
       neighbor is at 11 on 250-year-old word.
-- [ ] I11 — Gates: full suite, determinism byte-identity, golden regen
+- [x] I11 — Gates: full suite, determinism byte-identity, golden regen
       (once, at slice end), fresh-eyes review + one fix wave.
+      Fresh-eyes review: 2 confirmed findings + 3 actionable notes, all
+      fixed in one wave: (1) HIGH — stripped battlefields re-anchored
+      from the same immutable wrecks, minting salvage forever → one
+      battlefield POI per hex EVER; fresh wrecks reopen the record;
+      (2) ruins grace measured port age, not empty duration → new
+      Port.LastPopulatedYear (ports layer v2); (3) quarantined lanes
+      carried phantom traffic into news speed and spread saturation →
+      TrafficPerYear reads 0 on closed lanes; (4) portless hosts could
+      charter salvors into Ports[-1] → charter waits for a harbor.
+      Multi-hop same-epoch plague spread is lane-id-order dependent —
+      deterministic, accepted. News still crosses quarantined lanes at
+      the base crawl (word outruns sealed borders) — deliberate.
+      Design-doc amendment: perception-and-news.md P1 evidence now
+      names pulse journeys instead of per-polity arrival log events.
+      Suite 532/532; golden frozen at the final format (ports v2).
 - [ ] I12 — Eyeball gate: the fog of war made visible (distant loser
       fights on; reputation shock travels; battlefield POI dug).
 
