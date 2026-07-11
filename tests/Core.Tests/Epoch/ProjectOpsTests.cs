@@ -96,6 +96,41 @@ public class ProjectOpsTests
         Assert.Equal(5.0, p.YearsDelivered, 6);
     }
 
+    /// <summary>Groundbreaking spawns a project whose basket × years
+    /// reconstructs the old lump cost (conservation, spec §2); the facility
+    /// row exists uncommissioned from year one and only goes active once
+    /// AdvanceAll delivers the full construction span.</summary>
+    [Fact]
+    public void FacilityConstruction_ConsumesOverYears_ThenCommissions()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        var market = state.Markets[portId];
+        var def = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Mine);
+        // plenty of everything, deep treasury
+        foreach (var q in def.BuildCost)
+            market.Inventory[(int)q.Good] += q.Quantity * 2;
+        pr.DevelopmentPoints += 1000;
+        var candidate = new ConstructionCandidate(
+            (int)StarGen.Core.Substrate.InfraTypeId.Mine,
+            state.Ports[portId].Hex, portId, 1.0);
+        var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
+            pr.ActorId, candidate, ProjectPriority.Core, 0);
+        var f = state.Facilities[p.TargetId];
+        Assert.Equal(-1, f.CommissionedYear);            // site, not facility
+        Assert.False(MarketEngine.IsActive(state, f));
+        // basket × years == the old lump (conservation invariant)
+        foreach (var q in def.BuildCost)
+            Assert.Equal(q.Quantity,
+                p.PerYearBasket[(int)q.Good] * p.YearsRequired, 6);
+        ProjectOps.AdvanceAll(state);                    // 25y span >= 2y build
+        Assert.True(p.Completed);
+        Assert.True(MarketEngine.IsActive(state, f));
+    }
+
     /// <summary>Fixture adaptation (brief's tests assume ports/markets
     /// already exist; EpochTestKit.Seeded() enters polities only as
     /// history runs — spec §Genesis). A few epochs are enough for the

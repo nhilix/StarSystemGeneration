@@ -31,6 +31,37 @@ public static class ProjectOps
         return p;
     }
 
+    /// <summary>Groundbreak a facility: the Facility row exists NOW at the
+    /// hex, uncommissioned (P1 — the construction site is residue); basket
+    /// = BuildCost / ConstructionYears (the conservation invariant); wages
+    /// = administered value / ConstructionYears.</summary>
+    public static Project SpawnFacilityConstruction(SimState state,
+        int ownerActorId, int funderActorId, ConstructionCandidate c,
+        ProjectPriority priority, int planOrder)
+    {
+        var type = (Substrate.InfraTypeId)c.TypeId;
+        var def = Substrate.Infrastructure.Get(type);
+        var facility = new Facility(state.Facilities.Count, c.TypeId,
+            tier: 1, c.Hex, ownerActorId, state.WorldYear)
+        { CommissionedYear = -1 };
+        state.Facilities.Add(facility);
+        double years = Math.Max(1.0, def.ConstructionYears);
+        var p = Spawn(state, ProjectKind.FacilityConstruction, ownerActorId,
+                      funderActorId, c.PortId, c.Hex, years, priority,
+                      planOrder);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+        {
+            p.PerYearBasket[(int)q.Good] = q.Quantity / years;
+            value += q.Quantity
+                     * Market.InitialPrice(state.Config.Economy, q.Good);
+        }
+        p.WagesPerYear = value / years;
+        p.TypeId = c.TypeId;
+        p.TargetId = facility.Id;
+        return p;
+    }
+
     /// <summary>Pass 1 (spec §4): per funder in entered actor-id order,
     /// projects in (priority, plan order, id) order — the scarcest input
     /// paces each project; earlier draws starve later ones at a shared

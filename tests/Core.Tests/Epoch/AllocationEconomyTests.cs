@@ -51,7 +51,11 @@ public class AllocationEconomyTests
         Assert.True(pr.Credits < 100);
     }
 
-    [Fact]
+    /// <summary>Construction-volume test: with the greedy loop gone,
+    /// AllocationPhase itself builds nothing until the planner (Task 7)
+    /// calls SpawnFacilityConstruction from a plan. Revive once Groundbreak
+    /// lands (t1: planner lands Task 7).</summary>
+    [Fact(Skip = "t1: planner lands Task 7")]
     public void Construction_BuildsAFacility_ConsumingRealGoods()
     {
         var (state, port) = Fixture();
@@ -72,32 +76,34 @@ public class AllocationEconomyTests
         Assert.True(staged);
     }
 
+    /// <summary>Candidate-scan internals (moved to CapabilityOps, Task 5):
+    /// the price-signal term should make the scarce good's producer
+    /// outscore every other buildable type at the port.</summary>
     [Fact]
     public void Construction_ChasesThePriceSignal()
     {
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
-        pr.DevelopmentPoints = 500;
         var m = state.Markets[0];
         StockBuildGoods(m);
         // consumer goods desperately scarce: the fabricator should win
         m.Price[(int)GoodId.ConsumerGoods] = 60.0;
 
-        new AllocationPhase().Run(state);
+        var candidates = CapabilityOps.ConstructionCandidatesFor(state, pr.ActorId);
 
-        bool builtFabricator = false;
-        foreach (var f in state.Facilities)
-            if (f.TypeId == (int)InfraTypeId.Fabricator) builtFabricator = true;
-        Assert.True(builtFabricator,
-            "the scarce good's producer should out-bid other types");
+        Assert.True(candidates.Count > 0, "the scan should surface a top candidate");
+        Assert.Equal((int)InfraTypeId.Fabricator, candidates[0].TypeId);
     }
 
+    /// <summary>Candidate-scan internals (moved to CapabilityOps, Task 5):
+    /// the saturation term (score / (1 + existing)) must diversify the
+    /// per-port top pick across successive groundbreaks — without it the
+    /// single top scorer would repeat every time.</summary>
     [Fact]
     public void Construction_DiversifiesAcrossTypes()
     {
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
-        pr.DevelopmentPoints = 100000;
         StockBuildGoods(state.Markets[0], 100000);
         // every product desperately scarce: without the saturation penalty
         // the single top scorer would repeat
@@ -105,10 +111,17 @@ public class AllocationEconomyTests
             state.Markets[0].Price[g] = Market.InitialPrice(
                 state.Config.Economy, (GoodId)g) * 50;
 
-        for (int i = 0; i < 6; i++) new AllocationPhase().Run(state);
-
         var types = new System.Collections.Generic.HashSet<int>();
-        foreach (var f in state.Facilities) types.Add(f.TypeId);
+        for (int i = 0; i < 6; i++)
+        {
+            var candidates = CapabilityOps.ConstructionCandidatesFor(state, pr.ActorId);
+            Assert.True(candidates.Count > 0, $"round {i}: scan found nothing to build");
+            var top = candidates[0];
+            types.Add(top.TypeId);
+            ProjectOps.SpawnFacilityConstruction(state, pr.ActorId, pr.ActorId,
+                top, ProjectPriority.Core, planOrder: i);
+        }
+
         Assert.True(types.Count >= 3,
             $"a port should grow a chain, not a monoculture ({types.Count} types)");
     }
@@ -126,31 +139,28 @@ public class AllocationEconomyTests
         Assert.True(policies.StockpileTargets.ContainsKey((int)GoodId.Machinery));
     }
 
+    /// <summary>Candidate-scan internals (moved to CapabilityOps, Task 5):
+    /// a port already at its facility-per-tier cap (uncommissioned sites
+    /// count, per spec §2) offers no candidates at all.</summary>
     [Fact]
     public void Construction_RespectsThePortCap()
     {
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
-        pr.DevelopmentPoints = 100000;
-        StockBuildGoods(state.Markets[0], 100000);
-
-        for (int i = 0; i < 10; i++) new AllocationPhase().Run(state);
-
         int cap = port.Tier * state.Config.Infrastructure.FacilitiesPerPortTier;
-        Assert.True(state.Facilities.Count <= cap,
-            $"{state.Facilities.Count} facilities exceed the tier cap {cap}");
+        for (int i = 0; i < cap; i++)
+            state.Facilities.Add(new Facility(state.Facilities.Count,
+                (int)InfraTypeId.Mine, 1, port.Hex, pr.ActorId, state.WorldYear));
+
+        var candidates = CapabilityOps.ConstructionCandidatesFor(state, pr.ActorId);
+
+        Assert.Empty(candidates);
     }
 
-    [Fact]
-    public void Construction_SkipsWhenGoodsUnavailable()
-    {
-        var (state, _) = Fixture();
-        state.PolityOf(0).DevelopmentPoints = 500;   // empty market
-
-        new AllocationPhase().Run(state);
-
-        Assert.Empty(state.Facilities);
-    }
+    // Construction_SkipsWhenGoodsUnavailable removed (Task 5): it asserted
+    // the old CanAfford market-stock gate, which the brief deletes outright
+    // — affordability is now the planner's rate packing + groundbreak's
+    // treasury check (spec §2), not the perceived candidate scan's job.
 
     [Fact]
     public void Upkeep_UnmetDecaysCondition_MetRestoresIt()
