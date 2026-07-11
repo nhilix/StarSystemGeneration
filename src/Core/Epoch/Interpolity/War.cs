@@ -64,9 +64,9 @@ public sealed class WarObjective
     /// defender polity id (DestroyFleet).</summary>
     public int TargetId { get; }
     public ObjectiveStatus Status { get; set; } = ObjectiveStatus.Contested;
-    /// <summary>Consecutive epochs of attacker superiority at a port —
-    /// the siege clock (war.md §Conduct 3).</summary>
-    public int SiegeEpochs { get; set; }
+    /// <summary>Consecutive world-years of attacker superiority at a port —
+    /// the siege clock (war.md §Conduct 3; P7: years, not steps).</summary>
+    public int SiegeYears { get; set; }
 
     public WarObjective(int id, WarObjectiveType type, int targetId)
     {

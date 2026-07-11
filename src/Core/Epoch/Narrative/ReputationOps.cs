@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
@@ -15,16 +16,33 @@ namespace StarGen.Core.Epoch;
 public static class ReputationOps
 {
     /// <summary>Memory fades: every stance drifts toward 0. Runs once per
-    /// Perception, before this step's news lands.</summary>
+    /// Perception, before this step's news lands. Exception: a standing
+    /// memorial anchors the memory of its perpetrator — any audience whose
+    /// stance reached the anchor is held there while the stone stands
+    /// (chronicle-and-poi.md live-effects table, slice J wire).</summary>
     public static void DecayStances(SimState state)
     {
         double keep = Math.Max(0.0, 1.0 - state.Config.News.StanceDecayPerYear
                                           * state.Config.Sim.YearsPerEpoch);
+        HashSet<int>? memorialized = null;
+        foreach (var poi in state.Pois)                   // id order (P6)
+            if (!poi.Depleted && poi.Type == PoiType.Memorial
+                && poi.SubjectId >= 0)
+                (memorialized ??= new HashSet<int>()).Add(poi.SubjectId);
+        double anchor = -state.Config.Poi.MemorialStanceAnchor;
         foreach (var a in state.Actors)                   // id order (P6)
         {
             var stances = a.Beliefs.Stances;
             for (int i = 0; i < stances.Count; i++)
-                stances[stances.Keys[i]] *= keep;
+            {
+                int subject = stances.Keys[i];
+                double held = stances[subject];
+                double faded = held * keep;
+                if (faded > anchor && held <= anchor
+                    && memorialized != null && memorialized.Contains(subject))
+                    faded = anchor;
+                stances[subject] = faded;
+            }
         }
     }
 
@@ -127,29 +145,43 @@ public static class ReputationOps
         return Math.Max(0.25, 1.0 - 0.75 * Math.Min(1.0, ageYears / horizon));
     }
 
-    /// <summary>Regional events spread by contact, not pulse: last epoch's
-    /// regional news reaches every polity close enough to have heard it
-    /// within the epoch (chronicle-and-poi.md §Visibility). Stateless —
-    /// derived from the log tail each Perception.</summary>
+    /// <summary>Regional events spread by contact, not pulse: regional
+    /// news reaches every polity close enough to have heard it within a
+    /// generation (chronicle-and-poi.md §Visibility). Stateless — derived
+    /// from the log tail each Perception. Each observer judges an event
+    /// exactly once, on the step its age crosses that observer's news
+    /// delay — so fine ticks deliver the same word to the same audience,
+    /// just spread across the steps it actually takes to travel (P7).</summary>
     public static void SpreadRegional(SimState state,
                                       BeliefOps.NewsFieldCache fields)
     {
         int years = state.Config.Sim.YearsPerEpoch;
-        long lastEpochYear = state.WorldYear - years;
+        int horizon = state.Config.Sim.GenerationYears;
         var events = state.Log.Events;
         for (int i = events.Count - 1; i >= 0; i--)
         {
             var e = events[i];
-            if (e.WorldYear < lastEpochYear) break;
-            if (e.WorldYear != lastEpochYear
-                || e.Visibility != EventVisibility.Regional) continue;
+            long age = state.WorldYear - e.WorldYear;
+            // the last window may straddle the horizon when the step size
+            // does not divide the generation (review fix 3)
+            if (age > horizon + years - 1) break;
+            if (age < years || e.Visibility != EventVisibility.Regional)
+                continue;
             double[]? field = null;
             foreach (var a in state.Actors)               // id order (P6)
             {
                 if (!a.Entered || a.Kind != ActorKind.Polity) continue;
                 field ??= fields.FieldFor(state, e.Location);
-                if (NewsOps.DelayYears(state, a.Id, field, e.Location) > years)
-                    continue;
+                double delay = NewsOps.DelayYears(state, a.Id, field,
+                                                  e.Location);
+                // in transit, or beyond the one-generation horizon
+                if (delay > age || delay > horizon) continue;
+                // the word arrived within THIS step (fresh events take
+                // everyone the first step their delay allows). Delay is
+                // recomputed from live traffic, so a churning topology can
+                // double- or skip-judge one regional event at fine tick —
+                // deterministic, bounded, accepted (coarse has one window).
+                if (age > years && delay <= age - years) continue;
                 Judge(state, a, e, attenuation: 1.0);
             }
         }

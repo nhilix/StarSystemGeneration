@@ -107,12 +107,13 @@ public class FederationTests
         Assert.False(FederationOps.FederationGateHolds(state, rel));
         // fresh alliance: still closed
         rel.Rung = TreatyRung.DefenseAlliance;
-        rel.RungEpoch = state.EpochIndex;
+        rel.RungYear = state.WorldYear;
         rel.Warmth = 0.95;
         Assert.False(FederationOps.FederationGateHolds(state, rel));
         // sustained + warm + aligned + open + cohesive: open
-        rel.RungEpoch = state.EpochIndex
-            - state.Config.Relations.FederationAllianceEpochs;
+        rel.RungYear = state.WorldYear
+            - state.Config.Relations.FederationAllianceEpochs
+              * state.Config.Sim.GenerationYears;
         var a = state.PolityOf(rel.PolityAId);
         var b = state.PolityOf(rel.PolityBId);
         for (int ax = 0; ax < 4; ax++)
@@ -185,8 +186,9 @@ public class FederationTests
         var rel = EpochTestKit.FirstLiveRelation(state);
         int vassal = rel.PolityAId, overlord = rel.PolityBId;
         FederationOps.Bind(state, rel, vassal);
-        rel.VassalSinceEpoch = state.EpochIndex
-            - state.Config.Relations.VassalAbsorptionEpochs;
+        rel.VassalSinceYear = state.WorldYear
+            - state.Config.Relations.VassalAbsorptionEpochs
+              * state.Config.Sim.GenerationYears;
         rel.Warmth = 0.9;
         state.PolityOf(overlord).Interior!.Cohesion = 0.7;
         double creditsBefore = TotalCredits(state);
@@ -226,7 +228,7 @@ public class FederationTests
         var state = Run();
         var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.DefenseAlliance;
-        rel.RungEpoch = 7;
+        rel.RungYear = 175;
         FederationOps.Bind(state, state.Relations.Count > 1
             ? state.Relations[1] : rel, rel.PolityAId);
         state.Actors[rel.PolityBId].Retired = true;
@@ -239,12 +241,12 @@ public class FederationTests
         Assert.False(loaded.Actors[rel.PolityBId].Entered);
         for (int i = 0; i < state.Relations.Count; i++)
         {
-            Assert.Equal(state.Relations[i].RungEpoch,
-                         loaded.Relations[i].RungEpoch);
+            Assert.Equal(state.Relations[i].RungYear,
+                         loaded.Relations[i].RungYear);
             Assert.Equal(state.Relations[i].VassalPolityId,
                          loaded.Relations[i].VassalPolityId);
-            Assert.Equal(state.Relations[i].VassalSinceEpoch,
-                         loaded.Relations[i].VassalSinceEpoch);
+            Assert.Equal(state.Relations[i].VassalSinceYear,
+                         loaded.Relations[i].VassalSinceYear);
         }
         Assert.Equal(ArtifactSerializer.ToText(state),
                      ArtifactSerializer.ToText(loaded));

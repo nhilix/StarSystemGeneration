@@ -49,17 +49,21 @@ public static class CorporationOps
                                                         FactionBasis.Corporate);
                     found++;
                 }
+                int years = state.Config.Sim.YearsPerEpoch;
                 if (merchants.NicheType == (int)niche && merchants.ContextId == target)
-                    merchants.NichePersistence++;
+                    merchants.NichePersistenceYears += years;
                 else
                 {
                     merchants.NicheType = (int)niche;
                     merchants.ContextId = target;
-                    merchants.NichePersistence = 1;
+                    merchants.NichePersistenceYears = years;
                 }
             }
-            else if (merchants != null && merchants.NichePersistence > 0)
-                merchants.NichePersistence--;   // the opportunity is closing
+            else if (merchants != null && merchants.NichePersistenceYears > 0)
+                // the opportunity is closing
+                merchants.NichePersistenceYears = Math.Max(0,
+                    merchants.NichePersistenceYears
+                    - state.Config.Sim.YearsPerEpoch);
 
             if (niche == CorporateNiche.Raiding
                 && !BandExists(state, target))
@@ -138,7 +142,11 @@ public static class CorporationOps
                     return (CorporateNiche.Fabrication, port.Id);
             }
         }
-        // lawless rich lanes → pirate band (lawlessness × cargo value)
+        // lawless rich lanes → pirate band (lawlessness × cargo value).
+        // Lawlessness has two sources: an owner with no navy at all, or a
+        // standing ruin at either lane mouth — a haven no navy roots out,
+        // where even thinner cargo tempts (chronicle-and-poi.md
+        // live-effects table, the slice J wire)
         bool navyless = true;
         foreach (var fleet in state.Fleets)
         {
@@ -148,16 +156,38 @@ public static class CorporationOps
                 { navyless = false; break; }
             if (!navyless) break;
         }
-        if (navyless)
-            foreach (var lane in state.Lanes)
-            {
-                var src = state.Ports[lane.PortAId];
-                if (src.OwnerActorId != pr.ActorId) continue;
-                if (FleetOps.PostedCapacity(state, lane)
-                    >= knobs.RaidCapacityFloor)
-                    return (CorporateNiche.Raiding, lane.Id);
-            }
+        foreach (var lane in state.Lanes)
+        {
+            var src = state.Ports[lane.PortAId];
+            if (src.OwnerActorId != pr.ActorId) continue;
+            bool haven = InRuinsShadow(state, lane);
+            if (!navyless && !haven) continue;
+            double floor = knobs.RaidCapacityFloor
+                * (haven ? state.Config.Poi.LawlessRaidFactor : 1.0);
+            if (FleetOps.PostedCapacity(state, lane) >= floor)
+                return (CorporateNiche.Raiding, lane.Id);
+        }
         return (CorporateNiche.None, -1);
+    }
+
+    /// <summary>Does a standing (non-depleted) ruin cast lawlessness over
+    /// this lane — Ruins or a RuinedCapital within LawlessnessReachHexes
+    /// of either endpoint?</summary>
+    private static bool InRuinsShadow(SimState state, Lane lane)
+    {
+        int reach = state.Config.Poi.LawlessnessReachHexes;
+        var hexA = state.Ports[lane.PortAId].Hex;
+        var hexB = state.Ports[lane.PortBId].Hex;
+        foreach (var poi in state.Pois)                       // id order (P6)
+        {
+            if (poi.Depleted) continue;
+            if (poi.Type != PoiType.Ruins
+                && poi.Type != PoiType.RuinedCapital) continue;
+            if (HexGrid.Distance(poi.Hex, hexA) <= reach
+                || HexGrid.Distance(poi.Hex, hexB) <= reach)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>Would a hauler on this lane actually clear the freight-niche
@@ -261,7 +291,9 @@ public static class CorporationOps
         {
             var faction = state.Factions[i];
             if (!faction.Active || faction.Basis != FactionBasis.Corporate
-                || faction.NichePersistence < knobs.CharterPersistenceEpochs)
+                || faction.NichePersistenceYears
+                   < knobs.CharterPersistenceEpochs
+                     * state.Config.Sim.GenerationYears)
                 continue;
             var pr = state.PolityOf(faction.PolityId);
             bool outlaw = (CorporateNiche)faction.NicheType == CorporateNiche.Cartel;
@@ -450,7 +482,8 @@ public static class CorporationOps
                     corp.Credits -= lobby;
                     ElitesOf(state, corp).Wealth += lobby;
                 }
-                if (corp.Receipts > knobs.MagnateReceipts
+                if (corp.Receipts / state.Config.Sim.StepFraction
+                        > knobs.MagnateReceipts
                     && corp.ExecutiveCharacterId >= 0
                     && state.Characters[corp.ExecutiveCharacterId]
                            is { Alive: true, Notable: NotableType.None } exec
@@ -478,12 +511,16 @@ public static class CorporationOps
                 Dissolve(state, corp, WorldEventType.CorporationBankrupt);
             else if (corp.Niche != CorporateNiche.Raiding
                      && (state.WorldYear - corp.FoundedYear)
-                        / Math.Max(1, state.Config.Sim.YearsPerEpoch)
+                        / Math.Max(1, state.Config.Sim.GenerationYears)
                         > knobs.FoundingGraceEpochs)
             {
-                corp.LeanEpochs = corp.Receipts < knobs.LeanReceiptsFloor
-                    ? corp.LeanEpochs + 1 : 0;
-                if (corp.LeanEpochs >= knobs.NicheDeathEpochs)
+                // receipts are a per-step flow against a per-generation
+                // floor (review fix 1): a fine step earns its fraction
+                corp.LeanYears = corp.Receipts / state.Config.Sim.StepFraction
+                        < knobs.LeanReceiptsFloor
+                    ? corp.LeanYears + state.Config.Sim.YearsPerEpoch : 0;
+                if (corp.LeanYears >= knobs.NicheDeathEpochs
+                        * state.Config.Sim.GenerationYears)
                     Dissolve(state, corp, WorldEventType.NicheDied);
             }
         }

@@ -48,18 +48,18 @@ public static class InterpolityView
                 + Invariant($"ideology×zeal {t[3]:0.00} · agitation {t[4]:0.00} · ")
                 + Invariant($"militancy {t[5]:0.00}"));
             string bond = rel.VassalPolityId >= 0
-                ? Invariant($"vassalage (#{rel.VassalPolityId} kneels, since epoch {rel.VassalSinceEpoch})")
+                ? Invariant($"vassalage (#{rel.VassalPolityId} kneels, since y{rel.VassalSinceYear})")
                 : RungName(rel.Rung)
-                  + (rel.RungEpoch >= 0
-                      ? Invariant($" since epoch {rel.RungEpoch}") : "");
+                  + (rel.RungYear >= 0
+                      ? Invariant($" since y{rel.RungYear}") : "");
             sb.Append(Invariant($"  bond: {bond}"));
             if (rel.OfferedRung != TreatyRung.None)
                 sb.Append(Invariant($" · on the table: {RungName(rel.OfferedRung)}")
                     + Invariant($" offered by #{rel.OfferedById}"));
             if (rel.DynasticTies > 0)
                 sb.Append(Invariant($" · dynastic ties {rel.DynasticTies}"));
-            if (rel.LastIncidentEpoch >= 0)
-                sb.Append(Invariant($" · last incident epoch {rel.LastIncidentEpoch}"));
+            if (rel.LastIncidentYear >= 0)
+                sb.Append(Invariant($" · last incident y{rel.LastIncidentYear}"));
             sb.AppendLine();
             foreach (var claim in rel.Claims)
             {
@@ -129,15 +129,15 @@ public static class InterpolityView
             {
                 WarObjectiveType.CapturePort =>
                     Invariant($"capture port #{o.TargetId}")
-                    + (o.SiegeEpochs > 0 && o.Status == ObjectiveStatus.Contested
-                        ? Invariant($" — under siege ({o.SiegeEpochs} ")
-                          + (o.SiegeEpochs == 1 ? "epoch" : "epochs")
+                    + (o.SiegeYears > 0 && o.Status == ObjectiveStatus.Contested
+                        ? Invariant($" — under siege ({o.SiegeYears} ")
+                          + (o.SiegeYears == 1 ? "year" : "years")
                           + Invariant($", falls at {WarConduct.SiegeThreshold(state, war, state.Ports[o.TargetId])})")
                         : ""),
                 WarObjectiveType.BlockadeLane =>
                     Invariant($"blockade lane #{o.TargetId}")
-                    + (o.SiegeEpochs > 0 ? Invariant($" — cut {o.SiegeEpochs} ")
-                        + (o.SiegeEpochs == 1 ? "epoch" : "epochs") : ""),
+                    + (o.SiegeYears > 0 ? Invariant($" — cut {o.SiegeYears} ")
+                        + (o.SiegeYears == 1 ? "year" : "years") : ""),
                 _ => "break the enemy fleet",
             };
             sb.AppendLine(Invariant($"    [{StatusGlyph(o.Status)}] ") + front);

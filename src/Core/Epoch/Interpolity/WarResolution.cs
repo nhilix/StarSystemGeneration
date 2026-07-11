@@ -240,7 +240,7 @@ public static class WarResolution
                 && relation.VassalPolityId == war.AttackerId)
             {
                 relation.VassalPolityId = -1;
-                relation.VassalSinceEpoch = -1;
+                relation.VassalSinceYear = -1;
                 state.Staged.Add(new StagedEvent(
                     ClockStratum.Generational, WorldEventType.VassalSeceded,
                     new[] { war.AttackerId, war.DefenderId },

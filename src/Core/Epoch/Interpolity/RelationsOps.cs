@@ -17,7 +17,7 @@ public static class RelationsOps
     /// phase note.</summary>
     /// <summary>Epochs a standing treaty offer stays on the table before it
     /// lapses (structural — offer churn, not calibration).</summary>
-    private const int OfferExpiryEpochs = 4;
+    private const int OfferExpiryGenerations = 4;
 
     public static (int Contacts, int ClaimsRaised) Step(SimState state)
     {
@@ -162,11 +162,12 @@ public static class RelationsOps
     {
         foreach (var relation in state.Relations)             // creation order (P6)
             if (relation.OfferedRung != TreatyRung.None
-                && state.EpochIndex - relation.OfferEpoch >= OfferExpiryEpochs)
+                && state.WorldYear - relation.OfferYear
+                   >= OfferExpiryGenerations * state.Config.Sim.GenerationYears)
             {
                 relation.OfferedRung = TreatyRung.None;
                 relation.OfferedById = -1;
-                relation.OfferEpoch = -1;
+                relation.OfferYear = -1;
             }
     }
 
@@ -243,7 +244,7 @@ public static class RelationsOps
             var g = geometry[key];
             if (g.MinPortDistance > knobs.ContactReachHexes) continue;
             if (state.RelationOf(key.A, key.B) != null) continue;
-            var relation = new PolityRelation(key.A, key.B, state.EpochIndex);
+            var relation = new PolityRelation(key.A, key.B, state.WorldYear);
             state.Relations.Add(relation);
             // seed at the drift targets: the stance two strangers open with
             relation.Warmth = WarmthTarget(state, relation, tradeCapacity: 0);
@@ -636,7 +637,7 @@ public static class RelationsOps
                     return Sign(state, relation, rung);   // mutual offers consent
                 relation.OfferedRung = rung;
                 relation.OfferedById = act.ActorId;
-                relation.OfferEpoch = state.EpochIndex;
+                relation.OfferYear = state.WorldYear;
                 return TreatyOutcome.Offered;
             case TreatyVerb.Accept:
                 if (relation.OfferedRung == TreatyRung.None
@@ -649,10 +650,10 @@ public static class RelationsOps
                 if (relation.Rung == TreatyRung.None) return TreatyOutcome.NoEffect;
                 var broken = relation.Rung;
                 relation.Rung = TreatyRung.None;
-                relation.RungEpoch = -1;
+                relation.RungYear = -1;
                 relation.OfferedRung = TreatyRung.None;
                 relation.OfferedById = -1;
-                relation.OfferEpoch = -1;
+                relation.OfferYear = -1;
                 relation.Warmth = Math.Max(0.0, relation.Warmth
                     - state.Config.Relations.BreakWarmthPenalty);
                 int other = act.TargetPolityId;
@@ -682,17 +683,17 @@ public static class RelationsOps
             {
                 relation.OfferedRung = TreatyRung.None;
                 relation.OfferedById = -1;
-                relation.OfferEpoch = -1;
+                relation.OfferYear = -1;
                 return TreatyOutcome.NoEffect;
             }
             FederationOps.Federate(state, relation);
             return TreatyOutcome.Signed;
         }
         relation.Rung = rung;
-        relation.RungEpoch = state.EpochIndex;
+        relation.RungYear = state.WorldYear;
         relation.OfferedRung = TreatyRung.None;
         relation.OfferedById = -1;
-        relation.OfferEpoch = -1;
+        relation.OfferYear = -1;
         var seatA = state.Actors[relation.PolityAId].Seat;
         var seatB = state.Actors[relation.PolityBId].Seat;
         state.Staged.Add(new StagedEvent(

@@ -44,6 +44,7 @@ public class EraDetectionTests
         }
         // epochs 11–15: nothing much
         state.EpochIndex = 16;
+        state.WorldYear = 16 * state.Config.Sim.YearsPerEpoch;
         return state;
     }
 
@@ -85,6 +86,7 @@ public class EraDetectionTests
         for (int e = 6; e <= 7; e++)
             Append(state, e, WorldEventType.BattleFought, 0, 1);
         state.EpochIndex = 8;
+        state.WorldYear = 8 * state.Config.Sim.YearsPerEpoch;
         var eras = EraDetector.Detect(state);
         Assert.Equal(eras[0].Name + " II", eras[2].Name);
     }

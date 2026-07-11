@@ -289,12 +289,19 @@ public sealed record NativesIntegratedPayload(
     int OriginId, int HostPolityId, string HostName, string NativeName)
     : EventPayload;
 
+/// <summary>Payloads that belong to one war — the per-war chronicle
+/// index reads these (chronicle-and-poi.md §Indexes, slice J).</summary>
+public interface IWarPayload
+{
+    int WarId { get; }
+}
+
 /// <summary>Tension discharges through a casus belli (interpolity/war.md):
 /// a declaration with objectives and a settlement demand.</summary>
 public sealed record WarDeclaredPayload(
     int WarId, string WarName, int AttackerId, int DefenderId,
     string AttackerName, string DefenderName, int Cause, int Demand)
-    : EventPayload;
+    : EventPayload, IWarPayload;
 
 /// <summary>A patrol clash or enforcement killing in contested-overlap
 /// space (war.md §Causes: the spark). Loaded incidents prime the
@@ -310,19 +317,20 @@ public sealed record BattleFoughtPayload(
     int WarId, string WarName, int ObjectiveType, int TargetId,
     int AttackerId, int DefenderId, int Outcome, int AttackerLosses,
     int DefenderLosses, int AttackerCommanderId, string AttackerCommanderName,
-    int DefenderCommanderId, string DefenderCommanderName) : EventPayload;
+    int DefenderCommanderId, string DefenderCommanderName)
+    : EventPayload, IWarPayload;
 
 /// <summary>A blockade turns to siege — the port's larder and fortress
 /// tiers set the clock (war.md §Conduct 3).</summary>
 public sealed record SiegeBegunPayload(
     int WarId, string WarName, int PortId, string AttackerName,
-    string DefenderName) : EventPayload;
+    string DefenderName) : EventPayload, IWarPayload;
 
 /// <summary>A fallen port transfers its domain with population segments
 /// intact — conquest composition is automatic.</summary>
 public sealed record PortCapturedPayload(
     int WarId, string WarName, int PortId, string AttackerName,
-    string DefenderName) : EventPayload;
+    string DefenderName) : EventPayload, IWarPayload;
 
 /// <summary>A marriage or wardship between dynastic thrones
 /// (interpolity/relations.md §Dynastic instruments) — warmth this
@@ -337,7 +345,7 @@ public sealed record DynasticInstrumentPayload(
 public sealed record PeaceSettledPayload(
     int WarId, string WarName, int Outcome, int WinnerId,
     string AttackerName, string DefenderName, int PortsCeded,
-    double Reparations) : EventPayload;
+    double Reparations) : EventPayload, IWarPayload;
 
 /// <summary>Wreckage crossed the battlefield floor: an anchored POI with
 /// salvage value (chronicle-and-poi.md §The POI compiler, slice I).</summary>

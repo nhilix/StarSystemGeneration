@@ -36,7 +36,8 @@ public static class ColonyValuation
         var bestSpiral = new List<int>();
         if (ownPorts.Count == 0) return best;
         // the polity prices the frontier through its capital market (first
-        // port); perfect information until slice I
+        // port) — deliberately its OWN fresh view (slice I decision): a
+        // valuation surveys nature, and nature doesn't move; nothing to stale
         Market? capital = ownPorts[0].Id < state.Markets.Count
             ? state.Markets[ownPorts[0].Id] : null;
 

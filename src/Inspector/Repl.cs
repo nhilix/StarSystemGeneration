@@ -31,7 +31,8 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
-                    Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
+                    Console.WriteLine("estep [n] [years] — step the loaded sim n more epochs (default 1); years overrides the");
+                    Console.WriteLine("   integration step (fine tick: estep 25 1 plays a generation year by year)");
                     Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech|war|tension] — political / lane / traffic / price / tech / war maps");
                     Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
                     Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
@@ -42,11 +43,14 @@ public sealed class Repl
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
+                    Console.WriteLine("equarantine <laneId> — issue the owner's QuarantineAct by hand (the player's verb, same rules)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
                     Console.WriteLine("belief <x> [y] — what polity x believes (vs truth) · news [id] — pulses in transit / one journey");
                     Console.WriteLine("stances [id] — reputation per audience · emap plague — the contagion layer");
+                    Console.WriteLine("threads — the world in motion: loaded tensions, half-won wars, old thrones,");
+                    Console.WriteLine("   leveraged corporations, burning plagues, unanswered offers (the handoff surface)");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
                     Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
@@ -55,6 +59,8 @@ public sealed class Repl
                     Console.WriteLine("features — the cosmic feature registry (mergers, globulars, nebulae, AGN epochs)");
                     Console.WriteLine("precursors [waveId] — the precursor registry, or one wave's arc + typed sites");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
+                    Console.WriteLine("edsave <base> <delta> | edload <base> <delta> — the delta boundary: a save is the base");
+                    Console.WriteLine("   artifact + what the live game changed + the log's continuation");
                     Console.WriteLine("knobs [filter] — every calibration dial: name, live value, doc (see docs/TUNING.md)");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
@@ -212,6 +218,29 @@ public sealed class Repl
                 case "fleetpost":
                     Console.WriteLine("usage: fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId]");
                     break;
+                case "equarantine" when parts.Length >= 2 && _sim != null
+                        && int.TryParse(parts[1], out var qLane):
+                {
+                    // the player's hand on a polity verb (slice J eyeball):
+                    // issue the same QuarantineAct the AI issues, resolved
+                    // by the same rule — the lane owner closes it
+                    if (qLane < 0 || qLane >= _sim.Lanes.Count)
+                    { Console.WriteLine($"no lane #{qLane}"); break; }
+                    int owner = _sim.Ports[_sim.Lanes[qLane].PortAId].OwnerActorId;
+                    bool held = Core.Epoch.PlagueOps.Quarantine(_sim,
+                        new Core.Epoch.QuarantineAct(owner, qLane));
+                    Console.WriteLine(held
+                        ? FormattableString.Invariant(
+                            $"lane #{qLane} quarantined by #{owner} until ")
+                          + FormattableString.Invariant(
+                            $"y{_sim.Lanes[qLane].QuarantinedUntil} — freight, ")
+                          + "migration, and contagion stop next step"
+                        : "no effect (already held longer, or ownership refused)");
+                    break;
+                }
+                case "equarantine":
+                    Console.WriteLine("usage: equarantine <laneId> — issue the owner's QuarantineAct by hand (see `emap lanes`)");
+                    break;
                 case "emap":
                 {
                     string layer = parts.Length >= 2 ? parts[1] : "domains";
@@ -226,6 +255,19 @@ public sealed class Repl
                 {
                     int n = parts.Length >= 2 && int.TryParse(parts[1], out var en)
                         ? Math.Max(1, en) : 1;
+                    // the fine-tick variant (slice J): the SAME machine, a
+                    // smaller integration step — estep 20 5 steps 20 times
+                    // at 5 world-years each (play-tick resumability)
+                    if (parts.Length >= 3 && int.TryParse(parts[2], out var ey)
+                        && ey >= 1)
+                    {
+                        _sim!.Config.Sim.YearsPerEpoch = ey;
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"integration step set to {ey} world-year")
+                            + (ey == 1 ? "" : "s")
+                            + FormattableString.Invariant(
+                            $" (generation stays {_sim.Config.Sim.GenerationYears})"));
+                    }
                     var engine = new Core.Epoch.EpochEngine();
                     int traceFrom = _sim!.Trace.Count;
                     for (int i = 0; i < n; i++) engine.Step(_sim);
@@ -251,7 +293,7 @@ public sealed class Repl
                         + "severs every lane at that port's approaches");
                     break;
                 case "chronicle" or "eras" or "poi" or "belief" or "news"
-                    or "stances" when _sim == null:
+                    or "stances" or "threads" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "belief" when parts.Length >= 2 && int.TryParse(parts[1], out var bObs):
@@ -276,6 +318,9 @@ public sealed class Repl
                     break;
                 case "eras":
                     Console.WriteLine(NarrativeView.RenderEras(_sim!));
+                    break;
+                case "threads":
+                    Console.WriteLine(NarrativeView.RenderThreads(_sim!));
                     break;
                 case "poi" when parts.Length >= 2 && int.TryParse(parts[1], out var poiId):
                     Console.WriteLine(NarrativeView.RenderPoi(_sim!, poiId));
@@ -488,6 +533,52 @@ public sealed class Repl
                     break;
                 case "esave":
                     Console.WriteLine("run a sim first (epoch <seed>), then: esave <path>");
+                    break;
+                case "edsave" when parts.Length == 3 && _sim != null:
+                    // the delta boundary (handoff.md): a save = the base
+                    // artifact + what the live game changed + the log's
+                    // continuation — genesis strata never re-record
+                    try
+                    {
+                        string baseText = System.IO.File.ReadAllText(parts[1]);
+                        string delta = Core.Epoch.DeltaSerializer.Diff(
+                            baseText, Core.Epoch.ArtifactSerializer.ToText(_sim));
+                        System.IO.File.WriteAllText(parts[2], delta);
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"delta saved to {parts[2]} ({delta.Length:N0} chars ")
+                            + FormattableString.Invariant(
+                            $"against a {baseText.Length:N0}-char base)"));
+                    }
+                    catch (System.IO.IOException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    break;
+                case "edsave":
+                    Console.WriteLine("usage: edsave <basePath> <deltaPath> (needs a loaded sim)");
+                    break;
+                case "edload" when parts.Length == 3:
+                    try
+                    {
+                        string baseText = System.IO.File.ReadAllText(parts[1]);
+                        string full = Core.Epoch.DeltaSerializer.Apply(
+                            baseText, System.IO.File.ReadAllText(parts[2]));
+                        using (var reader = new System.IO.StringReader(full))
+                        {
+                            var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
+                            _sim = loaded;
+                            _seed = loaded.Skeleton.Config.MasterSeed;
+                            _galaxy = new GalaxyContext(loaded.Skeleton.Config)
+                            { Skeleton = loaded.Skeleton };
+                            Console.WriteLine($"base + delta loaded: seed {_seed}, "
+                                + $"epoch {loaded.EpochIndex} (y{loaded.WorldYear}), "
+                                + $"{loaded.Log.Events.Count} events");
+                        }
+                    }
+                    catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
+                    catch (System.IO.IOException) { Console.WriteLine("file not found"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot load: {ex.Message}"); }
+                    break;
+                case "edload":
+                    Console.WriteLine("usage: edload <basePath> <deltaPath>");
                     break;
                 case "eload" when parts.Length == 2:
                     try

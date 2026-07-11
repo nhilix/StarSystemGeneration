@@ -31,8 +31,9 @@ public static class FederationOps
     {
         var knobs = state.Config.Relations;
         if (rel.Rung != TreatyRung.DefenseAlliance) return false;
-        if (rel.RungEpoch < 0 || state.EpochIndex - rel.RungEpoch
-            < knobs.FederationAllianceEpochs) return false;
+        if (rel.RungYear < 0 || state.WorldYear - rel.RungYear
+            < knobs.FederationAllianceEpochs
+              * state.Config.Sim.GenerationYears) return false;
         // entangled friendly borders lower the bar: interleaved domains
         // are a reason to fuse, not just a thing to tolerate
         double gate = RelationsOps.TreatyGate(state.Config,
@@ -217,12 +218,12 @@ public static class FederationOps
     public static void Bind(SimState state, PolityRelation rel, int vassalId)
     {
         rel.VassalPolityId = vassalId;
-        rel.VassalSinceEpoch = state.EpochIndex;
+        rel.VassalSinceYear = state.WorldYear;
         rel.Rung = TreatyRung.None;
-        rel.RungEpoch = -1;
+        rel.RungYear = -1;
         rel.OfferedRung = TreatyRung.None;
         rel.OfferedById = -1;
-        rel.OfferEpoch = -1;
+        rel.OfferYear = -1;
         int overlord = rel.OtherOf(vassalId);
         state.Staged.Add(new StagedEvent(ClockStratum.Generational,
             WorldEventType.VassalageBound, new[] { overlord, vassalId },
@@ -282,7 +283,7 @@ public static class FederationOps
                 // the overlord's grip slips: independence, negotiated —
                 // and the lost bond becomes a standing grudge
                 rel.VassalPolityId = -1;
-                rel.VassalSinceEpoch = -1;
+                rel.VassalSinceYear = -1;
                 seceded++;
                 var seatPort = SeatPortOf(state, vassalId);
                 if (seatPort >= 0)   // a portless vassal leaves no grudge target
@@ -298,9 +299,10 @@ public static class FederationOps
                 continue;
             }
 
-            if (rel.VassalSinceEpoch >= 0
-                && state.EpochIndex - rel.VassalSinceEpoch
+            if (rel.VassalSinceYear >= 0
+                && state.WorldYear - rel.VassalSinceYear
                    >= knobs.VassalAbsorptionEpochs
+                      * state.Config.Sim.GenerationYears
                 && rel.Warmth >= knobs.VassalAbsorptionWarmth)
             {
                 // cultural drift completes: peaceful annexation
@@ -308,7 +310,7 @@ public static class FederationOps
                 MergeInto(state, vassalId, overlordId);
                 Retire(state, vassalId);
                 rel.VassalPolityId = -1;
-                rel.VassalSinceEpoch = -1;
+                rel.VassalSinceYear = -1;
                 absorbed++;
                 state.Staged.Add(new StagedEvent(ClockStratum.Generational,
                     WorldEventType.VassalAbsorbed, new[] { overlordId, vassalId },
@@ -417,7 +419,7 @@ public static class FederationOps
             if (rel.Involves(polityId) && rel.VassalPolityId >= 0)
             {
                 rel.VassalPolityId = -1;
-                rel.VassalSinceEpoch = -1;
+                rel.VassalSinceYear = -1;
             }
         var pr = state.PolityOf(polityId);
         if (pr.Interior is { } interior && interior.RulerCharacterId >= 0)

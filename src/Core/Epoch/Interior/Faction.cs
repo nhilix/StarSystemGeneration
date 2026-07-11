@@ -58,9 +58,10 @@ public sealed class Faction
     /// <summary>Corporate basis only: the profit niche this merchant
     /// faction watches (CorporateNiche id; 0 none).</summary>
     public int NicheType { get; set; }
-    /// <summary>Consecutive epochs the niche has persisted — the charter
-    /// graduation's clock (economy/corporations.md §Founding).</summary>
-    public int NichePersistence { get; set; }
+    /// <summary>Consecutive world-years the niche has persisted — the
+    /// charter graduation's clock (economy/corporations.md §Founding).
+    /// P7: years, not steps.</summary>
+    public int NichePersistenceYears { get; set; }
 
     public Faction(int id, string name, int polityId, FactionBasis basis,
                    long formedYear)

@@ -162,7 +162,7 @@ public class SalvageTests
                                                 FactionBasis.Corporate);
         merchants.NicheType = (int)CorporateNiche.Salvage;
         merchants.ContextId = field.Id;
-        merchants.NichePersistence = 99;
+        merchants.NichePersistenceYears = 9900;
         merchants.Wealth = 10_000;
 
         int chartered = CorporationOps.CharterCheck(state);

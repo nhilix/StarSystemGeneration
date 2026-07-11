@@ -175,7 +175,8 @@ public class TreatyTests
         var rel = EpochTestKit.FirstLiveRelation(state);
         rel.OfferedRung = TreatyRung.TradePact;
         rel.OfferedById = rel.PolityAId;
-        rel.OfferEpoch = state.EpochIndex - 10;
+        rel.OfferYear = state.WorldYear
+            - 10 * state.Config.Sim.GenerationYears;
         // hold the pair too cold to re-offer or accept
         rel.Warmth = 0.0;
         rel.Tension = 0.9;

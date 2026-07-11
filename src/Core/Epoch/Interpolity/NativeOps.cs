@@ -43,7 +43,6 @@ public static class NativeOps
             : a.Id.CompareTo(b.Id));
 
         var genesis = state.Config.Genesis;
-        int yearsPerEpoch = Math.Max(1, state.Config.Sim.YearsPerEpoch);
         int births = 0, integrated = 0, suppressed = 0;
         List<PendingClient>? clients = null;
         for (int rank = 0; rank < natives.Count; rank++)
@@ -55,7 +54,10 @@ public static class NativeOps
             double baseYear = genesis.EmergenceWindowYears
                 + (rank + 1.0) / (natives.Count + 1.0)
                   * (genesis.NativeWindowYears - genesis.EmergenceWindowYears);
-            int fireEpoch = (int)(baseYear / yearsPerEpoch);
+            // dates quantize to the generation calendar, whatever the
+            // integration step (P7, slice J)
+            int gen = state.Config.Sim.GenerationYears;
+            long fireYear = (long)(baseYear / gen) * gen;
 
             int host = HostOf(state, origin.Hex);
             var policy = host >= 0
@@ -67,11 +69,11 @@ public static class NativeOps
                 // uplift accelerates (Life-tech-gated); the reserve delays
                 if (policy == NativePolicy.Uplift
                     && state.PolityOf(host).TechTier[(int)TechDomain.Life] >= 2)
-                    fireEpoch -= genesis.UpliftAccelerationEpochs;
+                    fireYear -= (long)genesis.UpliftAccelerationEpochs * gen;
                 else if (policy == NativePolicy.Protectorate)
-                    fireEpoch += genesis.ProtectorateDelayEpochs;
+                    fireYear += (long)genesis.ProtectorateDelayEpochs * gen;
             }
-            if (state.EpochIndex < fireEpoch) continue;
+            if (state.WorldYear < fireYear) continue;
 
             origin.ResolvedEpoch = state.EpochIndex;
             int speciesId = state.Skeleton.Species.Count;
@@ -181,7 +183,7 @@ public static class NativeOps
             {
                 int a = Math.Min(client.PolityId, client.HostId);
                 int b = Math.Max(client.PolityId, client.HostId);
-                relation = new PolityRelation(a, b, state.EpochIndex);
+                relation = new PolityRelation(a, b, state.WorldYear);
                 relation.Warmth = 0.5;   // raised, not met
                 state.Relations.Add(relation);
                 state.Staged.Add(new StagedEvent(

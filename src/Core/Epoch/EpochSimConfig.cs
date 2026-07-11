@@ -95,6 +95,17 @@ public sealed class PoiKnobs
     /// <summary>Astrogation research progress a precursor dig hands the
     /// host polity per world-year (Industrial at half).</summary>
     public double DigResearchPerYear { get; set; } = 0.01;
+    /// <summary>Hexes from a standing ruin within which a lane endpoint
+    /// reads lawless — the ruin is a piracy haven (slice J wire).</summary>
+    public int LawlessnessReachHexes { get; set; } = 3;
+    /// <summary>Raid-floor multiplier on a lawless lane: less cargo tempts
+    /// a band when the walls to hide in already stand — and no navy roots
+    /// it out of them.</summary>
+    public double LawlessRaidFactor { get; set; } = 0.4;
+    /// <summary>Stance depth a standing memorial holds against its
+    /// perpetrator: an audience whose stance ever reached −this never
+    /// fades above it while the stone stands (slice J wire).</summary>
+    public double MemorialStanceAnchor { get; set; } = 0.25;
 }
 
 /// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc
@@ -576,10 +587,21 @@ public sealed class InteriorKnobs
 /// on the ESIM line, not as KNOB records.</summary>
 public sealed class SimKnobs
 {
-    /// <summary>World-years integrated per generational step: one epoch ≈ a generation.</summary>
+    /// <summary>World-years integrated per step — the integration step,
+    /// nothing more (P7). Genesis steps a generation at a time; the live
+    /// game steps the same machine fine-grained.</summary>
     public int YearsPerEpoch { get; set; } = 25;
     /// <summary>Default history depth: 40 epochs ≈ 1,000 years.</summary>
     public int EpochCount { get; set; } = 40;
+    /// <summary>The world-year length of one generation — the calendar
+    /// unit every *Epochs knob counts (frame/time.md §The epoch is a
+    /// generation). Fixed at genesis scale: fine-tick stepping lowers
+    /// YearsPerEpoch, never this.</summary>
+    public int GenerationYears { get; set; } = 25;
+    /// <summary>This step's share of a generation (1.0 at genesis scale) —
+    /// the factor per-generation intensities scale by each step (P7).</summary>
+    public double StepFraction =>
+        (double)YearsPerEpoch / System.Math.Max(1, GenerationYears);
 }
 
 /// <summary>Genesis-side knobs: the emergence window, plus the native

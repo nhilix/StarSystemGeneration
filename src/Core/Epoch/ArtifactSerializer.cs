@@ -25,11 +25,11 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
+        ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 5), ("ports", 2), ("lanes", 2), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
-        ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
+        ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
+        ("corporations", 2), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1),
     };
 
@@ -60,7 +60,8 @@ public static class ArtifactSerializer
         foreach (var gknob in GalaxyKnobRegistry.All)
             w.WriteLine(Join("GKNOB", gknob.Name, R(gknob.Get(gc))));
         w.WriteLine(Join("ESIM", ec.MasterSeed.ToString(Inv),
-            ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv)));
+            ec.Sim.YearsPerEpoch.ToString(Inv), ec.Sim.EpochCount.ToString(Inv),
+            ec.Sim.GenerationYears.ToString(Inv)));
         // every calibration dial, name-sorted (the knob registry is the
         // single index — docs/TUNING.md carries the consequences)
         foreach (var knob in KnobRegistry.All)
@@ -290,7 +291,8 @@ public static class ArtifactSerializer
                 fa.LeaderCharacterId.ToString(Inv), B(fa.Active),
                 R(fa.Strength), R(fa.Militancy), R(fa.Grievance), R(fa.Wealth),
                 Vector(fa.BudgetTarget), Vector(fa.IdeologyTarget),
-                fa.NicheType.ToString(Inv), fa.NichePersistence.ToString(Inv)));
+                fa.NicheType.ToString(Inv),
+                fa.NichePersistenceYears.ToString(Inv)));
 
         Layer(w, "corporations");
         foreach (var c in state.Corporations)
@@ -301,21 +303,21 @@ public static class ArtifactSerializer
                 B(c.Active), R(c.Credits),
                 c.ExecutiveCharacterId.ToString(Inv),
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
-                c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv),
+                c.HullsScrapped.ToString(Inv), c.LeanYears.ToString(Inv),
                 c.TargetId.ToString(Inv)));
 
         Layer(w, "relations");
         foreach (var r in state.Relations)
         {
-            // relations v4 (slice H): clocks + the spark's freshness window
+            // relations v5 (slice J): every clock is a world-year (P7)
             w.WriteLine(Join("REL", r.PolityAId.ToString(Inv),
-                r.PolityBId.ToString(Inv), r.MetEpoch.ToString(Inv),
+                r.PolityBId.ToString(Inv), r.MetYear.ToString(Inv),
                 R(r.Warmth), R(r.Tension), ((int)r.Rung).ToString(Inv),
                 ((int)r.OfferedRung).ToString(Inv), r.OfferedById.ToString(Inv),
-                r.OfferEpoch.ToString(Inv), r.DynasticTies.ToString(Inv),
-                r.VassalPolityId.ToString(Inv), r.RungEpoch.ToString(Inv),
-                r.VassalSinceEpoch.ToString(Inv), r.LastTieYear.ToString(Inv),
-                r.LastIncidentEpoch.ToString(Inv)));
+                r.OfferYear.ToString(Inv), r.DynasticTies.ToString(Inv),
+                r.VassalPolityId.ToString(Inv), r.RungYear.ToString(Inv),
+                r.VassalSinceYear.ToString(Inv), r.LastTieYear.ToString(Inv),
+                r.LastIncidentYear.ToString(Inv)));
             foreach (var c in r.Claims)
                 w.WriteLine(Join("CLM", r.PolityAId.ToString(Inv),
                     r.PolityBId.ToString(Inv), ((int)c.Type).ToString(Inv),
@@ -339,7 +341,7 @@ public static class ArtifactSerializer
                 w.WriteLine(Join("OBJ", war.Id.ToString(Inv),
                     o.Id.ToString(Inv), ((int)o.Type).ToString(Inv),
                     o.TargetId.ToString(Inv), ((int)o.Status).ToString(Inv),
-                    o.SiegeEpochs.ToString(Inv)));
+                    o.SiegeYears.ToString(Inv)));
         }
 
         Layer(w, "belief");
@@ -691,6 +693,8 @@ public static class ArtifactSerializer
                         config = new EpochSimConfig { MasterSeed = ulong.Parse(f[1], Inv) };
                         config.Sim.YearsPerEpoch = int.Parse(f[2], Inv);
                         config.Sim.EpochCount = int.Parse(f[3], Inv);
+                        // config v6 (slice J): the generation calendar unit
+                        config.Sim.GenerationYears = int.Parse(f[4], Inv);
                         break;
                     case "KNOB":
                         var knob = KnobRegistry.Find(f[1])
@@ -1082,7 +1086,7 @@ public static class ArtifactSerializer
                             BudgetTarget = ParseVector(f[13]),
                             IdeologyTarget = ParseVector(f[14]),
                             NicheType = int.Parse(f[15], Inv),
-                            NichePersistence = int.Parse(f[16], Inv),
+                            NichePersistenceYears = int.Parse(f[16], Inv),
                         });
                         break;
                     case "CORP":
@@ -1099,7 +1103,7 @@ public static class ArtifactSerializer
                             HullsBuilt = int.Parse(f[11], Inv),
                             HullsWrecked = int.Parse(f[12], Inv),
                             HullsScrapped = int.Parse(f[13], Inv),
-                            LeanEpochs = int.Parse(f[14], Inv),
+                            LeanYears = int.Parse(f[14], Inv),
                             TargetId = int.Parse(f[15], Inv),
                         });
                         break;
@@ -1113,13 +1117,13 @@ public static class ArtifactSerializer
                             Rung = (TreatyRung)int.Parse(f[6], Inv),
                             OfferedRung = (TreatyRung)int.Parse(f[7], Inv),
                             OfferedById = int.Parse(f[8], Inv),
-                            OfferEpoch = int.Parse(f[9], Inv),
+                            OfferYear = int.Parse(f[9], Inv),
                             DynasticTies = int.Parse(f[10], Inv),
                             VassalPolityId = int.Parse(f[11], Inv),
-                            RungEpoch = int.Parse(f[12], Inv),
-                            VassalSinceEpoch = int.Parse(f[13], Inv),
+                            RungYear = int.Parse(f[12], Inv),
+                            VassalSinceYear = int.Parse(f[13], Inv),
                             LastTieYear = long.Parse(f[14], Inv),
-                            LastIncidentEpoch = int.Parse(f[15], Inv),
+                            LastIncidentYear = int.Parse(f[15], Inv),
                         });
                         break;
                     case "WAR":
@@ -1157,7 +1161,7 @@ public static class ArtifactSerializer
                             int.Parse(f[4], Inv))
                         {
                             Status = (ObjectiveStatus)int.Parse(f[5], Inv),
-                            SiegeEpochs = int.Parse(f[6], Inv),
+                            SiegeYears = int.Parse(f[6], Inv),
                         });
                         break;
                     }

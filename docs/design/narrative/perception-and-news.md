@@ -15,14 +15,22 @@ news-carrying player are fast-path exceptions.
 ## Perception state per actor (compressed beliefs)
 
 - **Stance table** — valenced attitude per known actor.
-- **Freshness map** — how current the actor's information is per region;
-  refreshed by traffic and couriers, decaying otherwise.
-- **Cached headline facts** — known wars, treaties, prices at trading partners.
+- **Belief snapshots** — one per (observer, subject) pair: the other side's
+  headline facts (strengths, coalitions, casus-belli menus, war-objective
+  candidates, front reports, corporate books) frozen at the last refresh.
+  A snapshot refreshes when elapsed years cover the traffic-derived news
+  delay from the subject's space — freshness is per relationship, carried
+  by the same lanes the freight rides. Self-facts always read fresh.
+- **Cached headline facts** — known wars and treaties ride the snapshots.
+  Prices at trading partners are *not* yet perception-gated: freight
+  clears on true prices as Markets-phase resolution (Move 2); the
+  perceived-price arbitrage this section once promised is a filed gap
+  (slice J acceptance) for the live game, where it is the trader player's
+  edge.
 
-The Intent phase reads truth *through the freshness filter*: stale regions serve
-old values, fog degrades detail. One mechanism, every consumer: wars overrun
-their rational end because the loser doesn't know yet; stale-price arbitrage
-pays; the rim genuinely lags the core.
+The Intent phase reads truth *through the snapshots*: stale pairs serve old
+values. One mechanism, every consumer: wars overrun their rational end
+because the loser doesn't know yet; the rim genuinely lags the core.
 
 ## Stances and reputation
 

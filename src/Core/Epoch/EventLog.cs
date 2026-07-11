@@ -46,6 +46,16 @@ public sealed class EventLog
                 }
     }
 
+    /// <summary>Per-war view: one campaign's declaration, battles, sieges,
+    /// captures, and peace, in log order (chronicle-and-poi.md §Indexes —
+    /// the handoff's per-war index, slice J).</summary>
+    public IEnumerable<WorldEvent> ForWar(int warId)
+    {
+        foreach (var e in _events)
+            if (e.Payload is IWarPayload w && w.WarId == warId)
+                yield return e;
+    }
+
     /// <summary>Per-character view: characters have their own id space and
     /// ride payloads (ICharacterPayload), not the Actors list — a life
     /// reconstructs from the log with no extra authoring (P8).</summary>

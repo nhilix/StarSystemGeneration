@@ -231,7 +231,7 @@ public static class WarConduct
             var warFleet = WarFleet(state, war, objective);
             if (warFleet.TotalHulls == 0)
             {
-                objective.SiegeEpochs = 0;   // no besieger, no siege
+                objective.SiegeYears = 0;   // no besieger, no siege
                 continue;
             }
             var hex = ObjectiveHex(state, objective);
@@ -284,9 +284,12 @@ public static class WarConduct
                 BattleOutcome.Attrition => knobs.LossAttrition,
                 _ => knobs.LossStalemate,
             };
+            double frac = state.Config.Sim.StepFraction;
             int attLost = WreckAt(state, warFleet, hex,
-                (int)Math.Round(warFleet.TotalHulls * attShare));
-            int defLost = WreckDefendersAt(state, war, hex, defShare);
+                RoundLoss(state, warFleet.TotalHulls * attShare * frac,
+                          war.Id, objective.Id * 65536));
+            int defLost = WreckDefendersAt(state, war, hex, defShare * frac,
+                                           objective.Id);
             attackerHullsLost += attLost;
             defenderHullsLost += defLost;
             battles++;
@@ -294,7 +297,8 @@ public static class WarConduct
             // decisive days scar the ground they were fought over
             if (outcome == BattleOutcome.DecisiveAttacker)
                 DamageFacilities(state, war.DefenderId, hex,
-                                 knobs.BattleFacilityDamage);
+                                 knobs.BattleFacilityDamage
+                                 * state.Config.Sim.StepFraction);
 
             CommanderFates(state, war, warFleet.CommanderId, defCommander,
                            outcome, hex);
@@ -324,26 +328,27 @@ public static class WarConduct
     }
 
     /// <summary>Objective progression: sieges tick under superiority and
-    /// break on relief; blockades count held epochs; the fleet hunt ends
-    /// when the enemy navy is broken.</summary>
+    /// break on relief; blockades count held world-years; the fleet hunt
+    /// ends when the enemy navy is broken.</summary>
     private static void Progress(SimState state, War war,
         WarObjective objective, FleetRecord warFleet, BattleOutcome outcome,
         double attPower, double defPower, HexCoordinate hex)
     {
         var knobs = state.Config.War;
+        int years = state.Config.Sim.YearsPerEpoch;
         switch (objective.Type)
         {
             case WarObjectiveType.CapturePort:
             {
                 if (outcome == BattleOutcome.DecisiveDefender)
                 {
-                    objective.SiegeEpochs = 0;   // the relief carried
+                    objective.SiegeYears = 0;   // the relief carried
                     break;
                 }
                 if (attPower <= defPower) break;   // no superiority, no siege
-                objective.SiegeEpochs++;
+                objective.SiegeYears += years;
                 var port = state.Ports[objective.TargetId];
-                if (objective.SiegeEpochs == 1)
+                if (objective.SiegeYears == years)
                     state.Staged.Add(new StagedEvent(
                         ClockStratum.Generational, WorldEventType.SiegeBegun,
                         new[] { war.AttackerId, war.DefenderId }, port.Hex,
@@ -351,7 +356,7 @@ public static class WarConduct
                         new SiegeBegunPayload(war.Id, war.Name, port.Id,
                             state.Actors[war.AttackerId].Name,
                             state.Actors[war.DefenderId].Name)));
-                if (objective.SiegeEpochs >= SiegeThreshold(state, war, port))
+                if (objective.SiegeYears >= SiegeThreshold(state, war, port))
                     Capture(state, war, objective, port);
                 break;
             }
@@ -359,11 +364,12 @@ public static class WarConduct
                 if (outcome != BattleOutcome.DecisiveDefender
                     && attPower > defPower)
                 {
-                    objective.SiegeEpochs++;   // epochs the lane stayed cut
-                    if (objective.SiegeEpochs >= knobs.BlockadeHoldEpochs)
+                    objective.SiegeYears += years;   // years the lane stayed cut
+                    if (objective.SiegeYears >= knobs.BlockadeHoldEpochs
+                            * state.Config.Sim.GenerationYears)
                         objective.Status = ObjectiveStatus.Taken;
                 }
-                else objective.SiegeEpochs = 0;
+                else objective.SiegeYears = 0;
                 break;
             case WarObjectiveType.DestroyFleet:
                 if (war.DefenderStrengthAtStart > 0
@@ -375,9 +381,10 @@ public static class WarConduct
         }
     }
 
-    /// <summary>How long the port can hold: a floor, plus what its larders
-    /// carry (local market provisions plus the polity reserve's pro-rata
-    /// share against its population's hunger), plus the fortress tiers.</summary>
+    /// <summary>World-years the port can hold: a floor, plus what its
+    /// larders carry (local market provisions plus the polity reserve's
+    /// pro-rata share against its population's hunger), plus the fortress
+    /// tiers — all in generations, returned as years (P7).</summary>
     public static int SiegeThreshold(SimState state, War war, Port port)
     {
         var knobs = state.Config.War;
@@ -391,13 +398,14 @@ public static class WarConduct
         double population = 0;
         foreach (var s in state.Segments)
             if (s.PortId == port.Id) population += s.Size;
-        double hungerPerEpoch = Math.Max(0.1,
+        int gen = state.Config.Sim.GenerationYears;
+        double hungerPerGeneration = Math.Max(0.1,
             population * state.Config.Economy.SubsistenceUnitsPerPopPerYear
-            * state.Config.Sim.YearsPerEpoch);
+            * gen);
         int larder = (int)Math.Min(knobs.SiegeProvisionEpochsCap,
-                                   provisions / hungerPerEpoch);
-        return knobs.SiegeBaseEpochs + larder
-               + FortressTiers(state, war.DefenderId, port.Hex);
+                                   provisions / hungerPerGeneration);
+        return (knobs.SiegeBaseEpochs + larder
+                + FortressTiers(state, war.DefenderId, port.Hex)) * gen;
     }
 
     /// <summary>A fallen port transfers its domain whole: sovereignty,
@@ -422,7 +430,7 @@ public static class WarConduct
             }
         port.OwnerActorId = war.AttackerId;
         objective.Status = ObjectiveStatus.Taken;
-        objective.SiegeEpochs = 0;
+        objective.SiegeYears = 0;
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortCaptured,
             new[] { war.AttackerId, war.DefenderId }, port.Hex,
@@ -528,7 +536,8 @@ public static class WarConduct
     /// <summary>Defender losses come off the warships that fought: fleets
     /// at the hex first, then the mobile response drawn from home stations.</summary>
     private static int WreckDefendersAt(SimState state, War war,
-                                        HexCoordinate hex, double share)
+                                        HexCoordinate hex, double share,
+                                        int objectiveId)
     {
         int lost = 0;
         foreach (bool localPass in new[] { true, false })
@@ -547,11 +556,30 @@ public static class WarConduct
                         warships += g.Count;
                 double effectiveShare = localPass ? share
                     : share * state.Config.War.MobileResponseShare;
-                int toLose = (int)Math.Round(warships * effectiveShare);
+                int toLose = RoundLoss(state, warships * effectiveShare,
+                    war.Id, objectiveId * 65536 + 1 + fleet.Id);
                 if (toLose <= 0) continue;
                 lost += WreckWarships(state, fleet, hex, toLose);
             }
         return lost;
+    }
+
+    /// <summary>Integer hulls from an expected loss: the generation
+    /// integrator keeps its deterministic round (goldens hold); a fine
+    /// step integrates the same expected rate with a keyed hash round so
+    /// small expectations still bleed hulls over time (P7, slice J).</summary>
+    private static int RoundLoss(SimState state, double expected,
+                                 int warId, int lossKey)
+    {
+        if (state.Config.Sim.StepFraction >= 1.0)
+            return (int)Math.Round(expected);
+        int whole = (int)expected;
+        double fraction = expected - whole;
+        if (fraction > 0 && EpochRolls.NextDouble(state.Config.MasterSeed,
+                RollChannel.BattleLosses, state.EpochIndex, warId, lossKey)
+            < fraction)
+            whole++;
+        return whole;
     }
 
     /// <summary>Wreck only warship hulls (the freight marine survives the
@@ -622,7 +650,7 @@ public static class WarConduct
         if (beaten >= 0 && state.Characters[beaten].Alive
             && EpochRolls.NextDouble(state.Config.MasterSeed,
                 RollChannel.CommanderFate, state.EpochIndex, beaten)
-               < knobs.CommanderDeathOnRout)
+               < knobs.CommanderDeathOnRout * state.Config.Sim.StepFraction)
         {
             var fallen = state.Characters[beaten];
             fallen.Alive = false;

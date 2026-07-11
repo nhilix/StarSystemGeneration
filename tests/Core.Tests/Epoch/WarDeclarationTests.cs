@@ -52,10 +52,10 @@ public class WarDeclarationTests
     {
         var state = Run();
         var rel = EpochTestKit.FirstLiveRelation(state);
-        rel.LastIncidentEpoch = -1;
+        rel.LastIncidentYear = -1;
         Assert.DoesNotContain(WarOps.Menu(state, rel.PolityAId, rel.PolityBId),
             m => m.Cause == CasusBelli.BorderIncident);
-        rel.LastIncidentEpoch = state.EpochIndex;
+        rel.LastIncidentYear = state.WorldYear;
         Assert.Contains(WarOps.Menu(state, rel.PolityAId, rel.PolityBId),
             m => m.Cause == CasusBelli.BorderIncident);
     }
@@ -73,7 +73,7 @@ public class WarDeclarationTests
         Assert.True(after > before, "contested overlaps must spark");
         // the sparked pair's freshness window is set
         foreach (var rel in state.Relations)
-            if (rel.LastIncidentEpoch >= 0) contested = rel;
+            if (rel.LastIncidentYear >= 0) contested = rel;
         Assert.NotNull(contested);
         _ = tensionBefore;
     }
@@ -182,7 +182,7 @@ public class WarDeclarationTests
         var state = Run();
         var rel = EpochTestKit.FirstLiveRelation(state);
         int relAt = state.Relations.IndexOf(rel);
-        rel.LastIncidentEpoch = 5;
+        rel.LastIncidentYear = 125;
         var war = WarOps.DeclareWar(state, new DeclareWarAct(rel.PolityAId,
             rel.PolityBId, (int)CasusBelli.BorderIncident, -1,
             new WarObjectiveSpec[0], (int)WarDemand.Reparations));
@@ -200,7 +200,7 @@ public class WarDeclarationTests
         Assert.Equal(war.Demand, l.Demand);
         Assert.Equal(war.Objectives.Count, l.Objectives.Count);
         Assert.Equal(0.25, l.AttackerExhaustion);
-        Assert.Equal(5, loaded.Relations[relAt].LastIncidentEpoch);
+        Assert.Equal(125, loaded.Relations[relAt].LastIncidentYear);
         Assert.Equal(ArtifactSerializer.ToText(state),
                      ArtifactSerializer.ToText(loaded));
     }

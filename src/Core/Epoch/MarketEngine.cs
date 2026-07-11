@@ -599,7 +599,12 @@ public static class MarketEngine
             var market = state.Markets[mIx];
             for (int g = 0; g < market.Price.Length; g++)
             {
-                double demand = scratch.Demand[mIx][g];
+                // the pressure signal compares a FLOW to a STOCK, calibrated
+                // at generation scale: a fine step's smaller demand must not
+                // read as glut, so demand normalizes to a generation's worth
+                // (P7 certification, slice J)
+                double demand = scratch.Demand[mIx][g]
+                                / state.Config.Sim.StepFraction;
                 double supply = market.Inventory[g];
                 if (demand <= eps && supply <= eps) continue;   // dormant good
                 double factor = Math.Pow((demand + eps) / (supply + eps),
@@ -676,8 +681,10 @@ public static class MarketEngine
     /// E replaces): reserve release to starving ports (internal logistics —
     /// markets see only the endpoint), lane arbitrage on price gaps net of
     /// freight + fuel + tariffs with legality at both ends, and polity
-    /// procurement toward stockpile targets. Perfect-info prices until I;
-    /// explicit escrowed contract objects await carriers (E). Returns the
+    /// procurement toward stockpile targets. Freight clears on TRUE prices
+    /// by standing choice — it is Markets-phase resolution, not a controller
+    /// decision (Move 2); the design's perceived-price arbitrage and escrowed
+    /// contract objects are filed gaps (slice J acceptance). Returns the
     /// shipment count and the units moved for the phase note — counts alone
     /// mislead once capacity is real (one full hold reads like a fifth of
     /// five drip runs).</summary>

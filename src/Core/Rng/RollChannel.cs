@@ -100,4 +100,8 @@ public enum RollChannel : ulong
     // --- Narrative (slice I). ---
     PlagueOutbreak = 70,       // outbreak gate: step = epoch, actor = port id; subIndex 1+ = name syllables (100 = length, 200 = strain)
     PlagueSpread = 71,         // lane-borne spread: step = epoch, actor = plague id, subIndex = lane id
+
+    // --- Handoff & certification (slice J). ---
+    BattleLosses = 72,         // fine-tick hull-loss rounding: step = epoch, actor = war id, subIndex = objective/fleet key
+    YardSlots = 73,            // fine-tick yard-slot rounding: step = epoch, actor = owner actor id, subIndex = port id
 }

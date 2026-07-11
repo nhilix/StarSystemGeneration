@@ -378,7 +378,7 @@ public static class FactionOps
             // merchant faction watching a live niche is exempt — its base
             // is the opportunity, not the masses)
             if (faction.Strength < knobs.DissolveStrengthFloor
-                && faction.NichePersistence <= 0)
+                && faction.NichePersistenceYears <= 0)
             {
                 Dissolve(state, pr, faction);
                 dissolved++;

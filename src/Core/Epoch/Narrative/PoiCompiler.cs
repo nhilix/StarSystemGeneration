@@ -144,7 +144,6 @@ public static class PoiCompiler
     private static void CompileRuins(SimState state, List<StagedEvent> events)
     {
         var knobs = state.Config.Poi;
-        int years = state.Config.Sim.YearsPerEpoch;
         foreach (var port in state.Ports)                 // id order (P6)
         {
             if (Population(state, port.Id) >= 0.01)
@@ -152,7 +151,8 @@ public static class PoiCompiler
                 port.LastPopulatedYear = state.WorldYear;
                 continue;
             }
-            if (port.LastPopulatedYear + (long)knobs.RuinsDeadEpochs * years
+            if (port.LastPopulatedYear + (long)knobs.RuinsDeadEpochs
+                    * state.Config.Sim.GenerationYears
                 > state.WorldYear) continue;
             var standing = LiveAt(state, port.Hex);
             if (standing != null && standing.Type == PoiType.Ruins
@@ -224,14 +224,18 @@ public static class PoiCompiler
             if (e.WorldYear < state.WorldYear) break;
             int cause;
             double magnitude;
+            // suppressions carry their perpetrator — the stance anchor's
+            // subject (famines have no foreign author to hold)
+            int perpetrator = -1;
             if (e.Type == WorldEventType.FamineStruck
                 && e.Magnitude >= knobs.MemorialShortfallFloor)
             { cause = 0; magnitude = 2.0; }
-            else if (e.Type == WorldEventType.EmergenceSuppressed)
-            { cause = 1; magnitude = 3.0; }
+            else if (e.Type == WorldEventType.EmergenceSuppressed
+                     && e.Payload is EmergenceSuppressedPayload es)
+            { cause = 1; magnitude = 3.0; perpetrator = es.HostPolityId; }
             else continue;
             var poi = Anchor(state, PoiType.Memorial, e.Location, magnitude,
-                             detail: cause);
+                             subjectId: perpetrator, detail: cause);
             if (poi == null) continue;
             poi.ParticipantActorIds.AddRange(e.Actors);
             poi.SourceEventIds.Add(e.Id);

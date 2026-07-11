@@ -34,8 +34,9 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 
 | Knob | Default | Meaning |
 |---|---|---|
-| `Sim.YearsPerEpoch` | 25 | World-years integrated per generational step. Changing it re-times *everything*; rates are per-year by design (P7) so histories stay comparable, but drift caps and logistic steps compound differently. |
+| `Sim.YearsPerEpoch` | 25 | World-years integrated per step — the integration step, nothing more (P7). Fine-tick play lowers this over a loaded artifact; rates are per-year by design so histories stay comparable, but drift caps and logistic steps compound differently. |
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
+| `Sim.GenerationYears` | 25 | The calendar length of one generation — the unit every `*Epochs` knob counts (siege floors, charter persistence, federation clocks…). Fixed at genesis scale; fine-tick stepping never changes it. If you re-time genesis with `YearsPerEpoch`, move this with it. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
 ## Genesis — the native late-emergence schedule (slice H)
@@ -319,6 +320,9 @@ hex, arbitrated by magnitude (chronicle-and-poi.md).
 | `Poi.DigExoticsPerYear` | 0.15 | Precursor digs rival exotics mines. | Digs are archaeology, not industry. |
 | `Poi.DigMagnitudeDecayPerYear` | 0.02 | Sites dig out within centuries. | The deep past is effectively bottomless. |
 | `Poi.DigResearchPerYear` | 0.01 | Digging precursors is a tech strategy. | Ruins yield goods, not insight. |
+| `Poi.LawlessnessReachHexes` | 3 | Ruins shadow whole regions with piracy. | Only the lane at the ruin's gate reads lawless. |
+| `Poi.LawlessRaidFactor` | 0.4 | Havens barely tempt (near-normal cargo needed). | Any trickle of freight past a ruin draws a band. |
+| `Poi.MemorialStanceAnchor` | 0.25 | Atrocities are held forever at real depth — permanent pariahs. | Memorials are ornament; every horror fades to indifference. |
 
 ## Infrastructure — port physics and construction
 

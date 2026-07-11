@@ -4,9 +4,9 @@ using StarGen.Core.Galaxy;
 namespace StarGen.Core.Epoch;
 
 /// <summary>What an actor currently believes about the world — the only input
-/// a controller may read (P3). Perfect-information stub, built from truth each
-/// Perception phase; compressed belief replaces it in Slice I. The contract
-/// holds either way: Decide sees the view, never global state.</summary>
+/// a controller may read (P3). Self-facts read fresh; other-side facts come
+/// through compressed belief snapshots that refresh at news speed and freeze
+/// between refreshes (slice I). Decide sees the view, never global state.</summary>
 /// <summary>What a controller sees of one own ship design — enough to key
 /// ShipbuildingPriorities by design id (fleets/ships-and-fleets.md).</summary>
 public sealed record DesignBrief(int DesignId, ShipRole Role, ShipSize Size, int Mark);
@@ -17,11 +17,12 @@ public sealed record CorporateBrief(int CorpId, string Name, double Credits);
 
 /// <summary>What a polity perceives of one relation it holds — the gauges
 /// and the table state its diplomacy works (interpolity/relations.md).
-/// Perfect-info stub: reads the true relation until slice I stales it.</summary>
+/// Other-side facts (strengths, menus, candidates) arrive through the
+/// belief snapshot and go stale between refreshes (slice I).</summary>
 public sealed record RelationBrief(
     int OtherPolityId, double Warmth, double Tension, TreatyRung Rung,
     TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
-    int LiveClaimsAgainst, double IdeologyGap, int EpochsAtRung,
+    int LiveClaimsAgainst, double IdeologyGap, int YearsAtRung,
     double OtherStrength, int VassalPolityId, bool OtherDynastic,
     int DynasticTies, IReadOnlyList<CasusBelliOption> CasusBelli,
     double OtherDefensiveStrength,
@@ -32,8 +33,9 @@ public sealed record RelationBrief(
 public sealed record CasusBelliOption(CasusBelli Cause, int SubjectId);
 
 /// <summary>What a belligerent perceives of a war it is in — the surface
-/// settlement decisions read (perfect-info stub until slice I; wars can
-/// then run past their rational end).</summary>
+/// settlement decisions read. Front reports route through belief at news
+/// speed (slice I), so wars run past their rational end: the loser
+/// concedes only when it KNOWS it is losing.</summary>
 public sealed record WarBrief(
     int WarId, string Name, int OtherLeaderId, bool OnAttackerSide,
     bool IsLeader, double OwnSideExhaustion, double OwnSideStrengthShare,
@@ -61,7 +63,9 @@ public sealed class PerceptionView
 
     public int SelfId { get; }
     public int WorldYear { get; }
-    /// <summary>Polities this actor knows exist (perfect-info stub: all entered).</summary>
+    /// <summary>Every entered actor id — a roster, not knowledge: nothing
+    /// consumes it (decisions run on met-pair Relations and beliefs), and
+    /// existence-discovery is undesigned. Kept for the view's shape.</summary>
     public IReadOnlyList<int> KnownPolityIds { get; }
     /// <summary>Own accrued expansion treasury (polities; 0 otherwise).</summary>
     public double ExpansionPoints { get; }
@@ -605,7 +609,8 @@ public sealed class GenesisController : IController
         if (rung != TreatyRung.Federation) return true;
         var knobs = _config.Relations;
         return rel.Rung == TreatyRung.DefenseAlliance
-               && rel.EpochsAtRung >= knobs.FederationAllianceEpochs
+               && rel.YearsAtRung >= knobs.FederationAllianceEpochs
+                  * _config.Sim.GenerationYears
                && rel.IdeologyGap <= knobs.FederationIdeologyGapMax
                // its own half of the pair-mean gate Resolution verifies —
                // a warier partner still offers when a friend can carry it
