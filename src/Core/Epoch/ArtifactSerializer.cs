@@ -138,7 +138,7 @@ public static class ArtifactSerializer
             w.WriteLine(Join("LANE", l.Id.ToString(Inv), l.PortAId.ToString(Inv),
                 l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv),
                 l.QuarantinedUntil.ToString(Inv), l.GateAId.ToString(Inv),
-                l.GateBId.ToString(Inv), l.SaturatedEpochs.ToString(Inv)));
+                l.GateBId.ToString(Inv), l.SaturatedYears.ToString(Inv)));
 
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
@@ -893,7 +893,7 @@ public static class ArtifactSerializer
                             QuarantinedUntil = long.Parse(f[5], Inv),
                             GateAId = int.Parse(f[6], Inv),
                             GateBId = int.Parse(f[7], Inv),
-                            SaturatedEpochs = int.Parse(f[8], Inv),
+                            SaturatedYears = int.Parse(f[8], Inv),
                         });
                         break;
                     case "FACILITY":

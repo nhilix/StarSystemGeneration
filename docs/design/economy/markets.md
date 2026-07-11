@@ -107,7 +107,11 @@ war weariness and relations.
 ## Sanctions and tariffs
 
 Both live in relations space as Intent-phase outputs. A **tariff schedule** prices
-foreign freight per polity/good at your ports. A **sanction** closes your lanes and
+foreign freight per polity/good — collected physically at the **gate the shipment
+enters through** (space-and-travel.md §Lanes): the destination-side gate's owner
+decides the crossing fee. Your own gate is free; a corp-owned gate takes its toll
+instead; a foreign polity's gate charges its customs, once per border crossing.
+There is no separate market-boundary tariff site. A **sanction** closes your lanes and
 ports to a target's flagged trade entirely — the non-war blockade, expressed in the
 same lane-legality machinery war blockades use, differing only in cause. Both are
 evadable (smuggling, re-flagging) at margin cost; both generate strain on the

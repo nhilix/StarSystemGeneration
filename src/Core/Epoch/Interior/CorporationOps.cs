@@ -778,10 +778,19 @@ public static class CorporationOps
         var cfg = state.Config;
         var knobs = cfg.Corporate;
         int gatesOwned = 0;
+        long lastGateYear = long.MinValue;
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId
-                && f.TypeId == (int)InfraTypeId.Gate) gatesOwned++;
+                && f.TypeId == (int)InfraTypeId.Gate)
+            {
+                gatesOwned++;
+                if (f.BuiltYear > lastGateYear) lastGateYear = f.BuiltYear;
+            }
         if (gatesOwned / 2 >= knobs.MaxGateLanes) return;
+        // one bridge per generation, in world-time — fine ticks must not
+        // build 25× faster than coarse ones (P7)
+        if (lastGateYear > long.MinValue && state.WorldYear - lastGateYear
+                < state.Config.Sim.GenerationYears) return;
 
         Port? bestA = null, bestB = null;
         int bestTier = 0, bestDist = int.MaxValue;
@@ -816,9 +825,8 @@ public static class CorporationOps
                 double cost = 2.0 * AllocationPhase.GateValue(cfg, tier);
                 if (corp.Credits * policies.Investment.Facilities < cost)
                     continue;
-                if (!GateBasketStocked(state, state.Markets[a.Id], tier)
-                    || !GateBasketStocked(state, state.Markets[b.Id], tier))
-                    continue;
+                if (!GatePairStocked(state, state.Markets[a.Id],
+                        state.Markets[b.Id], tier)) continue;
                 if (cost < bestCost || (cost == bestCost && (dist < bestDist
                     || (dist == bestDist && (bestA == null || a.Id < bestA.Id
                         || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
@@ -829,9 +837,9 @@ public static class CorporationOps
         if (bestA == null) return;
         corp.Credits -= bestCost;
         int gateA = AllocationPhase.BuildGate(state, corp.ActorId, bestA,
-                                              bestTier, funderReserves: null);
-        int gateB = AllocationPhase.BuildGate(state, corp.ActorId, bestB!,
-                                              bestTier, funderReserves: null);
+            bestTier, funderReserves: null, state.Markets[bestB!.Id]);
+        int gateB = AllocationPhase.BuildGate(state, corp.ActorId, bestB,
+            bestTier, funderReserves: null, state.Markets[bestA.Id]);
         var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id,
                             state.WorldYear)
         { GateAId = gateA, GateBId = gateB };
@@ -846,13 +854,14 @@ public static class CorporationOps
             new LaneOpenedPayload(bestA.Id, bestB.Id)));
     }
 
-    private static bool GateBasketStocked(SimState state, Market market,
-                                          int tier)
+    private static bool GatePairStocked(SimState state, Market a, Market b,
+                                        int tier)
     {
         var def = Infrastructure.Get(InfraTypeId.Gate);
         foreach (var q in def.BuildCost)
-            if (market.Inventory[(int)q.Good]
-                < q.Quantity * Production.TierCostFactor(tier)) return false;
+            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
+                < 2.0 * q.Quantity * Production.TierCostFactor(tier))
+                return false;
         return true;
     }
 

@@ -61,8 +61,18 @@ public class RelationsTests
                     if (d < minDist) minDist = d;
                 }
             }
-            Assert.True(minDist <= state.Config.Relations.ContactReachHexes,
-                $"pair ({r.PolityAId},{r.PolityBId}) met at distance {minDist}");
+            // contact reach is a FORMATION-time gate: the closest port can
+            // die afterwards, and schism-born polities inherit relations at
+            // whatever distance the fracture left them (AllocationTests'
+            // cross-owner-lane precedent) — a far pair needs that history
+            if (minDist > state.Config.Relations.ContactReachHexes
+                          + state.Config.Expansion.ColonizationReachHexes)
+                Assert.Contains(state.Log.Events, e =>
+                    e.Type == WorldEventType.SchismDeclared);
+            else
+                Assert.True(minDist <= state.Config.Relations.ContactReachHexes
+                            + state.Config.Expansion.ColonizationReachHexes,
+                    $"pair ({r.PolityAId},{r.PolityBId}) met at {minDist}");
         }
     }
 

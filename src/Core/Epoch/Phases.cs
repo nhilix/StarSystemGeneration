@@ -237,15 +237,16 @@ public sealed class MarketsPhase : ISimPhase
         // an import-fed port prices its arrivals, a blockaded one their
         // absence (markets.md §The market step; amended in slice D)
         var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
-        // the express earn-in clock: consecutive saturated steps of the
-        // lane's posted capacity (lane-economics spec §3.4)
+        // the express earn-in clock: consecutive saturated world-years of
+        // the lane's posted capacity (lane-economics spec §3.4; the clock
+        // accumulates the step's year span so fine ticks track coarse, P7)
         foreach (var lane in state.Lanes)                 // id order (P6)
-            lane.SaturatedEpochs =
+            lane.SaturatedYears =
                 scratch.LaneFleetCapacity[lane.Id] > 0
                 && scratch.LaneCapacityUsed[lane.Id]
                    / scratch.LaneFleetCapacity[lane.Id]
                    >= state.Config.Expansion.ExpressSaturationFloor
-                ? lane.SaturatedEpochs + 1 : 0;
+                ? lane.SaturatedYears + state.Config.Sim.YearsPerEpoch : 0;
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
@@ -704,6 +705,16 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int built = 0;
+        // one lane per polity per generation, in world-time: a gate pair is
+        // a generational project, and fine ticks must not build faster than
+        // coarse ones (P7 — the same rate at any integration step)
+        long lastGateYear = long.MinValue;
+        foreach (var f in state.Facilities)
+            if (f.OwnerActorId == pr.ActorId
+                && f.TypeId == (int)Substrate.InfraTypeId.Gate
+                && f.BuiltYear > lastGateYear) lastGateYear = f.BuiltYear;
+        if (lastGateYear > long.MinValue && state.WorldYear - lastGateYear
+                < cfg.Sim.GenerationYears) return 0;
         // Astrogation stretches the pairing reach (slice G)
         int rangeBonus = TechOps.AstroRangeBonus(state, pr.ActorId);
         // trade-pact partners' ports join the candidate pool (one end of
@@ -739,9 +750,8 @@ public sealed class AllocationPhase : ISimPhase
                         continue;
                     double cost = 2.0 * GateValue(cfg, tier);
                     if (pr.DevelopmentPoints < cost) continue;
-                    if (!GateGoodsPresent(state, pr, state.Markets[a.Id], tier)
-                        || !GateGoodsPresent(state, pr, state.Markets[b.Id], tier))
-                        continue;
+                    if (!GatePairGoodsPresent(state, pr, state.Markets[a.Id],
+                            state.Markets[b.Id], tier)) continue;
                     if (cost < bestCost || (cost == bestCost && (dist < bestDist
                         || (dist == bestDist && (bestA == null || a.Id < bestA.Id
                             || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
@@ -750,8 +760,12 @@ public sealed class AllocationPhase : ISimPhase
                 }
             if (bestA == null) break;
             pr.DevelopmentPoints -= bestCost;
-            int gateA = BuildGate(state, pr.ActorId, bestA, bestTier, pr);
-            int gateB = BuildGate(state, pr.ActorId, bestB!, bestTier, pr);
+            // each end draws locally first; the shortfall ships from the
+            // partner port — state logistics, the colonization-convoy pattern
+            int gateA = BuildGate(state, pr.ActorId, bestA, bestTier, pr,
+                                  state.Markets[bestB!.Id]);
+            int gateB = BuildGate(state, pr.ActorId, bestB, bestTier, pr,
+                                  state.Markets[bestA.Id]);
             var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id,
                                 state.WorldYear)
             { GateAId = gateA, GateBId = gateB };
@@ -762,6 +776,7 @@ public sealed class AllocationPhase : ISimPhase
                 new[] { pr.ActorId }, Midpoint(bestA.Hex, bestB.Hex),
                 Magnitude: bestTier, Valence: 1.0, EventVisibility.Regional,
                 new LaneOpenedPayload(bestA.Id, bestB.Id)));
+            break;   // the generation's one project — next lane next epoch
         }
         return built;
     }
@@ -778,25 +793,29 @@ public sealed class AllocationPhase : ISimPhase
         return value;
     }
 
-    /// <summary>Gate build basket physically present at this end's market
-    /// plus the funder's banked reserves (the CanAfford convention).</summary>
-    private static bool GateGoodsPresent(SimState state, PolityRecord pr,
-                                         Market market, int tier)
+    /// <summary>Both gates' baskets physically present across the pair —
+    /// each end's market, the partner's surplus, and the funder's banked
+    /// reserves together (state logistics ship the difference; the
+    /// colonization-convoy pattern, no minting).</summary>
+    private static bool GatePairGoodsPresent(SimState state, PolityRecord pr,
+                                             Market a, Market b, int tier)
     {
         var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
         foreach (var q in def.BuildCost)
-            if (market.Inventory[(int)q.Good] + pr.ReserveQty[(int)q.Good]
-                < q.Quantity * Substrate.Production.TierCostFactor(tier))
+            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
+                + pr.ReserveQty[(int)q.Good]
+                < 2.0 * q.Quantity * Substrate.Production.TierCostFactor(tier))
                 return false;
         return true;
     }
 
-    /// <summary>Draw one gate's build basket from its port market (reserve
-    /// fallback, the BuildFacilities idiom), pay construction wages, and
-    /// register the facility. Corp funders pass null reserves — their
-    /// basket must sit wholly in the market. Returns the facility id.</summary>
+    /// <summary>Draw one gate's build basket from its port market, then the
+    /// funder's reserves, then the partner port's market (the shipped
+    /// shortfall), pay construction wages, and register the facility. Corp
+    /// funders pass null reserves. Returns the facility id.</summary>
     internal static int BuildGate(SimState state, int ownerActorId, Port port,
-                                  int tier, PolityRecord? funderReserves)
+                                  int tier, PolityRecord? funderReserves,
+                                  Market? partnerMarket = null)
     {
         var cfg = state.Config;
         var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
@@ -809,13 +828,20 @@ public sealed class AllocationPhase : ISimPhase
             value += need * Market.InitialPrice(cfg.Economy, q.Good);
             double fromMarket = market.Draw((int)q.Good, need);
             market.LastCleared[(int)q.Good] += fromMarket;
-            double fromReserve = need - fromMarket;
-            if (fromReserve > 0 && funderReserves != null)
+            double shortfall = need - fromMarket;
+            if (shortfall > 0 && funderReserves != null)
             {
-                funderReserves.ReserveQty[(int)q.Good] = Math.Max(0,
-                    funderReserves.ReserveQty[(int)q.Good] - fromReserve);
+                double fromReserve = Math.Min(shortfall,
+                    funderReserves.ReserveQty[(int)q.Good]);
+                funderReserves.ReserveQty[(int)q.Good] -= fromReserve;
                 if (funderReserves.ReserveQty[(int)q.Good] <= 0)
                     funderReserves.ReserveGrade[(int)q.Good] = 0;
+                shortfall -= fromReserve;
+            }
+            if (shortfall > 0 && partnerMarket != null)
+            {
+                double shipped = partnerMarket.Draw((int)q.Good, shortfall);
+                partnerMarket.LastCleared[(int)q.Good] += shipped;
             }
         }
         MarketEngine.PayWages(state, port.Id, value);  // construction wages

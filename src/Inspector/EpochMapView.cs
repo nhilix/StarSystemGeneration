@@ -31,7 +31,8 @@ public static class EpochMapView
 
         var portCells = new HashSet<HexCoordinate>();
         foreach (var p in state.Ports) portCells.Add(HexGrid.CellOf(p.Hex));
-        var laneCells = layer == "lanes" ? LaneCells(state) : null;
+        var laneCells = layer == "lanes" ? LaneCells(state, live: true) : null;
+        var deadLaneCells = layer == "lanes" ? LaneCells(state, live: false) : null;
         var traffic = layer == "traffic" ? TrafficCells(state) : null;
         var warCells = layer == "war" ? WarStationCells(state) : null;
 
@@ -42,7 +43,8 @@ public static class EpochMapView
             if (cell.IsVoid) glyph = ' ';
             else if (layer == "lanes")
                 glyph = portCells.Contains(cell.Coord) ? '*'
-                    : laneCells!.Contains(cell.Coord) ? '+' : '.';
+                    : laneCells!.Contains(cell.Coord) ? '+'
+                    : deadLaneCells!.Contains(cell.Coord) ? '~' : '.';
             else if (layer == "price")
                 glyph = PriceGlyph(state, cell, good);
             else if (layer == "traffic")
@@ -132,7 +134,7 @@ public static class EpochMapView
                       + "?=contested .=wilds (leaders' ports reach farther)",
             "plague" => "!=infected port o=immune (recovered) x=quarantined "
                         + "approach letter=healthy domain .=wilds",
-            "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
+            "lanes" => "*=port cell +=lane ~=dead lane (gate down) .=off-network (wilds dark)",
             "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
                          + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "
                          + "(news rides this — busy lanes carry it fast)",
@@ -290,12 +292,15 @@ public static class EpochMapView
         return cells;
     }
 
-    /// <summary>Cells crossed by each lane's hex line (cube lerp + round).</summary>
-    private static HashSet<HexCoordinate> LaneCells(SimState state)
+    /// <summary>Cells crossed by each lane's hex line (cube lerp + round) —
+    /// live and dead lanes render as separate strokes (a downed gate is a
+    /// visible wound, lane-economics spec §2).</summary>
+    private static HashSet<HexCoordinate> LaneCells(SimState state, bool live)
     {
         var cells = new HashSet<HexCoordinate>();
         foreach (var lane in state.Lanes)
         {
+            if (LaneMath.IsLive(state, lane) != live) continue;
             var a = state.Ports[lane.PortAId].Hex;
             var b = state.Ports[lane.PortBId].Hex;
             int n = HexGrid.Distance(a, b);

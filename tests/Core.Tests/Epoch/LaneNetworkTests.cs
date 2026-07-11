@@ -41,11 +41,12 @@ public class LaneNetworkTests
         var state = ThreePortChain(out int a, out int b, out int c);
         var ab = EpochTestKit.AddLane(state, a, b);
         var bc = EpochTestKit.AddLane(state, b, c);
-        int need = state.Config.Expansion.SaturatedEpochsForExpress;
-        ab.SaturatedEpochs = need;
-        bc.SaturatedEpochs = need;
+        int need = state.Config.Expansion.SaturatedEpochsForExpress
+                   * state.Config.Sim.GenerationYears;
+        ab.SaturatedYears = need;
+        bc.SaturatedYears = need;
         Assert.True(LaneNetwork.DirectLaneEligible(state, a, c));
-        bc.SaturatedEpochs = need - 1;      // one cool link blocks the waiver
+        bc.SaturatedYears = need - 1;       // one cool link blocks the waiver
         Assert.False(LaneNetwork.DirectLaneEligible(state, a, c));
     }
 

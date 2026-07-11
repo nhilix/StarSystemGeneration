@@ -24,9 +24,11 @@ public sealed class Lane
     /// Lanes layer v3.</summary>
     public int GateAId { get; set; } = -1;
     public int GateBId { get; set; } = -1;
-    /// <summary>Consecutive saturated Markets steps (used/capacity ≥
-    /// ExpressSaturationFloor) — the express-bypass earn-in clock.</summary>
-    public int SaturatedEpochs { get; set; }
+    /// <summary>Consecutive saturated world-YEARS (used/capacity ≥
+    /// ExpressSaturationFloor each Markets step, accumulated by the step's
+    /// year span) — the express-bypass earn-in clock. Years, not steps, so
+    /// fine ticks earn expresses at the same world-time rate (P7).</summary>
+    public int SaturatedYears { get; set; }
 
     public Lane(int id, int portAId, int portBId, int builtYear)
     {

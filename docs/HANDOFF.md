@@ -1,10 +1,36 @@
-# Session Handoff — 2026-07-11 (Slice K1: Atlas skeleton instrument — merged)
+# Session Handoff — 2026-07-11 (Lane economics on `lane-economics`; K1 merged)
 
-State: `main`, merged locally at `27fefe7`, **not pushed** (push on user
-say-so). Tests 602/602 green — hex-tier suite untouched, goldens and
-determinism byte-identity untouched throughout (K adds no sim
-behavior). Unity EditMode 3/3 headless. ProjectSettings churn remains
-uncommitted as always.
+State: branch `lane-economics` complete and green (626/626; hex-tier
+untouched; golden re-frozen at branch end — the red window closed),
+**awaiting the user's REPL eyeball + merge decision**. `main` still at
+`27fefe7` (K1 merged, not pushed). ProjectSettings churn uncommitted.
+
+## Lane economics (this session, spec → plan → implementation)
+
+Spec `docs/superpowers/specs/2026-07-11-lane-economics-design.md`, plan
+`docs/superpowers/plans/2026-07-11-lane-economics.md`. Lanes are now
+linked **Gate facility pairs** (InfraTypeId.Gate = 15, Support family,
+zero upkeep — sealed once linked): reach/capacity/speed from gate tier
+(8/16/28 hexes), per-port gate-slot budgets cap lane degree, builders
+pass a detour(1.8×)+congestion(world-year saturation clock) anti-web
+rule via the new `LaneNetwork` (deterministic Dijkstra), crossing fees
+resolve at the destination-side gate (`LaneFees`: own=free, corp=toll,
+foreign polity=customs — replaced both old tariff sites), freight-line
+corps bridge non-hostile borders owning both gates, piracy prices lane
+length, and construction runs one lane per polity per generation in
+world-time (P7). Lanes layer v3 (gate ids + SaturatedYears). Deleted:
+`Expansion.LaneCost`, `Infrastructure.InterPortRange*`. Design docs
+amended in-branch: space-and-travel §Lanes (rewritten), infrastructure
+table (+Gate row), corporations (freight-line acts), markets (tariff
+collection point). Seed-42 baseline before: mean lane degree 9.0 over
+10 ports (all-pairs web); after: ~50 galaxy-wide, all live, hub degree
+pinned at slot caps. REPL: new `elanes`; `emap lanes` marks dead
+lanes `~`. Two spec deviations flagged: gates pair-build by a single
+funder (half-built = a destroyed far gate, no cross-actor escrow), and
+no emergence gate-seeding (no lanes exist at emergence). FineTick's
+provisions band now compares the MEDIAN over shared ports (sparse
+networks let one ceiling-priced port swing a mean 3× on connectivity
+luck); RelationsTests contact-reach allows schism-born far pairs.
 
 ## What this session did
 

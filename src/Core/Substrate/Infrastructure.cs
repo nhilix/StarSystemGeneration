@@ -114,9 +114,13 @@ public static class Infrastructure
         new(InfraTypeId.Fortress, "Fortress", InfraFamily.Support, None,
             new[] { Q(GoodId.Alloys, 20), Q(GoodId.Machinery, 8), Q(GoodId.Composites, 6) }, 3,
             new[] { Q(GoodId.Machinery, 0.1), Q(GoodId.Alloys, 0.2) }, 0, 1.0),
+        // gates carry no upkeep draw: a sealed mass-driver pair is passive
+        // once linked — condition moves only by war damage and recovery
+        // (upkeep's met-fraction rule would kill every frontier gate whose
+        // market holds zero machinery, however small the draw)
         new(InfraTypeId.Gate, "Gate", InfraFamily.Support, None,
-            new[] { Q(GoodId.Alloys, 15), Q(GoodId.Machinery, 10), Q(GoodId.Composites, 5) }, 3,
-            new[] { Q(GoodId.Machinery, 0.1) }, 0, 0.5),
+            new[] { Q(GoodId.Alloys, 4), Q(GoodId.Machinery, 3), Q(GoodId.Composites, 2) }, 3,
+            new GoodQuantity[0], 0, 0.5),
     };
 
     public static IReadOnlyList<InfraDef> All => Table;

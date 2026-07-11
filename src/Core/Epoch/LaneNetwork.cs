@@ -81,9 +81,11 @@ public static class LaneNetwork
         int direct = HexGrid.Distance(state.Ports[portAId].Hex,
                                       state.Ports[portBId].Hex);
         if (pathHexes > cfg.Expansion.DetourFactor * direct) return true;
+        // the earn-in clock runs in world-years (P7): epochs × generation
+        int needYears = cfg.Expansion.SaturatedEpochsForExpress
+                        * cfg.Sim.GenerationYears;
         foreach (var laneId in laneIds)
-            if (state.Lanes[laneId].SaturatedEpochs
-                < cfg.Expansion.SaturatedEpochsForExpress) return false;
+            if (state.Lanes[laneId].SaturatedYears < needYears) return false;
         return true;
     }
 }

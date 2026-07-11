@@ -142,12 +142,15 @@ public class FineTickTests
         foreach (var f in fine.Fleets) fineHulls += f.TotalHulls;
         AssertBand("hulls", coarseHulls, fineHulls, 0.6);
 
-        // prices drift between clearings instead of teleporting: the mean
+        // prices drift between clearings instead of teleporting: the MEDIAN
         // provisions price stays in the same neighborhood — compared over
         // the ports both histories share (colonies founded after the fork
-        // belong to one history only and would poison the mean)
-        double coarsePrice = MeanProvisionsPrice(coarse, sharedPorts);
-        double finePrice = MeanProvisionsPrice(fine, sharedPorts);
+        // belong to one history only). Median, not mean: with the sparse
+        // gate-economics networks a single unserved port at the price
+        // ceiling swings a mean 3× on connectivity luck alone, and the band
+        // exists to bound systematic rate bias, not chaos.
+        double coarsePrice = MedianProvisionsPrice(coarse, sharedPorts);
+        double finePrice = MedianProvisionsPrice(fine, sharedPorts);
         AssertBand("provisions price", coarsePrice, finePrice, 0.6);
 
         // history kept happening: the fine run logged real events too
@@ -180,17 +183,17 @@ public class FineTickTests
         Assert.True(liveRulers > 0, "every throne is empty — succession dead?");
     }
 
-    private static double MeanProvisionsPrice(SimState state, int portCap)
+    private static double MedianProvisionsPrice(SimState state, int portCap)
     {
-        double sum = 0;
-        int n = 0;
+        var prices = new System.Collections.Generic.List<double>();
         foreach (var m in state.Markets)
-        {
-            if (m.PortId >= portCap) continue;
-            sum += m.Price[(int)StarGen.Core.Substrate.GoodId.Provisions];
-            n++;
-        }
-        return n == 0 ? 0 : sum / n;
+            if (m.PortId < portCap)
+                prices.Add(m.Price[(int)StarGen.Core.Substrate.GoodId.Provisions]);
+        if (prices.Count == 0) return 0;
+        prices.Sort();
+        int mid = prices.Count / 2;
+        return prices.Count % 2 == 1 ? prices[mid]
+            : (prices[mid - 1] + prices[mid]) * 0.5;
     }
 
     private static int DeadCharacters(SimState state)

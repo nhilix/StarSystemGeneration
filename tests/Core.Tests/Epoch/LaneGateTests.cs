@@ -66,12 +66,12 @@ public class LaneGateTests
     {
         var state = TwoPortState();
         var lane = EpochTestKit.AddLane(state, 0, 1);
-        lane.SaturatedEpochs = 2;
+        lane.SaturatedYears = 2;
         var loaded = ArtifactSerializer.Load(
             new System.IO.StringReader(ArtifactSerializer.ToText(state)));
         Assert.Equal(lane.GateAId, loaded.Lanes[lane.Id].GateAId);
         Assert.Equal(lane.GateBId, loaded.Lanes[lane.Id].GateBId);
-        Assert.Equal(2, loaded.Lanes[lane.Id].SaturatedEpochs);
+        Assert.Equal(2, loaded.Lanes[lane.Id].SaturatedYears);
     }
 
     /// <summary>A seeded state advanced until two ports exist — colonization

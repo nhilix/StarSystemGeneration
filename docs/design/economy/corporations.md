@@ -17,7 +17,7 @@ The founding niche stamps the corporation's character:
 | Niche | Corporate character |
 |---|---|
 | mine-rich frontier | extraction conglomerate |
-| unserved profitable lanes | freight line |
+| unserved profitable lanes | freight line — posts hulls, and **builds gate pairs across profitable non-hostile borders** (no treaty required), owning and tolling both gates; one bridge per generation |
 | industrial gaps | fabricator combine |
 | profitable *prohibited* niche | **cartel** — chartered nowhere, operating through black books and off-lane freight |
 
