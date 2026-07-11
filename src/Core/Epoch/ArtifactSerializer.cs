@@ -29,7 +29,7 @@ public static class ArtifactSerializer
         ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
-        ("corporations", 1), ("relations", 4), ("wars", 1),
+        ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
     };
 
     public static string ToText(SimState state)
@@ -337,7 +337,74 @@ public static class ArtifactSerializer
                     o.TargetId.ToString(Inv), ((int)o.Status).ToString(Inv),
                     o.SiegeEpochs.ToString(Inv)));
         }
+
+        Layer(w, "belief");
+        // belief v1 (slice I): the compressed believed world — snapshots
+        // that refresh at news speed; LoadThenContinue must not re-survey
+        foreach (var a in state.Actors)
+        {
+            foreach (var b in a.Beliefs.Polities.Values)   // subject-id order
+                w.WriteLine(Join("PBEL", a.Id.ToString(Inv),
+                    b.SubjectId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.Strength), R(b.DefensiveStrength),
+                    PairList(b.Menu), SpecList(b.ObjectiveCandidates)));
+            foreach (var b in a.Beliefs.Wars.Values)       // war-id order
+                w.WriteLine(Join("WBEL", a.Id.ToString(Inv),
+                    b.WarId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.OwnSideExhaustion), R(b.OwnSideStrengthShare),
+                    b.ObjectivesTaken.ToString(Inv)));
+            foreach (var b in a.Beliefs.Corporations.Values) // corp-id order
+                w.WriteLine(Join("CBEL", a.Id.ToString(Inv),
+                    b.CorpId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.Credits)));
+        }
         w.WriteLine("END");
+    }
+
+    /// <summary>Casus-belli menu as "cause:subject;…"; "-" when empty.</summary>
+    private static string PairList(IReadOnlyList<CasusBelliOption> menu)
+    {
+        if (menu.Count == 0) return "-";
+        var parts = new string[menu.Count];
+        for (int i = 0; i < menu.Count; i++)
+            parts[i] = ((int)menu[i].Cause).ToString(Inv) + ":"
+                       + menu[i].SubjectId.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParsePairList(string field, List<CasusBelliOption> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(new CasusBelliOption(
+                (CasusBelli)int.Parse(part.Substring(0, colon), Inv),
+                int.Parse(part.Substring(colon + 1), Inv)));
+        }
+    }
+
+    /// <summary>Objective specs as "type:target;…"; "-" when empty.</summary>
+    private static string SpecList(IReadOnlyList<WarObjectiveSpec> specs)
+    {
+        if (specs.Count == 0) return "-";
+        var parts = new string[specs.Count];
+        for (int i = 0; i < specs.Count; i++)
+            parts[i] = ((int)specs[i].Type).ToString(Inv) + ":"
+                       + specs[i].TargetId.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseSpecList(string field, List<WarObjectiveSpec> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(new WarObjectiveSpec(
+                (WarObjectiveType)int.Parse(part.Substring(0, colon), Inv),
+                int.Parse(part.Substring(colon + 1), Inv)));
+        }
     }
 
     /// <summary>Int list as "v;v;…"; "-" when empty.</summary>
@@ -1007,6 +1074,44 @@ public static class ArtifactSerializer
                             Released = f[7] == "1",
                             ReleasedYear = long.Parse(f[8], Inv),
                         });
+                        break;
+                    }
+                    case "PBEL":
+                    {
+                        var belief = new PolityBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            Strength = double.Parse(f[4], Inv),
+                            DefensiveStrength = double.Parse(f[5], Inv),
+                        };
+                        ParsePairList(f[6], belief.Menu);
+                        ParseSpecList(f[7], belief.ObjectiveCandidates);
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Polities
+                            .Add(belief.SubjectId, belief);
+                        break;
+                    }
+                    case "WBEL":
+                    {
+                        var belief = new WarBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            OwnSideExhaustion = double.Parse(f[4], Inv),
+                            OwnSideStrengthShare = double.Parse(f[5], Inv),
+                            ObjectivesTaken = int.Parse(f[6], Inv),
+                        };
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Wars
+                            .Add(belief.WarId, belief);
+                        break;
+                    }
+                    case "CBEL":
+                    {
+                        var belief = new CorpBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            Credits = double.Parse(f[4], Inv),
+                        };
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Corporations
+                            .Add(belief.CorpId, belief);
                         break;
                     }
                     case "EVENT":

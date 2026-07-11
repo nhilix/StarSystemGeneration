@@ -5,10 +5,11 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
 
-/// <summary>Phase 1 — news arrives; each actor's believed world updates.
-/// Slice-A stub: perfect information, the view is rebuilt from truth every
-/// step. Compressed belief and news pulses replace this in Slice I; the
-/// contract (Intent reads only the view) holds either way.</summary>
+/// <summary>Phase 1 — news arrives; each actor's believed world updates
+/// (P3, slice I): self-facts read fresh (own treasury, ports, designs, own
+/// diplomatic gauges), other-side facts read through compressed belief
+/// snapshots that refresh at traffic-derived news speed and freeze between
+/// refreshes. The contract holds: Intent reads only the view.</summary>
 public sealed class PerceptionPhase : ISimPhase
 {
     public string Name => "Perception";
@@ -19,8 +20,10 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
             if (a.Entered)
                 known.Add(a.Id);
-        // headline war weights once per polity — the briefs size threats
-        // and protectors by them (perfect-info stub until slice I)
+        // one delay field per distinct news origin this step, shared
+        var fields = new BeliefOps.NewsFieldCache();
+        // headline war weights once per polity — truth, sampled into each
+        // observer's belief on its own news clock
         var strengths = new Dictionary<int, double>();
         foreach (var a in state.Actors)
             if (a.Entered && a.Kind == ActorKind.Polity)
@@ -67,31 +70,32 @@ public sealed class PerceptionPhase : ISimPhase
                 ownCredits = state.PolityOf(a.Id).Credits;
                 foreach (var corp in state.Corporations)
                     if (corp.Active && corp.HostPolityId == a.Id)
+                    {
+                        // the books are wherever the headquarters is
+                        var cb = BeliefOps.AboutCorporation(state, a.Id,
+                                                            corp, fields);
                         (hosted ??= new List<CorporateBrief>())
                             .Add(new CorporateBrief(corp.Id, corp.Name,
-                                                    corp.Credits));
-                relations = BuildRelationBriefs(state, a.Id, strengths);
+                                                    cb.Credits));
+                    }
+                relations = BuildRelationBriefs(state, a.Id, strengths,
+                                                fields);
                 foreach (var war in state.Wars)   // id order (P6)
                 {
                     if (!war.Active || !war.Involves(a.Id)) continue;
                     bool attackerSide = war.OnAttackerSide(a.Id);
-                    double atStart = attackerSide
-                        ? war.AttackerStrengthAtStart
-                        : war.DefenderStrengthAtStart;
-                    int taken = 0;
-                    foreach (var o in war.Objectives)
-                        if (o.Status == ObjectiveStatus.Taken) taken++;
+                    // the front reports arrive at news speed: a distant
+                    // loser doesn't yet know it is losing (P3 — wars run
+                    // past their rational end)
+                    var wb = BeliefOps.AboutWar(state, a.Id, war, fields);
                     (wars ??= new List<WarBrief>()).Add(new WarBrief(
                         war.Id, war.Name,
                         attackerSide ? war.DefenderId : war.AttackerId,
                         attackerSide,
                         a.Id == war.AttackerId || a.Id == war.DefenderId,
-                        attackerSide ? war.AttackerExhaustion
-                            : war.DefenderExhaustion,
-                        atStart <= 0 ? 1.0
-                            : WarOps.SideStrength(state, war, attackerSide)
-                              / atStart,
-                        taken, war.Objectives.Count));
+                        wb.OwnSideExhaustion,
+                        wb.OwnSideStrengthShare,
+                        wb.ObjectivesTaken, war.Objectives.Count));
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
@@ -108,14 +112,17 @@ public sealed class PerceptionPhase : ISimPhase
                                               wars);
             perceiving++;
         }
-        return $"{perceiving} actors perceive (perfect-info stub)";
+        return $"{perceiving} actors perceive";
     }
 
-    /// <summary>One polity's relation briefs: the gauges, the table state,
-    /// the casus-belli menu, and the mechanical objective enumeration
-    /// (choosing is the controller's — P2).</summary>
+    /// <summary>One polity's relation briefs: the pair-diplomatic state it
+    /// co-owns (gauges, rungs, offers, claims, ties) reads fresh; the other
+    /// side's observables (strength, coalition, the casus-belli menu, the
+    /// objective enumeration) read through the belief snapshot — stale by
+    /// distance, refreshed by traffic (slice I).</summary>
     private static List<RelationBrief>? BuildRelationBriefs(SimState state,
-        int selfId, Dictionary<int, double> strengths)
+        int selfId, Dictionary<int, double> strengths,
+        BeliefOps.NewsFieldCache fields)
     {
         List<RelationBrief>? relations = null;
         foreach (var rel in state.Relations)                  // creation order (P6)
@@ -130,9 +137,8 @@ public sealed class PerceptionPhase : ISimPhase
                     else against++;
                 }
             int other = rel.OtherOf(selfId);
-            var menu = new List<CasusBelliOption>();
-            foreach (var (cause, subject) in WarOps.Menu(state, selfId, other))
-                menu.Add(new CasusBelliOption(cause, subject));
+            var belief = BeliefOps.About(state, selfId, other, strengths,
+                                         fields);
             (relations ??= new List<RelationBrief>())
                 .Add(new RelationBrief(other, rel.Warmth,
                     rel.Tension, rel.Rung, rel.OfferedRung,
@@ -141,81 +147,16 @@ public sealed class PerceptionPhase : ISimPhase
                                              state.PolityOf(other)),
                     rel.RungEpoch < 0 ? 0
                         : state.EpochIndex - rel.RungEpoch,
-                    strengths.TryGetValue(other, out double os) ? os : 0,
+                    belief.Strength,
                     rel.VassalPolityId,
                     RelationsOps.IsDynastic(state, other),
                     rel.DynasticTies,
-                    menu,
-                    DefensiveStrength(state, other, strengths),
-                    ObjectiveCandidates(state, selfId, other),
+                    belief.Menu,
+                    belief.DefensiveStrength,
+                    belief.ObjectiveCandidates,
                     RelationsOps.OverlapShare(state, selfId, other)));
         }
         return relations;
-    }
-
-    /// <summary>What an attacker prices: the target plus everyone bound to
-    /// defend it — defense-alliance partners, its vassals, its overlord.</summary>
-    private static double DefensiveStrength(SimState state, int polityId,
-                                            Dictionary<int, double> strengths)
-    {
-        double total = strengths.TryGetValue(polityId, out double own) ? own : 0;
-        foreach (var rel in state.Relations)                  // creation order (P6)
-        {
-            if (!rel.Involves(polityId)
-                || !RelationsOps.BothLive(state, rel)) continue;
-            int other = rel.OtherOf(polityId);
-            if (rel.Rung == TreatyRung.DefenseAlliance
-                || rel.VassalPolityId >= 0)
-                total += strengths.TryGetValue(other, out double s) ? s : 0;
-        }
-        return total;
-    }
-
-    /// <summary>Mechanical war-target enumeration: the other side's nearest
-    /// ports (chokepoints first), its busiest lane, and its navy — what a
-    /// declaration's objective set is picked from.</summary>
-    private static List<WarObjectiveSpec> ObjectiveCandidates(SimState state,
-        int selfId, int otherId)
-    {
-        var candidates = new List<WarObjectiveSpec>();
-        var ports = new List<(bool Chokepoint, int Distance, int Id)>();
-        foreach (var target in state.Ports)                   // id order (P6)
-        {
-            if (target.OwnerActorId != otherId) continue;
-            int best = int.MaxValue;
-            foreach (var own in state.Ports)
-                if (own.OwnerActorId == selfId)
-                {
-                    int d = HexGrid.Distance(own.Hex, target.Hex);
-                    if (d < best) best = d;
-                }
-            bool chokepoint = state.Skeleton.TryGetCell(
-                HexGrid.CellOf(target.Hex), out var cell) && cell.IsChokepoint;
-            ports.Add((chokepoint, best, target.Id));
-        }
-        ports.Sort((x, y) => x.Chokepoint != y.Chokepoint
-            ? (x.Chokepoint ? -1 : 1)
-            : x.Distance != y.Distance ? x.Distance.CompareTo(y.Distance)
-            : x.Id.CompareTo(y.Id));
-        for (int i = 0; i < ports.Count && i < 3; i++)
-            candidates.Add(new WarObjectiveSpec(WarObjectiveType.CapturePort,
-                                                ports[i].Id));
-        Lane? busiest = null;
-        double busiestCapacity = 0;
-        foreach (var lane in state.Lanes)                     // id order (P6)
-        {
-            if (state.Ports[lane.PortAId].OwnerActorId != otherId
-                && state.Ports[lane.PortBId].OwnerActorId != otherId) continue;
-            double capacity = FleetOps.PostedCapacity(state, lane);
-            if (capacity > busiestCapacity)
-            { busiestCapacity = capacity; busiest = lane; }
-        }
-        if (busiest != null)
-            candidates.Add(new WarObjectiveSpec(WarObjectiveType.BlockadeLane,
-                                                busiest.Id));
-        candidates.Add(new WarObjectiveSpec(WarObjectiveType.DestroyFleet,
-                                            otherId));
-        return candidates;
     }
 
     /// <summary>Current-mark designs per chassis cell, design-id order —

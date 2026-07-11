@@ -28,9 +28,13 @@ public sealed class Actor
     /// <summary>Standing policies, written each Intent and applied mechanically
     /// by *other* phases on subsequent steps (frame/simulation-flow.md Move 1).</summary>
     public PolicySet? Policies { get; set; }
-    /// <summary>Believed world, rebuilt each Perception phase (P3 stub:
-    /// perfect information until Slice I).</summary>
+    /// <summary>The view built each Perception phase from the compressed
+    /// beliefs below — the only input the controller reads (P3). Transient.</summary>
     public PerceptionView? Perception { get; set; }
+    /// <summary>Compressed believed world (slice I): belief snapshots that
+    /// refresh at news speed and freeze between refreshes. State — it
+    /// serializes with the actor (LoadThenContinue must not re-survey).</summary>
+    public BeliefState Beliefs { get; } = new BeliefState();
 
     public Actor(int id, ActorKind kind, string name, HexCoordinate seat,
                  int entryEpoch, IController controller)

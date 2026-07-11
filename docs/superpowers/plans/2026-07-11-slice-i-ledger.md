@@ -57,11 +57,18 @@ scope restated in-session.
 
 ## Tasks
 
-- [ ] I1 — News graph: NewsOps.DelayYears (traffic-derived speeds,
+- [x] I1 — News graph: NewsOps.DelayYears (traffic-derived speeds,
       off-lane crawl), knobs, unit tests (busy < backwater < wilds).
-- [ ] I2 — Belief store: BeliefState per actor; Perception splits
+- [x] I2 — Belief store: BeliefState per actor; Perception splits
       fresh self-facts from snapshot other-facts; `belief` artifact
       layer; staleness-varies-with-traffic + LoadThenContinue tests.
+      Notes: DefensiveStrength/ObjectiveCandidates moved from
+      PerceptionPhase into BeliefOps (snapshot at refresh time);
+      WarBrief front reports route from the opponent leader's capital;
+      CorporateBrief credits go stale by HQ distance; ColonyValuation
+      deliberately left as the capital's own view (it surveys nature,
+      which doesn't move — nothing to stale). Golden regenerated
+      (belief layer + behavior change); refreezes at slice end.
 - [ ] I3 — News pulses: emission at Chronicle, delivery at Perception,
       serialization, expiry; arrival-not-emission test.
 - [ ] I4 — Stances + reputation: stance table, temperament-filtered
