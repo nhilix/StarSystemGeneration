@@ -44,6 +44,7 @@ public sealed class Repl
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
                     Console.WriteLine("equarantine <laneId> — issue the owner's QuarantineAct by hand (the player's verb, same rules)");
+                    Console.WriteLine("elanes — every lane with gate tiers, owners, liveness, saturation");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
@@ -240,6 +241,38 @@ public sealed class Repl
                 }
                 case "equarantine":
                     Console.WriteLine("usage: equarantine <laneId> — issue the owner's QuarantineAct by hand (see `emap lanes`)");
+                    break;
+                case "elanes" when _sim != null:
+                {
+                    if (_sim.Lanes.Count == 0)
+                    { Console.WriteLine("no lanes yet"); break; }
+                    foreach (var lane in _sim.Lanes)
+                    {
+                        var a = _sim.Ports[lane.PortAId];
+                        var b = _sim.Ports[lane.PortBId];
+                        int dist = Core.Galaxy.HexGrid.Distance(a.Hex, b.Hex);
+                        var gA = lane.GateAId >= 0
+                            ? _sim.Facilities[lane.GateAId] : null;
+                        var gB = lane.GateBId >= 0
+                            ? _sim.Facilities[lane.GateBId] : null;
+                        bool live = Core.Epoch.LaneMath.IsLive(_sim, lane);
+                        string OwnerOf(Core.Epoch.Facility? g) => g == null
+                            ? "—" : _sim.Actors[g.OwnerActorId].Name;
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"#{lane.Id,3} {a.Id,3}<->{b.Id,-3} {dist,3}hx ")
+                            + $"T{gA?.Tier ?? 0}/{gB?.Tier ?? 0} "
+                            + (live ? "live" : "DEAD")
+                            + (lane.QuarantinedUntil >= _sim.WorldYear
+                                ? " quarantined" : "")
+                            + (lane.SaturatedYears > 0
+                                ? FormattableString.Invariant(
+                                    $" sat {lane.SaturatedYears}y") : "")
+                            + $"  gates: {OwnerOf(gA)} / {OwnerOf(gB)}");
+                    }
+                    break;
+                }
+                case "elanes":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "emap":
                 {

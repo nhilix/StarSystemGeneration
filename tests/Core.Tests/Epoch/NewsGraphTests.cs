@@ -31,8 +31,8 @@ public class NewsGraphTests
             state.Ports.Add(p);
             state.Markets.Add(new Market(p.Id, state.Config.Economy));
         }
-        state.Lanes.Add(new Lane(0, 0, 1, builtYear: 0));
-        state.Lanes.Add(new Lane(1, 0, 2, builtYear: 0));
+        EpochTestKit.AddLane(state, 0, 1);
+        EpochTestKit.AddLane(state, 0, 2);
         EpochTestKit.PostFreight(state, owner.Id, laneId: 0, hulls: 8);
         EpochTestKit.PostFreight(state, owner.Id, laneId: 1, hulls: 1);
         return (state, hub, busy, quiet, wild);
@@ -75,7 +75,7 @@ public class NewsGraphTests
             new HexCoordinate(busy.Hex.Q + 10, busy.Hex.R), 2, 0);
         state.Ports.Add(far);
         state.Markets.Add(new Market(far.Id, state.Config.Economy));
-        state.Lanes.Add(new Lane(2, 1, 4, builtYear: 0));
+        EpochTestKit.AddLane(state, 1, 4);
         EpochTestKit.PostFreight(state, owner.Id, laneId: 2, hulls: 8);
         var delay = NewsOps.DelayFromHex(state, hub.Hex);
         double crawl = 20.0 / state.Config.News.OffLaneSpeedHexPerYear;

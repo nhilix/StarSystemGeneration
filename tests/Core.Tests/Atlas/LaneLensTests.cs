@@ -25,7 +25,7 @@ public class LaneLensTests
         }
         state.Ports.Add(new Port(0, state.Actors[0].Id, a!.Value, tier: 2, foundedYear: 0));
         state.Ports.Add(new Port(1, state.Actors[0].Id, b!.Value, tier: 2, foundedYear: 0));
-        state.Lanes.Add(new Lane(0, 0, 1, builtYear: 0));
+        EpochTestKit.AddLane(state, 0, 1);
         return (new AtlasReadModel(state), state);
     }
 

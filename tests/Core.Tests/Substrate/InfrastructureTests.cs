@@ -9,10 +9,10 @@ namespace StarGen.Core.Tests.Substrate;
 public class InfrastructureTests
 {
     [Fact]
-    public void Catalog_HasFifteenTypes_IdsStableAndUnique()
+    public void Catalog_HasSixteenTypes_IdsStableAndUnique()
     {
-        Assert.Equal(15, Infrastructure.All.Count);
-        Assert.Equal(15, Infrastructure.All.Select(d => d.Id).Distinct().Count());
+        Assert.Equal(16, Infrastructure.All.Count);
+        Assert.Equal(16, Infrastructure.All.Select(d => d.Id).Distinct().Count());
         // Frozen ids — closed, versioned vocabulary like the anchor types.
         Assert.Equal(0, (int)InfraTypeId.Port);
         Assert.Equal(1, (int)InfraTypeId.Mine);
@@ -29,6 +29,7 @@ public class InfrastructureTests
         Assert.Equal(12, (int)InfraTypeId.ComputeCore);
         Assert.Equal(13, (int)InfraTypeId.Depot);
         Assert.Equal(14, (int)InfraTypeId.Fortress);
+        Assert.Equal(15, (int)InfraTypeId.Gate);
         foreach (var def in Infrastructure.All)
             Assert.Same(def, Infrastructure.Get(def.Id));
     }
@@ -40,7 +41,7 @@ public class InfrastructureTests
         Assert.Equal(4, Infrastructure.All.Count(d => d.Family == InfraFamily.Extraction));
         Assert.Equal(4, Infrastructure.All.Count(d => d.Family == InfraFamily.Processing));
         Assert.Equal(4, Infrastructure.All.Count(d => d.Family == InfraFamily.Heavy));
-        Assert.Equal(2, Infrastructure.All.Count(d => d.Family == InfraFamily.Support));
+        Assert.Equal(3, Infrastructure.All.Count(d => d.Family == InfraFamily.Support));
     }
 
     [Fact]

@@ -25,6 +25,7 @@ casualties.
 | | Compute core | Compute | exotics access, high-tier domains |
 | **Support** | Depot | storage, stockpile buffering | junction ports |
 | | Fortress | defense, interdiction strength | port approaches, chokepoint lanes |
+| | Gate | lane terminus: reach, capacity, transit speed by tier — one per lane end; no upkeep draw (sealed once linked, condition moves only by war damage) | port systems only; slot budget = port tier × GateSlotsPerPortTier (frame/space-and-travel.md §Lanes) |
 
 Every facility has: a tier (1–3), a build cost in real goods (Alloys, Machinery,
 Composites) plus construction time, an upkeep draw, and a **hex anchor** — each

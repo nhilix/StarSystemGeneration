@@ -164,12 +164,19 @@ public class MarketSupplyTests
 
         foreach (var pr in state.Polities)
         {
-            if (!state.Actors[pr.ActorId].Entered) continue;
+            // retired polities (conquest, merger) lose their assets — the
+            // seizure moves facility ownership with the territory
+            if (!state.Actors[pr.ActorId].Entered
+                || state.Actors[pr.ActorId].Retired) continue;
             // schedule entries only — schism states (slice G) inherit
             // existing industry, they don't found homeworlds
             if (!state.Log.Events.Any(e =>
                     e.Type == WorldEventType.PolityEmerged
                     && e.Actors.Contains(pr.ActorId))) continue;
+            // a homeworld can be conquered while the polity survives in
+            // exile — the starter industry moved with the territory
+            if (!state.Ports.Any(p => p.OwnerActorId == pr.ActorId
+                    && p.Hex.Equals(state.Actors[pr.ActorId].Seat))) continue;
             int starters = 0;
             foreach (var f in state.Facilities)
                 if (f.OwnerActorId == pr.ActorId

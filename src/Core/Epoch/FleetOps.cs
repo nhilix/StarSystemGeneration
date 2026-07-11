@@ -249,8 +249,8 @@ public static class FleetOps
             var granted = new int[lanes.Count];
             var weights = new double[lanes.Count];
             for (int i = 0; i < lanes.Count; i++)
-                weights[i] = LaneMath.Capacity(state.Ports[lanes[i].PortAId],
-                                               state.Ports[lanes[i].PortBId]);
+                weights[i] = LaneMath.IsLive(state, lanes[i])
+                    ? LaneMath.Capacity(state, lanes[i]) : 0.0;
             for (int slot = 0; slot < totalFreight; slot++)
             {
                 int pick = 0;
@@ -375,10 +375,11 @@ public static class FleetOps
     /// supply failure bites the economy before the attrition cliff).</summary>
     public static double PostedCapacity(SimState state, Lane lane)
     {
+        if (!LaneMath.IsLive(state, lane)) return 0;   // dead gates move nothing
         var a = state.Ports[lane.PortAId];
         var b = state.Ports[lane.PortBId];
         int dist = HexGrid.Distance(a.Hex, b.Hex);
-        double speed = LaneMath.TransitSpeed(a, b);
+        double speed = LaneMath.TransitSpeed(state, lane);
         int years = state.Config.Sim.YearsPerEpoch;
         double capacity = 0;
         foreach (var fleet in state.Fleets)               // id order (P6)
@@ -402,11 +403,12 @@ public static class FleetOps
         // traffic-borne news or contagion — word still crawls at the base
         // carriage (review fix 3)
         if (lane.QuarantinedUntil >= state.WorldYear) return 0;
+        if (!LaneMath.IsLive(state, lane)) return 0;   // dead gates carry no news
         var a = state.Ports[lane.PortAId];
         var b = state.Ports[lane.PortBId];
         int dist = HexGrid.Distance(a.Hex, b.Hex);
         if (dist <= 0) return 0;
-        double speed = LaneMath.TransitSpeed(a, b);
+        double speed = LaneMath.TransitSpeed(state, lane);
         double trips = 0;
         foreach (var fleet in state.Fleets)               // id order (P6)
             if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)

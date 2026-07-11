@@ -170,7 +170,7 @@ public class FleetSupplyTests
         state.Ports.Add(pb);
         state.Markets.Add(new Market(0, state.Config.Economy));
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, 0));
+        EpochTestKit.AddLane(state, 0, 1);
         EpochTestKit.PostFreight(state, a0.Id, 0, 6);
         var mA = state.Markets[0];
         mA.Deposit((int)GoodId.Provisions, 1000, 0.6);

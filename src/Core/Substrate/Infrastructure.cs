@@ -22,6 +22,7 @@ public enum InfraTypeId
     ComputeCore = 12,
     Depot = 13,
     Fortress = 14,
+    Gate = 15,           // lane terminus: paired port infrastructure
 }
 
 public enum InfraFamily { Keystone, Extraction, Processing, Heavy, Support }
@@ -40,7 +41,7 @@ public sealed record InfraDef(
     double BaseOutputPerYear,
     double LaborRequired);
 
-/// <summary>The 15-row facility catalog: the keystone port plus fourteen
+/// <summary>The 16-row facility catalog: the keystone port plus fifteen
 /// buildable types in four families (substrate/infrastructure.md). Siting
 /// rules live in <see cref="Siting"/>; the production formula in
 /// <see cref="Production"/>.</summary>
@@ -113,6 +114,13 @@ public static class Infrastructure
         new(InfraTypeId.Fortress, "Fortress", InfraFamily.Support, None,
             new[] { Q(GoodId.Alloys, 20), Q(GoodId.Machinery, 8), Q(GoodId.Composites, 6) }, 3,
             new[] { Q(GoodId.Machinery, 0.1), Q(GoodId.Alloys, 0.2) }, 0, 1.0),
+        // gates carry no upkeep draw: a sealed mass-driver pair is passive
+        // once linked — condition moves only by war damage and recovery
+        // (upkeep's met-fraction rule would kill every frontier gate whose
+        // market holds zero machinery, however small the draw)
+        new(InfraTypeId.Gate, "Gate", InfraFamily.Support, None,
+            new[] { Q(GoodId.Alloys, 4), Q(GoodId.Machinery, 3), Q(GoodId.Composites, 2) }, 3,
+            new GoodQuantity[0], 0, 0.5),
     };
 
     public static IReadOnlyList<InfraDef> All => Table;

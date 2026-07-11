@@ -66,7 +66,8 @@ public class AllocationTests
                     pr.TechTier[(int)TechDomain.Astrogation]);
             int bonus = s1.Config.Tech.AstroRangePerTierHexes
                         * System.Math.Max(0, maxAstro - Tech.EraStandardTier);
-            Assert.True(LaneMath.InRange(s1.Config, a, b, bonus),
+            Assert.True(StarGen.Core.Galaxy.HexGrid.Distance(a.Hex, b.Hex)
+                    <= LaneMath.ReachHexes(s1.Config, 3) + bonus,
                 "lane endpoints out of range");
         }
         // development raised some colony port above its founding tier

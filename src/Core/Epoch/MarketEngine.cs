@@ -59,7 +59,8 @@ public sealed class MarketStepScratch
         LaneCapacityUsed = new double[state.Lanes.Count];
         LaneFleetCapacity = new double[state.Lanes.Count];
         foreach (var lane in state.Lanes)                 // id order (P6)
-            LaneFleetCapacity[lane.Id] = FleetOps.PostedCapacity(state, lane);
+            LaneFleetCapacity[lane.Id] = LaneMath.IsLive(state, lane)
+                ? FleetOps.PostedCapacity(state, lane) : 0.0;
         Severed = FleetOps.SeveredLaneIds(state);
     }
 }
@@ -624,8 +625,8 @@ public static class MarketEngine
             // spikes exactly like a blockaded one (visible naval shortage)
             if (scratch.Severed.Contains(lane.Id)
                 || scratch.LaneFleetCapacity[lane.Id] <= 0) continue;
-            ApplyImportParity(state, snapshot, lane.PortAId, lane.PortBId);
-            ApplyImportParity(state, snapshot, lane.PortBId, lane.PortAId);
+            ApplyImportParity(state, snapshot, lane, lane.PortAId, lane.PortBId);
+            ApplyImportParity(state, snapshot, lane, lane.PortBId, lane.PortAId);
         }
     }
 
@@ -634,7 +635,7 @@ public static class MarketEngine
     /// friction, grossed up by the exporter's realized margin (tax and labor
     /// share) plus headroom so the trade still pays.</summary>
     private static void ApplyImportParity(SimState state, double[][] snapshot,
-                                          int srcId, int dstId)
+                                          Lane lane, int srcId, int dstId)
     {
         var eco = state.Config.Economy;
         var src = state.Ports[srcId];
@@ -656,12 +657,10 @@ public static class MarketEngine
             var dstLevel = LegalityAt(state, dst.OwnerActorId, g);
             if (srcLevel == LegalityLevel.Prohibited
                 || dstLevel == LegalityLevel.Prohibited) continue;
-            double tariff = 0;
-            if (src.OwnerActorId != dst.OwnerActorId
-                && dstPolicies.TariffSchedule.TryGetValue(g, out double rate))
-                tariff = rate * snapshot[dstId][g]
-                         * RelationsOps.TariffFactor(state, src.OwnerActorId,
-                                                     dst.OwnerActorId);
+            // parity prices the same crossing fee freight will pay at the
+            // dst-side gate (lane-economics spec §4)
+            double tariff = LaneFees.CrossingFeePerUnit(state, lane, dstId, g,
+                snapshot[dstId][g], src.OwnerActorId, out _);
             double friction = srcLevel == LegalityLevel.Restricted
                               || dstLevel == LegalityLevel.Restricted
                 ? eco.RestrictedFriction * snapshot[dstId][g] : 0;
@@ -774,16 +773,11 @@ public static class MarketEngine
                 double freight = eco.FreightCostPerUnitPerHex * dist;
                 double fuelUnits = eco.FuelPerUnitPerHex * dist;
                 double fuel = fuelUnits * mSrc.Price[(int)GoodId.Fuel];
-                double tariff = 0;
-                if (src.OwnerActorId != dst.OwnerActorId)
-                {
-                    var schedule = (state.Actors[dst.OwnerActorId].Policies
-                        as PolityPolicies ?? PolityPolicies.Default).TariffSchedule;
-                    if (schedule.TryGetValue(g, out double rate))
-                        tariff = rate * pDst
-                                 * RelationsOps.TariffFactor(state,
-                                       src.OwnerActorId, dst.OwnerActorId);
-                }
+                // the dst-side gate's owner prices the crossing: corp toll,
+                // customs at a foreign polity gate, free through your own
+                // (lane-economics spec §4)
+                double tariff = LaneFees.CrossingFeePerUnit(state, lane,
+                    dst.Id, g, pDst, src.OwnerActorId, out int feeTo);
                 double friction = srcLevel == LegalityLevel.Restricted
                                   || dstLevel == LegalityLevel.Restricted
                     ? eco.RestrictedFriction * pDst : 0;
@@ -821,12 +815,12 @@ public static class MarketEngine
                 // lines (and merchant marines) book real revenue (slice G;
                 // corporations.md: unserved *profitable* lanes)
                 PayHaulers(state, lane, drawn * freight);
-                if (tariff > 0)
+                if (tariff > 0 && feeTo >= 0)
                 {
                     exporter.Credits -= drawn * tariff;
-                    var dstOwner = state.PolityOf(dst.OwnerActorId);
-                    dstOwner.Credits += drawn * tariff;
-                    dstOwner.Receipts += drawn * tariff;
+                    var collector = state.LedgerOf(feeTo);
+                    collector.Credits += drawn * tariff;
+                    collector.Receipts += drawn * tariff;
                 }
                 if (friction > 0)
                 {

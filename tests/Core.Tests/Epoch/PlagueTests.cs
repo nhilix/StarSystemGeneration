@@ -27,7 +27,7 @@ public class PlagueTests
         state.Ports.Add(pb);
         state.Markets.Add(new Market(0, state.Config.Economy));
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, builtYear: 0));
+        EpochTestKit.AddLane(state, 0, 1);
         int sp = state.PolityOf(0).SpeciesId;
         state.Skeleton.Species[sp].Embodiment =
             StarGen.Core.Galaxy.Embodiment.TerranAnalog;

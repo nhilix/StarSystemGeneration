@@ -135,7 +135,7 @@ public class ColonyViabilityTests
             state.Ports[0].Hex.R), tier: 2, foundedYear: 0);
         state.Ports.Add(far);
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, 0));
+        EpochTestKit.AddLane(state, 0, 1);
         int species = state.PolityOf(0).SpeciesId;
         state.Segments.Add(new PopulationSegment(1, 1, species, species, 3.0)
         { Wealth = 500 });
@@ -165,7 +165,7 @@ public class ColonyViabilityTests
             state.Ports[0].Hex.R), tier: 2, foundedYear: 0);
         state.Ports.Add(far);
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, 0));
+        EpochTestKit.AddLane(state, 0, 1);
         int species = state.PolityOf(0).SpeciesId;
         state.Segments.Add(new PopulationSegment(1, 1, species, species, 3.0)
         { Wealth = 5000 });

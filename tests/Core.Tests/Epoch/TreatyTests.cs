@@ -130,6 +130,7 @@ public class TreatyTests
         var state = Run();
         // find the closest related pair and give them a pact + funding
         PolityRelation? best = null;
+        Port? bestPa = null, bestPb = null;
         int bestDist = int.MaxValue;
         foreach (var rel in state.Relations)
         {
@@ -143,7 +144,8 @@ public class TreatyTests
                 {
                     if (pb.OwnerActorId != rel.PolityBId) continue;
                     int d = HexGrid.Distance(pa.Hex, pb.Hex);
-                    if (d < bestDist) { bestDist = d; best = rel; }
+                    if (d < bestDist)
+                    { bestDist = d; best = rel; bestPa = pa; bestPb = pb; }
                 }
             }
         }
@@ -151,8 +153,16 @@ public class TreatyTests
         best!.Rung = TreatyRung.TradePact;
         best.Warmth = 0.8;
         best.Tension = 0.0;
-        state.PolityOf(best.PolityAId).DevelopmentPoints += 200;
-        state.PolityOf(best.PolityBId).DevelopmentPoints += 200;
+        // gates cost real goods at both ends now (lane-economics spec §2):
+        // fund the pair and stock the two border markets with the basket
+        state.PolityOf(best.PolityAId).DevelopmentPoints += 1000;
+        state.PolityOf(best.PolityBId).DevelopmentPoints += 1000;
+        var basket = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Gate).BuildCost;
+        foreach (var port in new[] { bestPa!, bestPb! })
+            foreach (var q in basket)
+                state.Markets[port.Id].Deposit((int)q.Good,
+                    q.Quantity * 10, 0.6);
         // drive Allocation directly: a full continuation can federate the
         // partner away mid-test (histories churn)
         new AllocationPhase().Run(state);

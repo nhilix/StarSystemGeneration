@@ -1,10 +1,45 @@
-# Session Handoff — 2026-07-11 (Slice K1: Atlas skeleton instrument — merged)
+# Session Handoff — 2026-07-11 (Lane economics on `lane-economics`; K1 merged)
 
-State: `main`, merged locally at `27fefe7`, **not pushed** (push on user
-say-so). Tests 602/602 green — hex-tier suite untouched, goldens and
-determinism byte-identity untouched throughout (K adds no sim
-behavior). Unity EditMode 3/3 headless. ProjectSettings churn remains
-uncommitted as always.
+State: branch `lane-economics` complete and green (626/626; hex-tier
+untouched; golden re-frozen at branch end — the red window closed),
+**awaiting the user's REPL eyeball + merge decision**. `main` still at
+`27fefe7` (K1 merged, not pushed). ProjectSettings churn uncommitted.
+
+## Lane economics (this session, spec → plan → implementation)
+
+Spec `docs/superpowers/specs/2026-07-11-lane-economics-design.md`, plan
+`docs/superpowers/plans/2026-07-11-lane-economics.md`. Lanes are now
+linked **Gate facility pairs** (InfraTypeId.Gate = 15, Support family,
+zero upkeep — sealed once linked): reach/capacity/speed from gate tier
+(8/16/28 hexes), per-port gate-slot budgets cap lane degree, builders
+pass a detour(1.8×)+congestion(world-year saturation clock) anti-web
+rule via the new `LaneNetwork` (deterministic Dijkstra), crossing fees
+resolve at the destination-side gate (`LaneFees`: own=free, corp=toll,
+foreign polity=customs — replaced both old tariff sites), freight-line
+corps bridge non-hostile borders owning both gates, piracy prices lane
+length, and construction runs one lane per polity per generation in
+world-time (P7). Lanes layer v3 (gate ids + SaturatedYears). Deleted:
+`Expansion.LaneCost`, `Infrastructure.InterPortRange*`. Design docs
+amended in-branch: space-and-travel §Lanes (rewritten), infrastructure
+table (+Gate row), corporations (freight-line acts), markets (tariff
+collection point). Seed-42 baseline before: mean lane degree 9.0 over
+10 ports (all-pairs web); after: ~90 lanes / 89 ports, 2 isolated, all
+live, hub degree pinned at slot caps. **Founding links** (user
+directive): an isolated port's first lane is the colonization chain's
+last step — built before any densification, no stock-on-hand gate
+(the ColonizeResolve convention: the expedition ships the equipment;
+BuildGate still consumes what the pair holds). **No rate limiters**
+(user directive): one-per-generation caps were added mid-branch to
+chase FineTick P7 and removed — durations belong in world-time state,
+not step caps (see next-up). REPL: new `elanes`; `emap lanes` marks
+dead lanes `~`. Two spec deviations flagged: gates pair-build by a
+single funder (half-built = a destroyed far gate, no cross-actor
+escrow), and no emergence gate-seeding. FineTick's provisions band now
+compares the MEDIAN over shared ports (sparse networks let one
+ceiling-priced port swing a mean 3× on connectivity luck); tests
+guarding formation-time or single-actor premises against end-state
+histories got the honest guards (schism-born far pairs, conquered
+homeworlds, pre-existing vassals).
 
 ## What this session did
 
@@ -88,6 +123,18 @@ decisions they forced.
 
 ## Next up
 
+0. **Durations design pass (user-mandated, not yet scheduled).** The
+   epoch→fine-tick move broke the "completes within the generational
+   tick" wave galaxy-wide: construction, convoy travel, shipyard
+   queues, manufacturing, freight delivery, war mobilization all
+   complete instantly today. The user's principle: **things take
+   time, not ticks** — durations are world-time state (an action
+   decided in Intent/Allocation completes in year Y), never per-step
+   or per-generation rate caps. `InfraDef.ConstructionYears` already
+   exists on every facility and is ignored. This wants a brainstorm →
+   spec → slice of its own; it also subsumes the lane-branch interim
+   compromises (founding links' no-goods-gate exception, instant gate
+   raising) and is what makes FineTick P7 honesty automatic.
 1. **Slice K2 (Lens catalog)** — fresh session, point it at
    `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`
    (complete: what K1 left ready, per-lens scope, conventions,

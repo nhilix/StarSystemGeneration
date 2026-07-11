@@ -34,7 +34,7 @@ public class MarketFreightTests
         state.Ports.Add(pb);
         state.Markets.Add(new Market(0, state.Config.Economy));
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, builtYear: 0));
+        EpochTestKit.AddLane(state, 0, 1);
         int s0 = state.PolityOf(a0.Id).SpeciesId;
         int s1 = state.PolityOf(a1.Id).SpeciesId;
         state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });

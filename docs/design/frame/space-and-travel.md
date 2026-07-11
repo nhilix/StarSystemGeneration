@@ -25,9 +25,10 @@ independent growth axes:
   the local hand of its polity. Grows with port tier (investment) and technology;
   shaped by terrain (voids and empty reaches dilute effective range). An early
   exploration hub services a few hexes; a late imperial megahub covers a swath.
-- **Inter-port range & efficiency** — a separate technology/investment axis: how
-  far its lanes reach, how many ports it links directly, how fast transit runs.
-  Lane-network topology itself improves as wealth and research grow.
+- **Gate slots** — the second growth axis: each tier grants slots for **gate**
+  facilities, one gate per lane end. Lane *degree* is physically capped by port
+  investment: a port that wants to be a hub must grow first. Reach, capacity,
+  and transit speed live in the gates themselves, not the port.
 
 **Claiming space is building a port.** A colonization convoy travels (off-lane) to
 a frontier system and establishes the port; the domain starts small and grows with
@@ -56,11 +57,47 @@ colonization is just the machinery pointed outward.
 
 ## Lanes
 
-A **lane** is paired port infrastructure linking two ports within inter-port range —
-the bulk-economy channel. Terrain and range define *potential* lane geometry; the
-actual network is **built**, polity by polity, epoch by epoch — the map's highways
-are somebody's investment (P5). Lane capacity and transit speed derive from the
-ports' tiers and technology. Freight is only economical on-lane.
+A **lane** is a linked pair of **gate facilities**, one standing in each port
+system — the bulk-economy channel, mass-driver fiction made registry fact. Gates
+are tiered (1–3) like every facility, built from real goods drawn across the pair
+(each end's market, the partner's surplus, the funder's reserves — state
+logistics ship the difference), owned by whoever paid: polity **or corporation**.
+The lane is live only while both gates stand and function; a raided gate severs
+the lane without touching the port, and the survivor pointing at nothing is a
+visible wound.
+
+- **Reach comes from gate tier** (min of the two ends): tier-1 gates link short
+  hops, tier-3 gates span long corridors — and facility tier costs are
+  superlinear, so length is priced steeply. Astrogation stretches reach.
+- **Capacity and transit speed** derive from the gate tiers; the weaker gate
+  bounds both.
+- **The anti-web rule**: a builder considers a direct lane only when the network
+  can't already get there within a detour factor of the direct distance — or
+  when every lane on that path has run **saturated** long enough (a world-year
+  clock) to earn a congested corridor its express bypass. A→B→C→D chains carry
+  the traffic, intermediate ports get their hauler wages and market flow, and
+  hubs emerge from geometry instead of subsidy.
+- **Founding links**: an isolated port's first lane is the colonization
+  chain's last step — colony ship arrives, the foothold establishes (port +
+  essential industry), then the connecting gate joins the new system to the
+  polity network for import/export/migration. The builder links every isolated
+  port to its nearest eligible partner (preferring one already on the network)
+  before any densification project; no port is left off the web while a
+  reachable, affordable partner exists.
+- **Cross-border lanes**: polities pair with trade-pact partners' ports;
+  **freight-line corporations** bridge any profitable, non-hostile border on
+  their own books, owning and tolling both gates — no treaty required, so
+  profit walks across the border before diplomats do.
+- **Crossing fees** are decided by the destination-side gate's owner: your own
+  gate is free (vertical integration pays), a corp gate tolls, a foreign polity
+  gate collects its tariff schedule as customs — once, at entry
+  (economy/markets.md §Sanctions and tariffs).
+- **Piracy prices length**: more hexes, more ambush points — longer lanes tempt
+  raiders at thinner cargo.
+
+Terrain and reach define *potential* geometry; the actual network is **built**,
+polity by polity, epoch by epoch — the map's highways are somebody's investment
+(P5). Freight is only economical on-lane.
 
 ## Off-lane movement
 

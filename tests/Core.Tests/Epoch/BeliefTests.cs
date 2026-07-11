@@ -83,7 +83,7 @@ public class BeliefTests
     public void BusyLane_CarriesTheWord_WithinAnEpoch()
     {
         var (state, _, pb) = DistantPairFixture();
-        state.Lanes.Add(new Lane(0, 0, 1, builtYear: 0));
+        EpochTestKit.AddLane(state, 0, 1);
         EpochTestKit.PostFreight(state, 0, laneId: 0, hulls: 8);
         var brief = BriefOf(state, 0, 1);
         Assert.Equal(0.0, brief.OtherStrength, 6);

@@ -29,7 +29,7 @@ public class InteriorEconomyTests
         state.Ports.Add(pb);
         state.Markets.Add(new Market(0, state.Config.Economy));
         state.Markets.Add(new Market(1, state.Config.Economy));
-        state.Lanes.Add(new Lane(0, 0, 1, 0));
+        EpochTestKit.AddLane(state, 0, 1);
         int species = state.PolityOf(actor.Id).SpeciesId;
         var src = new PopulationSegment(0, 0, species, species, 2.0)
         { Wealth = 100 };

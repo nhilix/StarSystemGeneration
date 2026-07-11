@@ -164,7 +164,11 @@ public static class CorporationOps
             if (!navyless && !haven) continue;
             double floor = knobs.RaidCapacityFloor
                 * (haven ? state.Config.Poi.LawlessRaidFactor : 1.0);
-            if (FleetOps.PostedCapacity(state, lane) >= floor)
+            // length is exposure: more hexes, more ambush points — longer
+            // lanes tempt at thinner cargo (lane-economics spec §5)
+            double exposure = 1.0 + knobs.PiracyLengthPerHex
+                * HexGrid.Distance(src.Hex, state.Ports[lane.PortBId].Hex);
+            if (FleetOps.PostedCapacity(state, lane) * exposure >= floor)
                 return (CorporateNiche.Raiding, lane.Id);
         }
         return (CorporateNiche.None, -1);
@@ -193,16 +197,23 @@ public static class CorporationOps
     /// <summary>Would a hauler on this lane actually clear the freight-niche
     /// margin? Mirrors MarketEngine.Arbitrage's per-unit economics.</summary>
     private static bool LaneCarriesProfit(SimState state, Lane lane,
-                                          double margin)
+                                          double margin) =>
+        PairCarriesProfit(state, lane.PortAId, lane.PortBId, margin);
+
+    /// <summary>The same per-unit math on a hypothetical pair — shared by
+    /// the niche watcher (existing lanes) and the corp gate builder
+    /// (prospective ones, lane-economics spec §4).</summary>
+    internal static bool PairCarriesProfit(SimState state, int portAId,
+                                           int portBId, double margin)
     {
         var eco = state.Config.Economy;
-        var portA = state.Ports[lane.PortAId];
-        var portB = state.Ports[lane.PortBId];
+        var portA = state.Ports[portAId];
+        var portB = state.Ports[portBId];
         int dist = HexGrid.Distance(portA.Hex, portB.Hex);
         for (int g = 0; g < Goods.All.Count; g++)
         {
-            var (src, dst) = state.Markets[lane.PortAId].Price[g]
-                             <= state.Markets[lane.PortBId].Price[g]
+            var (src, dst) = state.Markets[portAId].Price[g]
+                             <= state.Markets[portBId].Price[g]
                 ? (portA, portB) : (portB, portA);
             var mSrc = state.Markets[src.Id];
             if (mSrc.Inventory[g] <= 0) continue;
@@ -457,6 +468,7 @@ public static class CorporationOps
                     break;
                 case CorporateNiche.Freight:
                     InvestFleet(state, corp, policies);
+                    InvestGateLanes(state, corp, policies);
                     break;
                 case CorporateNiche.Cartel:
                     SkimBlackBooks(state, corp);
@@ -638,6 +650,11 @@ public static class CorporationOps
                     if (corp.Credits <= 0) break;
                     scratch.Demand[home][(int)GoodId.ShipComponents]
                         += state.Config.Corporate.FreightPullComponents;
+                    // gate ambitions pull the build basket in too, so the
+                    // border markets can actually supply the founding
+                    foreach (var q in Infrastructure.Get(InfraTypeId.Gate)
+                                 .BuildCost)
+                        scratch.Demand[home][(int)q.Good] += q.Quantity;
                     break;
             }
         }
@@ -746,6 +763,104 @@ public static class CorporationOps
             WorldEventType.FacilityBuilt, new[] { corp.ActorId }, port.Hex,
             Magnitude: 1.0, Valence: 0.5, EventVisibility.Regional,
             new FacilityBuiltPayload(state.Facilities.Count - 1, (int)type, 1)));
+    }
+
+    /// <summary>The freight line's founding act (lane-economics spec §4):
+    /// bridge a profitable, non-hostile border with a corp-owned gate pair.
+    /// One lane per epoch, host-polity ports × foreign polity ports,
+    /// deterministic scan, cheapest eligible profitable pair first. No
+    /// treaty required — profit walks across the border before diplomats
+    /// do.</summary>
+    private static void InvestGateLanes(SimState state, Corporation corp,
+                                        CorporationPolicies policies)
+    {
+        if (corp.HostPolityId < 0) return;            // outlaws build nothing
+        var cfg = state.Config;
+        var knobs = cfg.Corporate;
+        int gatesOwned = 0;
+        foreach (var f in state.Facilities)
+            if (f.OwnerActorId == corp.ActorId
+                && f.TypeId == (int)InfraTypeId.Gate) gatesOwned++;
+        if (gatesOwned / 2 >= knobs.MaxGateLanes) return;
+
+        Port? bestA = null, bestB = null;
+        int bestTier = 0, bestDist = int.MaxValue;
+        double bestCost = double.MaxValue;
+        foreach (var home in state.Ports)                 // id order (P6)
+        {
+            if (home.OwnerActorId != corp.HostPolityId) continue;
+            foreach (var afar in state.Ports)             // id order (P6)
+            {
+                if (afar.OwnerActorId == corp.HostPolityId
+                    || !state.Actors[afar.OwnerActorId].Entered) continue;
+                if (state.Actors[afar.OwnerActorId].Kind != ActorKind.Polity)
+                    continue;
+                // non-hostile: not at war, tension under the ceiling
+                if (WarOps.ActiveWarBetween(state, corp.HostPolityId,
+                        afar.OwnerActorId) != null) continue;
+                var rel = state.RelationOf(corp.HostPolityId,
+                                           afar.OwnerActorId);
+                if (rel != null && rel.Tension >= knobs.GateTensionCeiling)
+                    continue;
+                var (a, b) = home.Id < afar.Id ? (home, afar) : (afar, home);
+                if (GateLaneExists(state, a.Id, b.Id)) continue;
+                int dist = HexGrid.Distance(a.Hex, b.Hex);
+                int tier = LaneMath.RequiredGateTier(cfg, dist, 0);
+                if (tier < 0) continue;
+                if (!LaneNetwork.HasFreeGateSlot(state, a)
+                    || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
+                if (!LaneNetwork.DirectLaneEligible(state, a.Id, b.Id))
+                    continue;
+                if (!PairCarriesProfit(state, a.Id, b.Id,
+                        knobs.FreightNicheMargin)) continue;
+                double cost = 2.0 * AllocationPhase.GateValue(cfg, tier);
+                if (corp.Credits * policies.Investment.Facilities < cost)
+                    continue;
+                if (!GatePairStocked(state, state.Markets[a.Id],
+                        state.Markets[b.Id], tier)) continue;
+                if (cost < bestCost || (cost == bestCost && (dist < bestDist
+                    || (dist == bestDist && (bestA == null || a.Id < bestA.Id
+                        || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
+                { bestCost = cost; bestDist = dist; bestTier = tier;
+                  bestA = a; bestB = b; }
+            }
+        }
+        if (bestA == null) return;
+        corp.Credits -= bestCost;
+        int gateA = AllocationPhase.BuildGate(state, corp.ActorId, bestA,
+            bestTier, funderReserves: null, state.Markets[bestB!.Id]);
+        int gateB = AllocationPhase.BuildGate(state, corp.ActorId, bestB,
+            bestTier, funderReserves: null, state.Markets[bestA.Id]);
+        var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id,
+                            state.WorldYear)
+        { GateAId = gateA, GateBId = gateB };
+        state.Lanes.Add(lane);
+        int foreignPolity = bestB.OwnerActorId == corp.HostPolityId
+            ? bestA.OwnerActorId : bestB.OwnerActorId;
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.LaneOpened,
+            new[] { corp.ActorId, corp.HostPolityId, foreignPolity },
+            bestA.Hex, Magnitude: bestTier, Valence: 1.0,
+            EventVisibility.Regional,
+            new LaneOpenedPayload(bestA.Id, bestB.Id)));
+    }
+
+    private static bool GatePairStocked(SimState state, Market a, Market b,
+                                        int tier)
+    {
+        var def = Infrastructure.Get(InfraTypeId.Gate);
+        foreach (var q in def.BuildCost)
+            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
+                < 2.0 * q.Quantity * Production.TierCostFactor(tier))
+                return false;
+        return true;
+    }
+
+    private static bool GateLaneExists(SimState state, int aId, int bId)
+    {
+        foreach (var l in state.Lanes)
+            if (l.PortAId == aId && l.PortBId == bId) return true;
+        return false;
     }
 
     /// <summary>Freight lines buy hulls (components at market price, wages

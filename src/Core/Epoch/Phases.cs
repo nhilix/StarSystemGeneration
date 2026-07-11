@@ -237,6 +237,16 @@ public sealed class MarketsPhase : ISimPhase
         // an import-fed port prices its arrivals, a blockaded one their
         // absence (markets.md §The market step; amended in slice D)
         var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
+        // the express earn-in clock: consecutive saturated world-years of
+        // the lane's posted capacity (lane-economics spec §3.4; the clock
+        // accumulates the step's year span so fine ticks track coarse, P7)
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            lane.SaturatedYears =
+                scratch.LaneFleetCapacity[lane.Id] > 0
+                && scratch.LaneCapacityUsed[lane.Id]
+                   / scratch.LaneFleetCapacity[lane.Id]
+                   >= state.Config.Expansion.ExpressSaturationFloor
+                ? lane.SaturatedYears + state.Config.Sim.YearsPerEpoch : 0;
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
@@ -369,9 +379,13 @@ public sealed class AllocationPhase : ISimPhase
             int cap = port.Tier * cfg.Infrastructure.FacilitiesPerPortTier;
             int attached = 0;
             foreach (var f in state.Facilities)
+            {
+                // gates draw on their own slot budget, not industry's
+                if (f.TypeId == (int)Substrate.InfraTypeId.Gate) continue;
                 if (f.OwnerActorId == pr.ActorId
                     && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
                     attached++;
+            }
             if (attached >= cap) continue;
             var market = state.Markets[port.Id];
             var workforce = MarketEngine.EmbodimentOf(state, pr.SpeciesId);
@@ -679,11 +693,15 @@ public sealed class AllocationPhase : ISimPhase
         return issued;
     }
 
-    /// <summary>Missing in-range same-owner pairs — plus pact-partner ports:
-    /// a trade pact's lane priority means the builder may pair its ports
-    /// with the partner's (interpolity/relations.md §Treaties teeth) —
-    /// nearest first (tie: lower ids), built while the development treasury
-    /// affords them.</summary>
+    /// <summary>Gate-pair lane construction (lane-economics spec §§1–3), two
+    /// passes. **Founding links** first: every isolated own port seeks its
+    /// nearest eligible partner (preferring one already on the network) —
+    /// the connecting gate is the colonization chain's last step and rides
+    /// outside the generational cadence, so a new colony joins the polity's
+    /// import/export/migration web as it is founded. **Densification**
+    /// second: one extra lane per generation through the full
+    /// detour/congestion rule. One funder pays both ends in one step —
+    /// half-built gates only ever arise from later destruction.</summary>
     private static int BuildLanes(SimState state, PolityRecord pr, List<Port> ownPorts)
     {
         var cfg = state.Config;
@@ -701,10 +719,60 @@ public sealed class AllocationPhase : ISimPhase
             if (relation != null && relation.Rung >= TreatyRung.TradePact)
                 pactPorts.Add(port);
         }
-        while (pr.DevelopmentPoints >= cfg.Expansion.LaneCost)
+        // ports already on the live network
+        var connected = new HashSet<int>();
+        foreach (var lane in state.Lanes)
+            if (LaneMath.IsLive(state, lane))
+            { connected.Add(lane.PortAId); connected.Add(lane.PortBId); }
+
+        // ---- pass 1: founding links (isolated ports have no network path,
+        // so the detour rule is trivially satisfied and never consulted)
+        foreach (var port in ownPorts)                        // id order (P6)
+        {
+            if (connected.Contains(port.Id)) continue;
+            Port? pick = null;
+            int pickTier = 0, pickDist = int.MaxValue;
+            bool pickConnected = false;
+            for (int j = 0; j < ownPorts.Count + pactPorts.Count; j++)
+            {
+                var other = j < ownPorts.Count ? ownPorts[j]
+                    : pactPorts[j - ownPorts.Count];
+                if (other.Id == port.Id) continue;
+                var (a, b) = port.Id < other.Id ? (port, other) : (other, port);
+                if (LaneExists(state, a.Id, b.Id)) continue;
+                int dist = HexGrid.Distance(a.Hex, b.Hex);
+                int tier = LaneMath.RequiredGateTier(cfg, dist, rangeBonus);
+                if (tier < 0) continue;                        // out of reach
+                if (!LaneNetwork.HasFreeGateSlot(state, a)
+                    || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
+                double cost = 2.0 * GateValue(cfg, tier);
+                if (pr.DevelopmentPoints < cost) continue;
+                // no stock-on-hand gate here: the expedition ships the
+                // founding equipment (ColonizeResolve's convention — the
+                // colony's founding facilities draw no goods either);
+                // BuildGate still consumes whatever the pair holds
+                bool otherOn = connected.Contains(other.Id);
+                if (pick == null || (otherOn && !pickConnected)
+                    || (otherOn == pickConnected && (dist < pickDist
+                        || (dist == pickDist && other.Id < pick.Id))))
+                { pick = other; pickTier = tier; pickDist = dist;
+                  pickConnected = otherOn; }
+            }
+            if (pick == null) continue;
+            BuildLanePair(state, pr, port, pick, pickTier);
+            connected.Add(port.Id);
+            connected.Add(pick.Id);
+            built++;
+        }
+
+        // ---- pass 2: densification — cheapest eligible pair first, built
+        // while the treasury and the pair's pooled goods afford the gates
+        // (the detour/congestion rule is the pace-setter, spec §3)
+        while (true)
         {
             Port? bestA = null, bestB = null;
-            int bestDist = int.MaxValue;
+            int bestTier = 0, bestDist = int.MaxValue;
+            double bestCost = double.MaxValue;
             for (int i = 0; i < ownPorts.Count; i++)
                 for (int j = i + 1; j < ownPorts.Count + pactPorts.Count; j++)
                 {
@@ -712,29 +780,128 @@ public sealed class AllocationPhase : ISimPhase
                     var b = j < ownPorts.Count ? ownPorts[j]
                         : pactPorts[j - ownPorts.Count];
                     if (a.Id > b.Id) (a, b) = (b, a);
-                    if (!LaneMath.InRange(cfg, a, b, rangeBonus)) continue;
                     if (LaneExists(state, a.Id, b.Id)) continue;
                     int dist = HexGrid.Distance(a.Hex, b.Hex);
-                    if (dist < bestDist
-                        || (dist == bestDist && (a.Id < bestA!.Id
-                            || (a.Id == bestA.Id && b.Id < bestB!.Id))))
-                    { bestDist = dist; bestA = a; bestB = b; }
+                    int tier = LaneMath.RequiredGateTier(cfg, dist, rangeBonus);
+                    if (tier < 0) continue;                    // out of reach
+                    if (!LaneNetwork.HasFreeGateSlot(state, a)
+                        || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
+                    if (!LaneNetwork.DirectLaneEligible(state, a.Id, b.Id))
+                        continue;
+                    double cost = 2.0 * GateValue(cfg, tier);
+                    if (pr.DevelopmentPoints < cost) continue;
+                    if (!GatePairGoodsPresent(state, pr, state.Markets[a.Id],
+                            state.Markets[b.Id], tier)) continue;
+                    if (cost < bestCost || (cost == bestCost && (dist < bestDist
+                        || (dist == bestDist && (bestA == null || a.Id < bestA.Id
+                            || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
+                    { bestCost = cost; bestDist = dist; bestTier = tier;
+                      bestA = a; bestB = b; }
                 }
             if (bestA == null) break;
-            pr.DevelopmentPoints -= cfg.Expansion.LaneCost;
-            // lane budgets pay the two ports' construction crews
-            MarketEngine.PayWages(state, bestA.Id, cfg.Expansion.LaneCost * 0.5);
-            MarketEngine.PayWages(state, bestB!.Id, cfg.Expansion.LaneCost * 0.5);
-            var lane = new Lane(state.Lanes.Count, bestA.Id, bestB.Id, state.WorldYear);
-            state.Lanes.Add(lane);
+            BuildLanePair(state, pr, bestA, bestB!, bestTier);
             built++;
-            state.Staged.Add(new StagedEvent(
-                ClockStratum.Generational, WorldEventType.LaneOpened,
-                new[] { pr.ActorId }, Midpoint(bestA.Hex, bestB.Hex),
-                Magnitude: 1.0, Valence: 1.0, EventVisibility.Regional,
-                new LaneOpenedPayload(bestA.Id, bestB.Id)));
         }
         return built;
+    }
+
+    /// <summary>Fund and raise one gate pair and its lane: dev treasury pays
+    /// the administered value, each end draws goods locally first and ships
+    /// the shortfall from the partner port (the colonization-convoy
+    /// pattern), the LaneOpened event stages.</summary>
+    private static void BuildLanePair(SimState state, PolityRecord pr,
+                                      Port a, Port b, int tier)
+    {
+        if (a.Id > b.Id) (a, b) = (b, a);
+        pr.DevelopmentPoints -= 2.0 * GateValue(state.Config, tier);
+        int gateA = BuildGate(state, pr.ActorId, a, tier, pr,
+                              state.Markets[b.Id]);
+        int gateB = BuildGate(state, pr.ActorId, b, tier, pr,
+                              state.Markets[a.Id]);
+        state.Lanes.Add(new Lane(state.Lanes.Count, a.Id, b.Id,
+                                 state.WorldYear)
+        { GateAId = gateA, GateBId = gateB });
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.LaneOpened,
+            new[] { pr.ActorId }, Midpoint(a.Hex, b.Hex),
+            Magnitude: tier, Valence: 1.0, EventVisibility.Regional,
+            new LaneOpenedPayload(a.Id, b.Id)));
+    }
+
+    /// <summary>Administered founding value of one gate at a tier — the
+    /// same founding-price convention CanAfford uses.</summary>
+    internal static double GateValue(EpochSimConfig cfg, int tier)
+    {
+        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+            value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good)
+                     * Substrate.Production.TierCostFactor(tier);
+        return value;
+    }
+
+    /// <summary>Both gates' baskets physically present across the pair —
+    /// each end's market, the partner's surplus, and the funder's banked
+    /// reserves together (state logistics ship the difference; the
+    /// colonization-convoy pattern, no minting).</summary>
+    private static bool GatePairGoodsPresent(SimState state, PolityRecord pr,
+                                             Market a, Market b, int tier)
+    {
+        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        foreach (var q in def.BuildCost)
+            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
+                + pr.ReserveQty[(int)q.Good]
+                < 2.0 * q.Quantity * Substrate.Production.TierCostFactor(tier))
+                return false;
+        return true;
+    }
+
+    /// <summary>Draw one gate's build basket from its port market, then the
+    /// funder's reserves, then the partner port's market (the shipped
+    /// shortfall), pay construction wages, and register the facility. Corp
+    /// funders pass null reserves. Returns the facility id.</summary>
+    internal static int BuildGate(SimState state, int ownerActorId, Port port,
+                                  int tier, PolityRecord? funderReserves,
+                                  Market? partnerMarket = null)
+    {
+        var cfg = state.Config;
+        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        var market = state.Markets[port.Id];
+        double scale = Substrate.Production.TierCostFactor(tier);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+        {
+            double need = q.Quantity * scale;
+            value += need * Market.InitialPrice(cfg.Economy, q.Good);
+            double fromMarket = market.Draw((int)q.Good, need);
+            market.LastCleared[(int)q.Good] += fromMarket;
+            double shortfall = need - fromMarket;
+            if (shortfall > 0 && funderReserves != null)
+            {
+                double fromReserve = Math.Min(shortfall,
+                    funderReserves.ReserveQty[(int)q.Good]);
+                funderReserves.ReserveQty[(int)q.Good] -= fromReserve;
+                if (funderReserves.ReserveQty[(int)q.Good] <= 0)
+                    funderReserves.ReserveGrade[(int)q.Good] = 0;
+                shortfall -= fromReserve;
+            }
+            if (shortfall > 0 && partnerMarket != null)
+            {
+                double shipped = partnerMarket.Draw((int)q.Good, shortfall);
+                partnerMarket.LastCleared[(int)q.Good] += shipped;
+            }
+        }
+        MarketEngine.PayWages(state, port.Id, value);  // construction wages
+        var gate = new Facility(state.Facilities.Count,
+            (int)Substrate.InfraTypeId.Gate, tier, port.Hex, ownerActorId,
+            state.WorldYear);
+        state.Facilities.Add(gate);
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.FacilityBuilt,
+            new[] { ownerActorId }, port.Hex, Magnitude: tier, Valence: 1.0,
+            EventVisibility.Regional,
+            new FacilityBuiltPayload(gate.Id, gate.TypeId, tier)));
+        return gate.Id;
     }
 
     /// <summary>Lowest-tier port first (tie: lowest id); cost = base × current

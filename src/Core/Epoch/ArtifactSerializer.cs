@@ -26,7 +26,7 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 5), ("ports", 2), ("lanes", 2), ("facilities", 1),
+        ("actors", 5), ("ports", 2), ("lanes", 3), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 2), ("relations", 5), ("wars", 2), ("belief", 1),
@@ -134,10 +134,11 @@ public static class ArtifactSerializer
 
         Layer(w, "lanes");
         foreach (var l in state.Lanes)
-            // lanes v2 (slice I): the quarantine clock rides along
+            // lanes v3 (lane economics): gate pair + the express earn-in clock
             w.WriteLine(Join("LANE", l.Id.ToString(Inv), l.PortAId.ToString(Inv),
                 l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv),
-                l.QuarantinedUntil.ToString(Inv)));
+                l.QuarantinedUntil.ToString(Inv), l.GateAId.ToString(Inv),
+                l.GateBId.ToString(Inv), l.SaturatedYears.ToString(Inv)));
 
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
@@ -888,7 +889,12 @@ public static class ArtifactSerializer
                     case "LANE":
                         state!.Lanes.Add(new Lane(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             int.Parse(f[3], Inv), int.Parse(f[4], Inv))
-                        { QuarantinedUntil = long.Parse(f[5], Inv) });
+                        {
+                            QuarantinedUntil = long.Parse(f[5], Inv),
+                            GateAId = int.Parse(f[6], Inv),
+                            GateBId = int.Parse(f[7], Inv),
+                            SaturatedYears = int.Parse(f[8], Inv),
+                        });
                         break;
                     case "FACILITY":
                         if (int.Parse(f[1], Inv) != state!.Facilities.Count)
