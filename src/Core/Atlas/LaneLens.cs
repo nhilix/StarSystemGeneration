@@ -18,9 +18,9 @@ public readonly record struct LaneSegment(
 /// lapse clock against the eye's world-year.</summary>
 public static class LaneLens
 {
-    private static readonly Rgba OpenColor = new(255, 190, 80, 210);
-    private static readonly Rgba QuarantinedColor = new(180, 200, 60, 210);
-    private static readonly Rgba SeveredColor = new(230, 70, 60, 210);
+    private static readonly Rgba OpenColor = new(255, 190, 80, 170);
+    private static readonly Rgba QuarantinedColor = new(180, 200, 60, 190);
+    private static readonly Rgba SeveredColor = new(230, 70, 60, 190);
 
     public static IReadOnlyList<LaneSegment> Segments(AtlasReadModel model,
                                                       EyeContext eye)

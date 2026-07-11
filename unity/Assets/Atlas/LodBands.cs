@@ -29,10 +29,10 @@ namespace StarGen.AtlasView
         /// threads up close.</summary>
         public static float LaneWidth(LodBand band) => band switch
         {
-            LodBand.Galaxy => 2.2f,
-            LodBand.Domains => 1.4f,
-            LodBand.Region => 0.8f,
-            _ => 0.35f,
+            LodBand.Galaxy => 1.3f,
+            LodBand.Domains => 1.0f,
+            LodBand.Region => 0.6f,
+            _ => 0.3f,
         };
 
         /// <summary>Port marker radius multiplier per band.</summary>

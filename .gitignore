@@ -512,3 +512,8 @@ unity/compile.log
 unity/test.log
 unity/test-results.xml
 .superpowers/shots/
+
+# atlas smoke/batch outputs (generated at repo root)
+atlas-smoke*.png
+unity-*-log.txt
+unity-*-results.xml

@@ -47,7 +47,7 @@ namespace StarGen.AtlasView
             }
             _domainShades = DomainLens.HexShades(model, eye, _hexes);
 
-            if (_mesh != null) Destroy(_mesh);
+            if (_mesh != null) DestroySafe(_mesh);
             _mesh = HexMeshBuilder.Build(_hexes, ComposeColors());
             GetComponent<MeshFilter>().sharedMesh = _mesh;
         }
@@ -58,6 +58,12 @@ namespace StarGen.AtlasView
         {
             if (_model == null || _mesh == null) return;
             HexMeshBuilder.Recolor(_mesh, ComposeColors());
+        }
+
+        private static void DestroySafe(Object o)
+        {
+            if (Application.isPlaying) Destroy(o);
+            else DestroyImmediate(o);
         }
 
         private List<Color32> ComposeColors()

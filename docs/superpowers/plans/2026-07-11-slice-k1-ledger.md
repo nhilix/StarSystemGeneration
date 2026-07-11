@@ -10,30 +10,38 @@ to start K1 in the same session.
 
 ## Tasks
 
-- [ ] **T1 — PoC deletion** (first commit): `unity/Assets/Scripts/` (the
-      Atlas PoC is its only content), `unity/Assets/Editor/Atlas*` + its
-      asmdef, `unity/Assets/Scenes/Atlas.unity` (refs die with the
-      scripts). PanelSettings.asset kept (inert, reusable). Salvage
-      lessons recorded below.
-- [ ] **T2 — `src/Core/Atlas` read model, TDD** (each with .meta):
-  - [ ] EyeContext (God | ActorId seam, worldYear)
-  - [ ] AtlasReadModel (single query surface over SimState)
-  - [ ] NatureLens queries (lean · gas · metal · age · minerals · bio ·
-        emergence · features rasters)
-  - [ ] DomainLens queries (port-derived glow/territory, organic
-        borders, contested overlap — ported from EpochMapView, never
-        stored ownership)
-  - [ ] LaneLens queries (built highways; quarantine/sever state)
-- [ ] **T3 — Unity presentation** (`unity/Assets/Atlas`):
-  - [ ] asmdefs (runtime + editor + editmode tests)
-  - [ ] SimHost (artifact load via ArtifactSerializer.Load; sole state
-        owner)
-  - [ ] MapSurface (hex mesh + star rendering from lens primitives)
-  - [ ] CameraRig/LODController (galaxy→domains→region→hex bands,
-        per-lens fade curves)
-  - [ ] Provisional lens toggle UI + AtlasSceneSetup equivalent
-- [ ] **T4 — EditMode tests** where they pay (mesh counts, LOD band
-      selection)
+- [x] **T1 — PoC deletion** (`46e2ab3`): `unity/Assets/Scripts/`,
+      `unity/Assets/Editor/Atlas*` + asmdef, `Scenes/Atlas.unity`.
+      PanelSettings.asset kept (inert, reusable). Salvage lessons below.
+- [x] **T2 — `src/Core/Atlas` read model, TDD** (6 red/green cycles,
+      28 xUnit tests; each file with .meta):
+  - [x] EyeContext (God | Controller reserved seam, worldYear)
+  - [x] AtlasReadModel (single query surface; cell index by coord)
+  - [x] NatureLens (9 raster layers → colors; same under every eye)
+  - [x] DomainLens (OwnersAt wrapper, per-cell + per-hex shades,
+        contested blend; never stored ownership)
+  - [x] LaneLens (open/quarantined/severed; quarantine reads distinct
+        from SeveredLaneIds' freight fold; clocks read the state year)
+  - [x] LensStack.Composite (source-over) + PortLens markers
+- [x] **T3 — Unity presentation** (`unity/Assets/Atlas`, `c7e676f`):
+  - [x] asmdefs (StarGen.AtlasView + .Editor + .EditorTests)
+  - [x] SimHost (artifact load; defaults to the seed-42 golden — which
+        IS the eyeball scenario; run-seed/step deferred to K4)
+  - [x] MapSurface (ONE hex-resolution mesh for the whole disc —
+        cells are exact radius-5 superhexes, so per-cell spirals
+        enumerate every hex once; recolor-in-place lens switching)
+  - [x] LaneLayer (status-colored quads) + PortLayer (tier diamonds)
+  - [x] CameraRig (zoom-to-cursor, right-drag/WASD pan) + LodBands
+        (pure band table: galaxy/domains/region/hex)
+  - [x] AtlasHud (provisional IMGUI — K2 replaces) +
+        AtlasViewSceneSetup (StarGen > Setup Atlas Scene, batch twin)
+- [x] **T4 — EditMode tests**: LodBandsTests, HexMeshBuilderTests —
+      6/6 green headless (`Unity -batchmode -runTests`); plus
+      **AtlasSmoke** (StarGen > Atlas Smoke Shot / batch twin): builds
+      the scene, loads the golden, renders atlas-smoke.png +
+      atlas-smoke-region.png at the repo root — the pre-eyeball
+      verification loop. First shot verified: the P1 image reads
+      (year 1000, 98 ports, 464 lanes).
 - [ ] **T5 — Fresh-eyes whole-branch review** subagent + one fix wave
 - [ ] **T6 — Gates**: `dotnet test` green · golden untouched ·
       determinism untouched · atlas renders seed 42 in-editor
@@ -72,4 +80,19 @@ to start K1 in the same session.
 
 ## Decisions / deviations
 
-(none yet)
+- **One continuous hex-resolution mesh** instead of the PoC's per-band
+  views: ~126k hexes at radius 21 (7 verts each) is one draw call and
+  gives the spec's "one camera on one scene" literally; the mesh inset
+  doubles as the lattice at Hex band. Flagged for K2 perf review if
+  bigger radii choke (spatial index for per-hex OwnersAt is the known
+  fix).
+- **Clocks read the state's world-year, never the eye's** — the eye
+  never time travels; scrubbing swaps keyframe states (K4). Pinned by
+  LaneLensTests.
+- **Quarantined ≠ Severed on the lens** even though Core's
+  SeveredLaneIds folds both into freight closure (self-imposed closure
+  vs interdiction are different stories on the map).
+- **Unity namespace is StarGen.AtlasView** (asmdef ditto) so it never
+  collides with Core's StarGen.Core.Atlas read model.
+- **HUD is IMGUI on purpose** (provisional, zero assets); the UI
+  Toolkit lens rail is K2's opening move.

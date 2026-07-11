@@ -13,7 +13,9 @@ namespace StarGen.AtlasView
     /// inset doubles as the lattice: invisible zoomed out, a grid up close.</summary>
     public static class HexMeshBuilder
     {
-        public const float Inset = 0.08f;
+        // 0.04: a visible lattice at Hex band without screen-door moiré
+        // when the whole disc fits sub-pixel hexes on screen.
+        public const float Inset = 0.04f;
 
         public static Mesh Build(IReadOnlyList<HexCoordinate> hexes,
                                  IReadOnlyList<Color32> colors)
