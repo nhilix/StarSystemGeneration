@@ -87,12 +87,18 @@ Shader "StarGen/DomainField"
                     fields[slot] = max(fields[slot], f);
                 }
 
-                // Top two polities at this pixel.
+                // Every polity's border draws at ITS zero edge — not just
+                // the locally strongest two, or a third polity's outline
+                // vanishes wherever two others overlap it (the 3+ bug).
+                // Top two still decide fill and overlap shading.
                 float f1 = 0.0, f2 = 0.0;
                 int i1 = 0, i2 = 0;
+                float3 border = 0;
                 for (int s2 = 0; s2 < MAX_SLOTS; s2++)
                 {
                     float f = fields[s2];
+                    border += _SlotColors[s2].rgb
+                            * (BorderMask(f) * _BorderIntensity);
                     if (f > f1) { f2 = f1; i2 = i1; f1 = f; i1 = s2; }
                     else if (f > f2) { f2 = f; i2 = s2; }
                 }
@@ -115,12 +121,6 @@ Shader "StarGen/DomainField"
                 {
                     fill = c1 * _FillIntensity;
                 }
-
-                // Outlines: the union edge of each involved polity — drawn
-                // through the overlap too, for the Venn read.
-                float3 border = c1 * (BorderMask(f1) * _BorderIntensity);
-                if (overlap)
-                    border += c2 * (BorderMask(f2) * _BorderIntensity);
 
                 // Colors and intensities are composed in sRGB (the design
                 // artifact's space); linearize once for the linear buffer.
