@@ -30,7 +30,10 @@ namespace StarGen.AtlasView
                 min = Vector2.Min(min, new Vector2((float)x, (float)y));
                 max = Vector2.Max(max, new Vector2((float)x, (float)y));
             }
-            const float pad = 10f;
+            // A rim cell's hexes reach ~10 world past its center, rim port
+            // glows ~26, and the nature gather feathers ~30 — the quads
+            // must circumscribe all of it or the edges clip.
+            const float pad = 48f;
             var b = new Bounds();
             b.SetMinMax(new Vector3(min.x - pad, min.y - pad, -1f),
                         new Vector3(max.x + pad, max.y + pad, 1f));

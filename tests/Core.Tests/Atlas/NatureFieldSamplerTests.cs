@@ -62,6 +62,27 @@ public class NatureFieldSamplerTests
     }
 
     [Fact]
+    public void TheWholeDiskStaysVisible()
+    {
+        // The disc must read as a blended whole with the arms as bright
+        // features — the poorest LIVE cell never fades to nothing (the
+        // REPL map's read; only true void goes dark).
+        var (model, sampler) = Metal();
+        int poor = -1;
+        for (int i = 0; i < model.Cells.Count; i++)
+        {
+            var c = model.Cells[i];
+            if (c.IsVoid) continue;
+            if (poor < 0 || c.Metallicity < model.Cells[poor].Metallicity)
+                poor = i;
+        }
+        var (px, py) = HexGrid.HexToWorld(
+            HexGrid.CellCenter(model.Cells[poor].Coord));
+        Assert.True(sampler.Sample(px, py).A >= 60,
+            $"poorest live cell reads {sampler.Sample(px, py).A} — disk lost");
+    }
+
+    [Fact]
     public void RicherCellsGlowStronger()
     {
         var (model, sampler) = Metal();

@@ -59,10 +59,11 @@ public sealed class NatureFieldSampler
         if (wsum <= 1e-9 || asum <= 1e-9) return AtlasPalette.Clear;
 
         double alpha = asum / wsum;
-        // Cloud breakup: deterministic, view-only noise channel.
+        // Cloud breakup: deterministic, view-only noise channel. The dip
+        // floor stays high enough that thin regions never wink out.
         double n = ValueNoise.Sample(_seed, RollChannel.AtlasNebula,
                                      x, y, octaves: 2, NoiseFrequency);
-        alpha *= 0.65 + 0.7 * n;
+        alpha *= 0.75 + 0.5 * n;
 
         return new Rgba(
             (byte)Math.Clamp(r / asum, 0, 255),
@@ -71,13 +72,16 @@ public sealed class NatureFieldSampler
             (byte)Math.Clamp(alpha * 255.0, 0, 255));
     }
 
-    /// <summary>How much this shade rises above the floor — the void and
-    /// floor-flat cells carry no light of their own.</summary>
+    /// <summary>How much this shade rises above the floor. Every LIVE
+    /// cell keeps a visible base presence — the disc reads as a blended
+    /// whole with the arms as bright features (the REPL map's read);
+    /// only true void goes dark.</summary>
     private static double PresenceOf(Rgba s)
     {
         if (s == AtlasPalette.Void) return 0;
         double luma = (0.299 * s.R + 0.587 * s.G + 0.114 * s.B) / 255.0;
         const double floorLuma = 0.104;   // luma of AtlasPalette.Floor
-        return Math.Clamp((luma - floorLuma) / 0.55, 0.0, 1.0);
+        double raw = Math.Clamp((luma - floorLuma) / 0.55, 0.0, 1.0);
+        return 0.30 + 0.70 * raw;
     }
 }
