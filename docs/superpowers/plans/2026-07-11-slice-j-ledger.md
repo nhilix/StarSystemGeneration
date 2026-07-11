@@ -145,11 +145,21 @@ lawlessness/piracy, memorial stance anchors).
       foundations DONE, REPL J row, world-year clocks, certification
       language). Artifact republish to the existing URL happens after
       the merge decision (living-baseline procedure).
-- [ ] J10 — Eyeball gate (USER): exhibits prepared and dry-run —
-      `equarantine` added as the hand-issued polity verb. Then merge
-      decision, HANDOFF, Slice K kickoff prompt.
+- [x] J10 — Eyeball gate: accepted by the user 2026-07-11 ("merge and
+      wrap up"). Exhibits: seed 42 hands off y1000 in motion (~26
+      threads — the Alloys War at 3/4, seven brinks, six old thrones,
+      two plagues); 20 years at 5-year ticks settle the Alloys War and
+      ignite two NEW liberation wars (nothing genesis-only);
+      `equarantine 12` closes a lane by the player's hand; the delta
+      save round-trips 556KB against an 886KB base.
 
 ## Log
 
 - 2026-07-11: scope nod (both wires adopted), branch cut, survey
   complete, ledger committed.
+- 2026-07-11: J1–J9 landed with TDD (wires, P7 conversion in four
+  waves, handover certification, delta boundary, handoff framing,
+  acceptance pass, review + one fix wave, diagram sync). Three real
+  P7 bugs found and fixed by the certification nets (price flow-vs-
+  stock, yard truncation, corporate receipts). Eyeball accepted and
+  merged (J10). 562/562 green; golden frozen at the final format.
