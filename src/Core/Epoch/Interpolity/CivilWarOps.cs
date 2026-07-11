@@ -60,7 +60,7 @@ public static class CivilWarOps
         // hostility, then the war itself, objectives: the palace back
         int a = Math.Min(young.ActorId, usurperState.ActorId);
         int b = Math.Max(young.ActorId, usurperState.ActorId);
-        var relation = new PolityRelation(a, b, state.EpochIndex)
+        var relation = new PolityRelation(a, b, state.WorldYear)
         {
             Warmth = 0.05,
             Tension = 0.9,

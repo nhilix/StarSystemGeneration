@@ -34,8 +34,9 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 
 | Knob | Default | Meaning |
 |---|---|---|
-| `Sim.YearsPerEpoch` | 25 | World-years integrated per generational step. Changing it re-times *everything*; rates are per-year by design (P7) so histories stay comparable, but drift caps and logistic steps compound differently. |
+| `Sim.YearsPerEpoch` | 25 | World-years integrated per step — the integration step, nothing more (P7). Fine-tick play lowers this over a loaded artifact; rates are per-year by design so histories stay comparable, but drift caps and logistic steps compound differently. |
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
+| `Sim.GenerationYears` | 25 | The calendar length of one generation — the unit every `*Epochs` knob counts (siege floors, charter persistence, federation clocks…). Fixed at genesis scale; fine-tick stepping never changes it. If you re-time genesis with `YearsPerEpoch`, move this with it. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
 ## Genesis — the native late-emergence schedule (slice H)

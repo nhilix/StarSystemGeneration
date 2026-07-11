@@ -231,7 +231,7 @@ public static class WarConduct
             var warFleet = WarFleet(state, war, objective);
             if (warFleet.TotalHulls == 0)
             {
-                objective.SiegeEpochs = 0;   // no besieger, no siege
+                objective.SiegeYears = 0;   // no besieger, no siege
                 continue;
             }
             var hex = ObjectiveHex(state, objective);
@@ -324,26 +324,27 @@ public static class WarConduct
     }
 
     /// <summary>Objective progression: sieges tick under superiority and
-    /// break on relief; blockades count held epochs; the fleet hunt ends
-    /// when the enemy navy is broken.</summary>
+    /// break on relief; blockades count held world-years; the fleet hunt
+    /// ends when the enemy navy is broken.</summary>
     private static void Progress(SimState state, War war,
         WarObjective objective, FleetRecord warFleet, BattleOutcome outcome,
         double attPower, double defPower, HexCoordinate hex)
     {
         var knobs = state.Config.War;
+        int years = state.Config.Sim.YearsPerEpoch;
         switch (objective.Type)
         {
             case WarObjectiveType.CapturePort:
             {
                 if (outcome == BattleOutcome.DecisiveDefender)
                 {
-                    objective.SiegeEpochs = 0;   // the relief carried
+                    objective.SiegeYears = 0;   // the relief carried
                     break;
                 }
                 if (attPower <= defPower) break;   // no superiority, no siege
-                objective.SiegeEpochs++;
+                objective.SiegeYears += years;
                 var port = state.Ports[objective.TargetId];
-                if (objective.SiegeEpochs == 1)
+                if (objective.SiegeYears == years)
                     state.Staged.Add(new StagedEvent(
                         ClockStratum.Generational, WorldEventType.SiegeBegun,
                         new[] { war.AttackerId, war.DefenderId }, port.Hex,
@@ -351,7 +352,7 @@ public static class WarConduct
                         new SiegeBegunPayload(war.Id, war.Name, port.Id,
                             state.Actors[war.AttackerId].Name,
                             state.Actors[war.DefenderId].Name)));
-                if (objective.SiegeEpochs >= SiegeThreshold(state, war, port))
+                if (objective.SiegeYears >= SiegeThreshold(state, war, port))
                     Capture(state, war, objective, port);
                 break;
             }
@@ -359,11 +360,12 @@ public static class WarConduct
                 if (outcome != BattleOutcome.DecisiveDefender
                     && attPower > defPower)
                 {
-                    objective.SiegeEpochs++;   // epochs the lane stayed cut
-                    if (objective.SiegeEpochs >= knobs.BlockadeHoldEpochs)
+                    objective.SiegeYears += years;   // years the lane stayed cut
+                    if (objective.SiegeYears >= knobs.BlockadeHoldEpochs
+                            * state.Config.Sim.GenerationYears)
                         objective.Status = ObjectiveStatus.Taken;
                 }
-                else objective.SiegeEpochs = 0;
+                else objective.SiegeYears = 0;
                 break;
             case WarObjectiveType.DestroyFleet:
                 if (war.DefenderStrengthAtStart > 0
@@ -375,9 +377,10 @@ public static class WarConduct
         }
     }
 
-    /// <summary>How long the port can hold: a floor, plus what its larders
-    /// carry (local market provisions plus the polity reserve's pro-rata
-    /// share against its population's hunger), plus the fortress tiers.</summary>
+    /// <summary>World-years the port can hold: a floor, plus what its
+    /// larders carry (local market provisions plus the polity reserve's
+    /// pro-rata share against its population's hunger), plus the fortress
+    /// tiers — all in generations, returned as years (P7).</summary>
     public static int SiegeThreshold(SimState state, War war, Port port)
     {
         var knobs = state.Config.War;
@@ -391,13 +394,14 @@ public static class WarConduct
         double population = 0;
         foreach (var s in state.Segments)
             if (s.PortId == port.Id) population += s.Size;
-        double hungerPerEpoch = Math.Max(0.1,
+        int gen = state.Config.Sim.GenerationYears;
+        double hungerPerGeneration = Math.Max(0.1,
             population * state.Config.Economy.SubsistenceUnitsPerPopPerYear
-            * state.Config.Sim.YearsPerEpoch);
+            * gen);
         int larder = (int)Math.Min(knobs.SiegeProvisionEpochsCap,
-                                   provisions / hungerPerEpoch);
-        return knobs.SiegeBaseEpochs + larder
-               + FortressTiers(state, war.DefenderId, port.Hex);
+                                   provisions / hungerPerGeneration);
+        return (knobs.SiegeBaseEpochs + larder
+                + FortressTiers(state, war.DefenderId, port.Hex)) * gen;
     }
 
     /// <summary>A fallen port transfers its domain whole: sovereignty,
@@ -422,7 +426,7 @@ public static class WarConduct
             }
         port.OwnerActorId = war.AttackerId;
         objective.Status = ObjectiveStatus.Taken;
-        objective.SiegeEpochs = 0;
+        objective.SiegeYears = 0;
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.PortCaptured,
             new[] { war.AttackerId, war.DefenderId }, port.Hex,

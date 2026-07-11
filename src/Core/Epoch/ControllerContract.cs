@@ -21,7 +21,7 @@ public sealed record CorporateBrief(int CorpId, string Name, double Credits);
 public sealed record RelationBrief(
     int OtherPolityId, double Warmth, double Tension, TreatyRung Rung,
     TreatyRung OfferedRung, int OfferedById, int LiveClaimsHeld,
-    int LiveClaimsAgainst, double IdeologyGap, int EpochsAtRung,
+    int LiveClaimsAgainst, double IdeologyGap, int YearsAtRung,
     double OtherStrength, int VassalPolityId, bool OtherDynastic,
     int DynasticTies, IReadOnlyList<CasusBelliOption> CasusBelli,
     double OtherDefensiveStrength,
@@ -605,7 +605,8 @@ public sealed class GenesisController : IController
         if (rung != TreatyRung.Federation) return true;
         var knobs = _config.Relations;
         return rel.Rung == TreatyRung.DefenseAlliance
-               && rel.EpochsAtRung >= knobs.FederationAllianceEpochs
+               && rel.YearsAtRung >= knobs.FederationAllianceEpochs
+                  * _config.Sim.GenerationYears
                && rel.IdeologyGap <= knobs.FederationIdeologyGapMax
                // its own half of the pair-mean gate Resolution verifies —
                // a warier partner still offers when a friend can carry it

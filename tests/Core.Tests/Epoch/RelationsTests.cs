@@ -179,7 +179,7 @@ public class RelationsTests
         built.Relations[0].DynasticTies = 2;
         built.Relations[0].OfferedRung = TreatyRung.TradePact;
         built.Relations[0].OfferedById = built.Relations[0].PolityAId;
-        built.Relations[0].OfferEpoch = 9;
+        built.Relations[0].OfferYear = 225;
 
         var loaded = ArtifactSerializer.Load(
             new StringReader(ArtifactSerializer.ToText(built)));
@@ -191,13 +191,13 @@ public class RelationsTests
             var l = loaded.Relations[i];
             Assert.Equal(b.PolityAId, l.PolityAId);
             Assert.Equal(b.PolityBId, l.PolityBId);
-            Assert.Equal(b.MetEpoch, l.MetEpoch);
+            Assert.Equal(b.MetYear, l.MetYear);
             Assert.Equal(b.Warmth, l.Warmth);
             Assert.Equal(b.Tension, l.Tension);
             Assert.Equal(b.Rung, l.Rung);
             Assert.Equal(b.OfferedRung, l.OfferedRung);
             Assert.Equal(b.OfferedById, l.OfferedById);
-            Assert.Equal(b.OfferEpoch, l.OfferEpoch);
+            Assert.Equal(b.OfferYear, l.OfferYear);
             Assert.Equal(b.DynasticTies, l.DynasticTies);
             Assert.Equal(b.VassalPolityId, l.VassalPolityId);
             Assert.Equal(b.Claims.Count, l.Claims.Count);

@@ -27,9 +27,12 @@ public static class EraDetector
     public static List<Era> Detect(SimState state)
     {
         var eras = new List<Era>();
-        int years = state.Config.Sim.YearsPerEpoch;
-        int epochs = state.EpochIndex;
-        if (epochs <= 0 || years <= 0) return eras;
+        // era buckets are generations, not integration steps (P7):
+        // a fine-tick continuation clusters into the same calendar
+        int years = state.Config.Sim.GenerationYears;
+        if (years <= 0) return eras;
+        int epochs = (state.WorldYear + years - 1) / years;
+        if (epochs <= 0) return eras;
 
         // per-epoch weighted signature from the generational stream
         var scores = new int[epochs, 4];   // war, upheaval, treaty, expansion

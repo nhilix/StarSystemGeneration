@@ -173,8 +173,8 @@ public sealed class PerceptionPhase : ISimPhase
                     rel.OfferedById, held, against,
                     RelationsOps.IdeologyGap(state.PolityOf(selfId),
                                              state.PolityOf(other)),
-                    rel.RungEpoch < 0 ? 0
-                        : state.EpochIndex - rel.RungEpoch,
+                    rel.RungYear < 0 ? 0
+                        : state.WorldYear - rel.RungYear,
                     belief.Strength,
                     rel.VassalPolityId,
                     RelationsOps.IsDynastic(state, other),
@@ -1078,7 +1078,11 @@ public sealed class InteriorPhase : ISimPhase
         int entered = 0;
         foreach (var a in state.Actors)
         {
-            if (a.Entered || a.Retired || a.EntryEpoch > state.EpochIndex)
+            // entry is a calendar date: EntryEpoch counts generations
+            // from year zero, whatever the integration step (P7, slice J)
+            if (a.Entered || a.Retired
+                || a.EntryEpoch * state.Config.Sim.GenerationYears
+                   > state.WorldYear)
                 continue;
             a.Entered = true;
             entered++;

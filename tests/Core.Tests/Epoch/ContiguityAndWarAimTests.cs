@@ -139,8 +139,9 @@ public class ContiguityAndWarAimTests
         // stage everything but warmth: sustained alliance, aligned open
         // lines, healthy cohesions, forced-open compositions
         pick.Rung = TreatyRung.DefenseAlliance;
-        pick.RungEpoch = state.EpochIndex
-            - state.Config.Relations.FederationAllianceEpochs;
+        pick.RungYear = state.WorldYear
+            - state.Config.Relations.FederationAllianceEpochs
+              * state.Config.Sim.GenerationYears;
         for (int ax = 0; ax < 4; ax++)
         {
             a.Interior!.OfficialIdeology[ax] = 0.5;

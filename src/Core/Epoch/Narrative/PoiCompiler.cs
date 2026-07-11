@@ -152,7 +152,8 @@ public static class PoiCompiler
                 port.LastPopulatedYear = state.WorldYear;
                 continue;
             }
-            if (port.LastPopulatedYear + (long)knobs.RuinsDeadEpochs * years
+            if (port.LastPopulatedYear + (long)knobs.RuinsDeadEpochs
+                    * state.Config.Sim.GenerationYears
                 > state.WorldYear) continue;
             var standing = LiveAt(state, port.Hex);
             if (standing != null && standing.Type == PoiType.Ruins

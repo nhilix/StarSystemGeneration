@@ -163,7 +163,8 @@ public class WarConductTests
             (int)StarGen.Core.Substrate.InfraTypeId.Fortress, tier: 2,
             target.Hex, defender, state.WorldYear));
         int fortified = WarConduct.SiegeThreshold(state, war, target);
-        Assert.Equal(fed + 2, fortified);
+        // thresholds are world-years now (P7): tiers add generations
+        Assert.Equal(fed + 2 * state.Config.Sim.GenerationYears, fortified);
     }
 
     [Fact]

@@ -587,10 +587,17 @@ public sealed class InteriorKnobs
 /// on the ESIM line, not as KNOB records.</summary>
 public sealed class SimKnobs
 {
-    /// <summary>World-years integrated per generational step: one epoch ≈ a generation.</summary>
+    /// <summary>World-years integrated per step — the integration step,
+    /// nothing more (P7). Genesis steps a generation at a time; the live
+    /// game steps the same machine fine-grained.</summary>
     public int YearsPerEpoch { get; set; } = 25;
     /// <summary>Default history depth: 40 epochs ≈ 1,000 years.</summary>
     public int EpochCount { get; set; } = 40;
+    /// <summary>The world-year length of one generation — the calendar
+    /// unit every *Epochs knob counts (frame/time.md §The epoch is a
+    /// generation). Fixed at genesis scale: fine-tick stepping lowers
+    /// YearsPerEpoch, never this.</summary>
+    public int GenerationYears { get; set; } = 25;
 }
 
 /// <summary>Genesis-side knobs: the emergence window, plus the native

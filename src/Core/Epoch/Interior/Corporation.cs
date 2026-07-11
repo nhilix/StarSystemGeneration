@@ -59,9 +59,10 @@ public sealed class Corporation : ICreditLedger
     public int HullsBuilt { get; set; }
     public int HullsWrecked { get; set; }
     public int HullsScrapped { get; set; }
-    /// <summary>Consecutive epochs of near-zero revenue — the niche-death
-    /// counter (the deposit exhausts, the lane closes, margins evaporate).</summary>
-    public int LeanEpochs { get; set; }
+    /// <summary>Consecutive world-years of near-zero revenue — the
+    /// niche-death clock (the deposit exhausts, the lane closes, margins
+    /// evaporate). P7: years, not steps.</summary>
+    public int LeanYears { get; set; }
 
     public Corporation(int id, int actorId, string name, int hostPolityId,
                        CorporateNiche niche, int homePortId, long foundedYear)

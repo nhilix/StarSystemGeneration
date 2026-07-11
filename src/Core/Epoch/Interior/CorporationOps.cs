@@ -49,17 +49,21 @@ public static class CorporationOps
                                                         FactionBasis.Corporate);
                     found++;
                 }
+                int years = state.Config.Sim.YearsPerEpoch;
                 if (merchants.NicheType == (int)niche && merchants.ContextId == target)
-                    merchants.NichePersistence++;
+                    merchants.NichePersistenceYears += years;
                 else
                 {
                     merchants.NicheType = (int)niche;
                     merchants.ContextId = target;
-                    merchants.NichePersistence = 1;
+                    merchants.NichePersistenceYears = years;
                 }
             }
-            else if (merchants != null && merchants.NichePersistence > 0)
-                merchants.NichePersistence--;   // the opportunity is closing
+            else if (merchants != null && merchants.NichePersistenceYears > 0)
+                // the opportunity is closing
+                merchants.NichePersistenceYears = Math.Max(0,
+                    merchants.NichePersistenceYears
+                    - state.Config.Sim.YearsPerEpoch);
 
             if (niche == CorporateNiche.Raiding
                 && !BandExists(state, target))
@@ -287,7 +291,9 @@ public static class CorporationOps
         {
             var faction = state.Factions[i];
             if (!faction.Active || faction.Basis != FactionBasis.Corporate
-                || faction.NichePersistence < knobs.CharterPersistenceEpochs)
+                || faction.NichePersistenceYears
+                   < knobs.CharterPersistenceEpochs
+                     * state.Config.Sim.GenerationYears)
                 continue;
             var pr = state.PolityOf(faction.PolityId);
             bool outlaw = (CorporateNiche)faction.NicheType == CorporateNiche.Cartel;
@@ -504,12 +510,13 @@ public static class CorporationOps
                 Dissolve(state, corp, WorldEventType.CorporationBankrupt);
             else if (corp.Niche != CorporateNiche.Raiding
                      && (state.WorldYear - corp.FoundedYear)
-                        / Math.Max(1, state.Config.Sim.YearsPerEpoch)
+                        / Math.Max(1, state.Config.Sim.GenerationYears)
                         > knobs.FoundingGraceEpochs)
             {
-                corp.LeanEpochs = corp.Receipts < knobs.LeanReceiptsFloor
-                    ? corp.LeanEpochs + 1 : 0;
-                if (corp.LeanEpochs >= knobs.NicheDeathEpochs)
+                corp.LeanYears = corp.Receipts < knobs.LeanReceiptsFloor
+                    ? corp.LeanYears + state.Config.Sim.YearsPerEpoch : 0;
+                if (corp.LeanYears >= knobs.NicheDeathEpochs
+                        * state.Config.Sim.GenerationYears)
                     Dissolve(state, corp, WorldEventType.NicheDied);
             }
         }

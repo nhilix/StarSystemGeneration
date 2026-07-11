@@ -62,7 +62,9 @@ public sealed class PolityRelation
 {
     public int PolityAId { get; }
     public int PolityBId { get; }
-    public int MetEpoch { get; }
+    /// <summary>World-year the pair first met (P7: relation clocks are
+    /// calendar years, never step counts — slice J).</summary>
+    public int MetYear { get; }
     /// <summary>[0,1] accumulated positive interdependence: trade volume,
     /// dynastic ties, honored treaties; cooled by strain and ideology gap.</summary>
     public double Warmth { get; set; }
@@ -70,14 +72,14 @@ public sealed class PolityRelation
     /// interdiction strain, agitation, ideology gap × zeal.</summary>
     public double Tension { get; set; }
     public TreatyRung Rung { get; set; } = TreatyRung.None;
-    /// <summary>Epoch the current rung was signed (−1 unsigned) — sustained
-    /// alliance is the federation gate's clock.</summary>
-    public int RungEpoch { get; set; } = -1;
+    /// <summary>World-year the current rung was signed (−1 unsigned) —
+    /// sustained alliance is the federation gate's clock.</summary>
+    public int RungYear { get; set; } = -1;
     /// <summary>Pending treaty offer on the table (None = no offer).</summary>
     public TreatyRung OfferedRung { get; set; } = TreatyRung.None;
     /// <summary>Who made the standing offer; −1 none.</summary>
     public int OfferedById { get; set; } = -1;
-    public int OfferEpoch { get; set; } = -1;
+    public int OfferYear { get; set; } = -1;
     /// <summary>Live dynastic instruments (marriages/wardships) between the
     /// pair — warmth now, succession claims later (H4).</summary>
     public int DynasticTies { get; set; }
@@ -85,15 +87,15 @@ public sealed class PolityRelation
     /// tie's generation dies out after DynasticTieLapseYears, converting
     /// into the succession claim it always carried (−1 none).</summary>
     public long LastTieYear { get; set; } = -1;
-    /// <summary>Epoch of the last border incident between the pair — the
-    /// spark's freshness window as a casus belli (−1 never).</summary>
-    public int LastIncidentEpoch { get; set; } = -1;
+    /// <summary>World-year of the last border incident between the pair —
+    /// the spark's freshness window as a casus belli (−1 never).</summary>
+    public int LastIncidentYear { get; set; } = -1;
     /// <summary>The vassal of the pair when the bond is vassalage; −1 for
     /// peers (H3).</summary>
     public int VassalPolityId { get; set; } = -1;
-    /// <summary>Epoch the vassal bond was struck (−1 unbound) — long stable
-    /// vassalage is the absorption exit's clock.</summary>
-    public int VassalSinceEpoch { get; set; } = -1;
+    /// <summary>World-year the vassal bond was struck (−1 unbound) — long
+    /// stable vassalage is the absorption exit's clock.</summary>
+    public int VassalSinceYear { get; set; } = -1;
     public List<RelationClaim> Claims { get; } = new List<RelationClaim>();
 
     /// <summary>Last recompute's tension source terms, for the REPL's
@@ -104,11 +106,11 @@ public sealed class PolityRelation
     /// trade, treaty, dynastic, −ideology cooling, reputation). Transient.</summary>
     public double[] LastWarmthTerms { get; } = new double[6];
 
-    public PolityRelation(int polityAId, int polityBId, int metEpoch)
+    public PolityRelation(int polityAId, int polityBId, int metYear)
     {
         PolityAId = polityAId;
         PolityBId = polityBId;
-        MetEpoch = metEpoch;
+        MetYear = metYear;
     }
 
     public bool Involves(int polityId) =>

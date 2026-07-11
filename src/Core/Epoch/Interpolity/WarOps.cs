@@ -16,7 +16,7 @@ public static class WarOps
 {
     /// <summary>Epochs a border incident stays "recent" — the spark's
     /// window as a viable casus belli (structural).</summary>
-    public const int IncidentFreshEpochs = 2;
+    public const int IncidentFreshGenerations = 2;
 
     // ---- war registry helpers ----
 
@@ -111,9 +111,9 @@ public static class WarOps
         if (encroaching >= 0)
             menu.Add((CasusBelli.Expulsion, encroaching));
         // the spark: a recent incident in contested space
-        if (relation.LastIncidentEpoch >= 0
-            && state.EpochIndex - relation.LastIncidentEpoch
-               <= IncidentFreshEpochs)
+        if (relation.LastIncidentYear >= 0
+            && state.WorldYear - relation.LastIncidentYear
+               <= IncidentFreshGenerations * state.Config.Sim.GenerationYears)
             menu.Add((CasusBelli.BorderIncident, -1));
         return menu;
     }
@@ -253,7 +253,7 @@ public static class WarOps
             if (EpochRolls.NextDouble(state.Config.MasterSeed,
                     RollChannel.WarSpark, state.EpochIndex,
                     relation.PolityAId, relation.PolityBId) >= p) continue;
-            relation.LastIncidentEpoch = state.EpochIndex;
+            relation.LastIncidentYear = state.WorldYear;
             relation.Tension = Math.Min(1.0,
                 relation.Tension + knobs.IncidentTensionBump);
             incidents++;
@@ -376,7 +376,7 @@ public static class WarOps
         {
             var brokenRung = relation.Rung;
             relation.Rung = TreatyRung.None;
-            relation.RungEpoch = -1;
+            relation.RungYear = -1;
             relation.Warmth = Math.Max(0.0, relation.Warmth
                 - state.Config.Relations.BreakWarmthPenalty);
             state.Staged.Add(new StagedEvent(
@@ -390,7 +390,7 @@ public static class WarOps
         }
         relation.OfferedRung = TreatyRung.None;
         relation.OfferedById = -1;
-        relation.OfferEpoch = -1;
+        relation.OfferYear = -1;
 
         state.Staged.Add(new StagedEvent(
             ClockStratum.Generational, WorldEventType.WarDeclared,
