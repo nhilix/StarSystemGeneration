@@ -127,15 +127,26 @@ lawlessness/piracy, memorial stance anchors).
       acts are type-only — the player-verb backlog). Six files'
       stale perfect-info/stub comments fixed; perception-and-news.md
       amended to the landed per-subject snapshot model.
-- [ ] J8 — Gates + review: full suite green (hex tier untouched),
-      determinism byte-identity at both resolutions, golden refrozen
-      once, fresh-eyes whole-branch review + one fix wave.
-- [ ] J9 — Docs/diagram sync: design-tree amendments merged;
-      generation-flow diagram updated + republished to the existing
-      artifact URL.
-- [ ] J10 — Eyeball gate: load a finished epoch run, step at fine tick,
-      watch the same war keep burning; take a polity's controller slot;
-      quarantine a lane by hand; `threads` panel readout. Then merge
+- [x] J8 — Gates + review: 562/562 green (hex tier untouched);
+      determinism byte-identity certified at both resolutions; golden
+      frozen at the final format (J3a regen; byte-audited by the
+      reviewer — all changes are unit rescales + the J2 wire).
+      Fresh-eyes review: 1 CONFIRMED (corporation Receipts is a
+      per-step flow vs per-generation floors — corps mass-died and
+      magnates stopped minting at fine tick; both comparisons now
+      normalize by StepFraction), 2 plausible (regional-news
+      horizon-straddle window served + delay-churn double/skip
+      documented as accepted; DeltaSerializer refuses a section for a
+      layer the base lacks), 3 notes (RoundLoss key stride 65536;
+      SimTraceView entry dates on GenerationYears; dead local) — one
+      fix wave, all addressed.
+- [x] J9 — Docs/diagram sync: perception-and-news.md amended (J7);
+      generation-flow.html synced to slices A–J (game-layer
+      foundations DONE, REPL J row, world-year clocks, certification
+      language). Artifact republish to the existing URL happens after
+      the merge decision (living-baseline procedure).
+- [ ] J10 — Eyeball gate (USER): exhibits prepared and dry-run —
+      `equarantine` added as the hand-issued polity verb. Then merge
       decision, HANDOFF, Slice K kickoff prompt.
 
 ## Log
