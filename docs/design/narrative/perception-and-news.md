@@ -39,8 +39,10 @@ here; character renown is the same mechanism at individual scale.
 
 ## P1 evidence
 
-- **Legible residue**: stance matrices on the polity panel; news arrival events;
-  the visible gap between what happened and who knows it yet.
+- **Legible residue**: stance matrices on the polity panel; each pulse carries
+  its journey (which polity heard, and when — arrival records ride the pulse,
+  not the log, which would otherwise multiply by the audience count); the
+  visible gap between what happened and who knows it yet.
 - **Inhabitable state**: the player's information position is real — carrying
   news is valuable, arriving ahead of it is an edge, and reputation gates the
   doors that open at every port.

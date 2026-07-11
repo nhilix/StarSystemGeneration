@@ -42,6 +42,9 @@ public enum WorldEventType
     LoanDefaulted = 205,
     MigrationWave = 206,
     TechAdvanced = 207,
+    PrecursorSiteCharted = 208,
+    PlagueOutbreak = 209,
+    PlagueBurnedOut = 210,
     PolityEmerged = 300,
     PortEstablished = 301,
     SchismDeclared = 302,
@@ -52,6 +55,10 @@ public enum WorldEventType
     GovernmentReformed = 307,
     EmergenceSuppressed = 308,
     NativesIntegrated = 309,
+    RuinsFallSilent = 310,
+    CapitalRuined = 311,
+    MemorialRaised = 312,
+    QuarantineImposed = 313,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
@@ -60,6 +67,7 @@ public enum WorldEventType
     BattleFought = 405,
     SiegeBegun = 406,
     PortCaptured = 407,
+    BattlefieldMarked = 408,
     FirstContact = 500,
     ClaimRaised = 501,
     ClaimReleased = 502,
@@ -330,6 +338,43 @@ public sealed record PeaceSettledPayload(
     int WarId, string WarName, int Outcome, int WinnerId,
     string AttackerName, string DefenderName, int PortsCeded,
     double Reparations) : EventPayload;
+
+/// <summary>Wreckage crossed the battlefield floor: an anchored POI with
+/// salvage value (chronicle-and-poi.md §The POI compiler, slice I).</summary>
+public sealed record BattlefieldMarkedPayload(int PoiId, int Hulls) : EventPayload;
+
+/// <summary>A port's people are gone and stayed gone — a dead city anchors
+/// ruins (suppressed settlement, salvage in the walls).</summary>
+public sealed record RuinsFallSilentPayload(int PoiId, int PortId) : EventPayload;
+
+/// <summary>An annexed polity's seat becomes a ruined metropolis — the
+/// cultural claim anchor irredentism and pilgrimage read.</summary>
+public sealed record CapitalRuinedPayload(
+    int PoiId, int PolityId, string PolityName) : EventPayload;
+
+/// <summary>A deep famine or suppressed emergence anchors a memorial site.
+/// Cause: 0 famine, 1 suppression.</summary>
+public sealed record MemorialRaisedPayload(int PoiId, int Cause) : EventPayload;
+
+/// <summary>Expansion reached a precursor site: the registry entry becomes
+/// a charted, anchored place (dormant remnants keep their flag).</summary>
+public sealed record PrecursorSiteChartedPayload(
+    int PoiId, int SiteType, bool Dormant, string WaveName) : EventPayload;
+
+/// <summary>An index case: a contagion breaks out at a crowded port and
+/// will ride the lanes the news does (slice I).</summary>
+public sealed record PlagueOutbreakPayload(
+    int PlagueId, string Name, int PortId) : EventPayload;
+
+/// <summary>The strain's last infection cleared — plagues burn out, never
+/// sterilize; the toll is the chronicle's.</summary>
+public sealed record PlagueBurnedOutPayload(
+    int PlagueId, string Name, double Deaths) : EventPayload;
+
+/// <summary>A QuarantineAct carried: a sovereign closes its own lane —
+/// freight, migration, and contagion stop together.</summary>
+public sealed record QuarantineImposedPayload(
+    int PolityId, int LaneId) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the

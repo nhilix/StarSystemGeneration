@@ -5,10 +5,11 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
 
-/// <summary>Phase 1 — news arrives; each actor's believed world updates.
-/// Slice-A stub: perfect information, the view is rebuilt from truth every
-/// step. Compressed belief and news pulses replace this in Slice I; the
-/// contract (Intent reads only the view) holds either way.</summary>
+/// <summary>Phase 1 — news arrives; each actor's believed world updates
+/// (P3, slice I): self-facts read fresh (own treasury, ports, designs, own
+/// diplomatic gauges), other-side facts read through compressed belief
+/// snapshots that refresh at traffic-derived news speed and freeze between
+/// refreshes. The contract holds: Intent reads only the view.</summary>
 public sealed class PerceptionPhase : ISimPhase
 {
     public string Name => "Perception";
@@ -19,12 +20,21 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
             if (a.Entered)
                 known.Add(a.Id);
-        // headline war weights once per polity — the briefs size threats
-        // and protectors by them (perfect-info stub until slice I)
+        // one delay field per distinct news origin this step, shared
+        var fields = new BeliefOps.NewsFieldCache();
+        // headline war weights once per polity — truth, sampled into each
+        // observer's belief on its own news clock
         var strengths = new Dictionary<int, double>();
         foreach (var a in state.Actors)
             if (a.Entered && a.Kind == ActorKind.Polity)
                 strengths[a.Id] = FleetOps.WarStrength(state, a.Id);
+        // memory fades before this step's news lands
+        ReputationOps.DecayStances(state);
+        // news arrives first: pulses whose age covers the delay deliver,
+        // refreshing beliefs and repricing stances before anyone decides;
+        // regional word spreads by contact
+        int arrivals = BeliefOps.DeliverPulses(state, strengths, fields);
+        ReputationOps.SpreadRegional(state, fields);
         int perceiving = 0;
         foreach (var a in state.Actors)
         {
@@ -58,6 +68,23 @@ public sealed class PerceptionPhase : ISimPhase
             var temperament = a.Kind == ActorKind.Polity
                 ? Temperament.Compose(state, state.PolityOf(a.Id))
                 : Temperament.Neutral;
+            // plague on the doorstep is locally observable: open lanes
+            // from an own healthy port to an infected one (slice I)
+            List<QuarantineCandidate>? frontier = null;
+            if (a.Kind == ActorKind.Polity && state.Plagues.Count > 0)
+                foreach (var lane in state.Lanes)             // id order (P6)
+                {
+                    if (lane.QuarantinedUntil >= state.WorldYear) continue;
+                    bool aInf = PlagueOps.Afflicted(state, lane.PortAId);
+                    bool bInf = PlagueOps.Afflicted(state, lane.PortBId);
+                    if (aInf == bInf) continue;   // nothing left to protect
+                    int infected = aInf ? lane.PortAId : lane.PortBId;
+                    int healthy = aInf ? lane.PortBId : lane.PortAId;
+                    if (state.Ports[healthy].OwnerActorId != a.Id) continue;
+                    (frontier ??= new List<QuarantineCandidate>())
+                        .Add(new QuarantineCandidate(lane.Id, healthy,
+                                                     infected));
+                }
             double ownCredits = 0;
             List<CorporateBrief>? hosted = null;
             List<RelationBrief>? relations = null;
@@ -67,31 +94,32 @@ public sealed class PerceptionPhase : ISimPhase
                 ownCredits = state.PolityOf(a.Id).Credits;
                 foreach (var corp in state.Corporations)
                     if (corp.Active && corp.HostPolityId == a.Id)
+                    {
+                        // the books are wherever the headquarters is
+                        var cb = BeliefOps.AboutCorporation(state, a.Id,
+                                                            corp, fields);
                         (hosted ??= new List<CorporateBrief>())
                             .Add(new CorporateBrief(corp.Id, corp.Name,
-                                                    corp.Credits));
-                relations = BuildRelationBriefs(state, a.Id, strengths);
+                                                    cb.Credits));
+                    }
+                relations = BuildRelationBriefs(state, a.Id, strengths,
+                                                fields);
                 foreach (var war in state.Wars)   // id order (P6)
                 {
                     if (!war.Active || !war.Involves(a.Id)) continue;
                     bool attackerSide = war.OnAttackerSide(a.Id);
-                    double atStart = attackerSide
-                        ? war.AttackerStrengthAtStart
-                        : war.DefenderStrengthAtStart;
-                    int taken = 0;
-                    foreach (var o in war.Objectives)
-                        if (o.Status == ObjectiveStatus.Taken) taken++;
+                    // the front reports arrive at news speed: a distant
+                    // loser doesn't yet know it is losing (P3 — wars run
+                    // past their rational end)
+                    var wb = BeliefOps.AboutWar(state, a.Id, war, fields);
                     (wars ??= new List<WarBrief>()).Add(new WarBrief(
                         war.Id, war.Name,
                         attackerSide ? war.DefenderId : war.AttackerId,
                         attackerSide,
                         a.Id == war.AttackerId || a.Id == war.DefenderId,
-                        attackerSide ? war.AttackerExhaustion
-                            : war.DefenderExhaustion,
-                        atStart <= 0 ? 1.0
-                            : WarOps.SideStrength(state, war, attackerSide)
-                              / atStart,
-                        taken, war.Objectives.Count));
+                        wb.OwnSideExhaustion,
+                        wb.OwnSideStrengthShare,
+                        wb.ObjectivesTaken, war.Objectives.Count));
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
@@ -105,17 +133,24 @@ public sealed class PerceptionPhase : ISimPhase
                                               a.Kind == ActorKind.Polity
                                                   && RelationsOps.IsDynastic(
                                                       state, a.Id),
-                                              wars);
+                                              wars, frontier);
             perceiving++;
         }
-        return $"{perceiving} actors perceive (perfect-info stub)";
+        string note = $"{perceiving} actors perceive";
+        if (arrivals > 0)
+            note += $", {arrivals} news " + (arrivals == 1
+                ? "arrival" : "arrivals");
+        return note;
     }
 
-    /// <summary>One polity's relation briefs: the gauges, the table state,
-    /// the casus-belli menu, and the mechanical objective enumeration
-    /// (choosing is the controller's — P2).</summary>
+    /// <summary>One polity's relation briefs: the pair-diplomatic state it
+    /// co-owns (gauges, rungs, offers, claims, ties) reads fresh; the other
+    /// side's observables (strength, coalition, the casus-belli menu, the
+    /// objective enumeration) read through the belief snapshot — stale by
+    /// distance, refreshed by traffic (slice I).</summary>
     private static List<RelationBrief>? BuildRelationBriefs(SimState state,
-        int selfId, Dictionary<int, double> strengths)
+        int selfId, Dictionary<int, double> strengths,
+        BeliefOps.NewsFieldCache fields)
     {
         List<RelationBrief>? relations = null;
         foreach (var rel in state.Relations)                  // creation order (P6)
@@ -130,9 +165,8 @@ public sealed class PerceptionPhase : ISimPhase
                     else against++;
                 }
             int other = rel.OtherOf(selfId);
-            var menu = new List<CasusBelliOption>();
-            foreach (var (cause, subject) in WarOps.Menu(state, selfId, other))
-                menu.Add(new CasusBelliOption(cause, subject));
+            var belief = BeliefOps.About(state, selfId, other, strengths,
+                                         fields);
             (relations ??= new List<RelationBrief>())
                 .Add(new RelationBrief(other, rel.Warmth,
                     rel.Tension, rel.Rung, rel.OfferedRung,
@@ -141,81 +175,16 @@ public sealed class PerceptionPhase : ISimPhase
                                              state.PolityOf(other)),
                     rel.RungEpoch < 0 ? 0
                         : state.EpochIndex - rel.RungEpoch,
-                    strengths.TryGetValue(other, out double os) ? os : 0,
+                    belief.Strength,
                     rel.VassalPolityId,
                     RelationsOps.IsDynastic(state, other),
                     rel.DynasticTies,
-                    menu,
-                    DefensiveStrength(state, other, strengths),
-                    ObjectiveCandidates(state, selfId, other),
+                    belief.Menu,
+                    belief.DefensiveStrength,
+                    belief.ObjectiveCandidates,
                     RelationsOps.OverlapShare(state, selfId, other)));
         }
         return relations;
-    }
-
-    /// <summary>What an attacker prices: the target plus everyone bound to
-    /// defend it — defense-alliance partners, its vassals, its overlord.</summary>
-    private static double DefensiveStrength(SimState state, int polityId,
-                                            Dictionary<int, double> strengths)
-    {
-        double total = strengths.TryGetValue(polityId, out double own) ? own : 0;
-        foreach (var rel in state.Relations)                  // creation order (P6)
-        {
-            if (!rel.Involves(polityId)
-                || !RelationsOps.BothLive(state, rel)) continue;
-            int other = rel.OtherOf(polityId);
-            if (rel.Rung == TreatyRung.DefenseAlliance
-                || rel.VassalPolityId >= 0)
-                total += strengths.TryGetValue(other, out double s) ? s : 0;
-        }
-        return total;
-    }
-
-    /// <summary>Mechanical war-target enumeration: the other side's nearest
-    /// ports (chokepoints first), its busiest lane, and its navy — what a
-    /// declaration's objective set is picked from.</summary>
-    private static List<WarObjectiveSpec> ObjectiveCandidates(SimState state,
-        int selfId, int otherId)
-    {
-        var candidates = new List<WarObjectiveSpec>();
-        var ports = new List<(bool Chokepoint, int Distance, int Id)>();
-        foreach (var target in state.Ports)                   // id order (P6)
-        {
-            if (target.OwnerActorId != otherId) continue;
-            int best = int.MaxValue;
-            foreach (var own in state.Ports)
-                if (own.OwnerActorId == selfId)
-                {
-                    int d = HexGrid.Distance(own.Hex, target.Hex);
-                    if (d < best) best = d;
-                }
-            bool chokepoint = state.Skeleton.TryGetCell(
-                HexGrid.CellOf(target.Hex), out var cell) && cell.IsChokepoint;
-            ports.Add((chokepoint, best, target.Id));
-        }
-        ports.Sort((x, y) => x.Chokepoint != y.Chokepoint
-            ? (x.Chokepoint ? -1 : 1)
-            : x.Distance != y.Distance ? x.Distance.CompareTo(y.Distance)
-            : x.Id.CompareTo(y.Id));
-        for (int i = 0; i < ports.Count && i < 3; i++)
-            candidates.Add(new WarObjectiveSpec(WarObjectiveType.CapturePort,
-                                                ports[i].Id));
-        Lane? busiest = null;
-        double busiestCapacity = 0;
-        foreach (var lane in state.Lanes)                     // id order (P6)
-        {
-            if (state.Ports[lane.PortAId].OwnerActorId != otherId
-                && state.Ports[lane.PortBId].OwnerActorId != otherId) continue;
-            double capacity = FleetOps.PostedCapacity(state, lane);
-            if (capacity > busiestCapacity)
-            { busiestCapacity = capacity; busiest = lane; }
-        }
-        if (busiest != null)
-            candidates.Add(new WarObjectiveSpec(WarObjectiveType.BlockadeLane,
-                                                busiest.Id));
-        candidates.Add(new WarObjectiveSpec(WarObjectiveType.DestroyFleet,
-                                            otherId));
-        return candidates;
     }
 
     /// <summary>Current-mark designs per chassis cell, design-id order —
@@ -255,6 +224,7 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
+        CorporationOps.SalvageLands(state, scratch);   // salvors strip fields
         MarketEngine.AssembleDemand(state, scratch);
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);
@@ -847,7 +817,7 @@ public sealed class ResolutionPhase : ISimPhase
     {
         int acts = 0, founded = 0, nationalized = 0;
         int signed = 0, broken = 0, vassalized = 0, instruments = 0;
-        int warsDeclared = 0;
+        int warsDeclared = 0, quarantines = 0;
         HashSet<(int, int)>? concessions = null;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
@@ -875,6 +845,9 @@ public sealed class ResolutionPhase : ISimPhase
                 if (act is SettlementResponseAct sue && sue.Accept)
                     (concessions ??= new HashSet<(int, int)>())
                         .Add((sue.WarId, sue.ActorId));
+                if (act is QuarantineAct quarantine
+                    && PlagueOps.Quarantine(state, quarantine))
+                    quarantines++;
             }
         // the theater/objective model fights every active war one epoch
         // forward — doctrine posts fleets, engagements resolve on vectors,
@@ -907,6 +880,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (settled > 0)
             note += $", {settled} " + (settled == 1
                 ? "peace settled" : "peaces settled");
+        if (quarantines > 0)
+            note += $", {quarantines} " + (quarantines == 1
+                ? "lane quarantined" : "lanes quarantined");
         return note;
     }
 
@@ -1155,6 +1131,10 @@ public sealed class InteriorPhase : ISimPhase
         // uplift-born clients kneel to their hosts now that they exist
         NativeOps.BindClients(state, pendingClients);
 
+        // contagion first: plagues outbreak, ride the lanes, and take their
+        // toll before anyone flees or grows (slice I)
+        var (plagueOutbreaks, plagueSpread, plaguesBurnedOut) =
+            PlagueOps.Step(state);
         // refugees flee before attrition bites: migration reads last step's
         // market outcomes, demographics apply to whoever stayed
         int migrations = Migrate(state, preexisting);
@@ -1225,6 +1205,15 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {emergencesSuppressed} "
                 + (emergencesSuppressed == 1 ? "emergence suppressed"
                     : "emergences suppressed");
+        if (plagueOutbreaks > 0)
+            note += $", {plagueOutbreaks} plague "
+                + (plagueOutbreaks == 1 ? "outbreak" : "outbreaks");
+        if (plagueSpread > 0)
+            note += $", plague spreads to {plagueSpread} "
+                + (plagueSpread == 1 ? "port" : "ports");
+        if (plaguesBurnedOut > 0)
+            note += $", {plaguesBurnedOut} " + (plaguesBurnedOut == 1
+                ? "plague burns out" : "plagues burn out");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";
@@ -1421,20 +1410,50 @@ public sealed class InteriorPhase : ISimPhase
 }
 
 /// <summary>Phase 7 — events finalized with world-years and appended to the
-/// one log. News pulses and map residue attach in later slices; chronicle
-/// runs last so next step's news is this step's history.</summary>
+/// one log; public events over the magnitude floor emit news pulses that
+/// arrive in future steps by distance and traffic (slice I). Chronicle runs
+/// last so next step's news is this step's history.</summary>
 public sealed class ChroniclePhase : ISimPhase
 {
     public string Name => "Chronicle";
 
     public string Run(SimState state)
     {
+        int pulses = 0;
         foreach (var e in state.Staged)
-            state.Log.Append(state.WorldYear, e.Stratum, e.Type, e.Actors,
-                             e.Location, e.Magnitude, e.Valence, e.Visibility,
-                             e.Payload);
+            Finalize(state, e, ref pulses);
         int count = state.Staged.Count;
         state.Staged.Clear();
-        return count == 1 ? "1 event finalized" : $"{count} events finalized";
+        // the incremental POI compiler reads the epoch's finalized residue
+        // and anchors it — the map is always current (slice I)
+        var compiled = PoiCompiler.Compile(state);
+        foreach (var e in compiled)
+            Finalize(state, e, ref pulses);
+        count += compiled.Count;
+        string note = count == 1 ? "1 event finalized"
+            : $"{count} events finalized";
+        if (compiled.Count > 0)
+            note += $", {compiled.Count} " + (compiled.Count == 1
+                ? "POI compiled" : "POIs compiled");
+        if (pulses > 0)
+            note += $", {pulses} " + (pulses == 1 ? "pulse" : "pulses")
+                + " emitted";
+        return note;
+    }
+
+    /// <summary>Append one event to the log; public word over the floor
+    /// pulses (arriving in future steps by distance and traffic).</summary>
+    private static void Finalize(SimState state, StagedEvent e, ref int pulses)
+    {
+        var appended = state.Log.Append(state.WorldYear, e.Stratum, e.Type,
+                         e.Actors, e.Location, e.Magnitude, e.Valence,
+                         e.Visibility, e.Payload);
+        if (e.Visibility == EventVisibility.Public
+            && e.Magnitude >= state.Config.News.PulseMagnitudeFloor)
+        {
+            state.Pulses.Add(new NewsPulse(state.Pulses.Count, appended.Id,
+                e.Location, state.WorldYear, e.Magnitude));
+            pulses++;
+        }
     }
 }

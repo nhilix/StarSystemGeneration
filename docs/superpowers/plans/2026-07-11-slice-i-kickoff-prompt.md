@@ -151,4 +151,4 @@ stays reserved.
    (handoff & certification — read the roadmap row first) · flip the
    box below · push only on user say-so.
 
-- [ ] Slice I complete
+- [x] Slice I complete

@@ -39,6 +39,12 @@ public sealed record WarBrief(
     bool IsLeader, double OwnSideExhaustion, double OwnSideStrengthShare,
     int ObjectivesTaken, int ObjectivesTotal);
 
+/// <summary>An open lane from one of the observer's ports to a port it can
+/// SEE is infected (plague on the doorstep is locally observable) — the
+/// QuarantineAct's menu (slice I).</summary>
+public sealed record QuarantineCandidate(
+    int LaneId, int OwnPortId, int InfectedPortId);
+
 public sealed class PerceptionView
 {
     private static readonly IReadOnlyList<ColonyCandidate> NoCandidates =
@@ -50,6 +56,8 @@ public sealed class PerceptionView
     private static readonly IReadOnlyList<RelationBrief> NoRelations =
         new RelationBrief[0];
     private static readonly IReadOnlyList<WarBrief> NoWars = new WarBrief[0];
+    private static readonly IReadOnlyList<QuarantineCandidate> NoFrontier =
+        new QuarantineCandidate[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -100,6 +108,9 @@ public sealed class PerceptionView
     public bool SelfDynastic { get; }
     /// <summary>Wars this polity is in, war-id order (empty at peace).</summary>
     public IReadOnlyList<WarBrief> Wars { get; }
+    /// <summary>Open lanes from own ports to visibly infected ports —
+    /// what a QuarantineAct closes (slice I; empty when healthy).</summary>
+    public IReadOnlyList<QuarantineCandidate> PlagueFrontier { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -115,8 +126,11 @@ public sealed class PerceptionView
                           IReadOnlyList<RelationBrief>? relations = null,
                           double ownStrength = 0,
                           bool selfDynastic = false,
-                          IReadOnlyList<WarBrief>? wars = null)
+                          IReadOnlyList<WarBrief>? wars = null,
+                          IReadOnlyList<QuarantineCandidate>? plagueFrontier
+                              = null)
     {
+        PlagueFrontier = plagueFrontier ?? NoFrontier;
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;
@@ -246,6 +260,11 @@ public sealed class GenesisController : IController
                     rel.OtherPolityId, instrument));
                 break;   // one wedding a generation is plenty
             }
+        // plague at the gates: close every open lane from a healthy own
+        // port to a visibly infected one (the QuarantineAct's consequence
+        // is Resolution's — slice I)
+        foreach (var q in perceived.PlagueFrontier)
+            acts.Add(new QuarantineAct(perceived.SelfId, q.LaneId));
         // suing for peace: a leader concedes when the war is visibly lost —
         // exhaustion deep or the navy gone (perceived cost of continuing
         // exceeds the settlement; staleness arrives with slice I)

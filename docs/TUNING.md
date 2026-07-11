@@ -257,6 +257,69 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.VassalSecessionCohesion` | 0.40 | Only crumbling overlords lose vassals. | Every wobble frees the periphery. |
 | `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
 
+## News — the news graph (slice I)
+
+Word travels the lane network at traffic-derived speed and crawls the
+wilds otherwise (perception-and-news.md). The delay field these speeds
+produce is what stales every belief: decisions run on perception,
+consequences on truth.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `News.BaseLaneSpeedHexPerYear` | 4.0 | Even dead lanes gossip — the rim barely lags. | Unposted lanes go dark; only trade carries word. |
+| `News.TrafficSpeedBonus` | 12.0 | Busy corridors are near-instant (the core thinks as one). | Traffic doesn't matter; all lanes crawl alike. |
+| `News.TrafficSaturationTripsPerYear` | 4.0 | Only huge convoys speed the mail (most lanes stay slow). | A single posted hauler maxes the lane's carriage. |
+| `News.OffLaneSpeedHexPerYear` | 0.5 | Wilds leak news; isolation stops working. | Off-network polities live years behind the times. |
+| `News.PulseMagnitudeFloor` | 0.5 | Only landmark events travel; the log stays quiet abroad. | Every public hiccup pulses galaxy-wide. |
+| `News.PulseMaxYears` | 150 | Ancient rumors still land on the far rim. | Word that misses its window is lost to distance. |
+| `News.StanceDecayPerYear` | 0.005 | Reputations wash out within a generation. | The galaxy never forgets a broken treaty. |
+| `Relations.ReputationWarmthWeight` | 0.20 | What the galaxy has heard dominates every table (a shock reprices borders). | Reputation is gossip — only concrete sources move warmth. |
+
+The per-event stance deltas and their temperament tilts (open traders
+sanction treaty-breakers, militants respect bold conquest, dogmatic
+distance amplifies condemnation) are structural constants in
+`ReputationOps.Judge`, like the stance buckets.
+
+## Plague — contagion on the lanes (slice I)
+
+Outbreaks roll where people crowd; spread rides posted traffic exactly as
+news does; quarantines and blockades stop contagion as surely as freight;
+Life tech blunts the toll; machine minds never sicken (structural). Deaths
+shrink segments and never touch a credit — the dead leave inheritances.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Plague.OutbreakChancePerYear` | 0.0004 | Every crowded century has its pestilence. | Plagues are once-a-history events. |
+| `Plague.SpreadChancePerYear` | 0.06 | The trade web is a death web — quarantine or perish. | Plagues stay local embarrassments. |
+| `Plague.SpreadTrafficSaturation` | 2.0 | Only the busiest corridors carry contagion at full odds. | A single posted hauler is a vector. |
+| `Plague.MortalityPerYear` | 0.008 | Black-death demographics (~18%/epoch unmitigated). | Plagues inconvenience rather than kill. |
+| `Plague.MortalityLifeTierDiscount` | 0.2 | Medicine ends plagues as a threat by tier 3–4. | Tech is no shield. |
+| `Plague.BurnoutYears` | 30 | Infections smolder for generations. | One epoch and done. |
+| `Plague.ImmunityYears` | 75 | Survivors are safe for living memory. | The same strain returns within a reign. |
+| `Plague.QuarantineYears` | 30 | One act seals a lane for a generation. | Quarantines lapse before the plague does. |
+
+## Poi — the incremental POI compiler (slice I)
+
+Residue becomes anchored places every Chronicle: battlefields from
+wreckage, ruins from dead cities, fallen capitals, memorials, and
+precursor sites charted as expansion reaches them. One live anchor per
+hex, arbitrated by magnitude (chronicle-and-poi.md).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Poi.BattlefieldHullFloor` | 4 | Only great slaughters anchor a field; skirmish wrecks stay noise. | Every lost patrol pins a hex. |
+| `Poi.MemorialShortfallFloor` | 0.75 | Only true horrors are remembered in stone. | Every lean winter gets a shrine. |
+| `Poi.PermanentMagnitude` | 20 | Most salvaged-out fields fade; archaeology is rare. | Every old battlefield litters the map forever. |
+| `Poi.RuinsDeadEpochs` | 2 | Cities must lie long dead before ruins anchor (migration blips forgiven). | Any evacuation reads as a fall. |
+| `Poi.SurveyReachHexes` | 10 | Precursor sites chart from far off — the deep past surfaces early. | Sites stay unknown until someone builds next door. |
+| `Poi.SalvageNicheHullFloor` | 6 | Only rich fields draw salvors. | Every skirmish spawns an expedition. |
+| `Poi.SalvageReachHexes` | 12 | Salvors work fields deep in the wilds. | Only battlefields at the doorstep get stripped. |
+| `Poi.SalvageHullsPerYear` | 0.2 | Fields strip within an epoch or two (salvage booms are short). | Wrecks outlast the wars that made them. |
+| `Poi.SalvageAlloysPerHull` / `ComponentsPerHull` | 3 / 1 | Salvage floods the alloy market (frontier yards run on the dead). | Stripping barely pays. |
+| `Poi.DigExoticsPerYear` | 0.15 | Precursor digs rival exotics mines. | Digs are archaeology, not industry. |
+| `Poi.DigMagnitudeDecayPerYear` | 0.02 | Sites dig out within centuries. | The deep past is effectively bottomless. |
+| `Poi.DigResearchPerYear` | 0.01 | Digging precursors is a tech strategy. | Ruins yield goods, not insight. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs

@@ -391,7 +391,9 @@ public static class RelationsOps
 
     /// <summary>The warmth target from live sources. Terms land in
     /// LastWarmthTerms for the REPL: [0] baseline − strangeness,
-    /// [1] trade, [2] treaty, [3] dynastic ties, [4] −ideology cooling.</summary>
+    /// [1] trade, [2] treaty, [3] dynastic ties, [4] −ideology cooling,
+    /// [5] reputation — the pair-mean stance, what both courts have heard
+    /// about each other; live from before first contact on (slice I).</summary>
     public static double WarmthTarget(SimState state, PolityRelation relation,
                                       double tradeCapacity)
     {
@@ -411,7 +413,9 @@ public static class RelationsOps
                / (double)(int)TreatyRung.DefenseAlliance;
         t[3] = knobs.DynasticTieWarmth * Math.Min(relation.DynasticTies, 3);
         t[4] = -knobs.IdeologyGapCooling * ideoGap;
-        return Clamp01(t[0] + t[1] + t[2] + t[3] + t[4]);
+        t[5] = knobs.ReputationWarmthWeight * ReputationOps.MutualStance(
+            state, relation.PolityAId, relation.PolityBId);
+        return Clamp01(t[0] + t[1] + t[2] + t[3] + t[4] + t[5]);
     }
 
     /// <summary>The tension target from live sources. Terms land in

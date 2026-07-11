@@ -69,6 +69,17 @@ public sealed class SimState
     /// <summary>Wars declared and fought (interpolity/war.md) — id order
     /// (P6); ended wars stay as history.</summary>
     public List<War> Wars { get; } = new List<War>();
+    /// <summary>Public events' word in transit (perception-and-news.md):
+    /// emitted at Chronicle, delivered by Perception when age covers the
+    /// news delay — id order (P6); expired pulses stay as history.</summary>
+    public List<NewsPulse> Pulses { get; } = new List<NewsPulse>();
+    /// <summary>Anchored points of interest compiled from residue every
+    /// Chronicle (chronicle-and-poi.md) — id order (P6); depleted POIs
+    /// stay as history.</summary>
+    public List<PoiRecord> Pois { get; } = new List<PoiRecord>();
+    /// <summary>Contagions riding the lanes (slice I) — id order (P6);
+    /// burned-out plagues stay as history.</summary>
+    public List<Plague> Plagues { get; } = new List<Plague>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

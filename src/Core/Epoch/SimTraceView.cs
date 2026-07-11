@@ -286,6 +286,33 @@ public static class SimTraceView
                         + "its flag comes down for good",
                     _ => "white peace — the borders stand where they stood",
                 },
+            BattlefieldMarkedPayload p =>
+                Invariant($"the wrecks of {p.Hulls} hulls mark a battlefield ")
+                + Invariant($"(POI #{p.PoiId}) — salvagers take note"),
+            RuinsFallSilentPayload p =>
+                Invariant($"port #{p.PortId} falls silent — ")
+                + Invariant($"ruins where a city stood (POI #{p.PoiId})"),
+            CapitalRuinedPayload p =>
+                $"the capital of {p.PolityName} is left a ruined metropolis "
+                + Invariant($"(POI #{p.PoiId}) — pilgrims and irredentists remember"),
+            MemorialRaisedPayload p => p.Cause == 1
+                ? Invariant($"a memorial rises to a people held down (POI #{p.PoiId})")
+                : Invariant($"a memorial rises to the famine dead (POI #{p.PoiId})"),
+            PrecursorSiteChartedPayload p =>
+                $"surveyors chart {SiteName((Galaxy.PrecursorSiteType)p.SiteType)}"
+                + $" of the {p.WaveName}"
+                + (p.Dormant ? " — and something inside is still awake" : "")
+                + Invariant($" (POI #{p.PoiId})"),
+            PlagueOutbreakPayload p =>
+                Invariant($"the {p.Name} breaks out at port #{p.PortId} — ")
+                + "ships carry more than cargo",
+            PlagueBurnedOutPayload p =>
+                $"the {p.Name} burns itself out"
+                + (p.Deaths >= 0.05
+                    ? Invariant($" ({p.Deaths:0.0} population lost)") : ""),
+            QuarantineImposedPayload p =>
+                Invariant($"polity #{p.PolityId} quarantines lane ")
+                + Invariant($"#{p.LaneId} — nothing crosses, not even grain"),
             DynasticInstrumentPayload p =>
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"
@@ -313,6 +340,17 @@ public static class SimTraceView
         CasusBelli.CivilWar => "the throne itself",
         CasusBelli.Expulsion => "expulsion from a claimed sphere",
         _ => "war",
+    };
+
+    private static string SiteName(Galaxy.PrecursorSiteType type) => type switch
+    {
+        Galaxy.PrecursorSiteType.Capital => "the shattered capital",
+        Galaxy.PrecursorSiteType.Ruins => "the ruins",
+        Galaxy.PrecursorSiteType.Battlefield => "an ancient battlefield",
+        Galaxy.PrecursorSiteType.SterilizationScar => "a sterilization scar",
+        Galaxy.PrecursorSiteType.EngineeredBiosphere => "an engineered biosphere",
+        Galaxy.PrecursorSiteType.Megastructure => "an empty megastructure",
+        _ => "a precursor site",
     };
 
     private static string RungName(TreatyRung rung) => rung switch

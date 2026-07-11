@@ -199,10 +199,26 @@ public static class TechOps
                               + AstroRadiusBonus(state, pr.ActorId))
                     { inReach = true; break; }
                 if (!inReach) continue;
-                double lesson = knobs.SalvagePerHullPerYear * years * wreck.Hulls;
+                double lesson = knobs.SalvagePerHullPerYear * years * wreck.Hulls
+                                // full consumption (slice I): a stripped
+                                // field teaches nothing — the lesson scales
+                                // with what still lies there
+                                * FieldRemaining(state, wreck.Hex);
                 Advance(state, pr, TechDomain.Military, lesson);
                 Advance(state, pr, TechDomain.Industrial, lesson * 0.5);
             }
         }
+    }
+
+    /// <summary>Fraction of a wreck hex's hulls not yet salvaged away —
+    /// 1.0 where no battlefield POI tracks depletion (small fields rust
+    /// and teach as before).</summary>
+    private static double FieldRemaining(SimState state, Model.HexCoordinate hex)
+    {
+        foreach (var poi in state.Pois)                       // id order (P6)
+            if (poi.Type == PoiType.Battlefield && poi.Hex.Equals(hex))
+                return poi.Magnitude <= 0 ? 1.0
+                    : System.Math.Max(0.0, poi.SalvageRemaining / poi.Magnitude);
+        return 1.0;
     }
 }

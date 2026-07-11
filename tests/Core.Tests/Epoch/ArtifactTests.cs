@@ -63,7 +63,7 @@ public class ArtifactTests
         Assert.Throws<InvalidDataException>(
             () => ArtifactSerializer.Load(new StringReader("nonsense")));
         string bumped = ArtifactSerializer.ToText(Run())
-            .Replace("LAYER|ports|1", "LAYER|ports|9");
+            .Replace("LAYER|ports|2", "LAYER|ports|9");
         var ex = Assert.Throws<InvalidDataException>(
             () => ArtifactSerializer.Load(new StringReader(bumped)));
         Assert.Contains("ports", ex.Message);

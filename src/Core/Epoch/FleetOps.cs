@@ -387,6 +387,10 @@ public static class FleetOps
     /// (busy lanes carry news fast, backwaters slowly, wilds barely).</summary>
     public static double TrafficPerYear(SimState state, Lane lane)
     {
+        // a quarantined lane is physically closed: no shipping, so no
+        // traffic-borne news or contagion — word still crawls at the base
+        // carriage (review fix 3)
+        if (lane.QuarantinedUntil >= state.WorldYear) return 0;
         var a = state.Ports[lane.PortAId];
         var b = state.Ports[lane.PortBId];
         int dist = HexGrid.Distance(a.Hex, b.Hex);
@@ -417,6 +421,12 @@ public static class FleetOps
                 if (lane.PortAId == fleet.TargetId || lane.PortBId == fleet.TargetId)
                     severed.Add(lane.Id);
         }
+        // self-imposed closures cut freight and contagion alike (slice I);
+        // they are NOT blockade progress — war objectives read fleet
+        // postures above, never this flag
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            if (lane.QuarantinedUntil >= state.WorldYear)
+                severed.Add(lane.Id);
         return severed;
     }
 

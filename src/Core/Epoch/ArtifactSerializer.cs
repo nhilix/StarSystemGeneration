@@ -26,10 +26,11 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("actors", 5), ("ports", 2), ("lanes", 2), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
-        ("corporations", 1), ("relations", 4), ("wars", 1),
+        ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
+        ("pulses", 1), ("pois", 1), ("plagues", 1),
     };
 
     public static string ToText(SimState state)
@@ -125,14 +126,17 @@ public static class ArtifactSerializer
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
+            // ports v2 (slice I): the dead-city grace clock rides along
             w.WriteLine(Join("PORT", p.Id.ToString(Inv), p.OwnerActorId.ToString(Inv),
                 p.Hex.Q.ToString(Inv), p.Hex.R.ToString(Inv), p.Tier.ToString(Inv),
-                p.FoundedYear.ToString(Inv)));
+                p.FoundedYear.ToString(Inv), p.LastPopulatedYear.ToString(Inv)));
 
         Layer(w, "lanes");
         foreach (var l in state.Lanes)
+            // lanes v2 (slice I): the quarantine clock rides along
             w.WriteLine(Join("LANE", l.Id.ToString(Inv), l.PortAId.ToString(Inv),
-                l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv)));
+                l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv),
+                l.QuarantinedUntil.ToString(Inv)));
 
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
@@ -337,7 +341,169 @@ public static class ArtifactSerializer
                     o.TargetId.ToString(Inv), ((int)o.Status).ToString(Inv),
                     o.SiegeEpochs.ToString(Inv)));
         }
+
+        Layer(w, "belief");
+        // belief v1 (slice I): the compressed believed world — snapshots
+        // that refresh at news speed; LoadThenContinue must not re-survey
+        foreach (var a in state.Actors)
+        {
+            foreach (var b in a.Beliefs.Polities.Values)   // subject-id order
+                w.WriteLine(Join("PBEL", a.Id.ToString(Inv),
+                    b.SubjectId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.Strength), R(b.DefensiveStrength),
+                    PairList(b.Menu), SpecList(b.ObjectiveCandidates)));
+            foreach (var b in a.Beliefs.Wars.Values)       // war-id order
+                w.WriteLine(Join("WBEL", a.Id.ToString(Inv),
+                    b.WarId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.OwnSideExhaustion), R(b.OwnSideStrengthShare),
+                    b.ObjectivesTaken.ToString(Inv)));
+            foreach (var b in a.Beliefs.Corporations.Values) // corp-id order
+                w.WriteLine(Join("CBEL", a.Id.ToString(Inv),
+                    b.CorpId.ToString(Inv), b.HeardYear.ToString(Inv),
+                    R(b.Credits)));
+            for (int i = 0; i < a.Beliefs.Stances.Count; i++) // subject order
+                w.WriteLine(Join("STANCE", a.Id.ToString(Inv),
+                    a.Beliefs.Stances.Keys[i].ToString(Inv),
+                    R(a.Beliefs.Stances.Values[i])));
+        }
+
+        Layer(w, "pulses");
+        foreach (var p in state.Pulses)
+            w.WriteLine(Join("PULSE", p.Id.ToString(Inv),
+                p.EventId.ToString(Inv), p.Origin.Q.ToString(Inv),
+                p.Origin.R.ToString(Inv), p.EmitYear.ToString(Inv),
+                R(p.Magnitude), DeliveryList(p.Delivered)));
+
+        Layer(w, "pois");
+        foreach (var poi in state.Pois)
+            w.WriteLine(Join("POI", poi.Id.ToString(Inv),
+                ((int)poi.Type).ToString(Inv), poi.Hex.Q.ToString(Inv),
+                poi.Hex.R.ToString(Inv), R(poi.Magnitude),
+                poi.FoundedYear.ToString(Inv), poi.SubjectId.ToString(Inv),
+                poi.Detail.ToString(Inv), poi.HullsSalvaged.ToString(Inv),
+                B(poi.Depleted), B(poi.Dormant),
+                IntList(poi.ParticipantActorIds),
+                LongList(poi.SourceEventIds)));
+
+        Layer(w, "plagues");
+        foreach (var plague in state.Plagues)
+            w.WriteLine(Join("PLAGUE", plague.Id.ToString(Inv),
+                Name(plague.Name), plague.OriginPortId.ToString(Inv),
+                plague.StartYear.ToString(Inv), B(plague.Active),
+                plague.EndedYear.ToString(Inv), R(plague.TotalDeaths),
+                LongMap(plague.InfectedSince), LongMap(plague.ImmuneUntil)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Int-keyed long map as "k:v;k:v" in key order; "-" empty.</summary>
+    private static string LongMap(
+        System.Collections.Generic.SortedList<int, long> map)
+    {
+        if (map.Count == 0) return "-";
+        var parts = new string[map.Count];
+        for (int i = 0; i < map.Count; i++)
+            parts[i] = map.Keys[i].ToString(Inv) + ":"
+                       + map.Values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseLongMap(string field,
+        System.Collections.Generic.SortedList<int, long> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(int.Parse(part.Substring(0, colon), Inv),
+                     long.Parse(part.Substring(colon + 1), Inv));
+        }
+    }
+
+    /// <summary>Long list as "v;v;…"; "-" when empty.</summary>
+    private static string LongList(IReadOnlyList<long> values)
+    {
+        if (values.Count == 0) return "-";
+        var parts = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+            parts[i] = values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseLongList(string field, List<long> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+            into.Add(long.Parse(part, Inv));
+    }
+
+    /// <summary>Pulse deliveries as "actor:year;…"; "-" when unheard.</summary>
+    private static string DeliveryList(
+        IReadOnlyList<(int ActorId, long Year)> delivered)
+    {
+        if (delivered.Count == 0) return "-";
+        var parts = new string[delivered.Count];
+        for (int i = 0; i < delivered.Count; i++)
+            parts[i] = delivered[i].ActorId.ToString(Inv) + ":"
+                       + delivered[i].Year.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseDeliveryList(string field,
+        List<(int ActorId, long Year)> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add((int.Parse(part.Substring(0, colon), Inv),
+                      long.Parse(part.Substring(colon + 1), Inv)));
+        }
+    }
+
+    /// <summary>Casus-belli menu as "cause:subject;…"; "-" when empty.</summary>
+    private static string PairList(IReadOnlyList<CasusBelliOption> menu)
+    {
+        if (menu.Count == 0) return "-";
+        var parts = new string[menu.Count];
+        for (int i = 0; i < menu.Count; i++)
+            parts[i] = ((int)menu[i].Cause).ToString(Inv) + ":"
+                       + menu[i].SubjectId.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParsePairList(string field, List<CasusBelliOption> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(new CasusBelliOption(
+                (CasusBelli)int.Parse(part.Substring(0, colon), Inv),
+                int.Parse(part.Substring(colon + 1), Inv)));
+        }
+    }
+
+    /// <summary>Objective specs as "type:target;…"; "-" when empty.</summary>
+    private static string SpecList(IReadOnlyList<WarObjectiveSpec> specs)
+    {
+        if (specs.Count == 0) return "-";
+        var parts = new string[specs.Count];
+        for (int i = 0; i < specs.Count; i++)
+            parts[i] = ((int)specs[i].Type).ToString(Inv) + ":"
+                       + specs[i].TargetId.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseSpecList(string field, List<WarObjectiveSpec> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(new WarObjectiveSpec(
+                (WarObjectiveType)int.Parse(part.Substring(0, colon), Inv),
+                int.Parse(part.Substring(colon + 1), Inv)));
+        }
     }
 
     /// <summary>Int list as "v;v;…"; "-" when empty.</summary>
@@ -708,7 +874,8 @@ public static class ArtifactSerializer
                             throw new InvalidDataException("port ids out of order");
                         state.Ports.Add(new Port(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
                             new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
-                            int.Parse(f[5], Inv), int.Parse(f[6], Inv)));
+                            int.Parse(f[5], Inv), int.Parse(f[6], Inv))
+                        { LastPopulatedYear = long.Parse(f[7], Inv) });
                         // markets parallel ports (market index == port id);
                         // MARKET records overwrite the founded prices below
                         state.Markets.Add(new Market(state.Ports.Count - 1,
@@ -716,7 +883,8 @@ public static class ArtifactSerializer
                         break;
                     case "LANE":
                         state!.Lanes.Add(new Lane(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
-                            int.Parse(f[3], Inv), int.Parse(f[4], Inv)));
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv))
+                        { QuarantinedUntil = long.Parse(f[5], Inv) });
                         break;
                     case "FACILITY":
                         if (int.Parse(f[1], Inv) != state!.Facilities.Count)
@@ -1009,6 +1177,100 @@ public static class ArtifactSerializer
                         });
                         break;
                     }
+                    case "PBEL":
+                    {
+                        var belief = new PolityBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            Strength = double.Parse(f[4], Inv),
+                            DefensiveStrength = double.Parse(f[5], Inv),
+                        };
+                        ParsePairList(f[6], belief.Menu);
+                        ParseSpecList(f[7], belief.ObjectiveCandidates);
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Polities
+                            .Add(belief.SubjectId, belief);
+                        break;
+                    }
+                    case "WBEL":
+                    {
+                        var belief = new WarBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            OwnSideExhaustion = double.Parse(f[4], Inv),
+                            OwnSideStrengthShare = double.Parse(f[5], Inv),
+                            ObjectivesTaken = int.Parse(f[6], Inv),
+                        };
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Wars
+                            .Add(belief.WarId, belief);
+                        break;
+                    }
+                    case "CBEL":
+                    {
+                        var belief = new CorpBelief(int.Parse(f[2], Inv))
+                        {
+                            HeardYear = long.Parse(f[3], Inv),
+                            Credits = double.Parse(f[4], Inv),
+                        };
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Corporations
+                            .Add(belief.CorpId, belief);
+                        break;
+                    }
+                    case "POI":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Pois.Count)
+                            throw new InvalidDataException(
+                                "poi ids out of order");
+                        var poi = new PoiRecord(int.Parse(f[1], Inv),
+                            (PoiType)int.Parse(f[2], Inv),
+                            new HexCoordinate(int.Parse(f[3], Inv),
+                                              int.Parse(f[4], Inv)),
+                            double.Parse(f[5], Inv), long.Parse(f[6], Inv),
+                            int.Parse(f[7], Inv), int.Parse(f[8], Inv))
+                        {
+                            HullsSalvaged = int.Parse(f[9], Inv),
+                            Depleted = f[10] == "1",
+                            Dormant = f[11] == "1",
+                        };
+                        ParseIntList(f[12], poi.ParticipantActorIds);
+                        ParseLongList(f[13], poi.SourceEventIds);
+                        state.Pois.Add(poi);
+                        break;
+                    }
+                    case "PLAGUE":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Plagues.Count)
+                            throw new InvalidDataException(
+                                "plague ids out of order");
+                        var plague = new Plague(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), long.Parse(f[4], Inv))
+                        {
+                            Active = f[5] == "1",
+                            EndedYear = long.Parse(f[6], Inv),
+                            TotalDeaths = double.Parse(f[7], Inv),
+                        };
+                        ParseLongMap(f[8], plague.InfectedSince);
+                        ParseLongMap(f[9], plague.ImmuneUntil);
+                        state.Plagues.Add(plague);
+                        break;
+                    }
+                    case "STANCE":
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Stances
+                            .Add(int.Parse(f[2], Inv), double.Parse(f[3], Inv));
+                        break;
+                    case "PULSE":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Pulses.Count)
+                            throw new InvalidDataException(
+                                "pulse ids out of order");
+                        var pulse = new NewsPulse(int.Parse(f[1], Inv),
+                            long.Parse(f[2], Inv),
+                            new HexCoordinate(int.Parse(f[3], Inv),
+                                              int.Parse(f[4], Inv)),
+                            long.Parse(f[5], Inv), double.Parse(f[6], Inv));
+                        ParseDeliveryList(f[7], pulse.Delivered);
+                        state.Pulses.Add(pulse);
+                        break;
+                    }
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -1203,6 +1465,23 @@ public static class ArtifactSerializer
             e.WinnerId.ToString(Inv), Name(e.AttackerName),
             Name(e.DefenderName), e.PortsCeded.ToString(Inv),
             R(e.Reparations)),
+        BattlefieldMarkedPayload e => Join("battlefieldMarked",
+            e.PoiId.ToString(Inv), e.Hulls.ToString(Inv)),
+        RuinsFallSilentPayload e => Join("ruinsFallSilent",
+            e.PoiId.ToString(Inv), e.PortId.ToString(Inv)),
+        CapitalRuinedPayload e => Join("capitalRuined", e.PoiId.ToString(Inv),
+            e.PolityId.ToString(Inv), Name(e.PolityName)),
+        MemorialRaisedPayload e => Join("memorialRaised",
+            e.PoiId.ToString(Inv), e.Cause.ToString(Inv)),
+        PrecursorSiteChartedPayload e => Join("precursorSiteCharted",
+            e.PoiId.ToString(Inv), e.SiteType.ToString(Inv), B(e.Dormant),
+            Name(e.WaveName)),
+        PlagueOutbreakPayload e => Join("plagueOutbreak",
+            e.PlagueId.ToString(Inv), Name(e.Name), e.PortId.ToString(Inv)),
+        PlagueBurnedOutPayload e => Join("plagueBurnedOut",
+            e.PlagueId.ToString(Inv), Name(e.Name), R(e.Deaths)),
+        QuarantineImposedPayload e => Join("quarantineImposed",
+            e.PolityId.ToString(Inv), e.LaneId.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1339,6 +1618,24 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
             f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
             double.Parse(f[at + 8], Inv)),
+        "battlefieldMarked" => new BattlefieldMarkedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "ruinsFallSilent" => new RuinsFallSilentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "capitalRuined" => new CapitalRuinedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3]),
+        "memorialRaised" => new MemorialRaisedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "precursorSiteCharted" => new PrecursorSiteChartedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
+            f[at + 3] == "1", f[at + 4]),
+        "plagueOutbreak" => new PlagueOutbreakPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv)),
+        "plagueBurnedOut" => new PlagueBurnedOutPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2],
+            double.Parse(f[at + 3], Inv)),
+        "quarantineImposed" => new QuarantineImposedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

@@ -24,6 +24,105 @@ public sealed class EpochSimConfig
     public CorporateKnobs Corporate { get; } = new CorporateKnobs();
     public RelationsKnobs Relations { get; } = new RelationsKnobs();
     public WarKnobs War { get; } = new WarKnobs();
+    public NewsKnobs News { get; } = new NewsKnobs();
+    public PoiKnobs Poi { get; } = new PoiKnobs();
+    public PlagueKnobs Plague { get; } = new PlagueKnobs();
+}
+
+/// <summary>Plague dials (slice I): outbreak incidence, lane-borne spread,
+/// the toll, the burnout/immunity clocks, and the quarantine hold. Machine
+/// immunity and the one-strain-per-port rule are structural.</summary>
+public sealed class PlagueKnobs
+{
+    /// <summary>Outbreak chance per port per world-year at full crowding.</summary>
+    public double OutbreakChancePerYear { get; set; } = 0.0004;
+    /// <summary>Chance per world-year an infection crosses a traffic-
+    /// saturated lane (scaled down on quiet lanes).</summary>
+    public double SpreadChancePerYear { get; set; } = 0.06;
+    /// <summary>Posted round trips per world-year at which lane spread
+    /// saturates — contagion rides the same traffic the news does.</summary>
+    public double SpreadTrafficSaturation { get; set; } = 2.0;
+    /// <summary>Fraction of an infected port's organic population lost per
+    /// world-year before the Life-tech discount.</summary>
+    public double MortalityPerYear { get; set; } = 0.008;
+    /// <summary>Mortality discount per Life tech tier (medicine).</summary>
+    public double MortalityLifeTierDiscount { get; set; } = 0.2;
+    /// <summary>World-years an infection burns at one port before it
+    /// clears — plagues burn out, never sterilize.</summary>
+    public double BurnoutYears { get; set; } = 30.0;
+    /// <summary>World-years a recovered port resists reinfection.</summary>
+    public double ImmunityYears { get; set; } = 75.0;
+    /// <summary>World-years one QuarantineAct holds a lane closed.</summary>
+    public double QuarantineYears { get; set; } = 30.0;
+}
+
+/// <summary>POI-compiler dials (chronicle-and-poi.md §The POI compiler):
+/// what qualifies as a battlefield, a memorial, permanent archaeology, and
+/// how far surveyors chart precursor sites. Slice I.</summary>
+public sealed class PoiKnobs
+{
+    /// <summary>Wrecked hulls at one hex before it anchors a battlefield.</summary>
+    public double BattlefieldHullFloor { get; set; } = 4.0;
+    /// <summary>Famine shortfall below which no memorial rises — ordinary
+    /// hunger is not an atrocity.</summary>
+    public double MemorialShortfallFloor { get; set; } = 0.75;
+    /// <summary>Battlefield magnitude at which a salvaged-out field still
+    /// persists as permanent archaeology instead of fading.</summary>
+    public double PermanentMagnitude { get; set; } = 20.0;
+    /// <summary>Epochs a founded port must sit empty before it reads as a
+    /// dead city (grace precedes the death clock).</summary>
+    public int RuinsDeadEpochs { get; set; } = 2;
+    /// <summary>Hexes from any entered port at which a precursor site gets
+    /// charted — exploration surfaces the deep past.</summary>
+    public int SurveyReachHexes { get; set; } = 10;
+    /// <summary>Battlefield hulls remaining below which no salvor bothers
+    /// to incorporate.</summary>
+    public double SalvageNicheHullFloor { get; set; } = 6.0;
+    /// <summary>Hexes from an own port within which a POI reads as a
+    /// workable salvage niche.</summary>
+    public int SalvageReachHexes { get; set; } = 12;
+    /// <summary>Hulls a working salvor strips from its field per world-year.</summary>
+    public double SalvageHullsPerYear { get; set; } = 0.2;
+    /// <summary>Alloys recovered per stripped hull (declining grade).</summary>
+    public double SalvageAlloysPerHull { get; set; } = 3.0;
+    /// <summary>Ship components recovered per stripped hull.</summary>
+    public double SalvageComponentsPerHull { get; set; } = 1.0;
+    /// <summary>Exotics a precursor dig yields per world-year.</summary>
+    public double DigExoticsPerYear { get; set; } = 0.15;
+    /// <summary>Site magnitude a dig consumes per world-year — the site
+    /// depletes toward archaeology-done.</summary>
+    public double DigMagnitudeDecayPerYear { get; set; } = 0.02;
+    /// <summary>Astrogation research progress a precursor dig hands the
+    /// host polity per world-year (Industrial at half).</summary>
+    public double DigResearchPerYear { get; set; } = 0.01;
+}
+
+/// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc
+/// §Information carriage): how fast word travels lanes and wilds, when a
+/// public event pulses, and how long a pulse stays live. Slice I. The
+/// speeds are hexes per world-year; traffic is FleetOps.TrafficPerYear.</summary>
+public sealed class NewsKnobs
+{
+    /// <summary>News carriage of a lane with no posted traffic — a standing
+    /// lane always carries some word (occasional independents).</summary>
+    public double BaseLaneSpeedHexPerYear { get; set; } = 4.0;
+    /// <summary>Extra carriage a fully-saturated lane adds on the base —
+    /// busy lanes carry news fast.</summary>
+    public double TrafficSpeedBonus { get; set; } = 12.0;
+    /// <summary>Posted round trips per world-year at which a lane's news
+    /// carriage saturates.</summary>
+    public double TrafficSaturationTripsPerYear { get; set; } = 4.0;
+    /// <summary>Off-lane carriage — wilds barely carry news.</summary>
+    public double OffLaneSpeedHexPerYear { get; set; } = 0.5;
+    /// <summary>Magnitude below which a public event emits no pulse —
+    /// the galaxy doesn't gossip about every dock fee.</summary>
+    public double PulseMagnitudeFloor { get; set; } = 0.5;
+    /// <summary>Age at which an undelivered pulse attenuates to rumor and
+    /// stops being carried.</summary>
+    public double PulseMaxYears { get; set; } = 150.0;
+    /// <summary>Fractional stance drift toward indifference per world-year —
+    /// memory fades; reputation must be re-earned (or re-offended).</summary>
+    public double StanceDecayPerYear { get; set; } = 0.005;
 }
 
 /// <summary>War dials (interpolity/war.md): the spark's incidence, the
@@ -164,6 +263,10 @@ public sealed class RelationsKnobs
     public double TradeSaturation { get; set; } = 10.0;
     /// <summary>Warmth-target weight of the treaty ladder at its top rung.</summary>
     public double TreatyWarmthWeight { get; set; } = 0.25;
+    /// <summary>Warmth-target weight of the pair-mean stance (reputation) —
+    /// what both courts have heard about each other reprices the relation,
+    /// first contact included (slice I).</summary>
+    public double ReputationWarmthWeight { get; set; } = 0.20;
     /// <summary>Warmth per live dynastic instrument (marriage/wardship),
     /// counted up to three.</summary>
     public double DynasticTieWarmth { get; set; } = 0.10;
@@ -291,8 +394,9 @@ public sealed class CorporateKnobs
     public double MagnateReceipts { get; set; } = 50.0;
     /// <summary>Facilities one corporation may hold (portfolio cap).</summary>
     public int MaxFacilities { get; set; } = 4;
-    /// <summary>Legitimacy a polity eats for nationalizing (the reputation
-    /// damage stub until slice I's news).</summary>
+    /// <summary>Legitimacy a polity eats for nationalizing — the domestic
+    /// half; the foreign half travels the news graph as stance damage
+    /// (slice I: capital sanctions the seizing state).</summary>
     public double NationalizeLegitimacyHit { get; set; } = 0.1;
     /// <summary>Corporate credits over the host treasury at which the
     /// Intent AI reaches for nationalization (a de facto power).</summary>
