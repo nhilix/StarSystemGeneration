@@ -109,6 +109,126 @@ public static class NarrativeView
         return sb.ToString();
     }
 
+    // ---- the belief panel: the fog of war made visible ----
+
+    /// <summary>What one polity believes about the others (or one other),
+    /// each line beside the truth — the visible gap between what happened
+    /// and who knows it yet (perception-and-news.md P1).</summary>
+    public static string RenderBeliefs(SimState state, int observerId,
+                                       int subjectId = -1)
+    {
+        if (observerId < 0 || observerId >= state.Actors.Count)
+            return "no such actor";
+        var observer = state.Actors[observerId];
+        var sb = new StringBuilder();
+        sb.AppendLine(Invariant($"what {observer.Name} (#{observerId}) believes:"));
+        int shown = 0;
+        foreach (var b in observer.Beliefs.Polities.Values) // subject order
+        {
+            if (subjectId >= 0 && b.SubjectId != subjectId) continue;
+            shown++;
+            long stale = state.WorldYear - b.HeardYear;
+            double truth = FleetOps.WarStrength(state, b.SubjectId);
+            sb.AppendLine(Invariant($"  #{b.SubjectId} ")
+                + state.Actors[b.SubjectId].Name
+                + Invariant($" — strength {b.Strength:0.#} (truth {truth:0.#})")
+                + Invariant($" · coalition {b.DefensiveStrength:0.#}")
+                + Invariant($" · casus belli menu {b.Menu.Count}")
+                + (stale > 0
+                    ? Invariant($" · {stale}y stale") : " · fresh"));
+        }
+        foreach (var wb in observer.Beliefs.Wars.Values)    // war-id order
+        {
+            if (subjectId >= 0) break;
+            var war = state.Wars[wb.WarId];
+            if (!war.Active) continue;
+            bool attackerSide = war.OnAttackerSide(observerId);
+            double truthExhaustion = attackerSide
+                ? war.AttackerExhaustion : war.DefenderExhaustion;
+            long stale = state.WorldYear - wb.HeardYear;
+            sb.AppendLine(Invariant($"  {war.Name}: believed exhaustion ")
+                + Invariant($"{wb.OwnSideExhaustion:0.00} (truth {truthExhaustion:0.00})")
+                + Invariant($" · strength share {wb.OwnSideStrengthShare:0.00}")
+                + (stale > 0
+                    ? Invariant($" · the front reports are {stale}y old")
+                    : " · fresh from the front"));
+            shown++;
+        }
+        if (shown == 0) sb.AppendLine("  (no beliefs — nobody met yet)");
+        return sb.ToString();
+    }
+
+    // ---- the news panel: pulses and their journeys ----
+
+    public static string RenderNews(SimState state, int pulseId = -1)
+    {
+        var sb = new StringBuilder();
+        if (pulseId >= 0)
+        {
+            if (pulseId >= state.Pulses.Count) return "no such pulse";
+            var p = state.Pulses[pulseId];
+            sb.AppendLine(Invariant($"pulse #{p.Id} — born ")
+                + SimTraceView.YearLabel(p.EmitYear)
+                + Invariant($" at ({p.Origin.Q},{p.Origin.R}):"));
+            sb.AppendLine("  "
+                + SimTraceView.Describe(state.Log.Events[(int)p.EventId]));
+            foreach (var (actorId, year) in p.Delivered)
+                sb.AppendLine("  " + SimTraceView.YearLabel(year)
+                    + Invariant($"  reaches {state.Actors[actorId].Name} ")
+                    + Invariant($"(#{actorId}, {year - p.EmitYear}y in transit)"));
+            if (p.Delivered.Count == 0)
+                sb.AppendLine("  (still in transit — nobody has heard)");
+            return sb.ToString();
+        }
+        int live = 0, entered = 0;
+        foreach (var a in state.Actors)
+            if (a.Entered && a.Kind == ActorKind.Polity) entered++;
+        foreach (var p in state.Pulses)
+            if (state.WorldYear - p.EmitYear <= state.Config.News.PulseMaxYears
+                && p.Delivered.Count < entered) live++;
+        sb.AppendLine(Invariant($"news pulses: {live} in transit ")
+            + Invariant($"(of {state.Pulses.Count} ever emitted; ")
+            + Invariant($"`news <id>` for a journey)"));
+        for (int i = state.Pulses.Count - 1; i >= 0; i--)
+        {
+            var p = state.Pulses[i];
+            double age = state.WorldYear - p.EmitYear;
+            if (age > state.Config.News.PulseMaxYears
+                || p.Delivered.Count >= entered) continue;
+            sb.AppendLine(Invariant($"  #{p.Id} ({age:0}y out, heard by ")
+                + Invariant($"{p.Delivered.Count}/{entered}) ")
+                + SimTraceView.Describe(state.Log.Events[(int)p.EventId]));
+        }
+        return sb.ToString();
+    }
+
+    // ---- the stance matrix: reputation per audience ----
+
+    public static string RenderStances(SimState state, int observerId = -1)
+    {
+        var sb = new StringBuilder();
+        int shown = 0;
+        foreach (var a in state.Actors)                   // id order (P6)
+        {
+            if (observerId >= 0 && a.Id != observerId) continue;
+            if (a.Beliefs.Stances.Count == 0) continue;
+            sb.AppendLine(Invariant($"#{a.Id} {a.Name} holds:"));
+            for (int i = 0; i < a.Beliefs.Stances.Count; i++)
+            {
+                int subject = a.Beliefs.Stances.Keys[i];
+                double stance = a.Beliefs.Stances.Values[i];
+                sb.AppendLine(Invariant($"  {stance,6:+0.00;-0.00} toward ")
+                    + Invariant($"#{subject} {state.Actors[subject].Name}")
+                    + (stance <= -0.3 ? " — a monster to this audience"
+                        : stance >= 0.3 ? " — a hero to this audience" : ""));
+                shown++;
+            }
+        }
+        if (shown == 0) return "no stances yet — the galaxy has heard nothing";
+        return "stances (news-arrived judgments; reputation is per audience)\n"
+               + sb;
+    }
+
     private static string TypeName(PoiRecord poi) => poi.Type switch
     {
         PoiType.Battlefield => "battlefield",

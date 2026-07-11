@@ -45,6 +45,8 @@ public sealed class Repl
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
+                    Console.WriteLine("belief <x> [y] — what polity x believes (vs truth) · news [id] — pulses in transit / one journey");
+                    Console.WriteLine("stances [id] — reputation per audience · emap plague — the contagion layer");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
                     Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
@@ -248,8 +250,29 @@ public sealed class Repl
                         + "`fleetpost <fleetId> blockade <portId>` stations a squadron and "
                         + "severs every lane at that port's approaches");
                     break;
-                case "chronicle" or "eras" or "poi" when _sim == null:
+                case "chronicle" or "eras" or "poi" or "belief" or "news"
+                    or "stances" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "belief" when parts.Length >= 2 && int.TryParse(parts[1], out var bObs):
+                    Console.WriteLine(NarrativeView.RenderBeliefs(_sim!, bObs,
+                        parts.Length >= 3 && int.TryParse(parts[2], out var bSub)
+                            ? bSub : -1));
+                    break;
+                case "belief":
+                    Console.WriteLine("usage: belief <observerId> [subjectId] — what a polity believes vs the truth");
+                    break;
+                case "news" when parts.Length >= 2 && int.TryParse(parts[1], out var pulse):
+                    Console.WriteLine(NarrativeView.RenderNews(_sim!, pulse));
+                    break;
+                case "news":
+                    Console.WriteLine(NarrativeView.RenderNews(_sim!));
+                    break;
+                case "stances" when parts.Length >= 2 && int.TryParse(parts[1], out var sObs):
+                    Console.WriteLine(NarrativeView.RenderStances(_sim!, sObs));
+                    break;
+                case "stances":
+                    Console.WriteLine(NarrativeView.RenderStances(_sim!));
                     break;
                 case "eras":
                     Console.WriteLine(NarrativeView.RenderEras(_sim!));

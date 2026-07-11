@@ -133,8 +133,14 @@ scope restated in-session.
       knowledge is doorstep-local (adjacent infection is visible truth
       — no news gating needed); events 209/210/313 + prose. Seed 42
       × 40: outbreak → spread → AI quarantines → burnout, end to end.
-- [ ] I10 — REPL polish: `belief`, `news`, `stances` panels; chronicle
+- [x] I10 — REPL polish: `belief`, `news`, `stances` panels; chronicle
       prose for every new event; `watch` intact.
+      Notes: `belief <x> [y]` shows belief BESIDE truth with staleness
+      years (the visible gap); `news` lists pulses in transit,
+      `news <id>` a journey with per-polity transit years; `stances`
+      is the per-audience reputation matrix. Watch verified
+      byte-identical. Eyeball seed 42: Veka believes a 285-strength
+      neighbor is at 11 on 250-year-old word.
 - [ ] I11 — Gates: full suite, determinism byte-identity, golden regen
       (once, at slice end), fresh-eyes review + one fix wave.
 - [ ] I12 — Eyeball gate: the fog of war made visible (distant loser
