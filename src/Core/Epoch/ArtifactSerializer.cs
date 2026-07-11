@@ -30,7 +30,7 @@ public static class ArtifactSerializer
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
         ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
-        ("pulses", 1),
+        ("pulses", 1), ("pois", 1),
     };
 
     public static string ToText(SimState state)
@@ -370,7 +370,35 @@ public static class ArtifactSerializer
                 p.EventId.ToString(Inv), p.Origin.Q.ToString(Inv),
                 p.Origin.R.ToString(Inv), p.EmitYear.ToString(Inv),
                 R(p.Magnitude), DeliveryList(p.Delivered)));
+
+        Layer(w, "pois");
+        foreach (var poi in state.Pois)
+            w.WriteLine(Join("POI", poi.Id.ToString(Inv),
+                ((int)poi.Type).ToString(Inv), poi.Hex.Q.ToString(Inv),
+                poi.Hex.R.ToString(Inv), R(poi.Magnitude),
+                poi.FoundedYear.ToString(Inv), poi.SubjectId.ToString(Inv),
+                poi.Detail.ToString(Inv), poi.HullsSalvaged.ToString(Inv),
+                B(poi.Depleted), B(poi.Dormant),
+                IntList(poi.ParticipantActorIds),
+                LongList(poi.SourceEventIds)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Long list as "v;v;…"; "-" when empty.</summary>
+    private static string LongList(IReadOnlyList<long> values)
+    {
+        if (values.Count == 0) return "-";
+        var parts = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+            parts[i] = values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseLongList(string field, List<long> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+            into.Add(long.Parse(part, Inv));
     }
 
     /// <summary>Pulse deliveries as "actor:year;…"; "-" when unheard.</summary>
@@ -1150,6 +1178,27 @@ public static class ArtifactSerializer
                             .Add(belief.CorpId, belief);
                         break;
                     }
+                    case "POI":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Pois.Count)
+                            throw new InvalidDataException(
+                                "poi ids out of order");
+                        var poi = new PoiRecord(int.Parse(f[1], Inv),
+                            (PoiType)int.Parse(f[2], Inv),
+                            new HexCoordinate(int.Parse(f[3], Inv),
+                                              int.Parse(f[4], Inv)),
+                            double.Parse(f[5], Inv), long.Parse(f[6], Inv),
+                            int.Parse(f[7], Inv), int.Parse(f[8], Inv))
+                        {
+                            HullsSalvaged = int.Parse(f[9], Inv),
+                            Depleted = f[10] == "1",
+                            Dormant = f[11] == "1",
+                        };
+                        ParseIntList(f[12], poi.ParticipantActorIds);
+                        ParseLongList(f[13], poi.SourceEventIds);
+                        state.Pois.Add(poi);
+                        break;
+                    }
                     case "STANCE":
                         state!.Actors[int.Parse(f[1], Inv)].Beliefs.Stances
                             .Add(int.Parse(f[2], Inv), double.Parse(f[3], Inv));
@@ -1362,6 +1411,17 @@ public static class ArtifactSerializer
             e.WinnerId.ToString(Inv), Name(e.AttackerName),
             Name(e.DefenderName), e.PortsCeded.ToString(Inv),
             R(e.Reparations)),
+        BattlefieldMarkedPayload e => Join("battlefieldMarked",
+            e.PoiId.ToString(Inv), e.Hulls.ToString(Inv)),
+        RuinsFallSilentPayload e => Join("ruinsFallSilent",
+            e.PoiId.ToString(Inv), e.PortId.ToString(Inv)),
+        CapitalRuinedPayload e => Join("capitalRuined", e.PoiId.ToString(Inv),
+            e.PolityId.ToString(Inv), Name(e.PolityName)),
+        MemorialRaisedPayload e => Join("memorialRaised",
+            e.PoiId.ToString(Inv), e.Cause.ToString(Inv)),
+        PrecursorSiteChartedPayload e => Join("precursorSiteCharted",
+            e.PoiId.ToString(Inv), e.SiteType.ToString(Inv), B(e.Dormant),
+            Name(e.WaveName)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1498,6 +1558,17 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
             f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
             double.Parse(f[at + 8], Inv)),
+        "battlefieldMarked" => new BattlefieldMarkedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "ruinsFallSilent" => new RuinsFallSilentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "capitalRuined" => new CapitalRuinedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3]),
+        "memorialRaised" => new MemorialRaisedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
+        "precursorSiteCharted" => new PrecursorSiteChartedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
+            f[at + 3] == "1", f[at + 4]),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

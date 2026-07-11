@@ -25,6 +25,28 @@ public sealed class EpochSimConfig
     public RelationsKnobs Relations { get; } = new RelationsKnobs();
     public WarKnobs War { get; } = new WarKnobs();
     public NewsKnobs News { get; } = new NewsKnobs();
+    public PoiKnobs Poi { get; } = new PoiKnobs();
+}
+
+/// <summary>POI-compiler dials (chronicle-and-poi.md §The POI compiler):
+/// what qualifies as a battlefield, a memorial, permanent archaeology, and
+/// how far surveyors chart precursor sites. Slice I.</summary>
+public sealed class PoiKnobs
+{
+    /// <summary>Wrecked hulls at one hex before it anchors a battlefield.</summary>
+    public double BattlefieldHullFloor { get; set; } = 4.0;
+    /// <summary>Famine shortfall below which no memorial rises — ordinary
+    /// hunger is not an atrocity.</summary>
+    public double MemorialShortfallFloor { get; set; } = 0.75;
+    /// <summary>Battlefield magnitude at which a salvaged-out field still
+    /// persists as permanent archaeology instead of fading.</summary>
+    public double PermanentMagnitude { get; set; } = 20.0;
+    /// <summary>Epochs a founded port must sit empty before it reads as a
+    /// dead city (grace precedes the death clock).</summary>
+    public int RuinsDeadEpochs { get; set; } = 2;
+    /// <summary>Hexes from any entered port at which a precursor site gets
+    /// charted — exploration surfaces the deep past.</summary>
+    public int SurveyReachHexes { get; set; } = 10;
 }
 
 /// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc

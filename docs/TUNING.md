@@ -280,6 +280,21 @@ sanction treaty-breakers, militants respect bold conquest, dogmatic
 distance amplifies condemnation) are structural constants in
 `ReputationOps.Judge`, like the stance buckets.
 
+## Poi — the incremental POI compiler (slice I)
+
+Residue becomes anchored places every Chronicle: battlefields from
+wreckage, ruins from dead cities, fallen capitals, memorials, and
+precursor sites charted as expansion reaches them. One live anchor per
+hex, arbitrated by magnitude (chronicle-and-poi.md).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Poi.BattlefieldHullFloor` | 4 | Only great slaughters anchor a field; skirmish wrecks stay noise. | Every lost patrol pins a hex. |
+| `Poi.MemorialShortfallFloor` | 0.75 | Only true horrors are remembered in stone. | Every lean winter gets a shrine. |
+| `Poi.PermanentMagnitude` | 20 | Most salvaged-out fields fade; archaeology is rare. | Every old battlefield litters the map forever. |
+| `Poi.RuinsDeadEpochs` | 2 | Cities must lie long dead before ruins anchor (migration blips forgiven). | Any evacuation reads as a fall. |
+| `Poi.SurveyReachHexes` | 10 | Precursor sites chart from far off — the deep past surfaces early. | Sites stay unknown until someone builds next door. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs

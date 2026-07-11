@@ -1384,25 +1384,39 @@ public sealed class ChroniclePhase : ISimPhase
     {
         int pulses = 0;
         foreach (var e in state.Staged)
-        {
-            var appended = state.Log.Append(state.WorldYear, e.Stratum, e.Type,
-                             e.Actors, e.Location, e.Magnitude, e.Valence,
-                             e.Visibility, e.Payload);
-            if (e.Visibility == EventVisibility.Public
-                && e.Magnitude >= state.Config.News.PulseMagnitudeFloor)
-            {
-                state.Pulses.Add(new NewsPulse(state.Pulses.Count, appended.Id,
-                    e.Location, state.WorldYear, e.Magnitude));
-                pulses++;
-            }
-        }
+            Finalize(state, e, ref pulses);
         int count = state.Staged.Count;
         state.Staged.Clear();
+        // the incremental POI compiler reads the epoch's finalized residue
+        // and anchors it — the map is always current (slice I)
+        var compiled = PoiCompiler.Compile(state);
+        foreach (var e in compiled)
+            Finalize(state, e, ref pulses);
+        count += compiled.Count;
         string note = count == 1 ? "1 event finalized"
             : $"{count} events finalized";
+        if (compiled.Count > 0)
+            note += $", {compiled.Count} " + (compiled.Count == 1
+                ? "POI compiled" : "POIs compiled");
         if (pulses > 0)
             note += $", {pulses} " + (pulses == 1 ? "pulse" : "pulses")
                 + " emitted";
         return note;
+    }
+
+    /// <summary>Append one event to the log; public word over the floor
+    /// pulses (arriving in future steps by distance and traffic).</summary>
+    private static void Finalize(SimState state, StagedEvent e, ref int pulses)
+    {
+        var appended = state.Log.Append(state.WorldYear, e.Stratum, e.Type,
+                         e.Actors, e.Location, e.Magnitude, e.Valence,
+                         e.Visibility, e.Payload);
+        if (e.Visibility == EventVisibility.Public
+            && e.Magnitude >= state.Config.News.PulseMagnitudeFloor)
+        {
+            state.Pulses.Add(new NewsPulse(state.Pulses.Count, appended.Id,
+                e.Location, state.WorldYear, e.Magnitude));
+            pulses++;
+        }
     }
 }

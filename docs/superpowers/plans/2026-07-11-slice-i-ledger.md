@@ -97,9 +97,19 @@ scope restated in-session.
       signature floor 3, quiet ≥ 4 epochs = "The Long Peace"; repeat
       names take numerals. `chronicle place <q> <r>` is the archaeology
       view; annotation is recomputed, never stored.
-- [ ] I7 — POI compiler: PoiRecord registry + Chronicle compiler +
+- [x] I7 — POI compiler: PoiRecord registry + Chronicle compiler +
       `pois` layer + REPL `poi`; POIs-accumulate-where-history-happened
       shape test.
+      Notes: battlefields grow at the same hex; ruins = ports empty past
+      RuinsDeadEpochs, reviving when repopulated; fallen capitals from
+      Annexed settlements; memorials from deep famines + suppressions;
+      precursor sites chart when a port comes within SurveyReachHexes
+      (exploration surfaces the deep past — no epoch-0 flood). Five new
+      event types (208, 310–312, 408) with prose + payload codecs.
+      Seed 42 × 40 epochs: 145 POIs, battlefields with 5–141-hull
+      salvage fields. Lawlessness/piracy wire deliberately deferred
+      (design table lists it; kickoff scope names salvage + expeditions
+      — flag for J if wanted).
 - [ ] I8 — Salvage + expeditions: corporate salvage niche, conserving
       draws, Explorer notable, precursor digging; hull-ledger test.
 - [ ] I9 — Plagues: PlagueOps + QuarantineAct resolution + immunity/

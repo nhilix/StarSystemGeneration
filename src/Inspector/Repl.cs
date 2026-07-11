@@ -44,6 +44,7 @@ public sealed class Repl
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
+                    Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
                     Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
@@ -247,11 +248,17 @@ public sealed class Repl
                         + "`fleetpost <fleetId> blockade <portId>` stations a squadron and "
                         + "severs every lane at that port's approaches");
                     break;
-                case "chronicle" or "eras" when _sim == null:
+                case "chronicle" or "eras" or "poi" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "eras":
                     Console.WriteLine(NarrativeView.RenderEras(_sim!));
+                    break;
+                case "poi" when parts.Length >= 2 && int.TryParse(parts[1], out var poiId):
+                    Console.WriteLine(NarrativeView.RenderPoi(_sim!, poiId));
+                    break;
+                case "poi":
+                    Console.WriteLine(NarrativeView.RenderPois(_sim!));
                     break;
                 case "chronicle" when parts.Length >= 4 && parts[1] == "place"
                         && int.TryParse(parts[2], out var cq)

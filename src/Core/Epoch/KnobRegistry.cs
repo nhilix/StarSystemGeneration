@@ -614,6 +614,28 @@ public static class KnobRegistry
           c => c.News.TrafficSpeedBonus,
           (c, v) => c.News.TrafficSpeedBonus = v),
 
+        // ---- Poi (the incremental POI compiler — slice I) ----
+        K("Poi.BattlefieldHullFloor",
+          "wrecked hulls at one hex before it anchors a battlefield",
+          c => c.Poi.BattlefieldHullFloor,
+          (c, v) => c.Poi.BattlefieldHullFloor = v),
+        K("Poi.MemorialShortfallFloor",
+          "famine shortfall below which no memorial rises",
+          c => c.Poi.MemorialShortfallFloor,
+          (c, v) => c.Poi.MemorialShortfallFloor = v),
+        K("Poi.PermanentMagnitude",
+          "battlefield size that persists as archaeology when salvaged out",
+          c => c.Poi.PermanentMagnitude,
+          (c, v) => c.Poi.PermanentMagnitude = v),
+        K("Poi.RuinsDeadEpochs",
+          "epochs a port sits empty before it reads as a dead city",
+          c => c.Poi.RuinsDeadEpochs,
+          (c, v) => c.Poi.RuinsDeadEpochs = (int)Math.Round(v)),
+        K("Poi.SurveyReachHexes",
+          "hexes from any entered port at which precursor sites chart",
+          c => c.Poi.SurveyReachHexes,
+          (c, v) => c.Poi.SurveyReachHexes = (int)Math.Round(v)),
+
         // ---- Population (demographics, migration, ideology) ----
         K("Population.FamineLine",
           "subsistence fraction below which segments shrink and famines chronicle",
