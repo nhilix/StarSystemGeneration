@@ -118,6 +118,19 @@ public static class ArtifactSerializer
                     // actors v4 (slice G): the research split rides along
                     R(pp.Research.Industrial), R(pp.Research.Military),
                     R(pp.Research.Astrogation), R(pp.Research.Life)));
+            // actors v6 (slice t1): the standing plan's entries follow the
+            // actor's POLICY line, in plan order (Load rebuilds them)
+            if (a.Policies is PolityPolicies withPlan)
+                for (int ix = 0; ix < withPlan.Plan.Entries.Count; ix++)
+                {
+                    var e = withPlan.Plan.Entries[ix];
+                    w.WriteLine(Join("PLANE", a.Id.ToString(Inv),
+                        ix.ToString(Inv), ((int)e.Kind).ToString(Inv),
+                        ((int)e.Priority).ToString(Inv),
+                        e.StartYear.ToString(Inv), e.TypeId.ToString(Inv),
+                        e.PortId.ToString(Inv), e.Hex.Q.ToString(Inv),
+                        e.Hex.R.ToString(Inv), e.Count.ToString(Inv)));
+                }
         }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
@@ -887,7 +900,32 @@ public static class ArtifactSerializer
                             NativePolicy: (NativePolicy)int.Parse(f[12], Inv),
                             Research: new ResearchSplit(double.Parse(f[18], Inv),
                                 double.Parse(f[19], Inv), double.Parse(f[20], Inv),
-                                double.Parse(f[21], Inv)));
+                                double.Parse(f[21], Inv)),
+                            Plan: StandingPlan.Empty);
+                        break;
+                    case "PLANE":
+                        // actors v6 (slice t1): a plan entry following its
+                        // actor's POLICY line — appended in file (plan) order
+                        var planActor = state!.Actors[int.Parse(f[1], Inv)];
+                        if (planActor.Policies is PolityPolicies planPolicies)
+                        {
+                            var entries = new List<PlanEntry>(
+                                planPolicies.Plan.Entries)
+                            {
+                                new PlanEntry(
+                                    (PlanEntryKind)int.Parse(f[3], Inv),
+                                    (ProjectPriority)int.Parse(f[4], Inv),
+                                    int.Parse(f[5], Inv), int.Parse(f[6], Inv),
+                                    int.Parse(f[7], Inv),
+                                    new HexCoordinate(int.Parse(f[8], Inv),
+                                                      int.Parse(f[9], Inv)),
+                                    int.Parse(f[10], Inv)),
+                            };
+                            planActor.Policies = planPolicies with
+                            {
+                                Plan = new StandingPlan(entries),
+                            };
+                        }
                         break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),

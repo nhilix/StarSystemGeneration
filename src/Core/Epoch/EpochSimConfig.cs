@@ -838,6 +838,17 @@ public sealed class ExpansionKnobs
     public double EncroachmentPenalty { get; set; } = 1.5;
     /// <summary>Development points to raise a port: cost = base × current tier.</summary>
     public double PortUpgradeCostBase { get; set; } = 40.0;
+    /// <summary>World-years to raise a port one tier.</summary>
+    public double PortUpgradeYears { get; set; } = 5.0;
+    /// <summary>Alloys drawn per world-year per current tier while a port
+    /// raise is under construction.</summary>
+    public double PortUpgradeAlloysPerYearPerTier { get; set; } = 2.0;
+    /// <summary>Machinery drawn per world-year per current tier during a
+    /// port raise.</summary>
+    public double PortUpgradeMachineryPerYearPerTier { get; set; } = 1.0;
+    /// <summary>Refined Exotics drawn per world-year per current tier during
+    /// a port raise.</summary>
+    public double PortUpgradeExoticsPerYearPerTier { get; set; } = 0.25;
     public double HomeworldSegmentSize { get; set; } = 3.0;
     public double ColonySegmentSize { get; set; } = 0.5;
     /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>
@@ -922,6 +933,10 @@ public sealed class FleetKnobs
     /// <summary>Hulls a yard lays down per yard tier per world-year,
     /// components permitting.</summary>
     public double YardHullsPerTierPerYear { get; set; } = 0.2;
+    /// <summary>World-years to build one Medium hull — the planner's hull-
+    /// batch duration base, scaled by the design's component draw against
+    /// Medium (spec §3).</summary>
+    public double HullBuildYearsBase { get; set; } = 1.5;
 }
 
 /// <summary>Genesis-AI policy dials (frame/controller-contract.md): the
@@ -963,4 +978,10 @@ public sealed class ControllerKnobs
     public double NarcoticsProhibitBelowOpenness { get; set; } = 0.35;
     /// <summary>Species openness below which narcotics are restricted.</summary>
     public double NarcoticsRestrictBelowOpenness { get; set; } = 0.55;
+    /// <summary>Entries the planner may schedule in one standing plan — the
+    /// horizon's project budget (spec §3).</summary>
+    public int MaxPlanEntries { get; set; } = 16;
+    /// <summary>Base score of a port-raise plan entry, divided by the port's
+    /// current tier — the standing bias toward deepening young ports first.</summary>
+    public double PortRaisePlanScore { get; set; } = 0.5;
 }

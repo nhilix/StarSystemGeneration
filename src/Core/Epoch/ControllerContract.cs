@@ -537,6 +537,13 @@ public sealed class GenesisController : IController
                 }
             policies = policies with { ShipbuildingPriorities = builds };
         }
+        // the standing schedule reads the same decision's other policies
+        // (ShipbuildingPriorities feed the hull entries) — emitted last, so
+        // the plan sees the finished budget and yard queue (spec §3, P2-clean)
+        policies = policies with
+        {
+            Plan = Planner.BuildPlan(perceived, policies, _config),
+        };
         return policies;
     }
 

@@ -311,7 +311,7 @@ public sealed class AllocationPhase : ISimPhase
     public string Run(SimState state)
     {
         var cfg = state.Config;
-        int earning = 0, lanesBuilt = 0, portsRaised = 0;
+        int earning = 0, lanesBuilt = 0;
         int hullsLaid = 0, hullsLost = 0;
         int defaults = ServiceLoans(state);
         // tribute ships up before anyone budgets: vassals allocate what
@@ -347,8 +347,11 @@ public sealed class AllocationPhase : ISimPhase
             // ladder progress; the spend recycles as lab wages (slice G)
             pr.Credits -= TechOps.Research(state, pr, policies.Research,
                 allocatable * budget.Research);
+            // the standing plan breaks ground on everything due this step —
+            // facilities, port raises, hull batches — as construction
+            // projects that Advance feeds over their build years (spec §3)
+            Groundbreak(state, pr, policies.Plan);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
-            portsRaised += RaisePorts(state, pr, ownPorts);
             hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
             FleetOps.ManagePostures(state, pr, ownPorts);
             hullsLost += FleetOps.SupplyFleets(state, pr);
@@ -359,6 +362,10 @@ public sealed class AllocationPhase : ISimPhase
         int corporationsActive = CorporationOps.Operate(state);
         // laggards learn from the goods they buy and the wrecks they find
         TechOps.Diffuse(state);
+        // every funder's in-flight projects advance one step in priority
+        // order (polity groundbreaks above, corp spawns from Operate) —
+        // delivered years commission facilities, raise tiers, open lanes
+        int completions = ProjectOps.AdvanceAll(state);
         int advances = 0;
         foreach (var staged in state.Staged)
             if (staged.Type == WorldEventType.TechAdvanced) advances++;
@@ -366,8 +373,8 @@ public sealed class AllocationPhase : ISimPhase
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
-        if (portsRaised > 0) note += $", {portsRaised} " + (portsRaised == 1 ? "port raised" : "ports raised");
         if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
+        if (completions > 0) note += $", {completions} project completions";
         if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
         if (corporationsActive > 0)
             note += $", {corporationsActive} " + (corporationsActive == 1
@@ -760,34 +767,96 @@ public sealed class AllocationPhase : ISimPhase
         return gate.Id;
     }
 
-    /// <summary>Lowest-tier port first (tie: lowest id); cost = base × current
-    /// tier; raised while affordable.</summary>
-    private static int RaisePorts(SimState state, PolityRecord pr, List<Port> ownPorts)
+    /// <summary>Break ground on the standing plan (spec §3, Move 2): each due
+    /// entry becomes an in-flight construction project after its truth checks
+    /// pass against CURRENT state — a stale plan simply finds its site taken,
+    /// its port lost, or its treasury short and skips without charge. Advance
+    /// (post-loop) feeds every project over its build years.</summary>
+    private static void Groundbreak(SimState state, PolityRecord pr,
+                                    StandingPlan plan)
+    {
+        int spanEnd = state.WorldYear + state.Config.Sim.YearsPerEpoch;
+        for (int ix = 0; ix < plan.Entries.Count; ix++)
+        {
+            var entry = plan.Entries[ix];
+            if (entry.StartYear >= spanEnd) continue;   // not due this step
+            switch (entry.Kind)
+            {
+                case PlanEntryKind.Facility:
+                    GroundbreakFacility(state, pr, entry, ix);
+                    break;
+                case PlanEntryKind.PortRaise:
+                    GroundbreakPortRaise(state, pr, entry, ix);
+                    break;
+                case PlanEntryKind.HullBatch:
+                    // Task 8: ProjectOps.SpawnHullBatch
+                    continue;
+            }
+        }
+    }
+
+    /// <summary>Facility groundbreak: an empty hex on an owned, under-capacity
+    /// port with the development treasury to cover the administered value —
+    /// the Facility row appears uncommissioned NOW (P1) and commissions when
+    /// the build span delivers.</summary>
+    private static void GroundbreakFacility(SimState state, PolityRecord pr,
+                                            PlanEntry entry, int planOrder)
     {
         var cfg = state.Config;
-        int raised = 0;
-        while (true)
+        if (entry.PortId < 0 || entry.PortId >= state.Ports.Count) return;
+        var port = state.Ports[entry.PortId];
+        if (port.OwnerActorId != pr.ActorId) return;
+        foreach (var f in state.Facilities)                   // id order (P6)
+            if (f.Hex.Equals(entry.Hex)) return;              // site taken
+        int cap = port.Tier * cfg.Infrastructure.FacilitiesPerPortTier;
+        int attached = 0;
+        foreach (var f in state.Facilities)                   // id order (P6)
         {
-            Port? pick = null;
-            foreach (var p in ownPorts)
-                if (p.Tier < cfg.Infrastructure.MaxPortTier
-                    && (pick == null || p.Tier < pick.Tier
-                        || (p.Tier == pick.Tier && p.Id < pick.Id)))
-                    pick = p;
-            if (pick == null) break;
-            double cost = cfg.Expansion.PortUpgradeCostBase * pick.Tier;
-            if (pr.DevelopmentPoints < cost) break;
-            pr.DevelopmentPoints -= cost;
-            MarketEngine.PayWages(state, pick.Id, cost);   // builders get paid
-            pick.Tier++;
-            raised++;
-            state.Staged.Add(new StagedEvent(
-                ClockStratum.Generational, WorldEventType.PortTierRaised,
-                new[] { pr.ActorId }, pick.Hex,
-                Magnitude: pick.Tier, Valence: 1.0, EventVisibility.Regional,
-                new PortTierRaisedPayload(pick.Id, pick.Tier)));
+            if (f.TypeId == (int)Substrate.InfraTypeId.Gate) continue;
+            if (f.OwnerActorId == pr.ActorId
+                && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                attached++;
         }
-        return raised;
+        if (attached >= cap) return;
+        var def = Substrate.Infrastructure.Get((Substrate.InfraTypeId)entry.TypeId);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+            value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good);
+        if (pr.DevelopmentPoints < value) return;
+        ProjectOps.SpawnFacilityConstruction(state, pr.ActorId, pr.ActorId,
+            new ConstructionCandidate(entry.TypeId, entry.Hex, entry.PortId,
+                                      0.0),
+            entry.Priority, planOrder);
+    }
+
+    /// <summary>Port-raise groundbreak: an owned port below the tier ceiling
+    /// with no raise already in flight and the treasury to cover the base
+    /// cost — the tier lifts when the raise span delivers.</summary>
+    private static void GroundbreakPortRaise(SimState state, PolityRecord pr,
+                                             PlanEntry entry, int planOrder)
+    {
+        var cfg = state.Config;
+        var ex = cfg.Expansion;
+        if (entry.PortId < 0 || entry.PortId >= state.Ports.Count) return;
+        var port = state.Ports[entry.PortId];
+        if (port.OwnerActorId != pr.ActorId
+            || port.Tier >= cfg.Infrastructure.MaxPortTier) return;
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.InFlight && p.Kind == ProjectKind.PortRaise
+                && p.TargetId == port.Id) return;             // already raising
+        double baseCost = ex.PortUpgradeCostBase * port.Tier;
+        if (pr.DevelopmentPoints < baseCost) return;
+        double years = Math.Max(1.0, ex.PortUpgradeYears);
+        var proj = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
+            pr.ActorId, port.Id, port.Hex, years, entry.Priority, planOrder);
+        proj.TargetId = port.Id;
+        proj.PerYearBasket[(int)Substrate.GoodId.Alloys] =
+            ex.PortUpgradeAlloysPerYearPerTier * port.Tier;
+        proj.PerYearBasket[(int)Substrate.GoodId.Machinery] =
+            ex.PortUpgradeMachineryPerYearPerTier * port.Tier;
+        proj.PerYearBasket[(int)Substrate.GoodId.RefinedExotics] =
+            ex.PortUpgradeExoticsPerYearPerTier * port.Tier;
+        proj.WagesPerYear = baseCost / years;
     }
 
     private static bool LaneExists(SimState state, int aId, int bId)

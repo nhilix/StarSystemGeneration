@@ -350,6 +350,10 @@ set how fast the built world thickens (slice D).
 | `Expansion.ColonizationReachHexes` | 24 | Bolder leaps into the dark (further from lane relief). | Tight incremental sprawl. |
 | `Expansion.LaneCost` | 25 | Sparser networks; more isolated famine pockets. | Everything connects fast; blockades matter less each. |
 | `Expansion.PortUpgradeCostBase` | 40 | Rarer nexuses; flatter hierarchy. | Tier inflation. |
+| `Expansion.PortUpgradeYears` | 5 | Tier raises are multi-generation works — a raise begun late in a reign finishes under an heir. | Ports leap tiers within a step (near-instant, pre-Task-7 feel). |
+| `Expansion.PortUpgradeAlloysPerYearPerTier` | 2 | Raises pull harder on the alloy market each year (higher tiers cost more per year). | Cheaper raises; the market barely feels them. |
+| `Expansion.PortUpgradeMachineryPerYearPerTier` | 1 | (as above, machinery) | — |
+| `Expansion.PortUpgradeExoticsPerYearPerTier` | 0.25 | Raises want refined exotics — exotics-poor realms stall their nexuses. | Raises ignore the exotics chain. |
 | `Expansion.HomeworldSegmentSize` / `ColonySegmentSize` | 3 / 0.5 | Bigger founding populations (more labor, more mouths). | Thin seeds; slower starts. |
 | `Expansion.SegmentGrowthPerYear` | 0.01 | Faster natural increase — caps bind sooner, migration pressure builds. | Population is precious; losses take centuries to heal. |
 | `Expansion.SegmentCapPerTier` | 2 | Ports carry more people per tier (development = population). | Tier raises become the only growth path. |
@@ -378,6 +382,13 @@ player, P2) replace the AI and bring their own numbers.
 | Knob | Default | Raise it | Lower it |
 |---|---|---|---|
 | `Controller.BaseTariffRate` | 0.15 | Insular societies wall off trade (pact cuts matter more). | Free trade everywhere; trade-pact teeth bite nothing. |
+
+### Controller additions (slice t1 — the planner)
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Controller.MaxPlanEntries` | 16 | Longer standing schedules — a realm queues more concurrent works (packing still caps spend by income). | Short horizons; only the top-scoring few projects get scheduled. |
+| `Controller.PortRaisePlanScore` | 0.5 | Port raises out-compete new facilities for the income rate — realms deepen hubs over spreading industry. | Facilities crowd port raises out of the plan; ports stay shallow. |
 
 ## Tech — ladder costs, research, diffusion (slice G)
 
@@ -411,6 +422,7 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.YardHullsPerTierPerYear` | 0.2 | Bigger navies and merchant marines per yard tier (components permitting). | Hulls trickle; expansion and freight both thin. |
 | `Fleet.HullComponentsBase` | 3 | Dearer hulls: yards drain components and treasuries faster, fleets stay small. | Cheap hulls; the components market barely notices a navy. |
 | `Fleet.HullArmamentsBase` | 1.5 | Warships bid up armaments — arsenals pay (H inherits armed yards). | Guns nearly free at the slip. |
+| `Fleet.HullBuildYearsBase` | 1.5 | Hull batches take longer to build (scaled by size) — the planner reserves more of the income rate per batch. | Near-instant hulls; yards spit out batches each step. |
 | `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
 | `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
 | `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |

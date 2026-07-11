@@ -51,11 +51,13 @@ public class AllocationEconomyTests
         Assert.True(pr.Credits < 100);
     }
 
-    /// <summary>Construction-volume test: with the greedy loop gone,
-    /// AllocationPhase itself builds nothing until the planner (Task 7)
-    /// calls SpawnFacilityConstruction from a plan. Revive once Groundbreak
-    /// lands (t1: planner lands Task 7).</summary>
-    [Fact(Skip = "t1: planner lands Task 7")]
+    /// <summary>Construction-volume test (Task 7): the greedy loop is gone —
+    /// AllocationPhase now breaks ground on the standing plan and Advance
+    /// feeds the construction project. A Mine builds in 2 years, well inside
+    /// one 25-year span, so a single Allocation flows the whole cycle
+    /// plan → groundbreak → advance → commission, consuming real goods and
+    /// staging FacilityBuilt.</summary>
+    [Fact]
     public void Construction_BuildsAFacility_ConsumingRealGoods()
     {
         var (state, port) = Fixture();
@@ -64,10 +66,18 @@ public class AllocationEconomyTests
         var m = state.Markets[0];
         StockBuildGoods(m);
         double alloysBefore = m.Inventory[(int)GoodId.Alloys];
+        // the standing plan the groundbreak pass executes: a Mine on the
+        // capital, due now (StartYear at or before this span)
+        var entry = new PlanEntry(PlanEntryKind.Facility, ProjectPriority.Core,
+            state.WorldYear, (int)InfraTypeId.Mine, port.Id, port.Hex, 1);
+        state.Actors[0].Policies = PolityPolicies.Default with
+        {
+            Plan = new StandingPlan(new[] { entry }),
+        };
 
         new AllocationPhase().Run(state);
 
-        Assert.True(state.Facilities.Count > 0, "development should build");
+        Assert.True(state.Facilities.Count > 0, "the plan should break ground");
         Assert.True(m.Inventory[(int)GoodId.Alloys] < alloysBefore,
             "construction consumes real goods");
         bool staged = false;
