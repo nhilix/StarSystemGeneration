@@ -144,7 +144,6 @@ public static class PoiCompiler
     private static void CompileRuins(SimState state, List<StagedEvent> events)
     {
         var knobs = state.Config.Poi;
-        int years = state.Config.Sim.YearsPerEpoch;
         foreach (var port in state.Ports)                 // id order (P6)
         {
             if (Population(state, port.Id) >= 0.01)

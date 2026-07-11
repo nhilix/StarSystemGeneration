@@ -30,7 +30,7 @@ public static class SimTraceView
                 }
             sb.AppendLine(Invariant($"  #{a.Id} {a.Name} ({a.Kind}) — seat ")
                 + Invariant($"({a.Seat.Q},{a.Seat.R}), enters epoch {a.EntryEpoch} ")
-                + Invariant($"(y{a.EntryEpoch * sim.YearsPerEpoch})")
+                + Invariant($"(y{a.EntryEpoch * sim.GenerationYears})")
                 + (a.Entered
                     ? Invariant($" — {ports} ") + (ports == 1 ? "port" : "ports")
                       + Invariant($", top tier {topTier}")

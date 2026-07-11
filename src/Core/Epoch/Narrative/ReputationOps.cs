@@ -162,7 +162,9 @@ public static class ReputationOps
         {
             var e = events[i];
             long age = state.WorldYear - e.WorldYear;
-            if (age > horizon) break;
+            // the last window may straddle the horizon when the step size
+            // does not divide the generation (review fix 3)
+            if (age > horizon + years - 1) break;
             if (age < years || e.Visibility != EventVisibility.Regional)
                 continue;
             double[]? field = null;
@@ -172,9 +174,13 @@ public static class ReputationOps
                 field ??= fields.FieldFor(state, e.Location);
                 double delay = NewsOps.DelayYears(state, a.Id, field,
                                                   e.Location);
-                if (delay > age) continue;                 // still in transit
+                // in transit, or beyond the one-generation horizon
+                if (delay > age || delay > horizon) continue;
                 // the word arrived within THIS step (fresh events take
-                // everyone the first step their delay allows)
+                // everyone the first step their delay allows). Delay is
+                // recomputed from live traffic, so a churning topology can
+                // double- or skip-judge one regional event at fine tick —
+                // deterministic, bounded, accepted (coarse has one window).
                 if (age > years && delay <= age - years) continue;
                 Judge(state, a, e, attenuation: 1.0);
             }

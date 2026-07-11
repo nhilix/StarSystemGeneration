@@ -287,7 +287,7 @@ public static class WarConduct
             double frac = state.Config.Sim.StepFraction;
             int attLost = WreckAt(state, warFleet, hex,
                 RoundLoss(state, warFleet.TotalHulls * attShare * frac,
-                          war.Id, objective.Id * 1024));
+                          war.Id, objective.Id * 65536));
             int defLost = WreckDefendersAt(state, war, hex, defShare * frac,
                                            objective.Id);
             attackerHullsLost += attLost;
@@ -557,7 +557,7 @@ public static class WarConduct
                 double effectiveShare = localPass ? share
                     : share * state.Config.War.MobileResponseShare;
                 int toLose = RoundLoss(state, warships * effectiveShare,
-                    war.Id, objectiveId * 1024 + 1 + fleet.Id);
+                    war.Id, objectiveId * 65536 + 1 + fleet.Id);
                 if (toLose <= 0) continue;
                 lost += WreckWarships(state, fleet, hex, toLose);
             }

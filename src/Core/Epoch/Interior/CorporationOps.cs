@@ -482,7 +482,8 @@ public static class CorporationOps
                     corp.Credits -= lobby;
                     ElitesOf(state, corp).Wealth += lobby;
                 }
-                if (corp.Receipts > knobs.MagnateReceipts
+                if (corp.Receipts / state.Config.Sim.StepFraction
+                        > knobs.MagnateReceipts
                     && corp.ExecutiveCharacterId >= 0
                     && state.Characters[corp.ExecutiveCharacterId]
                            is { Alive: true, Notable: NotableType.None } exec
@@ -513,7 +514,10 @@ public static class CorporationOps
                         / Math.Max(1, state.Config.Sim.GenerationYears)
                         > knobs.FoundingGraceEpochs)
             {
-                corp.LeanYears = corp.Receipts < knobs.LeanReceiptsFloor
+                // receipts are a per-step flow against a per-generation
+                // floor (review fix 1): a fine step earns its fraction
+                corp.LeanYears = corp.Receipts / state.Config.Sim.StepFraction
+                        < knobs.LeanReceiptsFloor
                     ? corp.LeanYears + state.Config.Sim.YearsPerEpoch : 0;
                 if (corp.LeanYears >= knobs.NicheDeathEpochs
                         * state.Config.Sim.GenerationYears)

@@ -98,11 +98,13 @@ public static class DeltaSerializer
         // reassemble: base layers in base order, patched where the delta says
         var sb = new StringBuilder();
         sb.Append(FirstLine(baseText)).Append('\n');
+        var consumed = new HashSet<string>();
         foreach (var (header, lines) in SplitOrdered(baseText))
         {
             string name = LayerName(header);
             if (replaced.TryGetValue(name, out var replacement))
             {
+                consumed.Add(name);
                 foreach (var line in replacement) sb.Append(line).Append('\n');
                 continue;
             }
@@ -111,6 +113,12 @@ public static class DeltaSerializer
             if (name == "events" && appended != null)
                 foreach (var line in appended) sb.Append(line).Append('\n');
         }
+        // a section for a layer the base lacks must refuse loudly (a
+        // newer-format delta against an older base), never vanish
+        foreach (var name in replaced.Keys)
+            if (!consumed.Contains(name))
+                throw new InvalidDataException(
+                    $"delta replaces layer '{name}' absent from the base");
         return sb.ToString();
     }
 
