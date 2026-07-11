@@ -124,6 +124,43 @@ public class BeliefTests
             state.Actors[1].Perception!.Wars[0].OwnSideExhaustion, 6);
     }
 
+    /// <summary>The fog of war end to end (slice I task 5): the concession
+    /// decision reads the believed exhaustion, so a distant loser keeps
+    /// fighting until the front reports reach its court — wars run past
+    /// their rational end (war.md §Termination, P3).</summary>
+    [Fact]
+    public void TheDistantLoser_FightsOn_UntilTheNewsArrives()
+    {
+        var (state, _, _) = DistantPairFixture();
+        var war = new War(0, "The Fog War", 0, 1, CasusBelli.BorderIncident,
+                          -1, WarDemand.Reparations, state.WorldYear);
+        state.Wars.Add(war);
+        new PerceptionPhase().Run(state);      // fresh sight: nothing wrong yet
+        war.DefenderExhaustion = 0.9;          // then the fronts collapse
+
+        state.WorldYear += 25;
+        new PerceptionPhase().Run(state);
+        new IntentPhase().Run(state);
+        Assert.False(SuesForPeace(state, 1),
+            "the court hasn't heard — the war runs past its rational end");
+
+        state.WorldYear += 50;                 // the reports finally land
+        new PerceptionPhase().Run(state);
+        new IntentPhase().Run(state);
+        Assert.True(SuesForPeace(state, 1),
+            "the arrived truth breaks the will to fight");
+    }
+
+    private static bool SuesForPeace(SimState state, int actorId)
+    {
+        foreach (var d in state.Decisions)
+            foreach (var act in d.Decision.Acts)
+                if (act is SettlementResponseAct sue && sue.Accept
+                    && sue.ActorId == actorId)
+                    return true;
+        return false;
+    }
+
     [Fact]
     public void Beliefs_Serialize_AndSurviveTheRoundTrip()
     {
