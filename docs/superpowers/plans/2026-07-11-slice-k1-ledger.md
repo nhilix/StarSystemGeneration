@@ -120,7 +120,23 @@ to start K1 in the same session.
         renders — billboard sizing rode its pixel caps (96px ports!);
         replaced with explicit _AtlasFocalY/_AtlasViewportPx globals set
         by CameraRig per frame and by capture tooling per shot.
-- [ ] **T7e — USER: atlas eyeball, third pass**
+- [x] **T7e — USER eyeball iterations** (much better; three refinement
+      notes, all landed):
+  - [x] 3+ overlap: borders now derive from EVERY polity's zero edge,
+        not the locally strongest two (`e8d3842`)
+  - [x] Nature reads nebular, not hex-pixelated: NatureFieldSampler —
+        Gaussian cell blending, presence-scaled alpha, void feathering,
+        ValueNoise cloud breakup on view-only RollChannel.AtlasNebula=74
+        (`f269990`); disc reads as a blended whole (base presence lift,
+        pinned by test) and quads stopped clipping (pad 48) (`22154d2`)
+  - [x] **Dark-wilds are value-poor, never blank** (`c2de2ed`) — user
+        design clarification: IsVoid is only the traversability
+        judgment; CosmicResidue writes real fields everywhere, so the
+        atlas renders them (wilds dim, no base lift), and the lattice
+        draws every hex in the disc. Economic exclusion untouched.
+        CONVENTION: the atlas diverges from the REPL's blank-glyph
+        voids going forward (user-confirmed).
+- [ ] **T7f — USER: atlas eyeball, final pass**
 - [ ] **T8 — Wrap-up**: merge on user nod · HANDOFF · tick K1 in the K
       roadmap · write K2 kickoff prompt · republish design diagram if
       deviated · push only on say-so
