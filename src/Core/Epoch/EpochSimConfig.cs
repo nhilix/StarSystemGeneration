@@ -786,10 +786,6 @@ public sealed class InfrastructureKnobs
     public int ServiceRadiusBaseHexes { get; set; } = 4;
     /// <summary>Additional service radius per tier above 1.</summary>
     public int ServiceRadiusPerTierHexes { get; set; } = 4;
-    /// <summary>Inter-port (lane) reach of a tier-1 port, in hexes.</summary>
-    public int InterPortRangeBaseHexes { get; set; } = 18;
-    /// <summary>Additional inter-port reach per tier above 1.</summary>
-    public int InterPortRangePerTierHexes { get; set; } = 8;
     public int MaxPortTier { get; set; } = 3;
     /// <summary>Homeworld ports establish at this tier at emergence — a
     /// civilization at spaceflight is past "outpost".</summary>
@@ -842,8 +838,6 @@ public sealed class ExpansionKnobs
     public double EncroachmentPenalty { get; set; } = 1.5;
     /// <summary>Development points to raise a port: cost = base × current tier.</summary>
     public double PortUpgradeCostBase { get; set; } = 40.0;
-    /// <summary>Development points per lane built.</summary>
-    public double LaneCost { get; set; } = 25.0;
     public double HomeworldSegmentSize { get; set; } = 3.0;
     public double ColonySegmentSize { get; set; } = 0.5;
     /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>

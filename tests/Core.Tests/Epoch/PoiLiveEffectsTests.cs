@@ -30,6 +30,28 @@ public class PoiLiveEffectsTests
             if (state.PolityOf(owner).Interior == null) continue;
             return (state, lane, owner);
         }
+        // gate economics can defer history's first lane past this short
+        // run — manufacture the raid target the niche scan expects (the
+        // scan keys on the LOWER-id port's owner)
+        foreach (var port in state.Ports)
+        {
+            int owner = port.OwnerActorId;
+            if (owner < 0 || !state.Actors[owner].Entered) continue;
+            if (state.PolityOf(owner).Interior == null) continue;
+            Port? far = null;
+            foreach (var other in state.Ports)
+                if (other.Id > port.Id) { far = other; break; }
+            if (far == null)
+            {
+                far = new Port(state.Ports.Count, owner,
+                    new HexCoordinate(port.Hex.Q + 6, port.Hex.R), 1,
+                    (int)state.WorldYear);
+                state.Ports.Add(far);
+                state.Markets.Add(new Market(far.Id, state.Config.Economy));
+            }
+            var made = EpochTestKit.AddLane(state, port.Id, far.Id);
+            return (state, made, owner);
+        }
         throw new System.InvalidOperationException("no owned lane in history");
     }
 

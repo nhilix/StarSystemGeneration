@@ -40,14 +40,13 @@ public class EpochSimConfigTests
         Assert.True(c.Infrastructure.ServiceRadiusBaseHexes >= 1);
         Assert.Equal(3, c.Infrastructure.MaxPortTier);
         Assert.InRange(c.Infrastructure.HomeworldPortTier, 1, c.Infrastructure.MaxPortTier);
-        // lane reach exceeds local service reach at every tier (space-and-travel.md:
-        // inter-port range is the longer, separate growth axis)
-        Assert.True(c.Infrastructure.InterPortRangeBaseHexes
+        // gate reach exceeds local service reach at every tier
+        // (lane-economics spec §2: reach lives in the built gate)
+        Assert.True(c.Infrastructure.GateReachTier1Hexes
                     > c.Infrastructure.ServiceRadiusBaseHexes);
         Assert.True(c.Expansion.ColonyCost > 0);
         Assert.True(c.Expansion.ColonizationReachHexes > 0);
         Assert.True(c.Expansion.PortUpgradeCostBase > 0);
-        Assert.True(c.Expansion.LaneCost > 0);
         // growth is a per-world-year rate, not a per-epoch magnitude (P7)
         Assert.InRange(c.Expansion.SegmentGrowthPerYear, 0.0001, 0.1);
         Assert.True(c.Expansion.HomeworldSegmentSize > c.Expansion.ColonySegmentSize);
