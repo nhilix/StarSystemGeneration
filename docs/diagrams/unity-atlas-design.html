@@ -1,0 +1,1277 @@
+<title>Atlas — Unity Galaxy Interface Design</title>
+<style>
+  :root {
+    --bg: #EEF1F5;
+    --surface: #FFFFFF;
+    --line: #D5DBE6;
+    --ink: #1C2536;
+    --muted: #5A6780;
+    --accent: #B87F24;
+    --chip: #E4E9F1;
+    /* the instrument itself is always dark — these never flip */
+    --m-bg: #0A0E17;
+    --m-surface: #111726;
+    --m-line: #232C42;
+    --m-ink: #DCE4F2;
+    --m-muted: #8E9AB3;
+    --m-accent: #E5A83E;
+    --lane: #56C4DC;
+    --mial: #46B5A4;
+    --orve: #9B7BE0;
+    --selthasel: #E0708C;
+    --war: #E05555;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0D111C;
+      --surface: #141A29;
+      --line: #26304A;
+      --ink: #DCE4F2;
+      --muted: #93A0BA;
+      --accent: #E5A83E;
+      --chip: #1D2537;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D111C; --surface: #141A29; --line: #26304A;
+    --ink: #DCE4F2; --muted: #93A0BA; --accent: #E5A83E; --chip: #1D2537;
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F5; --surface: #FFFFFF; --line: #D5DBE6;
+    --ink: #1C2536; --muted: #5A6780; --accent: #B87F24; --chip: #E4E9F1;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Charter, Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0 0 6rem;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 1.25rem; }
+  .prose { max-width: 68ch; }
+
+  h1, h2, h3 {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    line-height: 1.2;
+  }
+  h1 { font-size: 2.1rem; margin: 0.4rem 0 0.6rem; }
+  h2 { font-size: 1.45rem; margin: 0 0 0.7rem; }
+  h3 { font-size: 1.08rem; margin: 1.4rem 0 0.4rem; }
+  p { margin: 0.6rem 0; }
+  a { color: var(--accent); }
+
+  .eyebrow, .mono {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.35rem;
+  }
+  section { margin-top: 3.2rem; }
+
+  header.masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 2.2rem 0 1.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .stamp {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem;
+    margin-top: 0.8rem;
+  }
+  .lede { font-size: 1.08rem; max-width: 62ch; color: var(--muted); margin-top: 0.5rem; }
+
+  /* pillar cards */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.7rem;
+    margin-top: 1.2rem;
+  }
+  .pillar {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.85rem 0.95rem;
+  }
+  .pillar b {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    display: block; margin-bottom: 0.25rem; font-size: 0.95rem;
+  }
+  .pillar span { font-size: 0.85rem; color: var(--muted); line-height: 1.45; display: block; }
+
+  /* ============ the instrument mockup (always dark) ============ */
+  .frame {
+    background: var(--m-bg);
+    border: 1px solid var(--m-line);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    color: var(--m-ink);
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    box-shadow: 0 18px 50px -24px rgba(4, 8, 20, 0.65);
+  }
+  .frame * { box-sizing: border-box; }
+  .atlas {
+    display: grid;
+    grid-template-columns: 176px 1fr 264px;
+    grid-template-rows: 42px 1fr 78px;
+    grid-template-areas:
+      "top top top"
+      "rail map dock"
+      "time time time";
+    height: 640px;
+    font-size: 11.5px;
+  }
+  @media (max-width: 900px) {
+    .frame-scroll { overflow-x: auto; }
+    .atlas { min-width: 880px; }
+  }
+
+  .a-top {
+    grid-area: top;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--m-line);
+    background: var(--m-surface);
+    gap: 10px;
+  }
+  .a-top .grow { flex: 1; text-align: center; color: var(--m-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .a-top .grow b { color: var(--m-ink); font-weight: 600; }
+  .eyechip {
+    background: rgba(229, 168, 62, 0.14);
+    border: 1px solid rgba(229, 168, 62, 0.55);
+    color: var(--m-accent);
+    border-radius: 4px;
+    padding: 4px 9px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .cfgstamp { color: var(--m-muted); white-space: nowrap; }
+
+  .a-rail {
+    grid-area: rail;
+    border-right: 1px solid var(--m-line);
+    background: var(--m-surface);
+    padding: 9px 8px;
+    overflow-y: auto;
+  }
+  .railhead {
+    color: var(--m-muted);
+    letter-spacing: 0.13em;
+    font-size: 9.5px;
+    margin: 8px 4px 4px;
+  }
+  .railhead:first-child { margin-top: 0; }
+  .lens {
+    display: flex; align-items: center; gap: 7px;
+    width: 100%;
+    background: none; border: 1px solid transparent;
+    color: var(--m-ink);
+    font: inherit;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .lens:hover { background: rgba(140, 160, 200, 0.10); }
+  .lens:focus-visible { outline: 2px solid var(--m-accent); outline-offset: 1px; }
+  .lens .sw {
+    width: 10px; height: 10px; border-radius: 2px; flex: none;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .lens .nm { flex: 1; }
+  .lens .st { color: var(--m-muted); font-size: 9.5px; }
+  .lens[aria-pressed="false"] { opacity: 0.42; }
+  .lens[aria-pressed="false"] .st::after { content: "off"; }
+  .lens[aria-pressed="true"] .st::after { content: "on"; color: var(--m-accent); }
+  .lens.static { cursor: default; opacity: 0.42; }
+  .lens.static:hover { background: none; }
+
+  .a-map { grid-area: map; position: relative; overflow: hidden; }
+  .a-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sel-ring {
+    position: absolute;
+    width: 26px; height: 26px;
+    border: 1.5px solid var(--m-accent);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 0 12px rgba(229, 168, 62, 0.45);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sel-ring { animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(229,168,62,0.25); }
+      50% { box-shadow: 0 0 16px rgba(229,168,62,0.6); }
+    }
+  }
+  .tip {
+    position: absolute;
+    background: rgba(13, 18, 32, 0.92);
+    border: 1px solid var(--m-line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    color: var(--m-ink);
+    pointer-events: none;
+    line-height: 1.4;
+  }
+  .tip small { color: var(--m-muted); display: block; }
+
+  .a-dock {
+    grid-area: dock;
+    border-left: 1px solid var(--m-line);
+    background: var(--m-surface);
+    padding: 9px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .panel {
+    border: 1px solid var(--m-line);
+    border-radius: 5px;
+    background: rgba(10, 14, 23, 0.6);
+  }
+  .panel .ph {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--m-line);
+    letter-spacing: 0.08em; font-size: 10px;
+  }
+  .panel .ph .kind { color: var(--m-muted); }
+  .panel .ph .pin { color: var(--m-muted); cursor: pointer; }
+  .panel .tabs { display: flex; gap: 2px; padding: 5px 6px 0; flex-wrap: wrap; }
+  .panel .tabs span {
+    padding: 2px 7px; border-radius: 3px 3px 0 0; color: var(--m-muted); font-size: 9.5px;
+  }
+  .panel .tabs .on { background: rgba(140,160,200,0.12); color: var(--m-ink); }
+  .panel .pb { padding: 7px 9px 9px; display: grid; gap: 5px; font-size: 10.5px; }
+  .kv { display: flex; justify-content: space-between; gap: 8px; }
+  .kv i { color: var(--m-muted); font-style: normal; }
+  .bar { height: 5px; border-radius: 3px; background: rgba(140,160,200,0.14); overflow: hidden; }
+  .bar div { height: 100%; border-radius: 3px; }
+
+  .a-time {
+    grid-area: time;
+    border-top: 1px solid var(--m-line);
+    background: var(--m-surface);
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    align-items: stretch;
+  }
+  .t-ctl {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-right: 1px solid var(--m-line);
+    color: var(--m-ink); font-size: 13px;
+  }
+  .t-ctl span { cursor: pointer; }
+  .t-ctl .spd { font-size: 9px; color: var(--m-muted); }
+  .t-track { position: relative; margin: 8px 14px; }
+  .eras { display: flex; height: 16px; border-radius: 3px; overflow: hidden; }
+  .eras div {
+    display: flex; align-items: center; padding: 0 6px;
+    font-size: 8.5px; letter-spacing: 0.05em; color: rgba(230,238,250,0.85);
+    white-space: nowrap; overflow: hidden;
+  }
+  .spark { height: 22px; margin-top: 4px; display: block; width: 100%; }
+  .cursor-line {
+    position: absolute; top: -4px; bottom: -2px; width: 2px;
+    background: var(--m-accent); left: 72%;
+  }
+  .cursor-line::after {
+    content: "WY 3287";
+    position: absolute; top: -3px; left: 6px;
+    color: var(--m-accent); font-size: 9px; white-space: nowrap;
+  }
+
+  /* callout badges over the frame */
+  .callout {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--m-accent);
+    color: #10131C;
+    font: 700 11px/20px "Segoe UI", Arial, sans-serif;
+    text-align: center;
+    z-index: 5;
+    box-shadow: 0 0 0 3px rgba(229, 168, 62, 0.25);
+  }
+  ol.legend { padding-left: 1.2rem; margin-top: 1rem; }
+  ol.legend li { margin: 0.35rem 0; }
+  ol.legend b { font-family: "Segoe UI", Arial, sans-serif; font-weight: 600; }
+
+  /* zoom continuum */
+  .zoomrow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.8rem;
+    margin-top: 1rem;
+  }
+  .fieldrow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    margin-top: 1rem;
+  }
+  @media (max-width: 900px) {
+    .zoomrow { grid-template-columns: repeat(2, 1fr); }
+    .fieldrow { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) { .zoomrow, .fieldrow { grid-template-columns: 1fr; } }
+  .zoomcell { display: flex; flex-direction: column; gap: 0.45rem; }
+  .zoomcell .frame { border-radius: 6px; }
+  .zoomcell canvas { display: block; width: 100%; height: 190px; }
+  .zoomcell .cap {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.74rem; color: var(--muted);
+  }
+  .zoomcell .cap b { color: var(--ink); }
+
+  /* architecture diagram */
+  .arch {
+    display: grid;
+    grid-template-columns: 1fr 128px;
+    gap: 0.7rem;
+    margin-top: 1rem;
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.78rem;
+  }
+  .arch-col { display: flex; flex-direction: column; gap: 0; }
+  .band {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+  }
+  .band h4 {
+    margin: 0 0 0.5rem;
+    font: 650 0.95rem "Segoe UI", Arial, sans-serif;
+  }
+  .band h4 small { color: var(--muted); font-weight: 400; font-size: 0.75rem; margin-left: 0.5rem; }
+  .boxes { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .bx {
+    border: 1px solid var(--line);
+    background: var(--chip);
+    border-radius: 4px;
+    padding: 0.3rem 0.55rem;
+    white-space: nowrap;
+  }
+  .bx.hot { border-color: var(--accent); color: var(--accent); background: transparent; }
+  .bx.ghost { opacity: 0.5; border-style: dashed; }
+  .arrow {
+    text-align: center; color: var(--muted);
+    padding: 0.15rem 0; font-size: 0.85rem; line-height: 1.3;
+  }
+  .eye-rail {
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.7rem 0.6rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    align-self: stretch;
+    justify-content: center;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+  .eye-rail b { font-family: "Segoe UI", Arial, sans-serif; font-size: 0.9rem; }
+  .eye-rail span { color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+  @media (max-width: 700px) { .arch { grid-template-columns: 1fr; } }
+
+  /* tables */
+  .tablewrap { overflow-x: auto; margin-top: 1rem; border: 1px solid var(--line); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.86rem; background: var(--surface); }
+  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font: 600 0.7rem ui-monospace, "Cascadia Code", Consolas, monospace;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted);
+    background: var(--chip);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.mono, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace; font-size: 0.8rem; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
+
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 6px 6px 0;
+    padding: 0.65rem 0.9rem;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+  }
+  .note b { font-family: "Segoe UI", Arial, sans-serif; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">StarSystemGeneration · Slice K design · living document</p>
+    <h1>Atlas — the Unity galaxy interface</h1>
+    <p class="lede">
+      One continuous instrument over the epoch sim: a god-mode atlas first, a
+      character-scoped controller view later — the same map, the same panels,
+      looked at through different <em>eyes</em>.
+    </p>
+    <div class="stamp">
+      <span>2026-07-11</span>
+      <span>branch worktree-unity-galaxy-design</span>
+      <span>spec: docs/superpowers/specs/2026-07-11-unity-atlas-design.md</span>
+      <span>mock data: seed 42</span>
+      <span>post-slice-J: fine tick + handover + deltas certified</span>
+    </div>
+  </header>
+
+  <section>
+    <p class="eyebrow">§1</p>
+    <h2>Five pillars</h2>
+    <div class="pillars">
+      <div class="pillar"><b>One instrument</b><span>Galaxy → domains → region → hex → system: a single camera on a single scene with five LOD bands — no screen stack, no push/pop navigation.</span></div>
+      <div class="pillar"><b>Eyes</b><span>Every read-model query takes an observer context: God reads truth; a controller eye reads belief, fog, and news-delayed state through the same API.</span></div>
+      <div class="pillar"><b>Lenses</b><span>Each data layer is an independent renderer module — a pure function of (Eye, ReadModel) → visuals. Lenses stack and toggle freely.</span></div>
+      <div class="pillar"><b>Panels</b><span>Selection opens typed inspectors (polity, market, fleet, war…) docked beside the map — the REPL's panels, made visual and pinnable.</span></div>
+      <div class="pillar"><b>Timeline</b><span>Era bands, event density, and a world-year scrubber. Scrubbing re-queries every lens and panel at that year via epoch keyframes.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§2</p>
+    <h2>The Galaxy view</h2>
+    <p class="prose">
+      The centerpiece. Dark wilds, port-domain glows with organic borders, lanes as
+      literal highways — the map renders the design's P1 evidence directly. The
+      mockup below is live: <b>click lenses in the left rail</b> to toggle map layers.
+    </p>
+
+    <div class="frame-scroll" style="position: relative;">
+      <div class="callout" style="top: 12px;  left: 18px;">1</div>
+      <div class="callout" style="top: 60px;  left: 60px;">2</div>
+      <div class="callout" style="top: 260px; left: 48%;">3</div>
+      <div class="callout" style="top: 60px;  right: 118px;">4</div>
+      <div class="callout" style="bottom: 46px; left: 40%;">5</div>
+      <div class="frame">
+        <div class="atlas">
+          <div class="a-top">
+            <span class="eyechip">EYE · GOD MODE ▾</span>
+            <span class="grow">WY <b>3287</b> · epoch 27 · <b>The Long Peace</b></span>
+            <span class="cfgstamp">seed 42 · r12 · artifact e42-golden</span>
+          </div>
+
+          <div class="a-rail" id="lensRail">
+            <div class="railhead">POLITICAL</div>
+            <button class="lens" data-layer="domains" aria-pressed="true"><span class="sw" style="background:#46B5A4"></span><span class="nm">domains</span><span class="st"></span></button>
+            <button class="lens" data-layer="war" aria-pressed="true"><span class="sw" style="background:#E05555"></span><span class="nm">war</span><span class="st"></span></button>
+            <button class="lens" data-layer="tension" aria-pressed="false"><span class="sw" style="background:#E08A4A"></span><span class="nm">tension</span><span class="st"></span></button>
+            <div class="railhead">LOGISTICS</div>
+            <button class="lens" data-layer="lanes" aria-pressed="true"><span class="sw" style="background:#56C4DC"></span><span class="nm">lanes</span><span class="st"></span></button>
+            <button class="lens" data-layer="traffic" aria-pressed="true"><span class="sw" style="background:#2E7E96"></span><span class="nm">traffic</span><span class="st"></span></button>
+            <button class="lens" data-layer="fleets" aria-pressed="true"><span class="sw" style="background:#C7D3EA"></span><span class="nm">fleets</span><span class="st"></span></button>
+            <div class="lens static"><span class="sw" style="background:#8FBF6A"></span><span class="nm">price ▾ provisions</span><span class="st"></span></div>
+            <div class="railhead">KNOWLEDGE</div>
+            <div class="lens static"><span class="sw" style="background:#7FA6E8"></span><span class="nm">tech</span><span class="st"></span></div>
+            <div class="lens static"><span class="sw" style="background:#B9E86F"></span><span class="nm">plague</span><span class="st"></span></div>
+            <div class="lens static"><span class="sw" style="background:#E8D66F"></span><span class="nm">news</span><span class="st"></span></div>
+            <div class="railhead">NARRATIVE</div>
+            <button class="lens" data-layer="pois" aria-pressed="true"><span class="sw" style="background:#D8B46F"></span><span class="nm">points of interest</span><span class="st"></span></button>
+            <div class="railhead">NATURE (GENESIS)</div>
+            <div class="lens static"><span class="sw" style="background:#5A6E9E"></span><span class="nm">gas · metals · life…</span><span class="st"></span></div>
+          </div>
+
+          <div class="a-map">
+            <canvas id="mainMap"></canvas>
+            <div class="sel-ring" style="left: 30%; top: 44%;"></div>
+            <div class="tip" style="left: 33%; top: 32%;">Port Veyra · tier 3 · MIAL<small>12 hexes serviced · 4 lanes · market ▸</small></div>
+          </div>
+
+          <div class="a-dock">
+            <div class="panel">
+              <div class="ph"><span><span class="kind">POLITY</span> · MIAL</span><span class="pin">⌖ pin</span></div>
+              <div class="tabs"><span class="on">Overview</span><span>Factions</span><span>Tech</span><span>Relations</span><span>Chronicle</span></div>
+              <div class="pb">
+                <div class="kv"><i>form</i><span>Stellar Compact</span></div>
+                <div class="kv"><i>legitimacy</i><span>0.71</span></div>
+                <div class="bar"><div style="width:71%; background:#46B5A4"></div></div>
+                <div class="kv"><i>ports / lanes</i><span>5 / 7</span></div>
+                <div class="kv"><i>at war</i><span style="color:#E05555">Alloys War · yr 41</span></div>
+                <div class="kv"><i>stance of Orve</i><span>wary −0.3</span></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="ph"><span><span class="kind">WAR</span> · THE ALLOYS WAR</span><span class="pin">◉ pinned</span></div>
+              <div class="pb">
+                <div class="kv"><i>belligerents</i><span>Mial ⇄ Selthasel</span></div>
+                <div class="kv"><i>objective</i><span>Kessa alloy belts</span></div>
+                <div class="kv"><i>blockade</i><span>Port Dren · strain 0.6</span></div>
+                <div class="bar"><div style="width:60%; background:#E05555"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="a-time">
+            <div class="t-ctl">
+              <span title="step one epoch">⏮</span><span title="play">▶</span><span title="step one epoch">⏭</span>
+              <span class="spd">tick 25y ▾</span>
+            </div>
+            <div class="t-track">
+              <div class="eras">
+                <div style="flex: 2.2; background: rgba(90,110,158,0.5)">DEEP TIME</div>
+                <div style="flex: 1.4; background: rgba(70,181,164,0.45)">THE MARNO EXPANSION</div>
+                <div style="flex: 1.1; background: rgba(224,85,85,0.45)">ALLOYS WAR</div>
+                <div style="flex: 1.6; background: rgba(155,123,224,0.4)">CONCORD OF ORVE &amp; SELTHASEL</div>
+                <div style="flex: 1.7; background: rgba(142,154,179,0.3)">THE LONG PEACE</div>
+              </div>
+              <canvas class="spark" id="sparkline"></canvas>
+              <div class="cursor-line"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="legend prose">
+      <li><b>Eye selector.</b> God mode now; later, any controller slot (a polity, a corporation, a character). Switching eyes re-parameterizes every query — the views don't change, the answers do.</li>
+      <li><b>Lens rail.</b> Grouped toggles mirroring the REPL's <span class="mono">emap</span> layers plus genesis rasters. Each lens is an independent module; stacking is free. Parameterized lenses (price-per-good) carry their argument in the chip.</li>
+      <li><b>Map surface.</b> Canvas/GPU star map: stars, domain glows with organic borders and visible contested overlap, lanes weighted by traffic, fleet glyphs, POI marks, war front and blockade. Hover = hex tooltip; click = select + open panel.</li>
+      <li><b>Inspector dock.</b> Typed panels opened by selection, pinnable so comparisons persist. Tabs mirror REPL panel depth (polity → factions/tech/relations/chronicle).</li>
+      <li><b>Timeline strip.</b> Detected era bands with names, event-density sparkline, world-year cursor, active tick resolution. Play/step = <span class="mono">ewatch</span>/<span class="mono">estep</span> at the chosen tick (25y epochs down to 1y fine steps); scrub = re-query at an epoch keyframe.</li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="eyebrow">§3</p>
+    <h2>The zoom continuum</h2>
+    <p class="prose">
+      Not five screens — one camera with five LOD bands. The <b>galaxy</b> band is
+      the establishing shot: the whole disc in one view, nature dominant,
+      civilization a small glowing patch. The <b>hex</b> band is where the map
+      becomes the board: one region fills the viewport and every
+      <span class="mono">Hex(q,r)</span> resolves to what is actually there — a
+      system, an empty reach, the port, a sited facility. Zooming into a single
+      hex crossfades to its orbit view.
+    </p>
+    <div class="zoomrow">
+      <div class="zoomcell">
+        <div class="frame"><canvas id="zoomFull"></canvas></div>
+        <span class="cap"><b>GALAXY</b> · the entire disc in a single view — arms, bulge, halo. The settled reach reads as one small cluster of domain glow.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="zoomGalaxy"></canvas></div>
+        <span class="cap"><b>DOMAINS</b> · the settled reach fills the screen: domains as glow fields, lanes as highways, wilds dark. No grid, no labels — shape and story.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="zoomRegion"></canvas></div>
+        <span class="cap"><b>REGION</b> · a handful of domains fill the screen; ports labeled with tier, fleets and POIs resolve, contested overlap visible. Grid still only a hint.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="zoomHex"></canvas></div>
+        <span class="cap"><b>HEX</b> · one region fills the screen and the lattice resolves: every hex shows its content — systems, voids, belts, the port hex, sited facilities, service-radius tint.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="zoomSystem"></canvas></div>
+        <span class="cap"><b>SYSTEM</b> · a single hex fills the viewport and crossfades to the orbit view: star, bodies, the port, sited facilities. Same selection model, same panels.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§4</p>
+    <h2>The physical truth — nature lenses</h2>
+    <p class="prose">
+      The REPL draws two map families: <span class="mono">map</span> (the natural
+      raster — nature's fields on the cell lattice, laid down by genesis before any
+      civilization) and <span class="mono">emap</span> (the emergent political map on
+      the hex registries). In the atlas these are not separate modes — the nature
+      lenses are <em>base layers</em> in the same stack, under the political ones.
+      Toggle politics off and the galaxy the sim was dealt is still there: where gas
+      collapsed, where enrichment ran, where life took hold — the terrain that
+      explains why the ports are where they are.
+    </p>
+    <div class="fieldrow">
+      <div class="zoomcell">
+        <div class="frame"><canvas id="fieldGas"></canvas></div>
+        <span class="cap"><b>GAS</b> · <span class="mono">map gas</span> — primordial gas density from the cosmic pass; the arms and voids everything else inherits.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="fieldMetal"></canvas></div>
+        <span class="cap"><b>METALLICITY</b> · <span class="mono">map metal</span> — enrichment history; where the belts and alloys are, and why wars go there.</span>
+      </div>
+      <div class="zoomcell">
+        <div class="frame"><canvas id="fieldLife"></canvas></div>
+        <span class="cap"><b>LIFE</b> · <span class="mono">map bio</span> — biosphere history and life distribution; emergence sites and the precursor strata beneath.</span>
+      </div>
+    </div>
+    <p class="prose" style="color: var(--muted); font-size: 0.92rem;">
+      The full raster set rides the same lens group: <span class="mono">lean · gas ·
+      metal · age · minerals · bio · emergence · features</span>. Nature is not
+      secret — these lenses read the same under every eye (optional surveyed-detail
+      gating reserved for the play tier).
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">§5</p>
+    <h2>Time</h2>
+    <div class="prose">
+      <p>
+        The timeline strip is the fourth clock made visible. Slice J's certification
+        work (P7) grounds all of it:
+      </p>
+      <p>
+        <b>Scrub.</b> The sim stores current state plus the event log — past map states
+        are not kept. Determinism pays for this: the <span class="mono">TimeMachine</span>
+        service captures epoch keyframes while stepping, <b>stored as delta saves</b>
+        (<span class="mono">DeltaSerializer</span>, landed in J: base + changed layers
+        only — genesis strata never re-record, so keyframes stay cheap). Scrubbing
+        snaps to a keyframe and re-queries every lens and panel. Chronicle and era
+        queries are log-backed and need no keyframe.
+      </p>
+      <p>
+        <b>Play — coarse and fine.</b> The same engine steps a loaded artifact at any
+        <span class="mono">YearsPerEpoch</span>; <span class="mono">GenerationYears</span>
+        stays the calendar (J3). The timeline plays at 25-year epochs or drops to
+        5y/1y fine ticks — <span class="mono">ewatch</span> and
+        <span class="mono">estep n years</span>, rendered. Watching does not perturb:
+        rendered runs are byte-identical to unwatched ones (certified).
+      </p>
+      <p>
+        <b>One timeline, one history.</b> Coarse and fine agree in macro bands, not
+        byte-for-byte — keyed rolls take different paths at different resolutions
+        (J's band tests bound the divergence). So a timeline belongs to one
+        (config, tick-path) run: the strip always shows the active tick
+        (<span class="mono">tick 25y ▾</span>), and changing resolution mid-run forks
+        a new branch from the current keyframe rather than pretending histories are
+        interchangeable.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§6</p>
+    <h2>Architecture</h2>
+    <p class="prose">
+      Unity references Core in-process (netstandard2.1). Views never touch registries:
+      everything flows through <span class="mono">AtlasReadModel</span>, and every query
+      is parameterized by the <span class="mono">Eye</span>.
+    </p>
+    <div class="arch">
+      <div class="arch-col">
+        <div class="band">
+          <h4>Presentation <small>unity/Assets/Atlas — MonoBehaviours &amp; UI Toolkit</small></h4>
+          <div class="boxes">
+            <span class="bx">MapSurface</span>
+            <span class="bx">LensStack + Lens modules</span>
+            <span class="bx">CameraRig / LODController</span>
+            <span class="bx">InspectorDock + typed Panels</span>
+            <span class="bx">TimelineStrip</span>
+            <span class="bx">SelectionModel</span>
+            <span class="bx ghost">ControllerHUD (play tier)</span>
+          </div>
+        </div>
+        <div class="arrow">↑ view-models (plain C# records, unit-testable) ↑</div>
+        <div class="band">
+          <h4>Read model <small>src/Core/Atlas (or Core-adjacent asmdef) — no Unity types</small></h4>
+          <div class="boxes">
+            <span class="bx hot">AtlasReadModel — query(Eye, …)</span>
+            <span class="bx">LensQueries (per layer)</span>
+            <span class="bx">PanelQueries (per type)</span>
+            <span class="bx">ChronicleQueries / EraQueries</span>
+            <span class="bx">HandoffQueries (open threads)</span>
+            <span class="bx">TimeMachine (delta keyframes)</span>
+          </div>
+        </div>
+        <div class="arrow">↑ reads registries, event log, artifact ↑</div>
+        <div class="band">
+          <h4>Core <small>src/Core — untouched by this slice</small></h4>
+          <div class="boxes">
+            <span class="bx">EpochSim (7 phases, coarse + fine tick)</span>
+            <span class="bx">Registries (ports, lanes, fleets, polities…)</span>
+            <span class="bx">Belief layer</span>
+            <span class="bx">Event log + indexes (place/actor/war/character)</span>
+            <span class="bx">Artifact I/O + DeltaSerializer</span>
+            <span class="bx">HandoffView.OpenThreads</span>
+          </div>
+        </div>
+      </div>
+      <div class="eye-rail">
+        <b>The Eye</b>
+        <span><span class="mono">(scope, worldYear)</span></span>
+        <span><b>God</b> → truth registries, whole log, whole map.</span>
+        <span><b>Actor(id)</b> → belief snapshots, news-delayed log, fog beyond reach.</span>
+        <span>Crosses Presentation + Read model. The controller view is a new Eye, not new views.</span>
+        <span><b>Certified (J4):</b> occupying a controller slot mid-run is byte-invisible; occupation is client state, never persisted. The play-tier Eye rides the same slot.</span>
+      </div>
+    </div>
+    <div class="note prose">
+      <b>Seam rule:</b> the read model is plain C# with zero Unity references, so every
+      lens query and panel view-model is testable in <span class="mono">tests/Core.Tests</span>
+      — the Unity layer stays thin (draw + input only), and the REPL could adopt the same
+      queries later. Packaging makes this free: <span class="mono">src/Core</span> <em>is</em>
+      the Unity package <span class="mono">com.stargen.core</span> (file reference,
+      <span class="mono">noEngineReferences: true</span>), so read-model code ships
+      in-package — every new Core file carries its two-line <span class="mono">.meta</span>.
+      The REPL's <span class="mono">EpochMapView</span> value/color derivations port into
+      LensQueries rather than being reinvented.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§7</p>
+    <h2>Component inventory</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Component</th><th>Responsibility</th><th>Depends on</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">SimHost</td><td>Owns the Core sim/artifact lifecycle in Unity: load artifact (or delta save), run seed, step coarse or fine (any <span class="mono">YearsPerEpoch</span>). The only writer.</td><td class="mono">Core</td></tr>
+          <tr><td class="mono">EyeContext</td><td>The active observer (God | actor id) + world-year. App-global; changing it invalidates all views.</td><td>—</td></tr>
+          <tr><td class="mono">AtlasReadModel</td><td>The single query surface: lens data, panel view-models, chronicle/era views — all Eye-parameterized.</td><td class="mono">Core, EyeContext</td></tr>
+          <tr><td class="mono">TimeMachine</td><td>Epoch keyframe capture + retrieval, stored as delta saves against the loaded base; tracks the active tick-path and forks a branch on resolution change.</td><td class="mono">SimHost, DeltaSerializer</td></tr>
+          <tr><td class="mono">MapSurface</td><td>Renders lens output (instanced meshes / GPU points); hit-testing hexes and entities.</td><td class="mono">LensStack</td></tr>
+          <tr><td class="mono">LensStack</td><td>Active lens set + per-lens parameters; feeds MapSurface; persists as a view preset.</td><td class="mono">AtlasReadModel</td></tr>
+          <tr><td class="mono">Lens modules</td><td>One per layer (domains, lanes, traffic, price, tech, war, tension, plague, POIs, genesis rasters). Pure (Eye, ReadModel) → primitives.</td><td class="mono">AtlasReadModel</td></tr>
+          <tr><td class="mono">CameraRig / LODController</td><td>The zoom continuum: five camera bands (galaxy / domains / region / hex / system), per-lens fade curves, hex→orbit crossfade.</td><td class="mono">MapSurface</td></tr>
+          <tr><td class="mono">SelectionModel</td><td>What is selected/hovered (hex, port, fleet, polity, POI); drives ring, tooltip, panel opening.</td><td class="mono">MapSurface</td></tr>
+          <tr><td class="mono">InspectorDock</td><td>Panel lifecycle: open on select, pin, stack, close; layout of the right dock.</td><td class="mono">SelectionModel, PanelRegistry</td></tr>
+          <tr><td class="mono">Typed Panels</td><td>Open Threads, Polity, Market, Fleet, War, Relations, Character/Bio, Corp, POI, Belief, News, Stances — each a view over one PanelQuery.</td><td class="mono">AtlasReadModel</td></tr>
+          <tr><td class="mono">TimelineStrip</td><td>Era bands, event sparkline, cursor, play/step controls; sets EyeContext.worldYear.</td><td class="mono">AtlasReadModel, TimeMachine</td></tr>
+          <tr><td class="mono">SystemStage</td><td>The orbit-view scene fragment swapped in at system LOD: star, bodies, port, facilities.</td><td class="mono">AtlasReadModel, CameraRig</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§8</p>
+    <h2>Lens catalog</h2>
+    <p class="prose">
+      Every lens states its data source and what each eye sees — the god/controller
+      split designed in from the start. Every source below already exists Core-side
+      (the REPL renders it today); LensQueries port <span class="mono">EpochMapView</span>'s
+      value/color derivations, not the ASCII.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Lens</th><th>Source</th><th>God eye</th><th>Controller eye (later)</th></tr></thead>
+        <tbody>
+          <tr><td><span class="dot" style="background:#46B5A4"></span>domains</td><td class="mono">port registry → service areas</td><td>All polities, contested overlaps</td><td>Own domain sharp; others as believed extent, stale-dated</td></tr>
+          <tr><td><span class="dot" style="background:#56C4DC"></span>lanes</td><td class="mono">lane registry (quarantine + sever state)</td><td>Full network incl. quarantine flags</td><td>Lanes within news reach; condition as last heard</td></tr>
+          <tr><td><span class="dot" style="background:#2E7E96"></span>traffic</td><td class="mono">posted fleet capacity per lane</td><td>True flow weights</td><td>Own lanes true; foreign lanes believed</td></tr>
+          <tr><td><span class="dot" style="background:#8FBF6A"></span>price [good]</td><td class="mono">market registry per port</td><td>Every market, any good</td><td>Markets with belief snapshots; staleness tinted</td></tr>
+          <tr><td><span class="dot" style="background:#7FA6E8"></span>tech</td><td class="mono">per-polity domain tiers</td><td>All polities</td><td>Believed tiers only</td></tr>
+          <tr><td><span class="dot" style="background:#E05555"></span>war</td><td class="mono">wars, fronts, sieges, blockades</td><td>All theaters, true strengths</td><td>Own fronts fresh; enemy strength = believed strength</td></tr>
+          <tr><td><span class="dot" style="background:#E08A4A"></span>tension</td><td class="mono">pair warmth/tension + claims</td><td>Full matrix heatmap</td><td>Own pairs + rumor-grade for others</td></tr>
+          <tr><td><span class="dot" style="background:#B9E86F"></span>plague</td><td class="mono">outbreak registry + lane spread</td><td>True infection state</td><td>Visibly infected + news-arrived reports</td></tr>
+          <tr><td><span class="dot" style="background:#E8D66F"></span>news</td><td class="mono">pulses in transit</td><td>All pulses, full journeys</td><td>Own inbox: what has arrived, what is en route to you</td></tr>
+          <tr><td><span class="dot" style="background:#D8B46F"></span>points of interest</td><td class="mono">PoiCompiler.LiveAt / state.Pois</td><td>All anchors, incl. lawless-lane reach</td><td>Charted/known POIs only</td></tr>
+          <tr><td><span class="dot" style="background:#5A6E9E"></span>genesis rasters</td><td class="mono">natural raster fields</td><td>gas · stars · metals · life · lean · minerals · features</td><td>Same (nature is not secret) — surveyed-detail gating optional</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">§9</p>
+    <h2>Panel catalog</h2>
+    <p class="prose">Panels are the REPL made visual — each maps to a proven command surface, so parity is checkable.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Panel</th><th>REPL parity</th><th>Opened by</th></tr></thead>
+        <tbody>
+          <tr><td><b>Open Threads</b></td><td class="mono">threads (HandoffView.OpenThreads)</td><td><b>On load — the atlas's opening screen.</b> Half-won wars, loaded tensions, pending successions, leveraged corporations, burning plagues: the world in motion, each row a jump-to</td></tr>
+          <tr><td>Polity</td><td class="mono">polity, tech, characters</td><td>Click a domain / topbar search</td></tr>
+          <tr><td>Market</td><td class="mono">market &lt;portId&gt;</td><td>Click a port → Market tab</td></tr>
+          <tr><td>Fleet</td><td class="mono">fleet, designs</td><td>Click a fleet glyph</td></tr>
+          <tr><td>War</td><td class="mono">wars, war &lt;id&gt;</td><td>Click a front / war lens legend</td></tr>
+          <tr><td>Relations</td><td class="mono">relations [id]</td><td>Polity panel → Relations tab</td></tr>
+          <tr><td>Character / Bio</td><td class="mono">characters, bio &lt;id&gt;</td><td>Roster links; notables in chronicle</td></tr>
+          <tr><td>Corporation</td><td class="mono">corps</td><td>Market/polity charter links</td></tr>
+          <tr><td>POI</td><td class="mono">poi [id], chronicle place</td><td>Click a POI mark</td></tr>
+          <tr><td>Belief / News / Stances</td><td class="mono">belief, news, stances</td><td>Polity panel tabs; news lens</td></tr>
+          <tr><td>Chronicle / Eras</td><td class="mono">chronicle, eras</td><td>Timeline strip; any entity's Chronicle tab</td></tr>
+          <tr><td>Registry drawer</td><td class="mono">find, stats, knobs, goods, infra</td><td>Topbar search — the ledger idea, inside the panel system</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="prose">
+    <p class="eyebrow">§10</p>
+    <h2>Non-goals &amp; deferred</h2>
+    <p>
+      <b>Deferred, seams reserved:</b> the controller HUD and Intent-phase input (the
+      play tier — its two hard parts, handover and fine tick, are already certified
+      Core-side); multi-eye comparison (side-by-side belief vs truth); save/delta
+      management UI (the delta boundary itself landed in J — the atlas stays a viewer
+      and never writes bases).
+    </p>
+    <p>
+      <b>Non-goals:</b> editing world state from the atlas (read-only until the play
+      tier); 3D volumetric rendering; mobile/touch layout.
+    </p>
+    <p>
+      <b>Replaced outright:</b> everything under <span class="mono">unity/Assets/Scripts/Atlas</span>
+      (PoC) — deleted as the new atlas lands, per the greenfield rule.
+    </p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // deterministic PRNG — seed 42, of course
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const C = {
+    mial: "#46B5A4", orve: "#9B7BE0", selthasel: "#E0708C",
+    lane: "#56C4DC", war: "#E05555", poi: "#D8B46F",
+    fleet: "#C7D3EA", ink: "#DCE4F2"
+  };
+
+  // hand-placed composition (normalized 0..1)
+  const ports = [
+    { x: 0.30, y: 0.44, t: 3, p: "mial", n: "Veyra" },
+    { x: 0.20, y: 0.32, t: 2, p: "mial", n: "Homeworld Mial" },
+    { x: 0.16, y: 0.55, t: 1, p: "mial", n: "Ashen" },
+    { x: 0.38, y: 0.60, t: 2, p: "mial", n: "Kessa Gate" },
+    { x: 0.31, y: 0.22, t: 1, p: "mial", n: "Farrow" },
+    { x: 0.62, y: 0.24, t: 3, p: "orve", n: "Orve Prime" },
+    { x: 0.74, y: 0.34, t: 2, p: "orve", n: "Ledd" },
+    { x: 0.55, y: 0.35, t: 1, p: "orve", n: "Tessin" },
+    { x: 0.70, y: 0.16, t: 1, p: "orve", n: "Bray" },
+    { x: 0.52, y: 0.78, t: 2, p: "selthasel", n: "Selthasel" },
+    { x: 0.66, y: 0.70, t: 2, p: "selthasel", n: "Port Dren" },
+    { x: 0.42, y: 0.86, t: 1, p: "selthasel", n: "Imm" }
+  ];
+  const lanes = [
+    [0, 1, 3], [0, 2, 2], [0, 3, 3], [1, 4, 1], [0, 7, 2],   // mial + contested link
+    [5, 6, 3], [5, 7, 2], [5, 8, 1], [6, 10, 2],             // orve
+    [9, 10, 2], [9, 11, 1], [3, 9, 1]                        // selthasel + war-torn link
+  ];
+  const pois = [
+    { x: 0.47, y: 0.52, k: "battlefield" },
+    { x: 0.86, y: 0.62, k: "precursor" },
+    { x: 0.12, y: 0.80, k: "ruins" }
+  ];
+
+  function setup(canvas) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, r.width * dpr);
+    canvas.height = Math.max(1, r.height * dpr);
+    const g = canvas.getContext("2d");
+    g.scale(dpr, dpr);
+    return { g, w: r.width, h: r.height };
+  }
+
+  function hexPath(g, cx, cy, s) {
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 3 * i + Math.PI / 6;
+      const x = cx + s * Math.cos(a), y = cy + s * Math.sin(a);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.closePath();
+  }
+
+  function drawMap(canvas, o) {
+    const { g, w, h } = setup(canvas);
+    const zoom = o.zoom || 1;
+    const cx = (o.cx !== undefined ? o.cx : 0.5), cy = (o.cy !== undefined ? o.cy : 0.5);
+    const X = p => (p.x - cx) * zoom * w + w / 2;
+    const Y = p => (p.y - cy) * zoom * h + h / 2;
+
+    g.fillStyle = "#0A0E17";
+    g.fillRect(0, 0, w, h);
+
+    // starfield
+    const rnd = mulberry32(42);
+    const n = o.lod === "system" ? 90 : 320;
+    for (let i = 0; i < n; i++) {
+      const sx = rnd() * w, sy = rnd() * h, b = rnd();
+      g.fillStyle = "rgba(200,214,240," + (0.08 + b * 0.5) + ")";
+      g.fillRect(sx, sy, b > 0.92 ? 1.6 : 1, b > 0.92 ? 1.6 : 1);
+    }
+
+    if (o.lod === "system") { drawSystem(g, w, h); return; }
+    if (o.lod === "hex") { drawHexLod(g, w, h); return; }
+
+    // domain glows
+    if (o.layers.domains) {
+      g.globalCompositeOperation = "lighter";
+      for (const p of ports) {
+        const R = (18 + p.t * 16) * zoom;
+        const gr = g.createRadialGradient(X(p), Y(p), 2, X(p), Y(p), R);
+        const col = C[p.p];
+        gr.addColorStop(0, col + "3C");
+        gr.addColorStop(0.7, col + "1A");
+        gr.addColorStop(1, col + "00");
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(X(p), Y(p), R, 0, 7); g.fill();
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+
+    // hex grid at region LOD
+    if (o.lod === "region") {
+      g.strokeStyle = "rgba(140,160,200,0.10)";
+      g.lineWidth = 1;
+      const s = 26 * zoom;
+      for (let row = -2; row < h / (s * 1.5) + 2; row++) {
+        for (let col = -2; col < w / (s * 1.73) + 2; col++) {
+          const hx = col * s * 1.73 + (row % 2 ? s * 0.866 : 0);
+          const hy = row * s * 1.5;
+          hexPath(g, hx, hy, s); g.stroke();
+        }
+      }
+    }
+
+    // lanes + traffic + fleets
+    if (o.layers.lanes) {
+      for (const [a, b, tr] of lanes) {
+        const A = ports[a], B = ports[b];
+        g.strokeStyle = C.lane + (o.layers.traffic ? ["44", "77", "BB"][tr - 1] : "66");
+        g.lineWidth = o.layers.traffic ? tr * 1.1 : 1.2;
+        g.beginPath(); g.moveTo(X(A), Y(A)); g.lineTo(X(B), Y(B)); g.stroke();
+        if (o.layers.fleets && tr >= 2) {
+          const t = 0.38 + 0.24 * ((a * 7 + b) % 3);
+          const fx = X(A) + (X(B) - X(A)) * t, fy = Y(A) + (Y(B) - Y(A)) * t;
+          const ang = Math.atan2(Y(B) - Y(A), X(B) - X(A));
+          g.save(); g.translate(fx, fy); g.rotate(ang);
+          g.fillStyle = C.fleet;
+          g.beginPath(); g.moveTo(5, 0); g.lineTo(-3, 3); g.lineTo(-3, -3); g.closePath(); g.fill();
+          g.restore();
+        }
+      }
+    }
+
+    // war overlay: front arc + blockade at Port Dren
+    if (o.layers.war) {
+      g.strokeStyle = C.war; g.lineWidth = 1.6; g.setLineDash([6, 5]);
+      g.beginPath();
+      g.moveTo(X(ports[3]) - 20 * zoom, Y(ports[3]) + 30 * zoom);
+      g.quadraticCurveTo(X(ports[3]) + 40 * zoom, Y(ports[3]) + 10 * zoom,
+                         X(ports[9]) + 30 * zoom, Y(ports[9]) - 40 * zoom);
+      g.stroke(); g.setLineDash([]);
+      const D = ports[10];
+      g.strokeStyle = C.war;
+      g.beginPath(); g.arc(X(D), Y(D), 12 * zoom, 0, 7); g.stroke();
+      g.fillStyle = C.war;
+      g.font = "10px ui-monospace, Consolas, monospace";
+      if (o.lod === "region") g.fillText("BLOCKADE · strain 0.6", X(D) + 16, Y(D) + 4);
+    }
+
+    // POIs
+    if (o.layers.pois) {
+      for (const q of pois) {
+        const px = X(q), py = Y(q);
+        if (px < -10 || px > w + 10 || py < -10 || py > h + 10) continue;
+        g.strokeStyle = C.poi; g.lineWidth = 1.3;
+        g.beginPath();
+        g.moveTo(px, py - 5); g.lineTo(px + 5, py); g.lineTo(px, py + 5); g.lineTo(px - 5, py);
+        g.closePath(); g.stroke();
+      }
+    }
+
+    // ports
+    for (const p of ports) {
+      const px = X(p), py = Y(p);
+      if (px < -10 || px > w + 10 || py < -10 || py > h + 10) continue;
+      g.fillStyle = C[p.p];
+      g.beginPath(); g.arc(px, py, 2 + p.t * 1.4, 0, 7); g.fill();
+      g.strokeStyle = "rgba(230,238,250,0.55)"; g.lineWidth = 0.8;
+      g.beginPath(); g.arc(px, py, 2 + p.t * 1.4, 0, 7); g.stroke();
+      if (o.lod === "region") {
+        g.fillStyle = "rgba(220,228,242,0.85)";
+        g.font = "9.5px ui-monospace, Consolas, monospace";
+        g.fillText(p.n + " · T" + p.t, px + 9, py + 3);
+      }
+    }
+  }
+
+  function drawHexLod(g, w, h) {
+    const s = 30;                      // hex radius
+    const dx = s * 1.73, dy = s * 1.5; // lattice spacing
+    const portCol = 4, portRow = 3;    // Port Veyra's hex
+    const cols = Math.ceil(w / dx) + 2, rows = Math.ceil(h / dy) + 2;
+    const starCols = ["#E8EDF7", "#F2E3B8", "#E8B45A", "#D87B5A", "#9FB8E8"];
+
+    for (let row = -1; row < rows; row++) {
+      for (let col = -1; col < cols; col++) {
+        const hx = col * dx + (row % 2 ? dx / 2 : 0);
+        const hy = row * dy;
+        const rnd = mulberry32((col * 73856093) ^ (row * 19349663) ^ 42);
+
+        // service-radius tint around the port hex
+        const dq = col - portCol, dr = row - portRow;
+        const dist = Math.sqrt(dq * dq + dr * dr);
+        if (dist < 3.4) {
+          hexPath(g, hx, hy, s - 1);
+          g.fillStyle = "rgba(70,181,164,0.07)";
+          g.fill();
+        }
+
+        hexPath(g, hx, hy, s - 1);
+        g.strokeStyle = "rgba(140,160,200,0.18)";
+        g.lineWidth = 1;
+        g.stroke();
+
+        const roll = rnd();
+        if (col === portCol && row === portRow) {
+          g.fillStyle = C.mial;
+          g.beginPath(); g.arc(hx, hy, 5.5, 0, 7); g.fill();
+          g.strokeStyle = "rgba(230,238,250,0.8)"; g.lineWidth = 1;
+          g.beginPath(); g.arc(hx, hy, 9, 0, 7); g.stroke();
+          g.fillStyle = "rgba(220,228,242,0.9)";
+          g.font = "9.5px ui-monospace, Consolas, monospace";
+          g.fillText("Port Veyra · T3", hx + 13, hy + 3);
+        } else if (col === portCol + 1 && row === portRow + 1) {
+          g.fillStyle = starCols[1];
+          g.beginPath(); g.arc(hx, hy, 2.2, 0, 7); g.fill();
+          g.strokeStyle = C.poi; g.lineWidth = 1.1;
+          g.strokeRect(hx - 4, hy + 4, 8, 8);
+          g.fillStyle = "rgba(220,228,242,0.75)";
+          g.font = "9px ui-monospace, Consolas, monospace";
+          g.fillText("alloy works", hx + 13, hy + 3);
+        } else if (col === portCol - 2 && row === portRow + 1) {
+          g.fillStyle = starCols[0];
+          g.beginPath(); g.arc(hx, hy, 2, 0, 7); g.fill();
+          g.fillStyle = "rgba(142,154,179,0.8)";
+          g.font = "9px ui-monospace, Consolas, monospace";
+          g.fillText("organic · settled", hx + 11, hy + 3);
+        } else if (roll < 0.58) {
+          // a system: star color/size from the hex roll
+          g.fillStyle = starCols[Math.floor(rnd() * starCols.length)];
+          g.beginPath(); g.arc(hx, hy, 1.2 + rnd() * 1.6, 0, 7); g.fill();
+        } else if (roll < 0.66) {
+          // a belt
+          g.fillStyle = "rgba(200,180,140,0.7)";
+          for (let i = 0; i < 3; i++) {
+            g.beginPath();
+            g.arc(hx - 5 + i * 5, hy + (i % 2 ? 2.5 : -2.5), 1, 0, 7);
+            g.fill();
+          }
+        }
+        // else: empty reach — the wilds between systems
+      }
+    }
+    g.fillStyle = "rgba(142,154,179,0.55)";
+    g.font = "9px ui-monospace, Consolas, monospace";
+    g.fillText("unmarked hexes: empty reach", 12, h - 12);
+  }
+
+  function drawSystem(g, w, h) {
+    const cx = w / 2, cy = h / 2;
+    const gr = g.createRadialGradient(cx, cy, 1, cx, cy, 22);
+    gr.addColorStop(0, "#FFF3D6"); gr.addColorStop(0.4, "#E8B45A"); gr.addColorStop(1, "#E8B45A00");
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(cx, cy, 22, 0, 7); g.fill();
+    const orbits = [
+      { r: 42, col: "#9AA7C0", size: 2.2, a: 0.8 },
+      { r: 66, col: "#7FA6E8", size: 3.4, a: 2.4, port: true },
+      { r: 92, col: "#C9A57E", size: 2.8, a: 4.4, fac: true }
+    ];
+    for (const ob of orbits) {
+      g.strokeStyle = "rgba(140,160,200,0.22)"; g.lineWidth = 1;
+      g.beginPath(); g.arc(cx, cy, ob.r, 0, 7); g.stroke();
+      const bx = cx + ob.r * Math.cos(ob.a), by = cy + ob.r * Math.sin(ob.a) * 0.92;
+      g.fillStyle = ob.col;
+      g.beginPath(); g.arc(bx, by, ob.size, 0, 7); g.fill();
+      if (ob.port) {
+        g.strokeStyle = "#46B5A4"; g.lineWidth = 1.2;
+        g.beginPath(); g.arc(bx, by, ob.size + 4, 0, 7); g.stroke();
+        g.fillStyle = "rgba(220,228,242,0.85)";
+        g.font = "9.5px ui-monospace, Consolas, monospace";
+        g.fillText("Port Veyra · T3", bx + 10, by + 3);
+      }
+      if (ob.fac) {
+        g.strokeStyle = "#D8B46F"; g.lineWidth = 1;
+        g.strokeRect(bx - 3, by - 3, 6, 6);
+        g.fillStyle = "rgba(220,228,242,0.7)";
+        g.font = "9px ui-monospace, Consolas, monospace";
+        g.fillText("alloy works", bx + 8, by + 3);
+      }
+    }
+  }
+
+  function drawFullGalaxy(canvas) {
+    const { g, w, h } = setup(canvas);
+    g.fillStyle = "#0A0E17";
+    g.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2;
+    const R = Math.min(w, h) * 0.47;
+    const rnd = mulberry32(42);
+    const gauss = () => (rnd() + rnd() + rnd() - 1.5);
+
+    // disc haze + bulge
+    let gr = g.createRadialGradient(cx, cy, 1, cx, cy, R);
+    gr.addColorStop(0, "rgba(120,135,180,0.20)");
+    gr.addColorStop(0.5, "rgba(90,105,150,0.08)");
+    gr.addColorStop(1, "rgba(90,105,150,0)");
+    g.fillStyle = gr;
+    g.beginPath(); g.ellipse(cx, cy, R * 1.12, R * 0.92, 0, 0, 7); g.fill();
+    gr = g.createRadialGradient(cx, cy, 1, cx, cy, R * 0.22);
+    gr.addColorStop(0, "rgba(255,240,214,0.75)");
+    gr.addColorStop(0.4, "rgba(240,214,170,0.28)");
+    gr.addColorStop(1, "rgba(240,214,170,0)");
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(cx, cy, R * 0.22, 0, 7); g.fill();
+
+    // two-arm spiral scatter
+    for (let i = 0; i < 3200; i++) {
+      const t = rnd();
+      const r = R * (0.06 + 0.94 * Math.sqrt(t));
+      const arm = rnd() < 0.5 ? 0 : Math.PI;
+      const wind = (r / R) * 4.6;
+      const th = arm + wind + gauss() * (0.22 + 0.45 * (1 - r / R));
+      const x = cx + r * Math.cos(th) * 1.12 + gauss() * 3;
+      const y = cy + r * Math.sin(th) * 0.92 + gauss() * 3;
+      const b = rnd();
+      g.fillStyle = b > 0.86
+        ? "rgba(214,226,255," + (0.5 + b * 0.4) + ")"
+        : "rgba(190,204,238," + (0.10 + b * 0.30) + ")";
+      const sz = b > 0.96 ? 1.5 : 1;
+      g.fillRect(x, y, sz, sz);
+    }
+
+    // the settled reach — one small patch of civilization
+    const sx = cx + R * 0.52, sy = cy - R * 0.34;
+    for (const [dx2, dy2, col] of [[0, 0, "#46B5A4"], [10, -7, "#9B7BE0"], [4, 9, "#E0708C"]]) {
+      gr = g.createRadialGradient(sx + dx2, sy + dy2, 0.5, sx + dx2, sy + dy2, 11);
+      gr.addColorStop(0, col + "AA");
+      gr.addColorStop(1, col + "00");
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(sx + dx2, sy + dy2, 11, 0, 7); g.fill();
+    }
+    g.strokeStyle = "rgba(229,168,62,0.65)";
+    g.lineWidth = 1;
+    g.beginPath(); g.arc(sx + 4, sy, 20, 0, 7); g.stroke();
+    g.fillStyle = "rgba(229,168,62,0.85)";
+    g.font = "9px ui-monospace, Consolas, monospace";
+    g.fillText("the settled reach", sx - 82, sy + 3);
+  }
+
+  // 3-octave value noise over a seeded lattice
+  function makeNoise(seed) {
+    const rnd = mulberry32(seed);
+    const N = 16;
+    const grid = Array.from({ length: N * N }, () => rnd());
+    const at = (x, y) => grid[((y % N + N) % N) * N + ((x % N + N) % N)];
+    const smooth = t => t * t * (3 - 2 * t);
+    function sample(u, v) {
+      const x0 = Math.floor(u), y0 = Math.floor(v);
+      const fx = smooth(u - x0), fy = smooth(v - y0);
+      const a = at(x0, y0), b = at(x0 + 1, y0), c = at(x0, y0 + 1), d = at(x0 + 1, y0 + 1);
+      return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+    }
+    return (u, v) => 0.55 * sample(u, v) + 0.3 * sample(u * 2.1 + 5, v * 2.1 + 5)
+                   + 0.15 * sample(u * 4.3 + 11, v * 4.3 + 11);
+  }
+
+  function drawField(canvas, seed, stops, shape) {
+    const { g, w, h } = setup(canvas);
+    const noise = makeNoise(seed);
+    const rw = 180, rh = Math.round(rw * h / w);
+    const off = document.createElement("canvas");
+    off.width = rw; off.height = rh;
+    const og = off.getContext("2d");
+    const img = og.createImageData(rw, rh);
+    for (let y = 0; y < rh; y++) {
+      for (let x = 0; x < rw; x++) {
+        let v = noise(x / rw * 5.2, y / rh * 3.8);
+        v = Math.min(1, Math.max(0, (v - 0.18) / 0.64));
+        if (shape) v = shape(v);
+        // piecewise-linear ramp through the palette stops
+        const seg = Math.min(stops.length - 2, Math.floor(v * (stops.length - 1)));
+        const f = v * (stops.length - 1) - seg;
+        const A = stops[seg], B = stops[seg + 1];
+        const i = (y * rw + x) * 4;
+        img.data[i]     = A[0] + (B[0] - A[0]) * f;
+        img.data[i + 1] = A[1] + (B[1] - A[1]) * f;
+        img.data[i + 2] = A[2] + (B[2] - A[2]) * f;
+        img.data[i + 3] = 255;
+      }
+    }
+    og.putImageData(img, 0, 0);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(off, 0, 0, w, h);
+    // sparse stars over the field
+    const rnd = mulberry32(seed + 7);
+    for (let i = 0; i < 110; i++) {
+      const b = rnd();
+      g.fillStyle = "rgba(220,230,250," + (0.15 + b * 0.4) + ")";
+      g.fillRect(rnd() * w, rnd() * h, 1, 1);
+    }
+    // faint cell-lattice hint: this is raster truth, not hexes
+    g.strokeStyle = "rgba(220,230,250,0.05)";
+    g.lineWidth = 1;
+    const cell = 24;
+    for (let x = cell; x < w; x += cell) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    for (let y = cell; y < h; y += cell) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+  }
+
+  function drawSpark(canvas) {
+    const { g, w, h } = setup(canvas);
+    const rnd = mulberry32(1042);
+    g.strokeStyle = "rgba(142,154,179,0.7)"; g.lineWidth = 1;
+    g.beginPath();
+    for (let x = 0; x <= w; x += 3) {
+      const t = x / w;
+      let v = 0.25 + rnd() * 0.2;
+      if (t > 0.42 && t < 0.58) v += 0.45 * Math.sin((t - 0.42) / 0.16 * Math.PI); // the war
+      if (t > 0.25 && t < 0.38) v += 0.2;  // the expansion
+      const y = h - v * h * 0.9;
+      x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+
+  const mainState = { domains: true, lanes: true, traffic: true, war: true, fleets: true, pois: true, tension: false };
+  const main = document.getElementById("mainMap");
+  function redrawMain() { drawMap(main, { lod: "region", zoom: 1.35, cx: 0.44, cy: 0.48, layers: mainState }); }
+
+  function drawAll() {
+    redrawMain();
+    drawSpark(document.getElementById("sparkline"));
+    drawMap(document.getElementById("zoomGalaxy"), { lod: "galaxy", zoom: 0.95, layers: { domains: true, lanes: true, traffic: true, war: true, pois: false, fleets: false } });
+    drawMap(document.getElementById("zoomRegion"), { lod: "region", zoom: 1.75, cx: 0.45, cy: 0.45, layers: { domains: true, lanes: true, traffic: true, war: true, pois: true, fleets: true } });
+    drawMap(document.getElementById("zoomHex"), { lod: "hex", layers: {} });
+    drawMap(document.getElementById("zoomSystem"), { lod: "system", layers: {} });
+    drawFullGalaxy(document.getElementById("zoomFull"));
+    drawField(document.getElementById("fieldGas"), 4201, [
+      [8, 11, 22], [22, 28, 58], [52, 48, 110], [110, 72, 168], [196, 130, 220]
+    ]);
+    drawField(document.getElementById("fieldMetal"), 4207, [
+      [10, 9, 16], [46, 28, 22], [118, 62, 30], [200, 128, 52], [244, 208, 138]
+    ]);
+    drawField(document.getElementById("fieldLife"), 4213, [
+      [7, 12, 16], [10, 34, 36], [18, 78, 60], [62, 148, 82], [178, 220, 110]
+    ], v => Math.pow(v, 2.2));
+  }
+
+  document.querySelectorAll("#lensRail .lens[data-layer]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const k = btn.dataset.layer;
+      mainState[k] = !mainState[k];
+      btn.setAttribute("aria-pressed", String(mainState[k]));
+      redrawMain();
+    });
+  });
+
+  let raf = 0;
+  window.addEventListener("resize", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawAll); });
+  drawAll();
+})();
+</script>
