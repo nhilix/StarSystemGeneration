@@ -221,7 +221,7 @@
       <span class="key"><span class="dot proto"></span> Prototype (running; replaced as designs land)</span>
       <span class="key"><span class="dot spec"></span> Specced (design approved, unbuilt)</span>
       <span class="key"><span class="dot fut"></span> Future / awaiting design pass</span>
-      <span class="stamp">2026-07-11 · slices A–I merged (frame → narrative) — J handoff &amp; K atlas rebuild remain</span>
+      <span class="stamp">2026-07-11 · slices A–J merged (frame → handoff &amp; certification) — only K, the atlas rebuild, remains</span>
     </div>
   </header>
 
@@ -270,7 +270,7 @@
           <span class="link">→</span>
           <div class="node done clock">
             <div class="node-head"><span class="name">Generational</span><span class="chip done">DONE</span></div>
-            <p>~1,000y in ~25y epochs (a reign ≈ 1–3 epochs). History: polities, economies, wars, culture — the epoch sim below (slices A–I). <strong>→ world-state handoff</strong> (slice J next)</p>
+            <p>~1,000y in ~25y epochs (a reign ≈ 1–3 epochs). History: polities, economies, wars, culture — the epoch sim below (slices A–J). <strong>→ world-state handoff, delivered</strong>: the same machine steps at play tick (Sim.GenerationYears split the calendar from the integration step, P7 certified)</p>
           </div>
           <span class="link">→</span>
           <div class="node fut clock">
@@ -343,7 +343,7 @@
       </div>
 
       <div class="subgroup">
-        <h3>Epoch simulation · master frame (implemented, slices A–I)</h3>
+        <h3>Epoch simulation · master frame (implemented, slices A–J)</h3>
         <div class="epoch-frame">
           <div class="frame-head">
             <span class="name">Seven phases per step</span>
@@ -460,11 +460,11 @@
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">Registries</span><span class="chip done">DONE</span></div>
-            <p>Ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues — 22 artifact layers, byte-stable.</p>
+            <p>Ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues — 22 artifact layers, byte-stable; every persisted clock a world-year (slice J); delta saves = base + changed layers + the log's continuation.</p>
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">Controller</span><span class="chip done">DONE</span></div>
-            <p><strong>Decide(perceived) → policies + acts.</strong> AI and player interchangeable at every scope: character ⇄ corporation ⇄ polity (P2). Handover certification is slice J.</p>
+            <p><strong>Decide(perceived) → policies + acts.</strong> AI and player interchangeable at every scope: character ⇄ corporation ⇄ polity (P2). Certified (slice J): a mid-run slot swap is byte-invisible; a scripted player's acts resolve by the same rules.</p>
           </div>
           <div class="node done">
             <div class="node-head"><span class="name">Price signal</span><span class="chip done">DONE</span></div>
@@ -474,7 +474,7 @@
       </div>
 
       <div class="subgroup">
-        <h3>Design passes — all specced 2026-07-09; implemented through the narrative pass (slices A–I)</h3>
+        <h3>Design passes — all specced 2026-07-09; all implemented (slices A–J; acceptance record 2026-07-11)</h3>
         <div class="chain-scroll">
           <div class="pills">
             <span class="pill spec">0a cosmic ✓</span><span class="link">→</span>
@@ -550,6 +550,7 @@
             <li>emap layers: domains, lanes, traffic, price, war, tension, tech, plague</li>
             <li>polity · relations · wars · corps · characters · bio · market · fleet · knobs</li>
             <li>slice I: belief-vs-truth, news journeys, stances, eras, era-annotated chronicle, poi</li>
+            <li>slice J: threads (the world in motion) · estep n years (fine tick) · edsave/edload (delta saves)</li>
           </ul>
         </div>
         <div class="node proto">
@@ -559,13 +560,13 @@
             <li class="fut-item">rebuild against the settled model is <strong>slice K</strong>: domain/lane/price/war/faction layers, panels, drill-down</li>
           </ul>
         </div>
-        <div class="node fut">
-          <div class="node-head"><span class="name">Game layer</span><span class="chip fut">SLICE J →</span></div>
+        <div class="node done">
+          <div class="node-head"><span class="name">Game layer foundations</span><span class="chip done">DONE (J)</span></div>
           <ul>
-            <li class="fut-item">world-state handoff + resumability: the same machine at play-tick sampling (P7) — slice J</li>
-            <li class="fut-item">player assumes any controller slot: character → faction/corp → polity, and back (P2) — certification is slice J</li>
-            <li class="fut-item">news at ship speed; the player as carrier (the graph is live since slice I)</li>
-            <li class="fut-item">delta layer over the artifact — slice J</li>
+            <li>world-state handoff + resumability: the same machine at play-tick sampling, certified at 1y/5y/25y steps (P7)</li>
+            <li>controller handover certified: a player takes a polity throne or corporate board mid-run; the sim cannot tell (P2)</li>
+            <li>a save = config + artifact + deltas + the log's continuation; open threads surfaced (the world arrives in motion)</li>
+            <li class="fut-item">the live game itself: player verbs (11 unarmed contract acts), perceived-price trading, news-carrying — the acceptance record's gap list</li>
           </ul>
         </div>
       </div>
