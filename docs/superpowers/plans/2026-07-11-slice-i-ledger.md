@@ -158,9 +158,18 @@ scope restated in-session.
       Design-doc amendment: perception-and-news.md P1 evidence now
       names pulse journeys instead of per-polity arrival log events.
       Suite 532/532; golden frozen at the final format (ports v2).
-- [ ] I12 — Eyeball gate: the fog of war made visible (distant loser
+- [x] I12 — Eyeball gate: the fog of war made visible (distant loser
       fights on; reputation shock travels; battlefield POI dug).
+      Accepted by the user 2026-07-11 ("merge and wrap up"). Seed 42
+      exhibits: Mial fighting the Alloys War on 50-year-old front
+      reports (believed exhaustion 0.38, truth 0.57); Marno reading
+      −0.56 "a monster" to one court and −0.01 to another; Salvors
+      corps chartered onto 5–141-hull battlefields.
 
 ## Log
 
 - 2026-07-11: branch cut, survey complete, ledger committed.
+- 2026-07-11: I1–I10 landed with TDD (news graph, belief, pulses,
+  reputation, fog-of-war teeth, eras, POI compiler, salvage, plagues,
+  REPL); fresh-eyes review + one fix wave (I11); eyeball accepted and
+  merged (I12). 532/532 green; golden frozen at ports v2.
