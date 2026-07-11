@@ -55,6 +55,24 @@ surface:
 - **Right dock:** typed inspector panels, pinnable for comparison.
 - **Bottom:** the timeline strip.
 
+## The camera (amended in Slice K1, 2026-07-11)
+
+**2.5D perspective over the galactic plane.** All data lives on one 2D
+plane; the camera is perspective — focus point on the plane + distance +
+pitch (clamped, default ~55°) — so every rendered mark is *localized in
+space* (parallax, volume) rather than printed on a picture. The pure
+top-down view survives as the 90°-pitch limit. Zoom dollies toward the
+cursor's plane intersection; the LOD continuum keys off camera altitude.
+Rendering grammar (per the diagram artifact's draw code, K1 eyeball
+correction): dark void + starfield as the base — **never a filled hex
+board**; domains as a per-pixel additive field shader over the port
+registry (organic borders emerge from overlapping falloffs); lanes and
+port marks screen-constant; the hex lattice only as faint outlines that
+resolve at Region. Fields are computed (shader/GPU from the read model),
+glyphs are authored sprites (tinted at runtime), placement is always
+data. Still a non-goal: true 3D volumetric rendering — shapes are meshes
+and billboards on the plane.
+
 ## The zoom continuum (five LOD bands)
 
 | Band | What resolves |
