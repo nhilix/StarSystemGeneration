@@ -131,6 +131,33 @@ public class ProjectOpsTests
         Assert.True(MarketEngine.IsActive(state, f));
     }
 
+    /// <summary>Hull batches take years: the completion payload (hull
+    /// commissioning) fires only once AdvanceAll delivers the full build
+    /// span, never at spawn (spec's time-not-ticks discipline).</summary>
+    [Fact]
+    public void HullBatch_CommissionsHullsAtCompletion_NotBefore()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        ShipDesign? design = null;
+        foreach (var d in state.Designs)
+            if (d.OwnerActorId == pr.ActorId) { design = d; break; }
+        Assert.NotNull(design);
+        var market = state.Markets[portId];
+        market.Inventory[(int)GoodId.ShipComponents] += 100;
+        market.Inventory[(int)GoodId.Armaments] += 100;
+        pr.MilitaryPoints += 1000;
+        int built = pr.HullsBuilt;
+        var p = ProjectOps.SpawnHullBatch(state, pr.ActorId, portId,
+            design!, count: 2, ProjectPriority.Growth, 0);
+        Assert.Equal(built, pr.HullsBuilt);          // nothing yet
+        ProjectOps.AdvanceAll(state);                // span covers the build
+        Assert.True(p.Completed);
+        Assert.Equal(built + 2, pr.HullsBuilt);
+    }
+
     /// <summary>Fixture adaptation (brief's tests assume ports/markets
     /// already exist; EpochTestKit.Seeded() enters polities only as
     /// history runs — spec §Genesis). A few epochs are enough for the

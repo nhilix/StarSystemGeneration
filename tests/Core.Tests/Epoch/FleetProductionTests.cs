@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using StarGen.Core.Epoch;
 using StarGen.Core.Substrate;
 using Xunit;
@@ -47,39 +46,50 @@ public class FleetProductionTests
         Assert.True(FleetOps.ColonyHullsInReserve(state, pr.ActorId) > 0);
     }
 
+    /// <summary>Hull batches replace instant yard laydown (Task 8): a batch
+    /// commissions its whole count at completion, drawing components (+
+    /// armaments for warships) and treasury over its build span. Batch
+    /// sizes here stand in for what the standing plan's D'Hondt over
+    /// ShipbuildingPriorities would apportion — freight gets more hulls
+    /// than escorts under a freight-favoring weight split.</summary>
     [Fact]
-    public void Yard_ConvertsComponentsIntoHulls_ByPriorities()
+    public void HullBatches_CompleteAndCommission_PriorityWeightedCounts()
     {
         var (state, pr, port) = Entered();
         var market = state.Markets[port.Id];
-        // a tier-2 yard, banked components + armaments, a funded treasury
-        state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)InfraTypeId.Shipyard, tier: 2, port.Hex, pr.ActorId,
-            builtYear: -100));
-        market.Deposit((int)GoodId.ShipComponents, 60, 0.55);
-        market.Deposit((int)GoodId.Armaments, 30, 0.5);
-        pr.MilitaryPoints = 500;
+        market.Deposit((int)GoodId.ShipComponents, 600, 0.55);
+        market.Deposit((int)GoodId.Armaments, 300, 0.5);
+        pr.MilitaryPoints = 5000;
         var freight = DesignRegistry.Current(state, pr.ActorId,
             ShipRole.Freight, ShipSize.Medium)!;
         var escort = DesignRegistry.Current(state, pr.ActorId,
             ShipRole.Escort, ShipSize.Light);
-        var weights = new Dictionary<int, double> { [freight.Id] = 1.0 };
-        if (escort != null) weights[escort.Id] = 0.5;
-        state.Actors[pr.ActorId].Policies =
-            (PolityPolicies.Default with { ShipbuildingPriorities = weights });
 
         double componentsBefore = market.Inventory[(int)GoodId.ShipComponents];
         double treasuryBefore = pr.MilitaryPoints;
         int builtBefore = pr.HullsBuilt;
-        var ownPorts = new List<Port> { port };
-        int laid = FleetOps.BuildFleets(state, pr, ownPorts);
+        int escortHullsBefore = 0;
+        foreach (var g in FleetOps.HomeFleet(state, pr.ActorId, port).Hulls)
+            if (escort != null && state.Designs[g.DesignId].Role == ShipRole.Escort)
+                escortHullsBefore += g.Count;
 
-        // tier 2 × 0.2/tier-year × 25y = 10 slots, components permitting
-        Assert.True(laid > 0, "the yard laid nothing down");
-        Assert.Equal(builtBefore + laid, pr.HullsBuilt);
+        var freightBatch = ProjectOps.SpawnHullBatch(state, pr.ActorId,
+            port.Id, freight, count: 4, ProjectPriority.Growth, 0);
+        Project? escortBatch = escort == null ? null
+            : ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id, escort,
+                count: 2, ProjectPriority.Growth, 1);
+
+        ProjectOps.AdvanceAll(state);          // both batches' spans are
+                                                // well under one epoch
+        Assert.True(freightBatch.Completed);
+        if (escortBatch != null) Assert.True(escortBatch.Completed);
+
+        int expectedBuilt = builtBefore + 4 + (escortBatch != null ? 2 : 0);
+        Assert.Equal(expectedBuilt, pr.HullsBuilt);
         Assert.True(market.Inventory[(int)GoodId.ShipComponents] < componentsBefore);
         Assert.True(pr.MilitaryPoints < treasuryBefore);
-        // hulls joined the home reserve; freight out-built the escorts ~2:1
+
+        // hulls joined the home reserve; freight out-built the escorts 2:1
         var home = FleetOps.HomeFleet(state, pr.ActorId, port);
         int freightHulls = 0, escortHulls = 0;
         foreach (var g in home.Hulls)
@@ -89,32 +99,49 @@ public class FleetProductionTests
                 freightHulls += g.Count;
             if (escort != null && d.Role == ShipRole.Escort) escortHulls += g.Count;
         }
-        Assert.True(freightHulls > state.Config.Fleet.StarterFreightHulls);
-        if (escort != null && laid >= 3)
-            Assert.True(freightHulls - state.Config.Fleet.StarterFreightHulls
-                        > escortHulls,
-                "priorities should favor freight over escorts");
+        Assert.Equal(state.Config.Fleet.StarterFreightHulls + 4, freightHulls);
+        if (escortBatch != null)
+            Assert.Equal(escortHullsBefore + 2, escortHulls);
     }
 
+    /// <summary>A batch short on components delivers only the fed fraction
+    /// of its build span, same as any other project (spec §1) — it does not
+    /// commission partial hulls. A broke treasury halts progress entirely
+    /// (wages gate the fraction too); refunding it lets the remainder
+    /// deliver and the batch commissions in full.</summary>
     [Fact]
-    public void Yard_StopsAtEmptyStock_AndEmptyTreasury()
+    public void HullBatch_StarvesOnShortStock_AndZeroTreasuryHaltsProgress()
     {
         var (state, pr, port) = Entered();
-        state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)InfraTypeId.Shipyard, tier: 2, port.Hex, pr.ActorId, -100));
         var market = state.Markets[port.Id];
-        // components for barely two medium hulls
         double perHull = DesignMath.ComponentsPerHull(state.Config.Fleet,
-                                                      ShipSize.Medium);
-        market.Deposit((int)GoodId.ShipComponents, perHull * 2 + 0.1, 0.5);
+                                                       ShipSize.Medium);
+        var freight = DesignRegistry.Current(state, pr.ActorId,
+            ShipRole.Freight, ShipSize.Medium)!;
+        // stock for exactly one hull of a two-hull batch
+        market.Deposit((int)GoodId.ShipComponents, perHull, 0.5);
         pr.MilitaryPoints = 10_000;
-        int laid = FleetOps.BuildFleets(state, pr, new List<Port> { port });
-        Assert.Equal(2, laid);
+        var p = ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id,
+            freight, count: 2, ProjectPriority.Growth, 0);
+        ProjectOps.AdvanceAll(state);
+        Assert.False(p.Completed);
+        Assert.Equal(0.5, p.YearsDelivered / p.YearsRequired, 3);
+        Assert.Equal(0.0, market.Inventory[(int)GoodId.ShipComponents], 6);
 
-        // broke treasury: nothing moves however full the shelves
-        market.Deposit((int)GoodId.ShipComponents, 100, 0.5);
+        // fully stocked but broke: wages can't be paid, so nothing draws
+        market.Deposit((int)GoodId.ShipComponents, perHull * 2, 0.5);
         pr.MilitaryPoints = 0;
-        Assert.Equal(0, FleetOps.BuildFleets(state, pr, new List<Port> { port }));
+        double deliveredBefore = p.YearsDelivered;
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(deliveredBefore, p.YearsDelivered, 6);
+        Assert.False(p.Completed);
+
+        // treasury refunded: the remaining years deliver and it commissions
+        pr.MilitaryPoints = 10_000;
+        int builtBefore = pr.HullsBuilt;
+        ProjectOps.AdvanceAll(state);
+        Assert.True(p.Completed);
+        Assert.Equal(builtBefore + 2, pr.HullsBuilt);
     }
 
     [Fact]

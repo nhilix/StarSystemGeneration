@@ -312,7 +312,7 @@ public sealed class AllocationPhase : ISimPhase
     {
         var cfg = state.Config;
         int earning = 0, lanesBuilt = 0;
-        int hullsLaid = 0, hullsLost = 0;
+        int hullsLost = 0;
         int defaults = ServiceLoans(state);
         // tribute ships up before anyone budgets: vassals allocate what
         // remains of their receipts (interpolity/relations.md §Vassalage)
@@ -352,7 +352,6 @@ public sealed class AllocationPhase : ISimPhase
             // projects that Advance feeds over their build years (spec §3)
             Groundbreak(state, pr, policies.Plan);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
-            hullsLaid += FleetOps.BuildFleets(state, pr, ownPorts);
             FleetOps.ManagePostures(state, pr, ownPorts);
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
@@ -373,7 +372,6 @@ public sealed class AllocationPhase : ISimPhase
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
-        if (hullsLaid > 0) note += $", {hullsLaid} " + (hullsLaid == 1 ? "hull laid down" : "hulls laid down");
         if (completions > 0) note += $", {completions} project completions";
         if (hullsLost > 0) note += $", {hullsLost} " + (hullsLost == 1 ? "hull lost" : "hulls lost");
         if (corporationsActive > 0)
@@ -789,10 +787,38 @@ public sealed class AllocationPhase : ISimPhase
                     GroundbreakPortRaise(state, pr, entry, ix);
                     break;
                 case PlanEntryKind.HullBatch:
-                    // Task 8: ProjectOps.SpawnHullBatch
-                    continue;
+                    GroundbreakHullBatch(state, pr, entry, ix);
+                    break;
             }
         }
+    }
+
+    /// <summary>Hull-batch groundbreak: an owned port with a design the
+    /// polity still holds (a stale plan's design may have been superseded
+    /// or belong to an actor no longer entered) and the military treasury
+    /// to cover the administered value — the batch commissions when its
+    /// build span delivers (Task 8).</summary>
+    private static void GroundbreakHullBatch(SimState state, PolityRecord pr,
+                                              PlanEntry entry, int planOrder)
+    {
+        if (entry.PortId < 0 || entry.PortId >= state.Ports.Count) return;
+        var port = state.Ports[entry.PortId];
+        if (port.OwnerActorId != pr.ActorId) return;
+        if (entry.TypeId < 0 || entry.TypeId >= state.Designs.Count) return;
+        var design = state.Designs[entry.TypeId];
+        if (design.OwnerActorId != pr.ActorId) return;    // stale plan, not ours
+        int count = Math.Max(1, entry.Count);
+        double comp = DesignMath.ComponentsPerHull(state.Config.Fleet, design.Size);
+        double armaments = DesignMath.ArmamentsPerHull(state.Config.Fleet,
+            design.Role, design.Size);
+        double value = count * (
+            comp * Market.InitialPrice(state.Config.Economy,
+                Substrate.GoodId.ShipComponents)
+            + armaments * Market.InitialPrice(state.Config.Economy,
+                Substrate.GoodId.Armaments));
+        if (pr.MilitaryPoints < value) return;
+        ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id, design, count,
+            entry.Priority, planOrder);
     }
 
     /// <summary>Facility groundbreak: an empty hex on an owned, under-capacity

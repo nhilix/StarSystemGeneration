@@ -62,6 +62,41 @@ public static class ProjectOps
         return p;
     }
 
+    /// <summary>Groundbreak a hull batch: the yard commits to <paramref
+    /// name="count"/> hulls of one design, paid as a wage stream over the
+    /// build years (fleets/ships-and-fleets.md, time-and-logistics.md) —
+    /// the navy arrives late by design, no instant laydown. Duration scales
+    /// with the design's size (bigger hulls take longer, medium-size is the
+    /// base); basket/wages are per world-year across the whole batch.</summary>
+    public static Project SpawnHullBatch(SimState state, int ownerActorId,
+        int portId, ShipDesign design, int count, ProjectPriority priority,
+        int planOrder)
+    {
+        var cfg = state.Config;
+        double medium = DesignMath.ComponentsPerHull(cfg.Fleet, ShipSize.Medium);
+        double comp = DesignMath.ComponentsPerHull(cfg.Fleet, design.Size);
+        double years = Math.Max(1.0,
+            cfg.Fleet.HullBuildYearsBase * (comp / medium));
+        double armaments = DesignMath.ArmamentsPerHull(cfg.Fleet, design.Role,
+                                                        design.Size);
+        var p = Spawn(state, ProjectKind.HullBatch, ownerActorId, ownerActorId,
+                      portId, state.Ports[portId].Hex, years, priority,
+                      planOrder);
+        p.PerYearBasket[(int)GoodId.ShipComponents] = comp * count / years;
+        double value = comp
+            * Market.InitialPrice(cfg.Economy, GoodId.ShipComponents) * count;
+        if (armaments > 0)
+        {
+            p.PerYearBasket[(int)GoodId.Armaments] = armaments * count / years;
+            value += armaments
+                * Market.InitialPrice(cfg.Economy, GoodId.Armaments) * count;
+        }
+        p.WagesPerYear = value / years;
+        p.TypeId = design.Id;
+        p.Count = count;
+        return p;
+    }
+
     /// <summary>Pass 1 (spec §4): per funder in entered actor-id order,
     /// projects in (priority, plan order, id) order — the scarcest input
     /// paces each project; earlier draws starve later ones at a shared
@@ -252,7 +287,18 @@ public static class ProjectOps
                     new LaneOpenedPayload(lane.PortAId, lane.PortBId)));
                 break;
             }
-            case ProjectKind.HullBatch:      // Task 8
+            case ProjectKind.HullBatch:
+            {
+                var design = state.Designs[p.TypeId];
+                double grade = p.AccumGradeWeight > 0 ? p.AccumGrade : 0.5;
+                var advanced = DesignRegistry.MaybeAdvanceMark(state, design,
+                    grade, state.Ports[p.PortId].Hex);
+                FleetOps.HomeFleet(state, p.OwnerActorId,
+                    state.Ports[p.PortId]).AddHulls(advanced.Id, p.Count,
+                                                    grade);
+                state.PolityOf(p.OwnerActorId).HullsBuilt += p.Count;
+                break;
+            }
             case ProjectKind.ColonyExpedition: // Task 9
                 break;
             case ProjectKind.Mobilization:

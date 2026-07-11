@@ -58,15 +58,24 @@ public static class Planner
         }
 
         // hull batches: D'Hondt over the ShipbuildingPriorities-weighted own
-        // designs, up to one batch per active yard tier at each port
+        // designs. Slot count mirrors the old instant-laydown throughput
+        // (yard tier × Fleet.YardHullsPerTierPerYear × the epoch's years) so
+        // apportionment keeps its old shape — a low-priority role (colony
+        // ships once the reserve is empty) still wins a slot every so many
+        // picks instead of a single-slot yard handing everything to freight
+        // forever. Slots won by the same design collapse into one batch
+        // (Count = slots won) — one project per design, not per hull.
         double hullBase = 0.2 + 0.6 * militancy;
         double warFactor = atWar ? 2.0 : 1.0;
         var hullPriority = atWar ? ProjectPriority.War : ProjectPriority.Growth;
         foreach (var port in view.OwnPorts)                // id order (P6)
         {
             if (port.YardTiers <= 0) continue;
+            int slots = Math.Max(1, (int)(port.YardTiers
+                * cfg.Fleet.YardHullsPerTierPerYear * cfg.Sim.YearsPerEpoch));
             var granted = new Dictionary<int, int>();
-            for (int b = 0; b < port.YardTiers; b++)
+            var bestClaimOf = new Dictionary<int, double>();
+            for (int b = 0; b < slots; b++)
             {
                 int bestId = -1;
                 double bestClaim = 0;
@@ -81,12 +90,18 @@ public static class Planner
                     { bestClaim = claim; bestId = d.DesignId; }
                 }
                 if (bestId < 0) break;                     // nothing weighted
+                if (!bestClaimOf.ContainsKey(bestId)) bestClaimOf[bestId] = bestClaim;
                 granted[bestId] =
                     (granted.TryGetValue(bestId, out int gg) ? gg : 0) + 1;
+            }
+            foreach (var d in view.OwnDesigns)             // design-id order (P6)
+            {
+                if (!granted.TryGetValue(d.DesignId, out int count) || count <= 0)
+                    continue;
                 desired.Add((new PlanEntry(PlanEntryKind.HullBatch,
-                    hullPriority, 0, bestId, port.PortId,
-                    new HexCoordinate(0, 0), 1),
-                    hullBase * warFactor * bestClaim));
+                    hullPriority, 0, d.DesignId, port.PortId,
+                    new HexCoordinate(0, 0), count),
+                    hullBase * warFactor * bestClaimOf[d.DesignId]));
             }
         }
 
