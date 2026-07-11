@@ -90,6 +90,13 @@ public class ShapeAcceptanceTests
             held += f.Wealth;   // appeasement is a flow, not a sink (slice G)
         foreach (var c in state.Corporations)
             held += c.Credits;  // corporate books are conserved too (slice G)
+        // a colony expedition in flight carries the settlers' stake between
+        // treasuries: ExpansionPoints was charged at dispatch, the colony
+        // segment's Wealth is minted only on arrival (Task 9 — founding runs
+        // in world-time), so the in-transit ColonyCost is held by the voyage
+        foreach (var p in state.Projects)
+            if (p.InFlight && p.Kind == StarGen.Core.Epoch.ProjectKind.ColonyExpedition)
+                held += state.Config.Expansion.ColonyCost;
         Assert.True(minted > 0);
         Assert.Equal(minted, held, minted * 1e-9);
     }

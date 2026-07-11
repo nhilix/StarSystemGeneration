@@ -18,11 +18,22 @@ public class CorpGateLaneTests
 
         CorporationOps.Operate(state);
 
+        // groundbreaking: the lane row and both gates exist now, but the
+        // gates are uncommissioned — the pair runs in world-time (Task 9)
         Assert.Equal(lanesBefore + 1, state.Lanes.Count);
         var lane = state.Lanes[state.Lanes.Count - 1];
         Assert.Equal(corp.ActorId, state.Facilities[lane.GateAId].OwnerActorId);
         Assert.Equal(corp.ActorId, state.Facilities[lane.GateBId].OwnerActorId);
-        Assert.True(LaneMath.IsLive(state, lane));
+        Assert.False(LaneMath.IsLive(state, lane));   // half-built: no lane yet
+
+        // the pair draws its whole basket at the A end and streams wages from
+        // corp credits over the gate build years — stock the A-end market so
+        // the tier-scaled pair basket can be delivered in full
+        var aMarket = state.Markets[lane.PortAId];
+        foreach (var q in Infrastructure.Get(InfraTypeId.Gate).BuildCost)
+            aMarket.Deposit((int)q.Good, q.Quantity * 40, 0.6);
+        ProjectOps.AdvanceAll(state);
+        Assert.True(LaneMath.IsLive(state, lane), "the pair opens on commission");
     }
 
     [Fact]

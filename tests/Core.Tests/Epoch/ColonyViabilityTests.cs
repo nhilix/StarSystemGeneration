@@ -53,6 +53,9 @@ public class ColonyViabilityTests
                 PolityPolicies.Default,
                 new Act[] { new FoundColonyAct(0, hex) })));
             new ResolutionPhase().Run(state);
+            // founding runs in world-time now (Task 9): the expedition ships
+            // the equipment on arrival — fly the crossing to completion
+            ProjectOps.AdvanceAll(state);
             state.Decisions.Clear();
             return hex;
         }

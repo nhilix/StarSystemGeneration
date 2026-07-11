@@ -98,13 +98,20 @@ public class FleetSupplyTests
         int portsBefore = state.Ports.Count;
         new ResolutionPhase().Run(state);
 
-        Assert.Equal(portsBefore + 1, state.Ports.Count);
+        // dispatch takes the hull out of the reserve and chronicles the
+        // convoy, but the crossing runs in world-time now (Task 9): no port
+        // and no scrap until the expedition arrives
+        Assert.Equal(portsBefore, state.Ports.Count);
         Assert.Equal(hullsBefore - 1, FleetOps.ColonyHullsInReserve(state, pr.ActorId));
-        Assert.Equal(1, pr.HullsScrapped);   // the colony ship became the colony
         bool convoy = false;
         foreach (var e in state.Staged)
             if (e.Type == WorldEventType.ConvoyDispatched) convoy = true;
         Assert.True(convoy, "the founding should chronicle its convoy");
+
+        // fly the expedition (empty basket — it always advances) to arrival
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(portsBefore + 1, state.Ports.Count);
+        Assert.Equal(1, pr.HullsScrapped);   // the colony ship became the colony
         // the convoy's fleet docks as the colony's reserve
         var newPort = state.Ports[portsBefore];
         FleetRecord? docked = null;

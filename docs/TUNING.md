@@ -426,6 +426,7 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
 | `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
 | `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |
+| `Fleet.ExpeditionHexesPerYear` | 6 | Faster off-lane convoys: colony expeditions arrive sooner, founding lags less behind the decision. | Slower: distant colonies take many years to found, expansion feels sluggish. |
 | `Fleet.UpkeepUnitsPerPointPerYear` | 0.025 | Fleets eat harder into fuel/armaments/components — treasuries drain, navies compete with merchants for fuel. | Upkeep cosmetic; military treasuries pile up. |
 | `Fleet.UpkeepFuelShare` | 0.4 | Supply tilts toward fuel (refinery-driven readiness). | Tilts toward armaments/components (industry-driven readiness). |
 | `Fleet.ReserveUpkeepFactor` | 0.25 | Mothballs cost real money. | Docked fleets nearly free (reserves become the default posture). |

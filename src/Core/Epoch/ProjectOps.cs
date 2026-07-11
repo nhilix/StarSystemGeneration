@@ -97,6 +97,69 @@ public static class ProjectOps
         return p;
     }
 
+    /// <summary>Groundbreak a gate pair (lane-economics + time-not-ticks):
+    /// BOTH gate facilities exist NOW at each port's hex, uncommissioned
+    /// (CommissionedYear = −1) — they hold their gate slots from
+    /// groundbreaking. The Lane row exists now carrying both gate ids; it
+    /// reads dead until both commission (LaneMath.IsLive). One project
+    /// delivers the pair over the gate's ConstructionYears: basket = the full
+    /// PAIR build cost per year, wages = the pair's administered value per
+    /// year — a half-built highway opens no lane.</summary>
+    public static Project SpawnGatePair(SimState state, int ownerActorId,
+        int funderActorId, Port a, Port b, int tier, ProjectPriority priority,
+        int planOrder)
+    {
+        if (a.Id > b.Id) (a, b) = (b, a);
+        var cfg = state.Config;
+        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        double scale = Substrate.Production.TierCostFactor(tier);
+        double years = Math.Max(1.0, def.ConstructionYears);
+        var gateA = new Facility(state.Facilities.Count,
+            (int)Substrate.InfraTypeId.Gate, tier, a.Hex, ownerActorId,
+            state.WorldYear) { CommissionedYear = -1 };
+        state.Facilities.Add(gateA);
+        var gateB = new Facility(state.Facilities.Count,
+            (int)Substrate.InfraTypeId.Gate, tier, b.Hex, ownerActorId,
+            state.WorldYear) { CommissionedYear = -1 };
+        state.Facilities.Add(gateB);
+        var lane = new Lane(state.Lanes.Count, a.Id, b.Id, state.WorldYear)
+        { GateAId = gateA.Id, GateBId = gateB.Id };
+        state.Lanes.Add(lane);
+        // stage-2: the pair draws its whole basket + funder reserves at the A
+        // end; per-end draws (each gate at its own market) are Stage 2
+        var p = Spawn(state, ProjectKind.GatePair, ownerActorId, funderActorId,
+                      a.Id, a.Hex, years, priority, planOrder);
+        double value = 0;
+        foreach (var q in def.BuildCost)
+        {
+            p.PerYearBasket[(int)q.Good] = 2.0 * q.Quantity * scale / years;
+            value += 2.0 * q.Quantity * scale
+                     * Market.InitialPrice(cfg.Economy, q.Good);
+        }
+        p.WagesPerYear = value / years;
+        p.TypeId = (int)Substrate.InfraTypeId.Gate;
+        p.TargetId = lane.Id;
+        return p;
+    }
+
+    /// <summary>Launch a colony expedition (space-and-travel.md
+    /// §Colonization): the convoy is already dispatched (Resolution charged
+    /// the act, burned the fuel, staged ConvoyDispatched); this project is
+    /// the off-lane crossing in world-time — duration = off-lane hexes over
+    /// the convoy's speed, empty basket, no wages. Completion founds the
+    /// port (or turns the convoy back if the hex was taken meanwhile).</summary>
+    public static Project SpawnExpedition(SimState state, int ownerActorId,
+        int stagingPortId, HexCoordinate target, int convoyFleetId,
+        int offLaneHexes)
+    {
+        double years = offLaneHexes / state.Config.Fleet.ExpeditionHexesPerYear;
+        var p = Spawn(state, ProjectKind.ColonyExpedition, ownerActorId,
+                      ownerActorId, stagingPortId, target, years,
+                      ProjectPriority.Core, 0);
+        p.TargetId = convoyFleetId;
+        return p;
+    }
+
     /// <summary>Pass 1 (spec §4): per funder in entered actor-id order,
     /// projects in (priority, plan order, id) order — the scarcest input
     /// paces each project; earlier draws starve later ones at a shared
@@ -145,6 +208,23 @@ public static class ProjectOps
     /// neither hoards goods nor pays idle crews.</summary>
     private static void Feed(SimState state, Project p, double needYears)
     {
+        // travel kinds carry no basket and pay no wages: they skip the goods
+        // loop and simply advance, dragging their convoy along the hex line
+        if (p.Kind == ProjectKind.ColonyExpedition)
+        {
+            p.YearsDelivered = Math.Min(p.YearsRequired,
+                p.YearsDelivered + needYears);
+            p.LastFedFraction = 1.0;
+            if (p.TargetId >= 0)
+            {
+                var convoy = state.Fleets[p.TargetId];
+                var from = state.Ports[p.PortId].Hex;
+                convoy.Hex = HexGrid.Round(
+                    from.Q + (p.Hex.Q - from.Q) * p.Progress,
+                    from.R + (p.Hex.R - from.R) * p.Progress);
+            }
+            return;
+        }
         var market = state.Markets[p.PortId];
         var funderPolity = FunderPolity(state, p.FunderActorId);
         double fraction = 1.0;
@@ -299,7 +379,8 @@ public static class ProjectOps
                 state.PolityOf(p.OwnerActorId).HullsBuilt += p.Count;
                 break;
             }
-            case ProjectKind.ColonyExpedition: // Task 9
+            case ProjectKind.ColonyExpedition:
+                CompleteExpedition(state, p);
                 break;
             case ProjectKind.Mobilization:
             {
@@ -308,6 +389,124 @@ public static class ProjectOps
                 break;
             }
         }
+    }
+
+    /// <summary>The colony expedition arrives (moved here from
+    /// ResolutionPhase.TryFound — everything from the convoy's landing on):
+    /// the port + market + colony segment (carrying the official line),
+    /// founding facilities commissioned at birth (the expedition shipped the
+    /// equipment — the existing convention), the convoy docked as the
+    /// colony's first reserve fleet with its colony hull scrapped, the
+    /// PortEstablished chronicle, the founder mint, and the encroachment
+    /// tension bumps. Failed founding: if the hex gained a port mid-flight,
+    /// the convoy simply turns back to its staging port — no port, no event
+    /// this slice.</summary>
+    private static void CompleteExpedition(SimState state, Project p)
+    {
+        var cfg = state.Config;
+        var record = state.PolityOf(p.OwnerActorId);
+        var convoy = p.TargetId >= 0 ? state.Fleets[p.TargetId] : null;
+        foreach (var existing in state.Ports)            // id order (P6)
+            if (existing.Hex.Equals(p.Hex))
+            {
+                // the target was colonized while the convoy flew: turn back.
+                // the settlers' stake returns with them — refund the colony
+                // cost charged at dispatch so the ledger conserves (P4); the
+                // colony segment that would have absorbed it is never born
+                record.ExpansionPoints += cfg.Expansion.ColonyCost;
+                if (convoy != null)
+                {
+                    convoy.Posture = FleetPosture.Reserve;
+                    convoy.HomePortId = p.PortId;
+                    convoy.Hex = state.Ports[p.PortId].Hex;
+                }
+                return;
+            }
+        var actor = state.Actors[p.OwnerActorId];
+        // the colony ship becomes the colony
+        if (convoy != null)
+            foreach (var g in convoy.Hulls)              // design-id order
+                if (state.Designs[g.DesignId].Role == ShipRole.Colony)
+                {
+                    convoy.RemoveHulls(g.DesignId, 1);
+                    record.HullsScrapped++;
+                    break;
+                }
+        var port = new Port(state.Ports.Count, p.OwnerActorId, p.Hex,
+                            tier: 1, state.WorldYear);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(port.Id, cfg.Economy));
+        var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
+            record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize)
+        {
+            // the expedition cost recycles to the settlers (P4)
+            Wealth = cfg.Expansion.ColonyCost,
+        };
+        // settlers sent by the state carry the official line (slice G)
+        if (record.Interior != null)
+            for (int ax = 0; ax < 4; ax++)
+                colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
+        state.Segments.Add(colonySegment);
+        // the expedition ships the equipment for what it came for: the
+        // founding facility matches the site's best extraction potential,
+        // plus a subsistence farm when that isn't farming
+        var founding = FoundingIndustry(state, p.Hex);
+        state.Facilities.Add(new Facility(state.Facilities.Count,
+            (int)founding, tier: 1, p.Hex, p.OwnerActorId, state.WorldYear));
+        if (founding != Substrate.InfraTypeId.AgriComplex)
+            state.Facilities.Add(new Facility(state.Facilities.Count,
+                (int)Substrate.InfraTypeId.AgriComplex, tier: 1, p.Hex,
+                p.OwnerActorId, state.WorldYear));
+        // the convoy's survivors dock as the colony's first reserve fleet
+        if (convoy != null)
+        {
+            convoy.Posture = FleetPosture.Reserve;
+            convoy.HomePortId = port.Id;
+            convoy.Hex = p.Hex;
+        }
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.PortEstablished,
+            new[] { p.OwnerActorId }, p.Hex, Magnitude: 1.0, Valence: 1.0,
+            EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
+        // a founding convoy mints its founder (characters.md §Notables)
+        CharacterOps.MintNotable(state, p.OwnerActorId, NotableType.Founder,
+                                 p.Hex);
+        // settling into someone's sphere is a provocation: every entangled
+        // neighbor's gauge jumps now (slice H — expansion carries risk)
+        foreach (var other in state.Ports)               // id order (P6)
+        {
+            if (other.OwnerActorId == p.OwnerActorId
+                || !state.Actors[other.OwnerActorId].Entered) continue;
+            if (HexGrid.Distance(other.Hex, p.Hex)
+                > PortDomains.ServiceRadius(cfg, 1)
+                  + PortDomains.ServiceRadius(cfg, other.Tier)
+                  + TechOps.AstroRadiusBonus(state, other.OwnerActorId))
+                continue;
+            var relation = state.RelationOf(p.OwnerActorId, other.OwnerActorId);
+            if (relation != null)
+                relation.Tension = Math.Min(1.0, relation.Tension
+                    + cfg.Relations.EncroachmentTensionBump);
+        }
+    }
+
+    /// <summary>The extraction type matching the colony site's strongest
+    /// potential. Food security carries a premium: extraction wins only when
+    /// it clearly out-values the farmland — otherwise settlers farm. (Moved
+    /// from ResolutionPhase in Task 9; the founding body lives here now.)</summary>
+    private static Substrate.InfraTypeId FoundingIndustry(SimState state,
+                                                          HexCoordinate target)
+    {
+        var fields = MarketEngine.FieldsAt(state, target);
+        var best = Substrate.InfraTypeId.AgriComplex;
+        double bar = Substrate.Potentials.Biosphere(fields)
+                     * state.Config.Infrastructure.FoodSecurityPremium;
+        if (Substrate.Potentials.Ore(fields) > bar)
+        { best = Substrate.InfraTypeId.Mine; bar = Substrate.Potentials.Ore(fields); }
+        if (Substrate.Potentials.Volatiles(fields) > bar)
+        { best = Substrate.InfraTypeId.Skimmer; bar = Substrate.Potentials.Volatiles(fields); }
+        if (Substrate.Potentials.Exotics(fields) > bar)
+            best = Substrate.InfraTypeId.ExcavationSite;
+        return best;
     }
 
     /// <summary>A cancelled site is residue with a date and an owner of

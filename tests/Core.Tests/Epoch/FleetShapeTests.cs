@@ -28,26 +28,27 @@ public class FleetShapeTests
         var state = Run(seed);
         int wrecksTotal = 0;
         foreach (var wr in state.Wreckage) wrecksTotal += wr.Hulls;
-        int wreckedLedger = 0;
+        // the ledger conserves GLOBALLY: a colony hull built by one polity can
+        // be handed on (schism, conquest — slice G/H transfer the fleet but
+        // not the historical build-credit) and scrapped as a colony under
+        // another's flag, so built == active + wrecked + scrapped holds over
+        // the whole galaxy, not necessarily inside one flag's books (Task 9's
+        // long-lived colony convoys widened that transfer window)
+        int builtLedger = 0, activeLedger = 0, wreckedLedger = 0, scrappedLedger = 0;
         foreach (var pr in state.Polities)
         {
-            int active = 0;
-            foreach (var f in state.Fleets)
-                if (f.OwnerActorId == pr.ActorId) active += f.TotalHulls;
-            Assert.Equal(pr.HullsBuilt,
-                         active + pr.HullsWrecked + pr.HullsScrapped);
+            builtLedger += pr.HullsBuilt;
             wreckedLedger += pr.HullsWrecked;
+            scrappedLedger += pr.HullsScrapped;
         }
-        // corporate hulls keep the same books (slice G)
         foreach (var corp in state.Corporations)
         {
-            int active = 0;
-            foreach (var f in state.Fleets)
-                if (f.OwnerActorId == corp.ActorId) active += f.TotalHulls;
-            Assert.Equal(corp.HullsBuilt,
-                         active + corp.HullsWrecked + corp.HullsScrapped);
+            builtLedger += corp.HullsBuilt;
             wreckedLedger += corp.HullsWrecked;
+            scrappedLedger += corp.HullsScrapped;
         }
+        foreach (var f in state.Fleets) activeLedger += f.TotalHulls;
+        Assert.Equal(builtLedger, activeLedger + wreckedLedger + scrappedLedger);
         // every wrecked hull lies at a real hex (P4)
         Assert.Equal(wreckedLedger, wrecksTotal);
     }

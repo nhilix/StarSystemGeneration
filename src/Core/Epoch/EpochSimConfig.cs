@@ -883,6 +883,10 @@ public sealed class FleetKnobs
     /// pioneer at ~9 endurance reaches ~27 hexes, just past the default
     /// colonization reach).</summary>
     public double EnduranceHexesPerPoint { get; set; } = 3.0;
+    /// <summary>Off-lane convoy speed, hexes per world-year — an expedition's
+    /// crossing time is its off-lane distance over this rate (a 12-hex leg
+    /// takes two years). Founding runs in world-time, never same-step.</summary>
+    public double ExpeditionHexesPerYear { get; set; } = 6.0;
     /// <summary>Round trips per world-year of a posted hull at transit
     /// speed 1 over one hex — posted capacity = cargo × trips
     /// (× TransitSpeed ÷ distance).</summary>

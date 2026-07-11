@@ -158,6 +158,97 @@ public class ProjectOpsTests
         Assert.Equal(built + 2, pr.HullsBuilt);
     }
 
+    /// <summary>A gate pair breaks ground with both gates uncommissioned and
+    /// its lane dead; the lane only goes live once AdvanceAll delivers the
+    /// full construction span (Task 9 — half a highway is no highway).</summary>
+    [Fact]
+    public void GatePair_LaneOpensOnlyWhenCommissioned()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        var own = new System.Collections.Generic.List<Port>();
+        foreach (var port in state.Ports)
+            if (port.OwnerActorId == pr.ActorId) own.Add(port);
+        // guarantee two own ports without a mutual lane (the seed may leave
+        // the first-wave polity with only its homeworld this early)
+        if (own.Count < 2)
+        {
+            var home = own[0];
+            var second = new Port(state.Ports.Count, pr.ActorId,
+                new StarGen.Core.Model.HexCoordinate(home.Hex.Q + 6, home.Hex.R),
+                tier: 1, state.WorldYear);
+            state.Ports.Add(second);
+            state.Markets.Add(new Market(second.Id, state.Config.Economy));
+            own.Add(second);
+        }
+        var p = ProjectOps.SpawnGatePair(state, pr.ActorId, pr.ActorId,
+            own[0], own[1], tier: 1, ProjectPriority.Core, 0);
+        var lane = state.Lanes[p.TargetId];
+        Assert.False(LaneMath.IsLive(state, lane));   // half a highway is none
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Alloys] += 100;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Machinery] += 100;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Composites] += 100;
+        pr.DevelopmentPoints += 1000;
+        ProjectOps.AdvanceAll(state);
+        Assert.True(p.Completed);
+        Assert.True(LaneMath.IsLive(state, lane));
+    }
+
+    /// <summary>A colony expedition takes world-time: the founding body fires
+    /// only when the off-lane crossing is delivered, never at dispatch — the
+    /// port count is unchanged in flight and up by one on arrival.</summary>
+    [Fact]
+    public void Expedition_FoundsThePort_OnlyOnArrival()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int staging = OwnPort(state, pr.ActorId);
+        int portsBefore = state.Ports.Count;
+        var convoy = new FleetRecord(state.Fleets.Count, pr.ActorId,
+            state.Ports[staging].Hex)
+        { Posture = FleetPosture.Expedition, HomePortId = staging };
+        state.Fleets.Add(convoy);
+        var target = new StarGen.Core.Model.HexCoordinate(
+            state.Ports[staging].Hex.Q + 12, state.Ports[staging].Hex.R);
+        if (!ValidTarget(state, target))
+        {
+            var candidates = ColonyValuation.CandidatesFor(state, pr.ActorId);
+            Assert.NotEmpty(candidates);
+            target = candidates[0].Target;
+        }
+        var p = ProjectOps.SpawnExpedition(state, pr.ActorId, staging,
+            target, convoy.Id, offLaneHexes: 12);
+        Assert.True(p.YearsRequired > 0);
+        // in flight: no port at the target, port count unchanged by our spawn
+        Assert.Equal(portsBefore, state.Ports.Count);
+        Assert.False(PortAt(state, target));
+        ProjectOps.AdvanceAll(state);                  // 25y >= 12/6 = 2y
+        Assert.True(p.Completed);
+        Assert.True(PortAt(state, target));            // arrived → founded
+    }
+
+    private static bool PortAt(SimState state,
+                               StarGen.Core.Model.HexCoordinate target)
+    {
+        foreach (var port in state.Ports)
+            if (port.Hex.Equals(target)) return true;
+        return false;
+    }
+
+    /// <summary>A colonizable hex: a real, non-void cell with no port yet.</summary>
+    private static bool ValidTarget(SimState state,
+                                    StarGen.Core.Model.HexCoordinate target)
+    {
+        if (!state.Skeleton.TryGetCell(
+                StarGen.Core.Galaxy.HexGrid.CellOf(target), out var cell)
+            || cell.IsVoid) return false;
+        foreach (var port in state.Ports)
+            if (port.Hex.Equals(target)) return false;
+        return true;
+    }
+
     /// <summary>Fixture adaptation (brief's tests assume ports/markets
     /// already exist; EpochTestKit.Seeded() enters polities only as
     /// history runs — spec §Genesis). A few epochs are enough for the

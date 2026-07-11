@@ -608,10 +608,9 @@ public sealed class AllocationPhase : ISimPhase
                     || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
                 double cost = 2.0 * GateValue(cfg, tier);
                 if (pr.DevelopmentPoints < cost) continue;
-                // no stock-on-hand gate here: the expedition ships the
-                // founding equipment (ColonizeResolve's convention — the
-                // colony's founding facilities draw no goods either);
-                // BuildGate still consumes whatever the pair holds
+                // no stock-on-hand gate: the gate pair is a construction
+                // project now (SpawnGatePair) — its basket and wages arrive
+                // over the gate's build years, the lane opens on commission
                 bool otherOn = connected.Contains(other.Id);
                 if (pick == null || (otherOn && !pickConnected)
                     || (otherOn == pickConnected && (dist < pickDist
@@ -626,9 +625,10 @@ public sealed class AllocationPhase : ISimPhase
             built++;
         }
 
-        // ---- pass 2: densification — cheapest eligible pair first, built
-        // while the treasury and the pair's pooled goods afford the gates
-        // (the detour/congestion rule is the pace-setter, spec §3)
+        // ---- pass 2: densification — cheapest eligible pair first, ground
+        // broken while the dev treasury can afford another pair (the goods
+        // and wages stream over the build years now); the detour/congestion
+        // rule and free gate slots are the pace-setters (spec §3)
         while (true)
         {
             Port? bestA = null, bestB = null;
@@ -651,8 +651,6 @@ public sealed class AllocationPhase : ISimPhase
                         continue;
                     double cost = 2.0 * GateValue(cfg, tier);
                     if (pr.DevelopmentPoints < cost) continue;
-                    if (!GatePairGoodsPresent(state, pr, state.Markets[a.Id],
-                            state.Markets[b.Id], tier)) continue;
                     if (cost < bestCost || (cost == bestCost && (dist < bestDist
                         || (dist == bestDist && (bestA == null || a.Id < bestA.Id
                             || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
@@ -666,27 +664,17 @@ public sealed class AllocationPhase : ISimPhase
         return built;
     }
 
-    /// <summary>Fund and raise one gate pair and its lane: dev treasury pays
-    /// the administered value, each end draws goods locally first and ships
-    /// the shortfall from the partner port (the colonization-convoy
-    /// pattern), the LaneOpened event stages.</summary>
+    /// <summary>Break ground on one gate pair (Task 9): the two gate
+    /// facilities and the Lane row exist NOW uncommissioned; a construction
+    /// project delivers the pair over the gate's build years, streaming its
+    /// wages from the dev treasury and drawing the pair basket at the A end.
+    /// The LaneOpened event fires at completion, not at groundbreaking — a
+    /// half-built highway opens no lane.</summary>
     private static void BuildLanePair(SimState state, PolityRecord pr,
                                       Port a, Port b, int tier)
     {
-        if (a.Id > b.Id) (a, b) = (b, a);
-        pr.DevelopmentPoints -= 2.0 * GateValue(state.Config, tier);
-        int gateA = BuildGate(state, pr.ActorId, a, tier, pr,
-                              state.Markets[b.Id]);
-        int gateB = BuildGate(state, pr.ActorId, b, tier, pr,
-                              state.Markets[a.Id]);
-        state.Lanes.Add(new Lane(state.Lanes.Count, a.Id, b.Id,
-                                 state.WorldYear)
-        { GateAId = gateA, GateBId = gateB });
-        state.Staged.Add(new StagedEvent(
-            ClockStratum.Generational, WorldEventType.LaneOpened,
-            new[] { pr.ActorId }, Midpoint(a.Hex, b.Hex),
-            Magnitude: tier, Valence: 1.0, EventVisibility.Regional,
-            new LaneOpenedPayload(a.Id, b.Id)));
+        ProjectOps.SpawnGatePair(state, pr.ActorId, pr.ActorId, a, b, tier,
+                                 ProjectPriority.Growth, 0);
     }
 
     /// <summary>Administered founding value of one gate at a tier — the
@@ -699,70 +687,6 @@ public sealed class AllocationPhase : ISimPhase
             value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good)
                      * Substrate.Production.TierCostFactor(tier);
         return value;
-    }
-
-    /// <summary>Both gates' baskets physically present across the pair —
-    /// each end's market, the partner's surplus, and the funder's banked
-    /// reserves together (state logistics ship the difference; the
-    /// colonization-convoy pattern, no minting).</summary>
-    private static bool GatePairGoodsPresent(SimState state, PolityRecord pr,
-                                             Market a, Market b, int tier)
-    {
-        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
-        foreach (var q in def.BuildCost)
-            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
-                + pr.ReserveQty[(int)q.Good]
-                < 2.0 * q.Quantity * Substrate.Production.TierCostFactor(tier))
-                return false;
-        return true;
-    }
-
-    /// <summary>Draw one gate's build basket from its port market, then the
-    /// funder's reserves, then the partner port's market (the shipped
-    /// shortfall), pay construction wages, and register the facility. Corp
-    /// funders pass null reserves. Returns the facility id.</summary>
-    internal static int BuildGate(SimState state, int ownerActorId, Port port,
-                                  int tier, PolityRecord? funderReserves,
-                                  Market? partnerMarket = null)
-    {
-        var cfg = state.Config;
-        var def = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
-        var market = state.Markets[port.Id];
-        double scale = Substrate.Production.TierCostFactor(tier);
-        double value = 0;
-        foreach (var q in def.BuildCost)
-        {
-            double need = q.Quantity * scale;
-            value += need * Market.InitialPrice(cfg.Economy, q.Good);
-            double fromMarket = market.Draw((int)q.Good, need);
-            market.LastCleared[(int)q.Good] += fromMarket;
-            double shortfall = need - fromMarket;
-            if (shortfall > 0 && funderReserves != null)
-            {
-                double fromReserve = Math.Min(shortfall,
-                    funderReserves.ReserveQty[(int)q.Good]);
-                funderReserves.ReserveQty[(int)q.Good] -= fromReserve;
-                if (funderReserves.ReserveQty[(int)q.Good] <= 0)
-                    funderReserves.ReserveGrade[(int)q.Good] = 0;
-                shortfall -= fromReserve;
-            }
-            if (shortfall > 0 && partnerMarket != null)
-            {
-                double shipped = partnerMarket.Draw((int)q.Good, shortfall);
-                partnerMarket.LastCleared[(int)q.Good] += shipped;
-            }
-        }
-        MarketEngine.PayWages(state, port.Id, value);  // construction wages
-        var gate = new Facility(state.Facilities.Count,
-            (int)Substrate.InfraTypeId.Gate, tier, port.Hex, ownerActorId,
-            state.WorldYear);
-        state.Facilities.Add(gate);
-        state.Staged.Add(new StagedEvent(
-            ClockStratum.Generational, WorldEventType.FacilityBuilt,
-            new[] { ownerActorId }, port.Hex, Magnitude: tier, Valence: 1.0,
-            EventVisibility.Regional,
-            new FacilityBuiltPayload(gate.Id, gate.TypeId, tier)));
-        return gate.Id;
     }
 
     /// <summary>Break ground on the standing plan (spec §3, Move 2): each due
@@ -891,11 +815,6 @@ public sealed class AllocationPhase : ISimPhase
             if (l.PortAId == aId && l.PortBId == bId) return true;
         return false;
     }
-
-    /// <summary>Hex-line midpoint (cube lerp at t=0.5) — the lane-opened
-    /// event's address.</summary>
-    private static HexCoordinate Midpoint(HexCoordinate a, HexCoordinate b) =>
-        HexGrid.Round((a.Q + b.Q) * 0.5, (a.R + b.R) * 0.5);
 }
 
 /// <summary>Phase 4 — the one controller touchpoint (P2): every entered
@@ -1080,83 +999,13 @@ public sealed class ResolutionPhase : ISimPhase
             record.Credits -= fuelCost;
             MarketEngine.PayWages(state, staging.Id, fuelCost);
         }
-        convoy.Hex = act.Target;
-        convoy.RemoveHulls(designId, 1);
-        record.HullsScrapped++;   // the colony ship becomes the colony
-        var port = new Port(state.Ports.Count, act.ActorId, act.Target,
-                            tier: 1, state.WorldYear);
-        state.Ports.Add(port);
-        state.Markets.Add(new Market(port.Id, cfg.Economy));
-        var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
-            record.SpeciesId, record.SpeciesId, cfg.Expansion.ColonySegmentSize)
-        {
-            // the expedition cost recycles to the settlers — treasury
-            // spending is somebody's income, never destroyed (P4)
-            Wealth = cfg.Expansion.ColonyCost,
-        };
-        // settlers sent by the state carry the official line (slice G)
-        if (record.Interior != null)
-            for (int ax = 0; ax < 4; ax++)
-                colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
-        state.Segments.Add(colonySegment);
-        // the expedition ships the equipment for what it came for: the
-        // founding facility matches the site's best extraction potential,
-        // plus a subsistence farm when that isn't farming — the export
-        // earnings are what finance the provisions imports
-        var founding = FoundingIndustry(state, act.Target);
-        state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)founding, tier: 1, act.Target, act.ActorId, state.WorldYear));
-        if (founding != Substrate.InfraTypeId.AgriComplex)
-            state.Facilities.Add(new Facility(state.Facilities.Count,
-                (int)Substrate.InfraTypeId.AgriComplex, tier: 1, act.Target,
-                act.ActorId, state.WorldYear));
-        // the convoy's survivors dock as the colony's first reserve fleet
-        convoy.Posture = FleetPosture.Reserve;
-        convoy.HomePortId = port.Id;
-        state.Staged.Add(new StagedEvent(
-            ClockStratum.Generational, WorldEventType.PortEstablished,
-            new[] { act.ActorId }, act.Target, Magnitude: 1.0, Valence: 1.0,
-            EventVisibility.Public, new PortEstablishedPayload(actor.Name, port.Id)));
-        // a founding convoy mints its founder (characters.md §Notables)
-        CharacterOps.MintNotable(state, act.ActorId, NotableType.Founder,
-                                 act.Target);
-        // settling into someone's sphere is a provocation: every entangled
-        // neighbor's gauge jumps now, and the standing overlap term holds
-        // it up (slice H — expansion carries risk)
-        foreach (var other in state.Ports)                // id order (P6)
-        {
-            if (other.OwnerActorId == act.ActorId
-                || !state.Actors[other.OwnerActorId].Entered) continue;
-            if (HexGrid.Distance(other.Hex, act.Target)
-                > PortDomains.ServiceRadius(cfg, 1)
-                  + PortDomains.ServiceRadius(cfg, other.Tier)
-                  + TechOps.AstroRadiusBonus(state, other.OwnerActorId))
-                continue;
-            var relation = state.RelationOf(act.ActorId, other.OwnerActorId);
-            if (relation != null)
-                relation.Tension = System.Math.Min(1.0, relation.Tension
-                    + cfg.Relations.EncroachmentTensionBump);
-        }
+        // the crossing takes world-time now: the founding body (port,
+        // market, colony, founding facilities, the convoy's docking, the
+        // chronicle, the encroachment bumps) lands when the expedition
+        // arrives (ProjectOps.CompleteExpedition — Task 9)
+        ProjectOps.SpawnExpedition(state, act.ActorId, staging.Id,
+            act.Target, convoy.Id, offLane);
         return true;
-    }
-
-    /// <summary>The extraction type matching the colony site's strongest
-    /// potential. Food security carries a premium: extraction wins only when
-    /// it clearly out-values the farmland — otherwise settlers farm.</summary>
-    private static Substrate.InfraTypeId FoundingIndustry(SimState state,
-                                                          HexCoordinate target)
-    {
-        var fields = MarketEngine.FieldsAt(state, target);
-        var best = Substrate.InfraTypeId.AgriComplex;
-        double bar = Substrate.Potentials.Biosphere(fields)
-                     * state.Config.Infrastructure.FoodSecurityPremium;
-        if (Substrate.Potentials.Ore(fields) > bar)
-        { best = Substrate.InfraTypeId.Mine; bar = Substrate.Potentials.Ore(fields); }
-        if (Substrate.Potentials.Volatiles(fields) > bar)
-        { best = Substrate.InfraTypeId.Skimmer; bar = Substrate.Potentials.Volatiles(fields); }
-        if (Substrate.Potentials.Exotics(fields) > bar)
-            best = Substrate.InfraTypeId.ExcavationSite;
-        return best;
     }
 }
 
