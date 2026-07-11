@@ -16,6 +16,15 @@ its final fidelity. After K the roadmap is complete.
    ("new atlas against the settled model: domain/lane/price/war/faction
    layers, panels, drill-down") and transition rule 1 (the PoC atlas is
    reference-only, replaced outright, deleted as superseded).
+   **THE INTERFACE DESIGN EXISTS** (design session of 2026-07-11):
+   `docs/superpowers/specs/2026-07-11-unity-atlas-design.md` + the living
+   diagram `docs/diagrams/unity-atlas-design.html` (interactive mockup,
+   published artifact — URL inside). It fixes the architecture (Eye-
+   parameterized read model in `src/Core/Atlas`, lens stack, typed
+   panels, five-LOD zoom continuum, delta-keyframe timeline) and answers
+   this kickoff's two scope questions (data source: both, artifact-load
+   first; skeleton layers survive as the nature lens group). Implement
+   from it; deviations amend the spec in-branch.
 3. **The design docs K renders** (the atlas is the P1 evidence of every
    subsystem — each doc's "Legible residue" bullet is a layer/panel
    requirement):
@@ -105,10 +114,10 @@ NOT K. Espionage stays reserved. Core stays Unity-free.
 
 ## Session shape (per /CLAUDE.md)
 
-1. One-message scope confirmation → user nod (ask: run-in-editor vs
-   load-artifact as the atlas's data source — suggest both, artifact
-   load first; and whether the PoC skeleton-layer views should survive
-   as a "nature" layer group).
+1. One-message scope confirmation → user nod. (The two scope questions
+   this step used to ask — data source and nature layers — are answered
+   in the interface spec above; confirm the spec is still the design of
+   record instead.)
 2. Branch `slice-k-atlas` from main; ledger
    `docs/superpowers/plans/YYYY-MM-DD-slice-k-ledger.md`. Don't share a
    checkout with another live session — take a `git worktree`.
