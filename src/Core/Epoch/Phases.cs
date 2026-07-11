@@ -28,9 +28,13 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
             if (a.Entered && a.Kind == ActorKind.Polity)
                 strengths[a.Id] = FleetOps.WarStrength(state, a.Id);
+        // memory fades before this step's news lands
+        ReputationOps.DecayStances(state);
         // news arrives first: pulses whose age covers the delay deliver,
-        // refreshing beliefs (and repricing stances) before anyone decides
+        // refreshing beliefs and repricing stances before anyone decides;
+        // regional word spreads by contact
         int arrivals = BeliefOps.DeliverPulses(state, strengths, fields);
+        ReputationOps.SpreadRegional(state, fields);
         int perceiving = 0;
         foreach (var a in state.Actors)
         {

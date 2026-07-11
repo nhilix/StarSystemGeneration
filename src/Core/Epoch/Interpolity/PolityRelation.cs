@@ -101,8 +101,8 @@ public sealed class PolityRelation
     /// militancy). Transient — never serialized.</summary>
     public double[] LastTensionTerms { get; } = new double[6];
     /// <summary>Last recompute's warmth source terms (baseline−strangeness,
-    /// trade, treaty, dynastic, −ideology cooling). Transient.</summary>
-    public double[] LastWarmthTerms { get; } = new double[5];
+    /// trade, treaty, dynastic, −ideology cooling, reputation). Transient.</summary>
+    public double[] LastWarmthTerms { get; } = new double[6];
 
     public PolityRelation(int polityAId, int polityBId, int metEpoch)
     {

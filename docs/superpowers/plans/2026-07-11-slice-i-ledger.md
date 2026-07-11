@@ -76,10 +76,19 @@ scope restated in-session.
       (would multiply the log by the polity count). Delivery also
       force-refreshes any existing belief about involved polities when
       the word is newer than the snapshot.
-- [ ] I4 — Stances + reputation: stance table, temperament-filtered
+- [x] I4 — Stances + reputation: stance table, temperament-filtered
       updates per conduct event family, decay; WarmthTarget reputation
       term; FirstContact seeds pre-heard stances; tests (breaker meets
       colder; militant vs open audiences diverge).
+      Notes: per-event stance deltas + tilts are structural constants in
+      ReputationOps.Judge (like the stance buckets); dials are
+      News.StanceDecayPerYear and Relations.ReputationWarmthWeight.
+      Dogma filter = negative deltas amplify with ideology gap.
+      LastWarmthTerms grew to 6 (reputation) — REPL labels updated.
+      Regional events spread by contact: stateless log-tail scan, judged
+      by whoever is within one epoch's news delay. FirstContact seeding
+      is automatic (Contact seeds at WarmthTarget, which now reads
+      stances heard before the pair ever met).
 - [ ] I5 — War staleness teeth: WarBriefs through belief; shape test —
       slow news concedes later than fast news (fog of war).
 - [ ] I6 — Chronicle views + era detection: EraDetector over the log;

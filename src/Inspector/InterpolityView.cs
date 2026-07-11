@@ -41,7 +41,8 @@ public static class InterpolityView
             var t = rel.LastTensionTerms;
             sb.AppendLine(Invariant($"  warmth sources: base−strangeness {w[0]:0.00} · ")
                 + Invariant($"trade {w[1]:0.00} · treaty {w[2]:0.00} · ")
-                + Invariant($"dynastic {w[3]:0.00} · ideology {w[4]:0.00}"));
+                + Invariant($"dynastic {w[3]:0.00} · ideology {w[4]:0.00} · ")
+                + Invariant($"reputation {w[5]:0.00}"));
             sb.AppendLine(Invariant($"  tension sources: overlap {t[0]:0.00} · ")
                 + Invariant($"claims {t[1]:0.00} · interdiction {t[2]:0.00} · ")
                 + Invariant($"ideology×zeal {t[3]:0.00} · agitation {t[4]:0.00} · ")

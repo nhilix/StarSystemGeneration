@@ -272,6 +272,13 @@ consequences on truth.
 | `News.OffLaneSpeedHexPerYear` | 0.5 | Wilds leak news; isolation stops working. | Off-network polities live years behind the times. |
 | `News.PulseMagnitudeFloor` | 0.5 | Only landmark events travel; the log stays quiet abroad. | Every public hiccup pulses galaxy-wide. |
 | `News.PulseMaxYears` | 150 | Ancient rumors still land on the far rim. | Word that misses its window is lost to distance. |
+| `News.StanceDecayPerYear` | 0.005 | Reputations wash out within a generation. | The galaxy never forgets a broken treaty. |
+| `Relations.ReputationWarmthWeight` | 0.20 | What the galaxy has heard dominates every table (a shock reprices borders). | Reputation is gossip — only concrete sources move warmth. |
+
+The per-event stance deltas and their temperament tilts (open traders
+sanction treaty-breakers, militants respect bold conquest, dogmatic
+distance amplifies condemnation) are structural constants in
+`ReputationOps.Judge`, like the stance buckets.
 
 ## Infrastructure — port physics and construction
 

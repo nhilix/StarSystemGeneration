@@ -74,4 +74,9 @@ public sealed class BeliefState
     /// <summary>Belief per hosted corporation, corp-id order.</summary>
     public SortedList<int, CorpBelief> Corporations { get; }
         = new SortedList<int, CorpBelief>();
+    /// <summary>Valenced attitude [−1, 1] per heard-of actor, subject-id
+    /// order — the stance table news arrival reprices (slice I task 4).
+    /// Reputation is derived from these, never stored globally.</summary>
+    public SortedList<int, double> Stances { get; }
+        = new SortedList<int, double>();
 }

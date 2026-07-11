@@ -50,6 +50,9 @@ public sealed class NewsKnobs
     /// <summary>Age at which an undelivered pulse attenuates to rumor and
     /// stops being carried.</summary>
     public double PulseMaxYears { get; set; } = 150.0;
+    /// <summary>Fractional stance drift toward indifference per world-year —
+    /// memory fades; reputation must be re-earned (or re-offended).</summary>
+    public double StanceDecayPerYear { get; set; } = 0.005;
 }
 
 /// <summary>War dials (interpolity/war.md): the spark's incidence, the
@@ -190,6 +193,10 @@ public sealed class RelationsKnobs
     public double TradeSaturation { get; set; } = 10.0;
     /// <summary>Warmth-target weight of the treaty ladder at its top rung.</summary>
     public double TreatyWarmthWeight { get; set; } = 0.25;
+    /// <summary>Warmth-target weight of the pair-mean stance (reputation) —
+    /// what both courts have heard about each other reprices the relation,
+    /// first contact included (slice I).</summary>
+    public double ReputationWarmthWeight { get; set; } = 0.20;
     /// <summary>Warmth per live dynastic instrument (marriage/wardship),
     /// counted up to three.</summary>
     public double DynasticTieWarmth { get; set; } = 0.10;
@@ -317,8 +324,9 @@ public sealed class CorporateKnobs
     public double MagnateReceipts { get; set; } = 50.0;
     /// <summary>Facilities one corporation may hold (portfolio cap).</summary>
     public int MaxFacilities { get; set; } = 4;
-    /// <summary>Legitimacy a polity eats for nationalizing (the reputation
-    /// damage stub until slice I's news).</summary>
+    /// <summary>Legitimacy a polity eats for nationalizing — the domestic
+    /// half; the foreign half travels the news graph as stance damage
+    /// (slice I: capital sanctions the seizing state).</summary>
     public double NationalizeLegitimacyHit { get; set; } = 0.1;
     /// <summary>Corporate credits over the host treasury at which the
     /// Intent AI reaches for nationalization (a de facto power).</summary>

@@ -358,6 +358,10 @@ public static class ArtifactSerializer
                 w.WriteLine(Join("CBEL", a.Id.ToString(Inv),
                     b.CorpId.ToString(Inv), b.HeardYear.ToString(Inv),
                     R(b.Credits)));
+            for (int i = 0; i < a.Beliefs.Stances.Count; i++) // subject order
+                w.WriteLine(Join("STANCE", a.Id.ToString(Inv),
+                    a.Beliefs.Stances.Keys[i].ToString(Inv),
+                    R(a.Beliefs.Stances.Values[i])));
         }
 
         Layer(w, "pulses");
@@ -1146,6 +1150,10 @@ public static class ArtifactSerializer
                             .Add(belief.CorpId, belief);
                         break;
                     }
+                    case "STANCE":
+                        state!.Actors[int.Parse(f[1], Inv)].Beliefs.Stances
+                            .Add(int.Parse(f[2], Inv), double.Parse(f[3], Inv));
+                        break;
                     case "PULSE":
                     {
                         if (int.Parse(f[1], Inv) != state!.Pulses.Count)

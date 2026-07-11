@@ -117,7 +117,9 @@ public static class BeliefOps
 
     /// <summary>What one arrival does to the hearer: any belief it holds
     /// about an involved polity refreshes if the word is newer than the
-    /// snapshot (the courier carries more than the headline).</summary>
+    /// snapshot (the courier carries more than the headline), and the
+    /// stance toward everyone involved reprices through the observer's
+    /// temperament (slice I task 4).</summary>
     private static void OnArrival(SimState state, Actor observer,
         NewsPulse pulse, IReadOnlyDictionary<int, double> strengths)
     {
@@ -129,6 +131,8 @@ public static class BeliefOps
                 && pulse.EmitYear > b.HeardYear)
                 RefreshPolity(state, observer.Id, b, strengths);
         }
+        ReputationOps.Judge(state, observer, e,
+            ReputationOps.Attenuation(state, state.WorldYear - pulse.EmitYear));
     }
 
     /// <summary>The belligerent's belief about a war it is in: the front
