@@ -112,10 +112,13 @@ wave, eyeball exhibits):
 
 ## Next up
 
-1. **Slice K (Unity atlas rebuild)** — the LAST slice. Fresh session,
-   point it at
-   `docs/superpowers/plans/2026-07-11-slice-k-kickoff-prompt.md`
-   (complete: reading list, what J left ready, scope, boundary).
+1. **Slice K (Unity atlas rebuild)** — the LAST slice, now decomposed
+   into five sub-slices K1–K5 (planning session 2026-07-11): governing
+   plan `docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`. Fresh
+   session, point it at
+   `docs/superpowers/plans/2026-07-11-slice-k1-kickoff-prompt.md`
+   (skeleton instrument; the original whole-K kickoff prompt remains the
+   inherited context).
 2. **User read-through of the design specs** — still outstanding.
 3. Generation-flow diagram republished to its artifact URL this session
    (source synced at `docs/diagrams/generation-flow.html`).

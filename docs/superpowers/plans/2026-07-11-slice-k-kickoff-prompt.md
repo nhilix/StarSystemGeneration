@@ -1,5 +1,11 @@
 # Slice K Kickoff — Session Prompt
 
+> **SUPERSEDED as a session prompt (2026-07-11):** Slice K is delivered as
+> five sub-slices — see `2026-07-11-slice-k-roadmap.md`; start at
+> `2026-07-11-slice-k1-kickoff-prompt.md`. This document remains the
+> inherited context for every K sub-slice: the reading list, "what slice J
+> left ready," the scope, and the boundary below are still authoritative.
+
 You are starting **Slice K (Unity atlas rebuild)** — the LAST slice of
 the epoch-sim implementation roadmap, under the lighter protocol in
 `/CLAUDE.md` (read it first). K rebuilds the Unity atlas once, against
