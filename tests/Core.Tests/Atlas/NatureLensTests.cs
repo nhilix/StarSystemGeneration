@@ -30,17 +30,29 @@ public class NatureLensTests
     }
 
     [Fact]
-    public void VoidCellsReadAsTheDarkVoid()
+    public void TheWildsRenderTheirTrueValues()
     {
+        // Dark-wilds are value-poor, not empty (CosmicResidue writes every
+        // field for every cell; IsVoid is only the traversability flag) —
+        // the atlas renders their real, low values instead of blanking
+        // them (user direction 2026-07-11; the REPL map keeps its blanks).
         var (_, state) = EpochTestKit.Seeded();
         var model = new AtlasReadModel(state);
-        int voidIndex = -1;
-        for (int i = 0; i < model.Cells.Count; i++)
-            if (model.Cells[i].IsVoid) { voidIndex = i; break; }
-        Assert.True(voidIndex >= 0, "seeded galaxy should contain void cells");
         var shades = NatureLens.Shades(model, EyeContext.God(state.WorldYear),
                                        NatureLayer.Metal);
-        Assert.Equal(AtlasPalette.Void, shades[voidIndex]);
+        int a = -1, b = -1;
+        for (int i = 0; i < model.Cells.Count; i++)
+        {
+            if (!model.Cells[i].IsVoid) continue;
+            Assert.NotEqual(AtlasPalette.Void, shades[i]);
+            if (a < 0) { a = i; continue; }
+            if (System.Math.Abs(model.Cells[i].Metallicity
+                                - model.Cells[a].Metallicity) > 0.15)
+            { b = i; break; }
+        }
+        Assert.True(a >= 0, "seeded galaxy should contain void cells");
+        if (b >= 0)
+            Assert.NotEqual(shades[a], shades[b]);   // values, not a blank
     }
 
     [Fact]

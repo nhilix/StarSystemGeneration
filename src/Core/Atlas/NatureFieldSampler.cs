@@ -48,7 +48,7 @@ public sealed class NatureFieldSampler
             // contribute weight but no light — the field feathers out.
             if (!_model.TryIndexOfCell(cellCoord, out int i)) continue;
             var s = _shades[i];
-            double presence = PresenceOf(s);
+            double presence = PresenceOf(s, _model.Cells[i].IsVoid);
             if (presence <= 0) continue;
             double wa = w * presence;
             asum += wa;
@@ -74,14 +74,14 @@ public sealed class NatureFieldSampler
 
     /// <summary>How much this shade rises above the floor. Every LIVE
     /// cell keeps a visible base presence — the disc reads as a blended
-    /// whole with the arms as bright features (the REPL map's read);
-    /// only true void goes dark.</summary>
-    private static double PresenceOf(Rgba s)
+    /// whole with the arms as bright features. The wilds render their
+    /// true (low) values without the base lift, damped: present but
+    /// visibly poorer — value-poor space, never a cutout.</summary>
+    private static double PresenceOf(Rgba s, bool isVoid)
     {
-        if (s == AtlasPalette.Void) return 0;
         double luma = (0.299 * s.R + 0.587 * s.G + 0.114 * s.B) / 255.0;
         const double floorLuma = 0.104;   // luma of AtlasPalette.Floor
         double raw = Math.Clamp((luma - floorLuma) / 0.55, 0.0, 1.0);
-        return 0.30 + 0.70 * raw;
+        return isVoid ? raw * 0.45 : 0.30 + 0.70 * raw;
     }
 }

@@ -73,9 +73,10 @@ namespace StarGen.AtlasView
             _built = true;
             var vertices = new List<Vector3>();
             var indices = new List<int>();
+            // Every hex in the disc is present — the wilds are real,
+            // addressable space nobody bothered to claim.
             foreach (var cell in _model.Cells)
             {
-                if (cell.IsVoid) continue;
                 var center = HexGrid.CellCenter(cell.Coord);
                 foreach (var hex in HexGrid.Spiral(center, HexGrid.CellRadius))
                 {

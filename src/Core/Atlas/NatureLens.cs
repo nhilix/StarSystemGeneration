@@ -56,7 +56,10 @@ public static class NatureLens
     {
         if (overlay != null && overlay.TryGetValue(c.Coord, out var marked))
             return marked;
-        if (c.IsVoid) return AtlasPalette.Void;
+        // Dark-wilds are value-poor, never blank: IsVoid is only the
+        // traversability flag — CosmicResidue writes real fields for
+        // every cell, and the atlas renders them (the sampler keeps the
+        // wilds dim; the REPL map retains its blank-glyph convention).
         return layer switch
         {
             NatureLayer.Lean => c.Lean switch

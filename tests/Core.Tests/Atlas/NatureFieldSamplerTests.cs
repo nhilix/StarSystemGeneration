@@ -62,6 +62,29 @@ public class NatureFieldSamplerTests
     }
 
     [Fact]
+    public void TheWildsArePresentButDim()
+    {
+        // A wilds cell reads as SOMETHING — value-poor space, not a
+        // cutout — but without the live-cell base lift it stays dim.
+        var (model, sampler) = Metal();
+        int deepVoid = -1;
+        for (int i = 0; i < model.Cells.Count; i++)
+        {
+            if (!model.Cells[i].IsVoid) continue;
+            bool allVoid = true;
+            foreach (var n in HexGrid.Neighbors(model.Cells[i].Coord))
+                if (model.TryIndexOfCell(n, out int j) && !model.Cells[j].IsVoid)
+                { allVoid = false; break; }
+            if (allVoid) { deepVoid = i; break; }
+        }
+        Assert.True(deepVoid >= 0, "seeded galaxy should have deep wilds");
+        var (vx, vy) = HexGrid.HexToWorld(
+            HexGrid.CellCenter(model.Cells[deepVoid].Coord));
+        var wilds = sampler.Sample(vx, vy);
+        Assert.InRange((int)wilds.A, 4, 150);
+    }
+
+    [Fact]
     public void TheWholeDiskStaysVisible()
     {
         // The disc must read as a blended whole with the arms as bright
