@@ -43,6 +43,7 @@ public sealed class Repl
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
+                    Console.WriteLine("equarantine <laneId> — issue the owner's QuarantineAct by hand (the player's verb, same rules)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
@@ -216,6 +217,29 @@ public sealed class Repl
                 }
                 case "fleetpost":
                     Console.WriteLine("usage: fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId]");
+                    break;
+                case "equarantine" when parts.Length >= 2 && _sim != null
+                        && int.TryParse(parts[1], out var qLane):
+                {
+                    // the player's hand on a polity verb (slice J eyeball):
+                    // issue the same QuarantineAct the AI issues, resolved
+                    // by the same rule — the lane owner closes it
+                    if (qLane < 0 || qLane >= _sim.Lanes.Count)
+                    { Console.WriteLine($"no lane #{qLane}"); break; }
+                    int owner = _sim.Ports[_sim.Lanes[qLane].PortAId].OwnerActorId;
+                    bool held = Core.Epoch.PlagueOps.Quarantine(_sim,
+                        new Core.Epoch.QuarantineAct(owner, qLane));
+                    Console.WriteLine(held
+                        ? FormattableString.Invariant(
+                            $"lane #{qLane} quarantined by #{owner} until ")
+                          + FormattableString.Invariant(
+                            $"y{_sim.Lanes[qLane].QuarantinedUntil} — freight, ")
+                          + "migration, and contagion stop next step"
+                        : "no effect (already held longer, or ownership refused)");
+                    break;
+                }
+                case "equarantine":
+                    Console.WriteLine("usage: equarantine <laneId> — issue the owner's QuarantineAct by hand (see `emap lanes`)");
                     break;
                 case "emap":
                 {
