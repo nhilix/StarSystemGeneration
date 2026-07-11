@@ -237,6 +237,15 @@ public sealed class MarketsPhase : ISimPhase
         // an import-fed port prices its arrivals, a blockaded one their
         // absence (markets.md §The market step; amended in slice D)
         var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
+        // the express earn-in clock: consecutive saturated steps of the
+        // lane's posted capacity (lane-economics spec §3.4)
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            lane.SaturatedEpochs =
+                scratch.LaneFleetCapacity[lane.Id] > 0
+                && scratch.LaneCapacityUsed[lane.Id]
+                   / scratch.LaneFleetCapacity[lane.Id]
+                   >= state.Config.Expansion.ExpressSaturationFloor
+                ? lane.SaturatedEpochs + 1 : 0;
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
