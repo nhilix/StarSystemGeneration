@@ -166,4 +166,71 @@ public class CorporationTests
                 loaded.Actors[corp.ActorId].Controller);
         Assert.Equal(text, ArtifactSerializer.ToText(loaded));
     }
+
+    /// <summary>Length is exposure (lane-economics spec §5): with the raid
+    /// floor sitting between raw cargo and length-scaled cargo, the same
+    /// haven lane tempts a band only while the exposure term applies.</summary>
+    [Fact]
+    public void LaneLength_ScalesPiracyExposure()
+    {
+        var withExposure = LawlessHavenLane(
+            new EpochSimConfig().Corporate.PiracyLengthPerHex);
+        CorporationOps.WatchNiches(withExposure.State);
+        Assert.True(BandOn(withExposure.State, withExposure.Lane.Id),
+            "length exposure should lift this cargo over the raid floor");
+
+        var withoutExposure = LawlessHavenLane(0.0);
+        CorporationOps.WatchNiches(withoutExposure.State);
+        Assert.False(BandOn(withoutExposure.State, withoutExposure.Lane.Id),
+            "without the exposure term the same cargo sits under the floor");
+    }
+
+    private static bool BandOn(SimState state, int laneId)
+    {
+        foreach (var c in state.Corporations)
+            if (c.Active && c.Niche == CorporateNiche.Raiding
+                && c.TargetId == laneId) return true;
+        return false;
+    }
+
+    /// <summary>A ruins-shadowed 10-hex lane with posted cargo, every other
+    /// niche priced out, and the raid floor pinned 1.2× above raw capacity —
+    /// only the 1 + PiracyLengthPerHex × 10 exposure clears it.</summary>
+    private static (SimState State, Lane Lane) LawlessHavenLane(
+        double piracyLengthPerHex)
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var engine = new EpochEngine();
+        for (int i = 0; i < 6; i++) engine.Step(state);
+        var knobs = state.Config.Corporate;
+        knobs.FreightNicheMargin = 1e9;
+        knobs.CartelValueFloor = 1e9;
+        knobs.DepositNichePotential = 1e9;
+        knobs.FabricationPriceRatio = 1e9;
+        knobs.PiracyLengthPerHex = piracyLengthPerHex;
+        foreach (var poi in state.Pois) poi.Depleted = true;
+        // lower-id port must belong to an interior polity (the scan's key)
+        foreach (var port in state.Ports)
+        {
+            int owner = port.OwnerActorId;
+            if (owner < 0 || !state.Actors[owner].Entered) continue;
+            if (state.PolityOf(owner).Interior == null) continue;
+            var far = new Port(state.Ports.Count, owner,
+                new StarGen.Core.Model.HexCoordinate(port.Hex.Q + 10,
+                    port.Hex.R), 1, (int)state.WorldYear);
+            state.Ports.Add(far);
+            state.Markets.Add(new Market(far.Id, state.Config.Economy));
+            var lane = EpochTestKit.AddLane(state, port.Id, far.Id);
+            EpochTestKit.PostFreight(state, owner, lane.Id, hulls: 8);
+            double capacity = FleetOps.PostedCapacity(state, lane);
+            Assert.True(capacity > 0);
+            // haven path: floorEff = RaidCapacityFloor × LawlessRaidFactor
+            knobs.RaidCapacityFloor =
+                capacity * 1.2 / state.Config.Poi.LawlessRaidFactor;
+            state.Pois.Add(new PoiRecord(state.Pois.Count, PoiType.Ruins,
+                port.Hex, magnitude: 2.0, state.WorldYear));
+            return (state, lane);
+        }
+        throw new System.InvalidOperationException("no interior polity port");
+    }
 }

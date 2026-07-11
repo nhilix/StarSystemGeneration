@@ -1,4 +1,5 @@
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 using Xunit;
 
@@ -211,9 +212,13 @@ public class PoiLiveEffectsTests
         var (state, lane, owner) = RaidOnlyRun();
         EpochTestKit.PostFreight(state, owner, lane.Id, hulls: 8);
         double capacity = FleetOps.PostedCapacity(state, lane);
-        // even the discounted floor sits above this lane's cargo
+        // even the discounted floor sits above this lane's cargo — with
+        // the length-exposure term (lane-economics spec §5) priced in
+        double exposure = 1.0 + state.Config.Corporate.PiracyLengthPerHex
+            * HexGrid.Distance(state.Ports[lane.PortAId].Hex,
+                               state.Ports[lane.PortBId].Hex);
         state.Config.Corporate.RaidCapacityFloor =
-            capacity / state.Config.Poi.LawlessRaidFactor * 1.5;
+            capacity * exposure / state.Config.Poi.LawlessRaidFactor * 1.5;
         state.Pois.Add(new PoiRecord(state.Pois.Count, PoiType.Ruins,
             state.Ports[lane.PortAId].Hex, magnitude: 2.0, state.WorldYear));
         CorporationOps.WatchNiches(state);

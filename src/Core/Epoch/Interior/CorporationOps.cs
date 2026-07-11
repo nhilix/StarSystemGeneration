@@ -164,7 +164,11 @@ public static class CorporationOps
             if (!navyless && !haven) continue;
             double floor = knobs.RaidCapacityFloor
                 * (haven ? state.Config.Poi.LawlessRaidFactor : 1.0);
-            if (FleetOps.PostedCapacity(state, lane) >= floor)
+            // length is exposure: more hexes, more ambush points — longer
+            // lanes tempt at thinner cargo (lane-economics spec §5)
+            double exposure = 1.0 + knobs.PiracyLengthPerHex
+                * HexGrid.Distance(src.Hex, state.Ports[lane.PortBId].Hex);
+            if (FleetOps.PostedCapacity(state, lane) * exposure >= floor)
                 return (CorporateNiche.Raiding, lane.Id);
         }
         return (CorporateNiche.None, -1);
