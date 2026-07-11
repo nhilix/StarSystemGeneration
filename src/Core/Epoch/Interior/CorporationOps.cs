@@ -138,7 +138,11 @@ public static class CorporationOps
                     return (CorporateNiche.Fabrication, port.Id);
             }
         }
-        // lawless rich lanes → pirate band (lawlessness × cargo value)
+        // lawless rich lanes → pirate band (lawlessness × cargo value).
+        // Lawlessness has two sources: an owner with no navy at all, or a
+        // standing ruin at either lane mouth — a haven no navy roots out,
+        // where even thinner cargo tempts (chronicle-and-poi.md
+        // live-effects table, the slice J wire)
         bool navyless = true;
         foreach (var fleet in state.Fleets)
         {
@@ -148,16 +152,38 @@ public static class CorporationOps
                 { navyless = false; break; }
             if (!navyless) break;
         }
-        if (navyless)
-            foreach (var lane in state.Lanes)
-            {
-                var src = state.Ports[lane.PortAId];
-                if (src.OwnerActorId != pr.ActorId) continue;
-                if (FleetOps.PostedCapacity(state, lane)
-                    >= knobs.RaidCapacityFloor)
-                    return (CorporateNiche.Raiding, lane.Id);
-            }
+        foreach (var lane in state.Lanes)
+        {
+            var src = state.Ports[lane.PortAId];
+            if (src.OwnerActorId != pr.ActorId) continue;
+            bool haven = InRuinsShadow(state, lane);
+            if (!navyless && !haven) continue;
+            double floor = knobs.RaidCapacityFloor
+                * (haven ? state.Config.Poi.LawlessRaidFactor : 1.0);
+            if (FleetOps.PostedCapacity(state, lane) >= floor)
+                return (CorporateNiche.Raiding, lane.Id);
+        }
         return (CorporateNiche.None, -1);
+    }
+
+    /// <summary>Does a standing (non-depleted) ruin cast lawlessness over
+    /// this lane — Ruins or a RuinedCapital within LawlessnessReachHexes
+    /// of either endpoint?</summary>
+    private static bool InRuinsShadow(SimState state, Lane lane)
+    {
+        int reach = state.Config.Poi.LawlessnessReachHexes;
+        var hexA = state.Ports[lane.PortAId].Hex;
+        var hexB = state.Ports[lane.PortBId].Hex;
+        foreach (var poi in state.Pois)                       // id order (P6)
+        {
+            if (poi.Depleted) continue;
+            if (poi.Type != PoiType.Ruins
+                && poi.Type != PoiType.RuinedCapital) continue;
+            if (HexGrid.Distance(poi.Hex, hexA) <= reach
+                || HexGrid.Distance(poi.Hex, hexB) <= reach)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>Would a hauler on this lane actually clear the freight-niche

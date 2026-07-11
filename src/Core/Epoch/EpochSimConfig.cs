@@ -95,6 +95,13 @@ public sealed class PoiKnobs
     /// <summary>Astrogation research progress a precursor dig hands the
     /// host polity per world-year (Industrial at half).</summary>
     public double DigResearchPerYear { get; set; } = 0.01;
+    /// <summary>Hexes from a standing ruin within which a lane endpoint
+    /// reads lawless — the ruin is a piracy haven (slice J wire).</summary>
+    public int LawlessnessReachHexes { get; set; } = 3;
+    /// <summary>Raid-floor multiplier on a lawless lane: less cargo tempts
+    /// a band when the walls to hide in already stand — and no navy roots
+    /// it out of them.</summary>
+    public double LawlessRaidFactor { get; set; } = 0.4;
 }
 
 /// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc

@@ -186,6 +186,8 @@ KNOB|Poi.BattlefieldHullFloor|4
 KNOB|Poi.DigExoticsPerYear|0.15
 KNOB|Poi.DigMagnitudeDecayPerYear|0.02
 KNOB|Poi.DigResearchPerYear|0.01
+KNOB|Poi.LawlessRaidFactor|0.4
+KNOB|Poi.LawlessnessReachHexes|3
 KNOB|Poi.MemorialShortfallFloor|0.75
 KNOB|Poi.PermanentMagnitude|20
 KNOB|Poi.RuinsDeadEpochs|2
