@@ -20,7 +20,10 @@ public static class ColonyValuation
     /// the cell. Target hex = first anchor hex free of ports, else the cell
     /// center (skipped if a port sits there). Score = MeanDensity
     /// + 0.3×Metallicity + 0.4 if the cell has a non-homeworld anchor
-    /// − 0.3 if another polity services the target + the price term.</summary>
+    /// + the price term − EncroachmentPenalty per foreign polity whose
+    /// domain the new port's service area would overlap (slice H: settling
+    /// someone's sphere is a provocation, not a land rush — only a truly
+    /// rich site outweighs the tension it buys; borders stay contiguous).</summary>
     public static IReadOnlyList<ColonyCandidate> CandidatesFor(
         SimState state, int polityId, int max = 8)
     {
@@ -56,15 +59,36 @@ public static class ColonyValuation
             double score = cell.MeanDensity + 0.3 * cell.Metallicity;
             foreach (var a in cell.Anchors)
                 if (a.Type != AnchorType.Homeworld) { score += 0.4; break; }
-            foreach (var p in state.Ports)
-                if (p.OwnerActorId != polityId && PortDomains.Services(sk, cfg, p, hex))
-                { score -= 0.3; break; }
+            score -= cfg.Expansion.EncroachmentPenalty
+                     * EncroachedPolities(state, polityId, hex);
             if (capital != null)
                 score += PriceTerm(state, capital, cell);
 
             Insert(best, bestSpiral, new ColonyCandidate(hex, score), cell.SpiralIndex, max);
         }
         return best;
+    }
+
+    /// <summary>How many foreign polities a tier-1 port at this hex would
+    /// entangle: distinct owners whose ports' service areas would overlap
+    /// the newcomer's own (the contested-overlap zones the relations layer
+    /// prices as tension).</summary>
+    public static int EncroachedPolities(SimState state, int polityId,
+                                         HexCoordinate hex)
+    {
+        var cfg = state.Config;
+        int newRadius = PortDomains.ServiceRadius(cfg, 1);
+        var owners = new List<int>();
+        foreach (var p in state.Ports)                    // id order (P6)
+        {
+            if (p.OwnerActorId == polityId
+                || !state.Actors[p.OwnerActorId].Entered) continue;
+            if (HexGrid.Distance(p.Hex, hex)
+                > newRadius + PortDomains.ServiceRadius(cfg, p.Tier)
+                  + TechOps.AstroRadiusBonus(state, p.OwnerActorId)) continue;
+            if (!owners.Contains(p.OwnerActorId)) owners.Add(p.OwnerActorId);
+        }
+        return owners.Count;
     }
 
     /// <summary>What the capital market pays for what this cell could

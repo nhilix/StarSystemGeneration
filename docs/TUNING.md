@@ -38,6 +38,21 @@ watch `emap price`, `market`, and the famine counts in the phase trace.
 | `Sim.EpochCount` | 40 | History depth (~1,000y). Purely how long the story runs. |
 | `Genesis.EmergenceWindowYears` | 500 | Latest entry year for staggered polity emergence. Wider = older empires meet younger neighbors; narrower = a crowded simultaneous dawn. |
 
+## Genesis — the native late-emergence schedule (slice H)
+
+Pre-spaceflight natives carry dates projected onto the native window;
+where a domain covers the homeworld, the host's native policy resolves
+the firing (the AI's policy-by-temperament map is structural:
+openness ≥ 0.70 uplift, ≥ 0.55 integrate, militancy ≥ 0.55 exploit,
+else protectorate; uplift's Life-tier-2 gate is structural too).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Genesis.NativeWindowYears` | 900 | Emergence crises land late (claimed galaxies, more suppressions). | Natives emerge among the founding powers. |
+| `Genesis.NativePopulationSize` | 1.0 | Native minorities matter demographically (real accommodation strain). | Token peoples. |
+| `Genesis.ProtectorateDelayEpochs` | 4 | Reserves genuinely buy time (and turn cage later). | Protectorate is a label. |
+| `Genesis.UpliftAccelerationEpochs` | 4 | Uplift hosts mint client states a century early. | Uplift is patience. |
+
 ## Corporate — niches, charters, operations, deaths (slice G)
 
 The niche watcher raises merchant factions where profit persists
@@ -201,6 +216,47 @@ graduation (task 5) spends. Per-basis budget agendas are catalog data
 | `Faction.CoupLegitimacyHit` / `RevoltLegitimacyHit` | 0.15 / 0.1 | Political violence delegitimizes hard (cascading instability). | Consequence-free putsches. |
 | `Faction.RevoltGrievanceKeep` | 0.75 | Repression compounds: crushed movements return angrier. | Crushing a revolt actually settles it. |
 
+## Relations — contact, warmth/tension sources (slice H)
+
+The pressure gauge war reads and the ladder peace climbs: polities meet
+when reach overlaps, then warmth and tension drift toward targets
+recomputed from live sources each epoch. Tension decays only when its
+sources resolve (the target holds while they stand). The five-stance
+bucket thresholds Intent maps net warmth−tension to are structural
+controller behavior (`GenesisController.StanceOf`).
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Relations.ContactReachHexes` | 24 | Empires "meet" across wilds they can't reach. | Neighbors stay strangers until borders touch. |
+| `Relations.WarmthDriftPerYear` | 0.02 | Friendships (and estrangements) form within a generation. | Centuries-old stances outlive their causes. |
+| `Relations.TensionRisePerYear` | 0.05 | Borders load within an epoch of friction appearing. | Slow-burn buildups; sparks find less powder. |
+| `Relations.TensionRelaxPerYear` | 0.012 | Resolved grudges cool fast (short memories). | Tension outlives its sources for centuries. **Keep below the rise rate.** |
+| `Relations.StrangenessWeight` | 0.35 | Alien embodiment poisons first contact (xenophobic galaxy). | Everyone meets as potential friends. |
+| `Relations.TradeWarmthWeight` / `TradeSaturation` | 0.30 / 10 | Trade is peace: posted cross-border freight buys real warmth. | Commerce is diplomatically inert. |
+| `Relations.TreatyWarmthWeight` | 0.25 | Honored rungs compound into trust (federation gate nears). | Treaties are paper. |
+| `Relations.DynasticTieWarmth` | 0.10 | Marriages buy real peace this generation (H4). | Dynastic instruments are ceremony. |
+| `Relations.DynasticTieLapseYears` | 75 | Marriage peace holds three reigns before the claim surfaces. | Every wedding is a war of succession in waiting (seed 42: 19 instruments → 5 succession claims). |
+| `Relations.IdeologyGapCooling` | 0.20 | Doctrinal opposites can't stay friends. | Ideology no bar to friendship. |
+| `Relations.OverlapTensionWeight` / `OverlapSaturation` | 0.35 / 4 | Contested service areas are the war engine (organic borders). | Interleaved empires coexist calmly. |
+| `Relations.ClaimTensionWeight` | 0.18 | Each standing claim keeps a border hot (grudges drive history). | Claims are legal fictions. |
+| `Relations.IdeologyTensionWeight` | 0.30 | Zealot thrones read doctrine gaps as war material. | Crusades need more than doctrine. |
+| `Relations.MilitancyTensionWeight` | 0.20 | Hawkish compositions keep every border loaded. | Only concrete friction counts. |
+| `Relations.AgitationTensionWeight` | 0.15 | Military factions drag their polity toward war. | The sword waits quietly. |
+| `Relations.InterdictionTensionWeight` | 0.40 | Blockades near-guarantee escalation. | Sieges read as negotiation. |
+| `Relations.KinClaimSegmentFloor` | 0.5 | Only large stranded kin populations raise claims. | Every diaspora is an irredenta. |
+| `Relations.TreatyGateBase` / `TreatyGateStep` | 0.40 / 0.12 | Rungs demand deep warmth (alliances rare and meaningful). | Everyone allies with everyone (seed 42: pairs reach alliance in ~3 epochs once warm). |
+| `Relations.BreakWarmthPenalty` | 0.25 | Broken treaties end friendships for good. | Rungs churn — break and re-sign. |
+| `Relations.NonAggressionDamping` | 0.30 | The second rung genuinely calms borders (fewer sparks reach powder). | Non-aggression is paper. |
+| `Relations.FederationAllianceEpochs` | 3 | Fusions need a generation of proven alliance. | Whirlwind federations. |
+| `Relations.FederationIdeologyGapMax` / `CohesionFloor` / `OpennessFloor` | 0.20 / 0.55 / 0.40 | Only aligned, healthy, open pairs merge (openness is the PAIR MEAN — one open partner carries a warier one; seed 42: three federations chaining out of the crowded core). | Everything fuses; the galaxy consolidates to a blob. |
+| `Relations.FederationOverlapDiscount` | 0.25 | Entangled friendly borders fuse readily (the interleaved core federates or fights, never simmers). | Entanglement is diplomatically inert. |
+| `Relations.EncroachmentTensionBump` | 0.10 | Every colony in a neighbor's sphere is an incident. | Settling someone's sphere is free. |
+| `Relations.VassalStrengthRatio` | 0.35 | Only the genuinely outmatched kneel (chosen vassalage rare). | Peers vassalize on a bad epoch. |
+| `Relations.VassalTributeShare` | 0.15 | Protection is expensive; vassal economies drag. | Vassalage is symbolic. |
+| `Relations.VassalAbsorptionEpochs` / `AbsorptionWarmth` | 8 / 0.60 | Annexation takes two centuries of warm bond. | Vassals dissolve into overlords within a lifetime. |
+| `Relations.VassalSecessionCohesion` | 0.40 | Only crumbling overlords lose vassals. | Every wobble frees the periphery. |
+| `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs
@@ -222,6 +278,7 @@ set how fast the built world thickens (slice D).
 
 | Knob | Default | Raise it | Lower it |
 |---|---|---|---|
+| `Expansion.EncroachmentPenalty` | 1.5 | Contiguous borders: only truly rich contested sites get settled; boxed-in realms consolidate (**the map-soup dial**, slice H eyeball). | Land-rush interleaving returns. |
 | `Expansion.ColonyCost` | 15 | Fewer, better-funded expeditions (the cost lands in settler pockets). | Colony spam. |
 | `Expansion.ColonizationReachHexes` | 24 | Bolder leaps into the dark (further from lane relief). | Tight incremental sprawl. |
 | `Expansion.LaneCost` | 25 | Sparser networks; more isolated famine pockets. | Everything connects fast; blockades matter less each. |
@@ -248,6 +305,12 @@ player, P2) replace the AI and bring their own numbers.
 | `Controller.MilitancyReserveGate` | 0.2 | Only genuine hawks arm. | Everyone keeps a little powder dry. |
 | `Controller.NarcoticsProhibitBelowOpenness` | 0.35 | More theocratic drug bans → bigger black books. | Prohibition rare. |
 | `Controller.NarcoticsRestrictBelowOpenness` | 0.55 | Wider restricted band (friction, not bans). | Narcotics broadly legal. |
+
+### Controller additions (slice H)
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Controller.BaseTariffRate` | 0.15 | Insular societies wall off trade (pact cuts matter more). | Free trade everywhere; trade-pact teeth bite nothing. |
 
 ## Tech — ladder costs, research, diffusion (slice G)
 
@@ -297,6 +360,46 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.StarterEscortPerMilitancy` | 4 | Militant species enter with real screens. | Unescorted dawn. |
 
 ---
+
+## War — spark, appetite, causes (slice H)
+
+Tension discharges through a casus belli: the menu computes from real
+state, incidents roll in contested overlap, and the declaration gate
+prices the defender's whole coalition. The AI's cause priority order
+and the incident freshness window (2 epochs) are structural.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `War.IncidentRatePerEpoch` | 0.25 | Contested borders spark constantly (chronicle noise, more powder lit). | Quiet frontiers; wars need standing causes. |
+| `War.IncidentTensionBump` | 0.08 | Incidents themselves load the gauge (escalation spirals). | Sparks without heat. |
+| `War.WarTensionFloor` | 0.55 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
+| `War.WarAppetiteThreshold` | 0.60 | Doves need overwhelming tension; hawks still march. **The war-frequency dial** (seed 42: 11 declarations / 40 epochs). | Everyone fights at the first grievance. |
+| `War.AttackStrengthRatio` | 0.60 | Attackers need near-parity with the coalition (alliances truly deter). | Hopeless wars of principle. |
+| `War.PriceShockMultiple` | 2.0 | Only famine-grade shocks justify seizure wars. | Every price spike is a casus belli. |
+| `War.CrusadeThreshold` | 0.30 | Crusades need zealot thrones over deep doctrine gaps. | Ideology alone marches armies. |
+| `War.GrievanceDischargeFloor` | 0.35 | Military factions must be loud AND bitter to drag the state to war. | Standing armies find their own wars. |
+| `War.AllySupportFactor` | 0.5 | Coalitions fight near-united (deterrence and dogpiles). | Allies are moral support. |
+| `War.MobileResponseShare` | 0.3 | Defenders concentrate fast (fronts harden). | Objectives fall while the navy sits home. |
+| `War.SupplyPenaltyPerHex` | 0.01 | Deep strikes wither at the tether's end. | Distance means nothing; blitz wars. |
+| `War.FortressDefensePerTier` | 0.25 | Fortress worlds anchor whole wars. | Fortifications are decoration. |
+| `War.LossDecisiveLoser` / `Winner` / `Attrition` / `Stalemate` | 0.35 / 0.10 / 0.15 / 0.05 | Bloodier engagements: short sharp wars, fat wreckage fields (salvage tech diffusion). | Wars of maneuver; navies survive decades of fighting. |
+| `War.BattleFacilityDamage` | 0.15 | Decisive days raze the ground (postwar rebuilding decades). | Industry shrugs off the front line. |
+| `War.SiegeBaseEpochs` / `SiegeProvisionEpochsCap` | 1 / 3 | Sieges grind for generations (relief attempts matter). | Ports fall the epoch the fleet arrives. |
+| `War.BlockadeHoldEpochs` | 2 | Lane objectives need sustained interdiction. | A single patrol sweep counts as control. |
+| `War.FleetDestroyedShare` | 0.25 | The navy objective needs near-annihilation. | First blood breaks the fleet. |
+| `War.CommanderDeathOnRout` | 0.25 | Decisive days kill admirals (biographies end at the front). | Commanders always swim home. |
+| `War.RenownPerVictory` / `WarHeroRenown` | 2 / 6 | Heroes mint from a battle or two. | Only lifetime campaigners are remembered. |
+| `War.ExhaustionPerLoss` | 0.4 | Blood exhausts faster than years (losses end wars). | Only time wearies; attrition wars run forever. |
+| `War.LegitimacyCollapseFloor` | 0.25 | Shaky thrones sue early ("a polity breaks when its politics break"). | Wars outlive the governments fighting them. |
+| `War.FleetExhaustionShare` | 0.15 | Navies fight to the last squadron. | First serious losses end the war. |
+| `War.ReparationsShare` | 0.25 | Losing is expensive (postwar debt overhang decades). | Reparations are symbolic. |
+| `War.SettlementTensionRelief` | 0.5 | Peace genuinely clears the air (until claims restock it). | The next war starts where the last one ended. |
+| `War.VeteranMilitancyBump` | 0.10 | Every war hardens the sword parties (militarization ratchets). | Veterans retire quietly. |
+| `War.VictoryLegitimacy` / `DefeatLegitimacy` | 0.08 / 0.12 | War outcomes make and break governments (defeat → graduation risk). | Thrones indifferent to the front. |
+| `War.AnnihilationHatred` | 0.75 | Only saturated hatred with stacked claims turns total (wars of annihilation rare). | Every grudge is a war of extermination. |
+| `War.MobilizationFactor` | 3.0 | Wartime economies pivot hard to the front (fabricators boom, stockpiles corner markets). | War is fought from peacetime stocks. |
+| `War.WarBudgetMilitaryShift` | 0.20 | Guns before butter: development and expansion starve at war. | The exchequer ignores the front. |
+| `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
 
 ## Structural constants (code, not knobs — deliberately)
 

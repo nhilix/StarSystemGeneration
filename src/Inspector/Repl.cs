@@ -32,15 +32,16 @@ public sealed class Repl
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
                     Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
-                    Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech] — political / lane / traffic / price / tech map");
+                    Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech|war|tension] — political / lane / traffic / price / tech / war maps");
                     Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
                     Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
                     Console.WriteLine("tech — per-polity domain tiers + progress · corps — the corporation registry");
+                    Console.WriteLine("relations [polityId] — per-pair warmth/tension with live sources, bonds, claims");
+                    Console.WriteLine("wars — every war ever declared · war <id> — one war's fronts, sieges, commanders, chronicle");
                     Console.WriteLine("market <portId> — one market's prices, inventory, black book, people, industry");
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
-                    Console.WriteLine("lanecut <portA> <portB> — toggle a lane cut (debug blockade until slice H)");
                     Console.WriteLine("chronicle [actorId|deep] — the event log; one biography; or the deep-time strata only");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
@@ -117,9 +118,10 @@ public sealed class Repl
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
-                case "emap" or "estep" or "market" or "lanecut" or "fleet"
+                case "emap" or "estep" or "market" or "fleet"
                     or "designs" or "fleetpost" or "polity" or "characters"
-                    or "bio" or "tech" or "corps" when _sim == null:
+                    or "bio" or "tech" or "corps" or "relations" or "wars"
+                    or "war" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "polity" when parts.Length >= 2 && int.TryParse(parts[1], out var pid):
@@ -144,6 +146,21 @@ public sealed class Repl
                     break;
                 case "tech":
                     Console.WriteLine(InteriorView.RenderTech(_sim!));
+                    break;
+                case "relations" when parts.Length >= 2 && int.TryParse(parts[1], out var rpid):
+                    Console.WriteLine(InterpolityView.RenderRelations(_sim!, rpid));
+                    break;
+                case "relations":
+                    Console.WriteLine(InterpolityView.RenderRelations(_sim!));
+                    break;
+                case "wars":
+                    Console.WriteLine(InterpolityView.RenderWars(_sim!));
+                    break;
+                case "war" when parts.Length >= 2 && int.TryParse(parts[1], out var wid):
+                    Console.WriteLine(InterpolityView.RenderWar(_sim!, wid));
+                    break;
+                case "war":
+                    Console.WriteLine("usage: war <id> (see `wars`)");
                     break;
                 case "corps":
                     Console.WriteLine(InteriorView.RenderCorporations(_sim!));
@@ -224,27 +241,10 @@ public sealed class Repl
                 case "market":
                     Console.WriteLine("usage: market <portId>");
                     break;
-                case "lanecut" when parts.Length == 3
-                        && int.TryParse(parts[1], out var la) && int.TryParse(parts[2], out var lb):
-                {
-                    int lo = Math.Min(la, lb), hi = Math.Max(la, lb);
-                    Core.Epoch.Lane? lane = null;
-                    foreach (var l in _sim!.Lanes)
-                        if (l.PortAId == lo && l.PortBId == hi) lane = l;
-                    if (lane == null)
-                    { Console.WriteLine($"no lane between ports #{lo} and #{hi}"); break; }
-                    if (_sim.SeveredLanes.Remove(lane.Id))
-                        Console.WriteLine($"lane #{lane.Id} ({lo}<->{hi}) restored");
-                    else
-                    {
-                        _sim.SeveredLanes.Add(lane.Id);
-                        Console.WriteLine($"lane #{lane.Id} ({lo}<->{hi}) CUT — "
-                            + "estep and watch the spike (emap price)");
-                    }
-                    break;
-                }
                 case "lanecut":
-                    Console.WriteLine("usage: lanecut <portA> <portB>");
+                    Console.WriteLine("superseded (slice H): interdiction is real now — "
+                        + "`fleetpost <fleetId> blockade <portId>` stations a squadron and "
+                        + "severs every lane at that port's approaches");
                     break;
                 case "chronicle" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");

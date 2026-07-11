@@ -293,6 +293,10 @@ public static class FleetOps
         foreach (var fleet in state.Fleets)               // id order (P6)
         {
             if (fleet.OwnerActorId != actorId) continue;
+            // fleets on war stations keep their hulls — mobilization owns
+            // them until the settlement demobilizes (slice H)
+            if (fleet.Posture is FleetPosture.Blockade
+                or FleetPosture.Expedition) continue;
             for (int i = fleet.Hulls.Count - 1; i >= 0; i--)
             {
                 var g = fleet.Hulls[i];
@@ -397,13 +401,14 @@ public static class FleetOps
         return trips;
     }
 
-    /// <summary>Lanes closed to freight this step: the REPL's debug cuts
-    /// plus every lane touching a blockaded port (a Blockade-posture fleet
-    /// stationed at its approaches — interdiction is one hex address,
-    /// space-and-travel.md). Derived from fleet state, never stored.</summary>
+    /// <summary>Lanes closed to freight this step: every lane touching a
+    /// blockaded port (a Blockade-posture fleet stationed at its
+    /// approaches — interdiction is one hex address, space-and-travel.md).
+    /// Derived from fleet state, never stored — real interdiction replaced
+    /// the slice-E debug cut hook (slice H).</summary>
     public static HashSet<int> SeveredLaneIds(SimState state)
     {
-        var severed = new HashSet<int>(state.SeveredLanes);
+        var severed = new HashSet<int>();
         foreach (var fleet in state.Fleets)               // id order (P6)
         {
             if (fleet.Posture != FleetPosture.Blockade || fleet.TargetId < 0
@@ -441,7 +446,11 @@ public static class FleetOps
 
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? knobs.ReserveUpkeepFactor : 1.0;
-            double fuelNeed = 0, armsNeed = 0, partsNeed = 0;
+            // rationing (slice H eyeball): a belligerent's warships eat —
+            // the rations come out of the same markets the households eat
+            // from, and an unfed fleet loses readiness like an unfueled one
+            bool atWar = WarOps.AtWar(state, pr.ActorId);
+            double fuelNeed = 0, armsNeed = 0, partsNeed = 0, rationsNeed = 0;
             foreach (var g in fleet.Hulls)                // design-id order
             {
                 var design = state.Designs[g.DesignId];
@@ -451,7 +460,12 @@ public static class FleetOps
                               * posture;
                 fuelNeed += draw * knobs.UpkeepFuelShare;
                 if (ShipCatalog.IsWarship(design.Role))
+                {
                     armsNeed += draw * (1 - knobs.UpkeepFuelShare);
+                    if (atWar)
+                        rationsNeed += g.Count * posture * years
+                            * state.Config.War.RationsPerHullPerYear;
+                }
                 else
                     partsNeed += draw * (1 - knobs.UpkeepFuelShare);
             }
@@ -460,7 +474,7 @@ public static class FleetOps
             // fueled fleet toward degraded readiness instead of erasing it —
             // militia rot, not evaporation (attrition still bites below the
             // floor when fuel fails too)
-            double totalNeed = fuelNeed + armsNeed + partsNeed;
+            double totalNeed = fuelNeed + armsNeed + partsNeed + rationsNeed;
             double met = totalNeed <= 0 ? 1.0
                 : (DrawUpkeep(state, pr, market, (int)GoodId.Fuel, fuelNeed)
                        * fuelNeed
@@ -468,7 +482,10 @@ public static class FleetOps
                        * armsNeed
                    + DrawUpkeep(state, pr, market,
                          (int)GoodId.ShipComponents, partsNeed)
-                       * partsNeed) / totalNeed;
+                       * partsNeed
+                   + DrawUpkeep(state, pr, market,
+                         (int)GoodId.Provisions, rationsNeed)
+                       * rationsNeed) / totalNeed;
 
             if (met >= fleet.Readiness)
                 fleet.Readiness = Math.Min(met, fleet.Readiness
@@ -524,8 +541,10 @@ public static class FleetOps
 
     /// <summary>Wreck up to <paramref name="count"/> hulls out of a fleet,
     /// design-id order: wreckage records at the fleet's hex, the ledger
-    /// moves Built → Wrecked, the chronicle carries the loss (401).</summary>
-    public static int Wreck(SimState state, FleetRecord fleet, int count)
+    /// moves Built → Wrecked, the chronicle carries the loss (401) —
+    /// unless quiet (battles stage their own richer event, slice H).</summary>
+    public static int Wreck(SimState state, FleetRecord fleet, int count,
+                            bool quiet = false)
     {
         // whoever owns the hulls owns the ledger entry — polity or
         // corporation (slice G), the loss conserves the same way
@@ -544,7 +563,7 @@ public static class FleetOps
             wrecked += loss;
             count -= loss;
         }
-        if (wrecked > 0)
+        if (wrecked > 0 && !quiet)
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.FleetAttrition,
                 new[] { fleet.OwnerActorId }, fleet.Hex, Magnitude: wrecked,
@@ -566,6 +585,7 @@ public static class FleetOps
                 || fleet.HomePortId >= state.Markets.Count) continue;
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? knobs.ReserveUpkeepFactor : 1.0;
+            bool atWar = WarOps.AtWar(state, fleet.OwnerActorId);
             foreach (var g in fleet.Hulls)                // design-id order
             {
                 var design = state.Designs[g.DesignId];
@@ -579,6 +599,12 @@ public static class FleetOps
                     ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
                 scratch.Demand[fleet.HomePortId][rest]
                     += draw * (1 - knobs.UpkeepFuelShare);
+                // wartime rations register too — the price signal the
+                // households then compete against
+                if (atWar && ShipCatalog.IsWarship(design.Role))
+                    scratch.Demand[fleet.HomePortId][(int)GoodId.Provisions]
+                        += g.Count * posture * years
+                           * state.Config.War.RationsPerHullPerYear;
             }
         }
     }
@@ -620,4 +646,19 @@ public static class FleetOps
     /// <summary>Layer-2 vectors of one fleet, computed on demand.</summary>
     public static FleetVectors Vectors(SimState state, FleetRecord fleet) =>
         FleetMath.Vectors(Composition(state, fleet));
+
+    /// <summary>An actor's headline war weight: strike + sustained fire
+    /// across its fleets, readiness-discounted — what vassal choices and
+    /// war appetites size each other by (slice H).</summary>
+    public static double WarStrength(SimState state, int actorId)
+    {
+        double strength = 0;
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+        {
+            if (fleet.OwnerActorId != actorId || fleet.TotalHulls == 0) continue;
+            var v = Vectors(state, fleet);
+            strength += (v.Strike + v.Sustained) * fleet.Readiness;
+        }
+        return strength;
+    }
 }

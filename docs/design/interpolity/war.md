@@ -13,7 +13,15 @@ full menu):
 | **Economic** | resource seizure (deficit/price shock on a good the target produces), chokepoint/lane control, punitive response to interdiction | prices |
 | **Ideological** | crusade (ideology gap × zeal, sacral surge), liberation of cultural kin, containment of a rising incompatible power | identity layers |
 | **Political** | succession claims, military-faction grievance discharge, vassal enforcement or secession | factions, dynasties |
+| **Spatial** | expulsion — drive the late-comer whose ports settled into an established sphere back out (the founding dates say who was there first) | the space model |
 | **Spark** | border incidents (patrol clashes in overlap zones, smuggler-enforcement killings, refused reparations); escalation odds ∝ tension | the space model |
+
+**War aims scale with hatred.** Most wars carry a bounded demand — cede the
+objectives, reparations, vassalization, independence. When tension is
+saturated, warmth dead, and standing claims stack (hatred with history),
+the declaration turns **total**: a war of annihilation accepts no surrender —
+it ends only when the defender is annexed whole (a conquest empire, with all
+the accommodation strain that implies) or the attacker itself breaks.
 
 The **spark mechanism**: incidents roll continuously in high-friction space; one
 escalates to war only when tension is loaded and a viable casus belli exists.
@@ -45,6 +53,12 @@ epoch:
 drain from markets; war loans finance deficits and leave overhang; **weariness is
 the interior responding** — losses and SoL decline shift population ideology,
 feed peace factions, erode legitimacy. A polity breaks when its politics break.
+**Mobilization is total**: a belligerent shifts its budget from development and
+expansion into the military line, its yards turn from haulers to warships, its
+quartermasters corner armaments, ship parts, and fuel (the fabricators boom),
+and its warships **eat** — rations drawn from the same markets the households
+eat from. Extended war means rationing at home; an unfed fleet loses readiness
+like an unfueled one, so sieges and blockades starve navies too.
 
 **Allied belligerents**: defense-alliance partners join as supporting
 belligerents under the war leaders (the original attacker and defender);

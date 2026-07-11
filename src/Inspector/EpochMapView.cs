@@ -33,6 +33,7 @@ public static class EpochMapView
         foreach (var p in state.Ports) portCells.Add(HexGrid.CellOf(p.Hex));
         var laneCells = layer == "lanes" ? LaneCells(state) : null;
         var traffic = layer == "traffic" ? TrafficCells(state) : null;
+        var warCells = layer == "war" ? WarStationCells(state) : null;
 
         var owners = new List<int>();
         foreach (var (cell, off) in offsets)
@@ -48,6 +49,35 @@ public static class EpochMapView
                 glyph = portCells.Contains(cell.Coord) ? '*'
                     : traffic!.TryGetValue(cell.Coord, out double trips)
                         ? TrafficGlyph(trips) : '.';
+            else if (layer == "war")
+            {
+                // borders flaring: belligerent domains keep their letter,
+                // the peaceful fade, war fleets on station burn
+                PortDomains.OwnersAt(sk, state.Config, state.Ports,
+                                     HexGrid.CellCenter(cell.Coord), owners);
+                bool warFleetHere = warCells!.Contains(cell.Coord);
+                glyph = warFleetHere ? '!'
+                    : owners.Count switch
+                    {
+                        0 => '.',
+                        1 => WarOps.AtWar(state, owners[0])
+                            ? OwnerLetter(owners[0]) : ',',
+                        _ => '?',
+                    };
+            }
+            else if (layer == "tension")
+            {
+                // the pressure gauge shaded: a domain cell shows its
+                // owner's hottest live relation as a digit
+                PortDomains.OwnersAt(sk, state.Config, state.Ports,
+                                     HexGrid.CellCenter(cell.Coord), owners);
+                glyph = owners.Count switch
+                {
+                    0 => '.',
+                    1 => TensionGlyph(state, owners[0]),
+                    _ => '?',
+                };
+            }
             else if (layer == "tech")
             {
                 // the tech gap made visible: each domain cell shows its
@@ -87,6 +117,11 @@ public static class EpochMapView
         }
         sb.AppendLine(layer switch
         {
+            "war" => "!=war fleet on station letter=belligerent domain "
+                     + ",=at peace ?=contested .=wilds",
+            "tension" => "owner's hottest live relation per domain cell: "
+                         + "digit=tension×9 ?=contested .=wilds "
+                         + "(the war-pressure gauge)",
             "tech" => "owner's Astrogation tier per domain cell: digit=tier "
                       + "?=contested .=wilds (leaders' ports reach farther)",
             "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
@@ -129,6 +164,31 @@ public static class EpochMapView
             < 30.0 => '#',
             _ => '!',
         };
+    }
+
+    /// <summary>The owner's hottest live relation, 0–9 — where the powder is.</summary>
+    private static char TensionGlyph(SimState state, int ownerId)
+    {
+        double hottest = 0;
+        foreach (var rel in state.Relations)
+            if (rel.Involves(ownerId) && RelationsOps.BothLive(state, rel)
+                && rel.Tension > hottest)
+                hottest = rel.Tension;
+        return (char)('0' + (int)System.Math.Round(hottest * 9));
+    }
+
+    /// <summary>Cells where war fleets stand — blockades and expeditions
+    /// on active-war stations.</summary>
+    private static HashSet<HexCoordinate> WarStationCells(SimState state)
+    {
+        var cells = new HashSet<HexCoordinate>();
+        foreach (var fleet in state.Fleets)
+            if (fleet.TotalHulls > 0
+                && fleet.Posture is FleetPosture.Blockade
+                    or FleetPosture.Expedition
+                && WarOps.AtWar(state, fleet.OwnerActorId))
+                cells.Add(HexGrid.CellOf(fleet.Hex));
+        return cells;
     }
 
     private static char OwnerLetter(int actorId) =>

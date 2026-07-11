@@ -22,6 +22,226 @@ public sealed class EpochSimConfig
     public FactionKnobs Faction { get; } = new FactionKnobs();
     public TechKnobs Tech { get; } = new TechKnobs();
     public CorporateKnobs Corporate { get; } = new CorporateKnobs();
+    public RelationsKnobs Relations { get; } = new RelationsKnobs();
+    public WarKnobs War { get; } = new WarKnobs();
+}
+
+/// <summary>War dials (interpolity/war.md): the spark's incidence, the
+/// declaration appetite, casus-belli thresholds, engagement losses, siege
+/// pacing, and termination/settlement magnitudes. Slice H. Weariness's
+/// per-year rate stays on Economy.WarWearinessPerYear where slice A put it.</summary>
+public sealed class WarKnobs
+{
+    /// <summary>Border-incident probability per epoch at full contested
+    /// overlap (damped by non-aggression rungs).</summary>
+    public double IncidentRatePerEpoch { get; set; } = 0.25;
+    /// <summary>Instant tension bump per incident — sparks load the gauge
+    /// they later read.</summary>
+    public double IncidentTensionBump { get; set; } = 0.08;
+    /// <summary>Tension below which no war fires whatever the menu says —
+    /// low-tension incidents fizzle into demands and apologies.</summary>
+    public double WarTensionFloor { get; set; } = 0.55;
+    /// <summary>Declaration gate: tension × (0.5 + composed militancy)
+    /// must clear this — the escalation-∝-tension dial.</summary>
+    public double WarAppetiteThreshold { get; set; } = 0.60;
+    /// <summary>Attackers price allied fleets: own strength must be at
+    /// least this share of the defender's coalition to declare.</summary>
+    public double AttackStrengthRatio { get; set; } = 0.60;
+    /// <summary>Own-market price over founding that reads as the deficit/
+    /// price shock behind a resource-seizure casus belli.</summary>
+    public double PriceShockMultiple { get; set; } = 2.0;
+    /// <summary>Ideology gap × ruler zeal that arms the crusade cause.</summary>
+    public double CrusadeThreshold { get; set; } = 0.30;
+    /// <summary>Military-faction strength × grievance that arms the
+    /// grievance-discharge cause.</summary>
+    public double GrievanceDischargeFloor { get; set; } = 0.35;
+    /// <summary>Weight of a coalition partner's distant navy in an
+    /// engagement — support without relocation.</summary>
+    public double AllySupportFactor { get; set; } = 0.5;
+    /// <summary>Share of the defender's away-station strength that answers
+    /// an attacked objective (and bleeds there).</summary>
+    public double MobileResponseShare { get; set; } = 0.3;
+    /// <summary>Attacker power lost per hex from its supply base, floored
+    /// at half — extended lines degrade readiness (war.md).</summary>
+    public double SupplyPenaltyPerHex { get; set; } = 0.01;
+    /// <summary>Fractional defender-power bonus per fortress tier standing
+    /// at the objective.</summary>
+    public double FortressDefensePerTier { get; set; } = 0.25;
+    /// <summary>Hull-share the loser of a decisive engagement wrecks.</summary>
+    public double LossDecisiveLoser { get; set; } = 0.35;
+    /// <summary>Hull-share the winner of a decisive engagement wrecks.</summary>
+    public double LossDecisiveWinner { get; set; } = 0.10;
+    /// <summary>Hull-share both sides wreck in an attrition round.</summary>
+    public double LossAttrition { get; set; } = 0.15;
+    /// <summary>Hull-share both sides wreck in a stalemate.</summary>
+    public double LossStalemate { get; set; } = 0.05;
+    /// <summary>Facility condition lost at a port that hosts a decisive
+    /// attacker victory — battles scar the ground.</summary>
+    public double BattleFacilityDamage { get; set; } = 0.15;
+    /// <summary>Siege epochs before any larder or fortress extends it.</summary>
+    public int SiegeBaseEpochs { get; set; } = 1;
+    /// <summary>Cap on the siege epochs a full larder can add.</summary>
+    public double SiegeProvisionEpochsCap { get; set; } = 3.0;
+    /// <summary>Epochs a lane must stay cut to count the blockade
+    /// objective as taken.</summary>
+    public int BlockadeHoldEpochs { get; set; } = 2;
+    /// <summary>Defender coalition strength (as a share of its strength at
+    /// declaration) below which the fleet objective counts as taken.</summary>
+    public double FleetDestroyedShare { get; set; } = 0.25;
+    /// <summary>Chance the beaten commander of a decisive engagement dies
+    /// with the day — war is a hazard for commanders.</summary>
+    public double CommanderDeathOnRout { get; set; } = 0.25;
+    /// <summary>Renown a decisive victory mints its commander.</summary>
+    public double RenownPerVictory { get; set; } = 2.0;
+    /// <summary>Renown at which a victorious commander is hailed a war
+    /// hero (cap-gated like every notable).</summary>
+    public double WarHeroRenown { get; set; } = 6.0;
+    /// <summary>Exhaustion per fully-wrecked own warship roster — losses
+    /// weary a nation beyond the years alone.</summary>
+    public double ExhaustionPerLoss { get; set; } = 0.4;
+    /// <summary>Legitimacy below which a belligerent's politics count as
+    /// broken — a polity breaks when its politics break.</summary>
+    public double LegitimacyCollapseFloor { get; set; } = 0.25;
+    /// <summary>Coalition strength (as a share of the strength mustered at
+    /// declaration) below which a side counts fleet-exhausted.</summary>
+    public double FleetExhaustionShare { get; set; } = 0.15;
+    /// <summary>Share of the loser's liquid treasury a reparations
+    /// settlement transfers (conserved).</summary>
+    public double ReparationsShare { get; set; } = 0.25;
+    /// <summary>Fractional tension unloaded by a settlement — the war
+    /// discharged what the claims don't restock.</summary>
+    public double SettlementTensionRelief { get; set; } = 0.5;
+    /// <summary>Militancy a war's end adds to both sides' military
+    /// factions — veterans come home harder.</summary>
+    public double VeteranMilitancyBump { get; set; } = 0.10;
+    /// <summary>Legitimacy a settlement hands the winner's throne.</summary>
+    public double VictoryLegitimacy { get; set; } = 0.08;
+    /// <summary>Legitimacy a settlement costs the loser's throne.</summary>
+    public double DefeatLegitimacy { get; set; } = 0.12;
+    /// <summary>Wartime multiplier on the yard pull and on armaments/parts/
+    /// fuel stockpile targets — the mobilization surge that diverts an
+    /// economy to the front (fabricators boom, households ration).</summary>
+    public double MobilizationFactor { get; set; } = 3.0;
+    /// <summary>Budget share shifted from development and expansion into
+    /// the military line while at war — guns before butter.</summary>
+    public double WarBudgetMilitaryShift { get; set; } = 0.20;
+    /// <summary>Tension × (1 − warmth) at which a declaration turns total:
+    /// demand Annihilation, no surrender accepted (needs standing claims
+    /// on the table too — hatred has history).</summary>
+    public double AnnihilationHatred { get; set; } = 0.75;
+    /// <summary>Provisions a belligerent's warship draws per hull per
+    /// world-year on top of normal upkeep — armies eat, and the rations
+    /// compete with the households' subsistence (wartime rationing).</summary>
+    public double RationsPerHullPerYear { get; set; } = 0.04;
+}
+
+/// <summary>Relations dials (interpolity/relations.md): contact reach, the
+/// warmth/tension drift rates, and the source-term weights behind both
+/// targets. Slice H. The stance buckets Intent maps net warmth−tension to
+/// are structural controller behavior.</summary>
+public sealed class RelationsKnobs
+{
+    /// <summary>Nearest cross-owner port distance (hexes) at which two
+    /// polities meet — reach overlap makes contact (news-borne contact is
+    /// slice I).</summary>
+    public int ContactReachHexes { get; set; } = 24;
+    /// <summary>Fractional warmth drift toward its source target per
+    /// world-year (both directions — warmth cools as fast as it builds).</summary>
+    public double WarmthDriftPerYear { get; set; } = 0.02;
+    /// <summary>Fractional tension rise toward a higher target per
+    /// world-year — friction loads fast.</summary>
+    public double TensionRisePerYear { get; set; } = 0.05;
+    /// <summary>Fractional tension relaxation toward a lower target per
+    /// world-year — grudges unload slowly, and only once sources resolve.</summary>
+    public double TensionRelaxPerYear { get; set; } = 0.012;
+    /// <summary>Warmth-baseline cut per point of openness-filtered
+    /// strangeness (embodiment + disposition distance).</summary>
+    public double StrangenessWeight { get; set; } = 0.35;
+    /// <summary>Warmth-target weight of saturated cross-border trade.</summary>
+    public double TradeWarmthWeight { get; set; } = 0.30;
+    /// <summary>Posted cross-border freight capacity at which the trade
+    /// warmth term saturates.</summary>
+    public double TradeSaturation { get; set; } = 10.0;
+    /// <summary>Warmth-target weight of the treaty ladder at its top rung.</summary>
+    public double TreatyWarmthWeight { get; set; } = 0.25;
+    /// <summary>Warmth per live dynastic instrument (marriage/wardship),
+    /// counted up to three.</summary>
+    public double DynasticTieWarmth { get; set; } = 0.10;
+    /// <summary>World-years before a dynastic tie's generation dies out —
+    /// the tie lapses into the succession claim it always carried
+    /// ("two reigns later").</summary>
+    public int DynasticTieLapseYears { get; set; } = 75;
+    /// <summary>Warmth cut per point of official-ideology gap.</summary>
+    public double IdeologyGapCooling { get; set; } = 0.20;
+    /// <summary>Tension-target weight of saturated service-area overlap
+    /// (the contested-influence zones).</summary>
+    public double OverlapTensionWeight { get; set; } = 0.35;
+    /// <summary>Overlapping cross-owner port pairs at which the overlap
+    /// tension term saturates.</summary>
+    public double OverlapSaturation { get; set; } = 4.0;
+    /// <summary>Tension per live standing claim (saturating at 1).</summary>
+    public double ClaimTensionWeight { get; set; } = 0.18;
+    /// <summary>Tension-target weight of ideology gap × mean ruler zeal.</summary>
+    public double IdeologyTensionWeight { get; set; } = 0.30;
+    /// <summary>Tension-target weight of the pair's mean composed militancy —
+    /// hawks keep borders loaded even without grievances.</summary>
+    public double MilitancyTensionWeight { get; set; } = 0.20;
+    /// <summary>Tension-target weight of the loudest military faction's
+    /// strength × militancy on either side.</summary>
+    public double AgitationTensionWeight { get; set; } = 0.15;
+    /// <summary>Tension-target weight while either blockades the other's
+    /// ports — interdiction strain.</summary>
+    public double InterdictionTensionWeight { get; set; } = 0.40;
+    /// <summary>Kin population living under the other's rule at which a
+    /// cultural-kin claim raises (and below which it releases).</summary>
+    public double KinClaimSegmentFloor { get; set; } = 0.5;
+    /// <summary>Warmth required to offer or accept the first rung; each
+    /// further rung costs +TreatyGateStep — warmth gates ascent.</summary>
+    public double TreatyGateBase { get; set; } = 0.40;
+    /// <summary>Additional warmth gate per rung above the first.</summary>
+    public double TreatyGateStep { get; set; } = 0.12;
+    /// <summary>Warmth lost outright by the pair when a rung is broken —
+    /// the galaxy hears, the partner remembers.</summary>
+    public double BreakWarmthPenalty { get; set; } = 0.25;
+    /// <summary>Instant tension a colony founded inside a neighbor's
+    /// service area costs with that neighbor — expansion into contested
+    /// space is a provocation the founder chooses.</summary>
+    public double EncroachmentTensionBump { get; set; } = 0.10;
+    /// <summary>Warmth-gate discount per point of saturated overlap at the
+    /// federation rung — entangled friendly borders push toward fusion
+    /// rather than friction (slice H eyeball feedback).</summary>
+    public double FederationOverlapDiscount { get; set; } = 0.25;
+    /// <summary>Fractional tension-target damping under a non-aggression
+    /// rung or above — the rung's teeth (spark de-escalation is war.md's).</summary>
+    public double NonAggressionDamping { get; set; } = 0.30;
+    /// <summary>Tariff multiplier between trade-pact partners — the tariff
+    /// cut that is the first rung's teeth.</summary>
+    public double PactTariffFactor { get; set; } = 0.40;
+    /// <summary>Epochs a defense alliance must stand before the federation
+    /// gate opens — sustained alliance, not a fling.</summary>
+    public int FederationAllianceEpochs { get; set; } = 3;
+    /// <summary>Both cohesions must sit at or above this to fuse — troubled
+    /// realms don't merge, they fracture.</summary>
+    public double FederationCohesionFloor { get; set; } = 0.55;
+    /// <summary>Official-ideology gap above which the merge is off.</summary>
+    public double FederationIdeologyGapMax { get; set; } = 0.20;
+    /// <summary>Composed openness both sides need to contemplate fusion.</summary>
+    public double FederationOpennessFloor { get; set; } = 0.40;
+    /// <summary>Epochs of stable vassalage before the absorption exit can
+    /// fire — cultural drift takes generations.</summary>
+    public int VassalAbsorptionEpochs { get; set; } = 8;
+    /// <summary>Warmth at or above which long vassalage completes as
+    /// peaceful annexation.</summary>
+    public double VassalAbsorptionWarmth { get; set; } = 0.60;
+    /// <summary>Overlord cohesion below which vassals bid for independence
+    /// (the secession exit).</summary>
+    public double VassalSecessionCohesion { get; set; } = 0.40;
+    /// <summary>Vassal-to-overlord war-strength ratio at or below which a
+    /// chosen vassalage binds — protection is for the genuinely weaker.</summary>
+    public double VassalStrengthRatio { get; set; } = 0.35;
+    /// <summary>Income share a vassal ships up each epoch (tribute) —
+    /// conserved vassal→overlord flow before the vassal budgets.</summary>
+    public double VassalTributeShare { get; set; } = 0.15;
 }
 
 /// <summary>Corporate dials (economy/corporations.md): niche detection
@@ -258,13 +478,26 @@ public sealed class SimKnobs
     public int EpochCount { get; set; } = 40;
 }
 
-/// <summary>Genesis-side knobs: only the stub emergence schedule until the
-/// real cosmic/evolutionary families land with Slice F.</summary>
+/// <summary>Genesis-side knobs: the emergence window, plus the native
+/// late-emergence schedule (slice H — interpolity/relations.md §Natives).</summary>
 public sealed class GenesisKnobs
 {
     /// <summary>Latest world-year a polity may enter — staggered emergence
     /// (frame/time.md §Asymmetric emergence).</summary>
     public int EmergenceWindowYears { get; set; } = 500;
+    /// <summary>World-year the last pre-spaceflight native's date projects
+    /// onto — natives emerge between the polity window and here, order and
+    /// spacing preserved (honest narrative compression).</summary>
+    public int NativeWindowYears { get; set; } = 900;
+    /// <summary>Population size an emerging native people starts with
+    /// (its homeworld segment, whoever administers it).</summary>
+    public double NativePopulationSize { get; set; } = 1.0;
+    /// <summary>Epochs a protectorate policy delays the emergence date —
+    /// the reserve buys time (and can turn cage).</summary>
+    public int ProtectorateDelayEpochs { get; set; } = 4;
+    /// <summary>Epochs an uplift host (Life tier ≥ 2 — the tech gate)
+    /// advances the emergence date.</summary>
+    public int UpliftAccelerationEpochs { get; set; } = 4;
 }
 
 /// <summary>Economy dials, per world-year where a rate: the market engine's
@@ -455,6 +688,10 @@ public sealed class ExpansionKnobs
     public double ColonyCost { get; set; } = 15.0;
     /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>
     public int ColonizationReachHexes { get; set; } = 24;
+    /// <summary>Colony-score penalty per foreign polity whose domain the
+    /// new port's service area would overlap — settling someone's sphere
+    /// must be outweighed by real riches (slice H: contiguous borders).</summary>
+    public double EncroachmentPenalty { get; set; } = 1.5;
     /// <summary>Development points to raise a port: cost = base × current tier.</summary>
     public double PortUpgradeCostBase { get; set; } = 40.0;
     /// <summary>Development points per lane built.</summary>
@@ -568,6 +805,10 @@ public sealed class ControllerKnobs
     public double FuelReservePerPort { get; set; } = 4.0;
     /// <summary>Militancy below which no armaments reserve is kept at all.</summary>
     public double MilitancyReserveGate { get; set; } = 0.2;
+    /// <summary>Flat tariff rate the AI levies on foreign goods at zero
+    /// openness (scaled down by openness; trade pacts cut what remains —
+    /// the teeth the PactTariffFactor bites on).</summary>
+    public double BaseTariffRate { get; set; } = 0.15;
     /// <summary>Species openness below which narcotics are prohibited.</summary>
     public double NarcoticsProhibitBelowOpenness { get; set; } = 0.35;
     /// <summary>Species openness below which narcotics are restricted.</summary>

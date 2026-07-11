@@ -485,8 +485,15 @@ public static class MarketEngine
             if (pr.MilitaryPoints < hullValue) continue;  // can't pay, don't pull
             int at = YardPortOf(state, pr.ActorId);
             if (at < 0) continue;
+            // mobilization (slice H): a belligerent's yards pull hard —
+            // components AND armaments — the fabricator boom of wartime
+            double surge = WarOps.AtWar(state, pr.ActorId)
+                ? state.Config.War.MobilizationFactor : 1.0;
             scratch.Demand[at][(int)GoodId.ShipComponents]
-                += fleet.MilitaryPullComponents;
+                += fleet.MilitaryPullComponents * surge;
+            if (surge > 1.0)
+                scratch.Demand[at][(int)GoodId.Armaments]
+                    += fleet.MilitaryPullComponents * (surge - 1.0);
         }
     }
 
@@ -647,7 +654,9 @@ public static class MarketEngine
             double tariff = 0;
             if (src.OwnerActorId != dst.OwnerActorId
                 && dstPolicies.TariffSchedule.TryGetValue(g, out double rate))
-                tariff = rate * snapshot[dstId][g];
+                tariff = rate * snapshot[dstId][g]
+                         * RelationsOps.TariffFactor(state, src.OwnerActorId,
+                                                     dst.OwnerActorId);
             double friction = srcLevel == LegalityLevel.Restricted
                               || dstLevel == LegalityLevel.Restricted
                 ? eco.RestrictedFriction * snapshot[dstId][g] : 0;
@@ -764,7 +773,9 @@ public static class MarketEngine
                     var schedule = (state.Actors[dst.OwnerActorId].Policies
                         as PolityPolicies ?? PolityPolicies.Default).TariffSchedule;
                     if (schedule.TryGetValue(g, out double rate))
-                        tariff = rate * pDst;
+                        tariff = rate * pDst
+                                 * RelationsOps.TariffFactor(state,
+                                       src.OwnerActorId, dst.OwnerActorId);
                 }
                 double friction = srcLevel == LegalityLevel.Restricted
                                   || dstLevel == LegalityLevel.Restricted

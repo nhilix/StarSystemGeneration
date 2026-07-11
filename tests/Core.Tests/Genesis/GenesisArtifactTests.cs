@@ -93,7 +93,7 @@ public class GenesisArtifactTests
     {
         var state = Seeded();
         string text = ArtifactSerializer.ToText(state);
-        foreach (var layer in new[] { "raster|2", "features|1", "origins|1", "precursors|1" })
+        foreach (var layer in new[] { "raster|2", "features|1", "origins|2", "precursors|1" })
         {
             var name = layer.Split('|')[0];
             string tampered = text.Replace($"LAYER|{layer}",

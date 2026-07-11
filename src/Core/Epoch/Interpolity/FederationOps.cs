@@ -1,0 +1,491 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using StarGen.Core.Content;
+using StarGen.Core.Galaxy;
+using StarGen.Core.Rng;
+
+namespace StarGen.Core.Epoch;
+
+/// <summary>The treaty ladder's top rungs (interpolity/relations.md
+/// §Federation, §Vassalage): federation fuses a NEW polity from two
+/// consenting allies; vassalage is the asymmetric bond — tribute, defensive
+/// obligation, foreign-policy lock — chosen under threat or imposed by
+/// settlement (H7), exited by absorption or secession. The merge plumbing
+/// is shared: everything an actor owns moves whole (P4).</summary>
+public static class FederationOps
+{
+    /// <summary>Warmth an overlord must at least hold toward a supplicant to
+    /// take it in — protection has a market, not a charity (structural).</summary>
+    private const double VassalConsentWarmth = 0.25;
+    /// <summary>Founding legitimacy of a treaty-built federation — its
+    /// segments chose membership (structural; conquest empires start lower).</summary>
+    private const double FederationFoundingLegitimacy = 0.75;
+
+    // ---- federation ----
+
+    /// <summary>The merge gate, verified on truth at Resolution: sustained
+    /// alliance + high warmth + ideology compatibility + openness + both
+    /// cohesions healthy + neither bound in a vassal bond.</summary>
+    public static bool FederationGateHolds(SimState state, PolityRelation rel)
+    {
+        var knobs = state.Config.Relations;
+        if (rel.Rung != TreatyRung.DefenseAlliance) return false;
+        if (rel.RungEpoch < 0 || state.EpochIndex - rel.RungEpoch
+            < knobs.FederationAllianceEpochs) return false;
+        // entangled friendly borders lower the bar: interleaved domains
+        // are a reason to fuse, not just a thing to tolerate
+        double gate = RelationsOps.TreatyGate(state.Config,
+                TreatyRung.Federation)
+            - knobs.FederationOverlapDiscount
+              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
+        if (rel.Warmth < gate) return false;
+        var a = state.PolityOf(rel.PolityAId);
+        var b = state.PolityOf(rel.PolityBId);
+        if (RelationsOps.IdeologyGap(a, b) > knobs.FederationIdeologyGapMax)
+            return false;
+        // pair-mean openness: one open partner can carry a warier one over
+        // the line (both still consented through the offer/accept dance)
+        if (0.5 * (Temperament.Compose(state, a).Openness
+                   + Temperament.Compose(state, b).Openness)
+            < knobs.FederationOpennessFloor) return false;
+        if (a.Interior == null || b.Interior == null) return false;
+        if (a.Interior.Cohesion < knobs.FederationCohesionFloor
+            || b.Interior.Cohesion < knobs.FederationCohesionFloor) return false;
+        if (OverlordOf(state, rel.PolityAId) >= 0 || HasVassals(state, rel.PolityAId)
+            || OverlordOf(state, rel.PolityBId) >= 0
+            || HasVassals(state, rel.PolityBId)) return false;
+        return true;
+    }
+
+    /// <summary>Fuse the pair into a NEW polity: multi-species membership,
+    /// population-weighted composition, fresh name, government form from the
+    /// combined ideology — it plays subsequent epochs as itself. Both
+    /// parents retire.</summary>
+    public static int Federate(SimState state, PolityRelation rel)
+    {
+        var parentA = state.PolityOf(rel.PolityAId);
+        var parentB = state.PolityOf(rel.PolityBId);
+        int newId = state.Actors.Count;
+        string name = SyllableName(state, newId);
+
+        // population decides species, culture, and the official line
+        double popA = RealmPopulation(state, rel.PolityAId);
+        double popB = RealmPopulation(state, rel.PolityBId);
+        var bySpecies = new Dictionary<int, double>();
+        var byCulture = new Dictionary<int, double>();
+        Span<double> ideology = stackalloc double[4];
+        double popSum = 0;
+        foreach (var s in state.Segments)
+        {
+            if (s.Size <= 0) continue;
+            int owner = state.Ports[s.PortId].OwnerActorId;
+            if (owner != rel.PolityAId && owner != rel.PolityBId) continue;
+            popSum += s.Size;
+            bySpecies.TryGetValue(s.SpeciesId, out double sp);
+            bySpecies[s.SpeciesId] = sp + s.Size;
+            byCulture.TryGetValue(s.CultureId, out double cu);
+            byCulture[s.CultureId] = cu + s.Size;
+            for (int ax = 0; ax < 4; ax++) ideology[ax] += s.Ideology[ax] * s.Size;
+        }
+        int species = DominantKey(bySpecies, parentA.SpeciesId);
+        int culture = DominantKey(byCulture,
+            parentA.Interior?.FoundingCultureId ?? parentA.SpeciesId);
+        if (popSum > 0)
+            for (int ax = 0; ax < 4; ax++) ideology[ax] /= popSum;
+
+        // the capital: the union's biggest harbor (port-id order breaks ties)
+        int seatPort = -1;
+        double seatPop = -1;
+        foreach (var port in state.Ports)                     // id order (P6)
+        {
+            if (port.OwnerActorId != rel.PolityAId
+                && port.OwnerActorId != rel.PolityBId) continue;
+            double pop = 0;
+            foreach (var s in state.Segments)
+                if (s.PortId == port.Id) pop += s.Size;
+            if (pop > seatPop) { seatPop = pop; seatPort = port.Id; }
+        }
+        var seat = seatPort >= 0 ? state.Ports[seatPort].Hex
+            : state.Actors[rel.PolityAId].Seat;
+
+        var actor = new Actor(newId, ActorKind.Polity, name, seat,
+                              state.EpochIndex, new GenesisController(state.Config))
+        { Entered = true };
+        state.Actors.Add(actor);
+        var young = new PolityRecord(newId, species)
+        {
+            EntryGradeBonus = Math.Max(parentA.EntryGradeBonus,
+                                       parentB.EntryGradeBonus),
+        };
+        for (int d = 0; d < 4; d++)
+        {
+            // a union of sciences: each domain at the better member's ladder
+            young.TechTier[d] = Math.Max(parentA.TechTier[d], parentB.TechTier[d]);
+            young.TechProgress[d] = Math.Max(parentA.TechProgress[d],
+                                             parentB.TechProgress[d]);
+        }
+        state.Polities.Add(young);
+
+        // parent politics dissolve while their treasuries and ports are
+        // still theirs (war chests return to their own segments)
+        DissolveFactionsOf(state, rel.PolityAId);
+        DissolveFactionsOf(state, rel.PolityBId);
+        MergeInto(state, rel.PolityAId, newId);
+        MergeInto(state, rel.PolityBId, newId);
+        DesignRegistry.RegisterEntryDesigns(state, newId,
+            state.Skeleton.Species[species].Militancy);
+
+        var interior = new PolityInterior
+        {
+            FoundingCultureId = culture,
+            // treaty-built federations are structurally stabler than
+            // conquest empires: their segments chose membership
+            Legitimacy = FederationFoundingLegitimacy,
+        };
+        for (int ax = 0; ax < 4; ax++)
+            interior.OfficialIdeology[ax] = popSum > 0 ? ideology[ax] : 0.5;
+        interior.FormId = GovernmentForms.SeatFor(
+            state.Skeleton.Species[species], interior.OfficialIdeology);
+        young.Interior = interior;
+        CharacterOps.SeatLeadership(state, young);
+
+        Retire(state, rel.PolityAId);
+        Retire(state, rel.PolityBId);
+
+        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+            WorldEventType.FederationFormed,
+            new[] { rel.PolityAId, rel.PolityBId, newId }, seat,
+            Magnitude: popA + popB, Valence: 0.9, EventVisibility.Public,
+            new FederationFormedPayload(newId, name, rel.PolityAId,
+                rel.PolityBId, state.Actors[rel.PolityAId].Name,
+                state.Actors[rel.PolityBId].Name)));
+        return newId;
+    }
+
+    // ---- vassalage ----
+
+    /// <summary>The polity's living overlord, or −1 for the free.</summary>
+    public static int OverlordOf(SimState state, int polityId)
+    {
+        foreach (var rel in state.Relations)                  // creation order (P6)
+            if (rel.VassalPolityId == polityId
+                && state.Actors[rel.OtherOf(polityId)].Entered)
+                return rel.OtherOf(polityId);
+        return -1;
+    }
+
+    public static bool HasVassals(SimState state, int polityId)
+    {
+        foreach (var rel in state.Relations)
+            if (rel.VassalPolityId >= 0 && rel.VassalPolityId != polityId
+                && rel.Involves(polityId)
+                && state.Actors[rel.VassalPolityId].Entered) return true;
+        return false;
+    }
+
+    /// <summary>Resolve a chosen vassalage (the supplicant's act): verified
+    /// on truth — the supplicant must be genuinely weaker, the protector
+    /// willing (not cold), and neither already bound. Imposed vassalage
+    /// arrives through war settlements (H7), not this act.</summary>
+    public static bool TryBindVassal(SimState state, VassalageAct act)
+    {
+        if (act.IsDemand) return false;   // demands are settlement business
+        int vassal = act.ActorId, overlord = act.TargetPolityId;
+        if (vassal == overlord) return false;
+        if (overlord >= state.Actors.Count
+            || state.Actors[overlord].Kind != ActorKind.Polity
+            || state.Actors[vassal].Kind != ActorKind.Polity
+            || !state.Actors[overlord].Entered
+            || !state.Actors[vassal].Entered) return false;
+        var rel = state.RelationOf(vassal, overlord);
+        if (rel == null || rel.VassalPolityId >= 0) return false;
+        if (OverlordOf(state, vassal) >= 0 || OverlordOf(state, overlord) >= 0
+            || HasVassals(state, vassal)) return false;
+        double ratio = FleetOps.WarStrength(state, overlord) <= 0 ? 1.0
+            : FleetOps.WarStrength(state, vassal)
+              / FleetOps.WarStrength(state, overlord);
+        if (ratio > state.Config.Relations.VassalStrengthRatio) return false;
+        if (rel.Warmth < VassalConsentWarmth) return false;
+        Bind(state, rel, vassal);
+        return true;
+    }
+
+    /// <summary>Bind the bond (shared with H7's imposed settlements):
+    /// tribute, defensive obligation, foreign-policy lock — the plain
+    /// rungs dissolve into it.</summary>
+    public static void Bind(SimState state, PolityRelation rel, int vassalId)
+    {
+        rel.VassalPolityId = vassalId;
+        rel.VassalSinceEpoch = state.EpochIndex;
+        rel.Rung = TreatyRung.None;
+        rel.RungEpoch = -1;
+        rel.OfferedRung = TreatyRung.None;
+        rel.OfferedById = -1;
+        rel.OfferEpoch = -1;
+        int overlord = rel.OtherOf(vassalId);
+        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+            WorldEventType.VassalageBound, new[] { overlord, vassalId },
+            state.Actors[vassalId].Seat, Magnitude: 1.0, Valence: -0.2,
+            EventVisibility.Public,
+            new VassalageBoundPayload(overlord, vassalId,
+                state.Actors[overlord].Name, state.Actors[vassalId].Name)));
+    }
+
+    /// <summary>Tribute: the vassal ships an income share up before it
+    /// budgets — a conserved vassal→overlord flow Allocation runs first.</summary>
+    public static int PayTribute(SimState state)
+    {
+        double share = state.Config.Relations.VassalTributeShare;
+        int paid = 0;
+        foreach (var rel in state.Relations)                  // creation order (P6)
+        {
+            if (rel.VassalPolityId < 0) continue;
+            var vassal = state.PolityOf(rel.VassalPolityId);
+            var overlord = state.PolityOf(rel.OtherOf(rel.VassalPolityId));
+            if (!state.Actors[vassal.ActorId].Entered
+                || !state.Actors[overlord.ActorId].Entered) continue;
+            double tribute = Math.Max(0.0, vassal.Receipts) * share;
+            if (tribute <= 0) continue;
+            vassal.Credits -= tribute;
+            vassal.Receipts -= tribute;   // the budget base shrinks with it
+            overlord.Credits += tribute;
+            overlord.Receipts += tribute;
+            paid++;
+        }
+        return paid;
+    }
+
+    /// <summary>The two exits, checked mechanically each Interior phase:
+    /// absorption (long stable bond + real warmth + a healthy overlord →
+    /// peaceful annexation) and secession (overlord weakness → the bond
+    /// dissolves; the fought variant arrives with H5's casus belli).</summary>
+    public static (int Absorbed, int Seceded) VassalExits(SimState state)
+    {
+        var knobs = state.Config.Relations;
+        int absorbed = 0, seceded = 0;
+        int relations = state.Relations.Count;   // absorption appends nothing,
+                                                 // but hold the scan stable
+        for (int i = 0; i < relations; i++)
+        {
+            var rel = state.Relations[i];
+            if (rel.VassalPolityId < 0) continue;
+            int vassalId = rel.VassalPolityId;
+            int overlordId = rel.OtherOf(vassalId);
+            if (!state.Actors[vassalId].Entered
+                || !state.Actors[overlordId].Entered) continue;
+            var overlord = state.PolityOf(overlordId);
+            if (overlord.Interior == null) continue;
+
+            if (overlord.Interior.Cohesion < knobs.VassalSecessionCohesion)
+            {
+                // the overlord's grip slips: independence, negotiated —
+                // and the lost bond becomes a standing grudge
+                rel.VassalPolityId = -1;
+                rel.VassalSinceEpoch = -1;
+                seceded++;
+                var seatPort = SeatPortOf(state, vassalId);
+                if (seatPort >= 0)   // a portless vassal leaves no grudge target
+                    rel.Claims.Add(new RelationClaim(ClaimType.LostTerritory,
+                        overlordId, seatPort, state.WorldYear));
+                state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+                    WorldEventType.VassalSeceded, new[] { vassalId, overlordId },
+                    state.Actors[vassalId].Seat, Magnitude: 1.0, Valence: 0.4,
+                    EventVisibility.Public,
+                    new VassalSecededPayload(overlordId, vassalId,
+                        state.Actors[overlordId].Name,
+                        state.Actors[vassalId].Name)));
+                continue;
+            }
+
+            if (rel.VassalSinceEpoch >= 0
+                && state.EpochIndex - rel.VassalSinceEpoch
+                   >= knobs.VassalAbsorptionEpochs
+                && rel.Warmth >= knobs.VassalAbsorptionWarmth)
+            {
+                // cultural drift completes: peaceful annexation
+                DissolveFactionsOf(state, vassalId);
+                MergeInto(state, vassalId, overlordId);
+                Retire(state, vassalId);
+                rel.VassalPolityId = -1;
+                rel.VassalSinceEpoch = -1;
+                absorbed++;
+                state.Staged.Add(new StagedEvent(ClockStratum.Generational,
+                    WorldEventType.VassalAbsorbed, new[] { overlordId, vassalId },
+                    state.Actors[vassalId].Seat, Magnitude: 1.0, Valence: 0.1,
+                    EventVisibility.Public,
+                    new VassalAbsorbedPayload(overlordId, vassalId,
+                        state.Actors[overlordId].Name,
+                        state.Actors[vassalId].Name)));
+            }
+        }
+        return (absorbed, seceded);
+    }
+
+    // ---- the merge plumbing (shared by federation, absorption, H7 conquest) ----
+
+    /// <summary>Move everything one polity owns to another, whole (P4):
+    /// ports, facilities, fleets with their commanders and hull ledgers,
+    /// treasuries and reserves, hosted corporations, characters; open loans
+    /// reissue against the successor (debts between the two cancel).
+    /// Segments stay at their ports — people are geography.</summary>
+    public static void MergeInto(SimState state, int fromId, int intoId)
+    {
+        var from = state.PolityOf(fromId);
+        var into = state.PolityOf(intoId);
+
+        foreach (var port in state.Ports)
+            if (port.OwnerActorId == fromId) port.OwnerActorId = intoId;
+        foreach (var facility in state.Facilities)
+            if (facility.OwnerActorId == fromId) facility.OwnerActorId = intoId;
+        int hulls = 0;
+        foreach (var fleet in state.Fleets)
+        {
+            if (fleet.OwnerActorId != fromId) continue;
+            fleet.OwnerActorId = intoId;
+            hulls += fleet.TotalHulls;
+            // inherited war stations stand down: the successor was never
+            // a party to the parent's wars, and a stranded blockade would
+            // sever lanes forever (review fix 1)
+            if (fleet.Posture is FleetPosture.Blockade
+                or FleetPosture.Expedition)
+            {
+                fleet.Posture = FleetPosture.Reserve;
+                fleet.TargetId = -1;
+            }
+        }
+        into.Credits += from.Credits;
+        from.Credits = 0;
+        into.Receipts += from.Receipts;
+        from.Receipts = 0;
+        into.ExpansionPoints += from.ExpansionPoints;
+        from.ExpansionPoints = 0;
+        into.DevelopmentPoints += from.DevelopmentPoints;
+        from.DevelopmentPoints = 0;
+        into.MilitaryPoints += from.MilitaryPoints;
+        from.MilitaryPoints = 0;
+        into.HullsBuilt += from.HullsBuilt;
+        into.HullsWrecked += from.HullsWrecked;
+        into.HullsScrapped += from.HullsScrapped;
+        from.HullsBuilt = 0;
+        from.HullsWrecked = 0;
+        from.HullsScrapped = 0;
+        for (int g = 0; g < from.ReserveQty.Length; g++)
+        {
+            double sum = into.ReserveQty[g] + from.ReserveQty[g];
+            if (sum > 0)
+                into.ReserveGrade[g] =
+                    (into.ReserveGrade[g] * into.ReserveQty[g]
+                     + from.ReserveGrade[g] * from.ReserveQty[g]) / sum;
+            into.ReserveQty[g] = sum;
+            from.ReserveQty[g] = 0;
+            from.ReserveGrade[g] = 0;
+        }
+        foreach (var corp in state.Corporations)
+            if (corp.HostPolityId == fromId) corp.HostPolityId = intoId;
+        foreach (var character in state.Characters)
+            if (character.PolityId == fromId) character.PolityId = intoId;
+        int loans = state.Loans.Count;   // reissues append — scan the originals
+        for (int i = 0; i < loans; i++)
+        {
+            var loan = state.Loans[i];
+            if (loan.Closed) continue;
+            bool lender = loan.LenderActorId == fromId;
+            bool borrower = loan.BorrowerActorId == fromId;
+            if (!lender && !borrower) continue;
+            loan.Closed = true;
+            int newLender = lender ? intoId : loan.LenderActorId;
+            int newBorrower = borrower ? intoId : loan.BorrowerActorId;
+            if (newLender == newBorrower) continue;   // internal debt cancels
+            state.Loans.Add(new Loan(state.Loans.Count, newLender, newBorrower,
+                loan.Principal, loan.RatePerYear, loan.TermYears,
+                loan.IssuedYear));
+        }
+    }
+
+    /// <summary>An actor leaves the stage: entered no more, never re-enters,
+    /// court dispersed, interior gone, bonds dissolved (the record stays
+    /// as history).</summary>
+    public static void Retire(SimState state, int polityId)
+    {
+        var actor = state.Actors[polityId];
+        actor.Entered = false;
+        actor.Retired = true;
+        // vassal bonds die with either party — an orphaned vassal must
+        // never stay diplomatically paralyzed to a ghost (review fix 2)
+        foreach (var rel in state.Relations)                  // creation order (P6)
+            if (rel.Involves(polityId) && rel.VassalPolityId >= 0)
+            {
+                rel.VassalPolityId = -1;
+                rel.VassalSinceEpoch = -1;
+            }
+        var pr = state.PolityOf(polityId);
+        if (pr.Interior is { } interior && interior.RulerCharacterId >= 0)
+        {
+            var ruler = state.Characters[interior.RulerCharacterId];
+            if (ruler.Alive)
+            {
+                ruler.Role = CharacterRole.Notable;
+                ruler.InstitutionId = -1;
+            }
+        }
+        pr.Interior = null;
+    }
+
+    /// <summary>Dissolve a polity's active factions (their chests return to
+    /// its own segments) — every merger's first act.</summary>
+    public static void DissolveFactionsOf(SimState state, int polityId)
+    {
+        var pr = state.PolityOf(polityId);
+        foreach (var faction in state.Factions)               // id order (P6)
+            if (faction.Active && faction.PolityId == polityId)
+                FactionOps.Dissolve(state, pr, faction);
+    }
+
+    private static double RealmPopulation(SimState state, int polityId)
+    {
+        double pop = 0;
+        foreach (var s in state.Segments)
+            if (s.Size > 0 && state.Ports[s.PortId].OwnerActorId == polityId)
+                pop += s.Size;
+        return pop;
+    }
+
+    private static int DominantKey(Dictionary<int, double> weights, int fallback)
+    {
+        int best = fallback;
+        double bestWeight = -1;
+        var keys = new List<int>(weights.Keys);
+        keys.Sort();                                          // P6: id order
+        foreach (var key in keys)
+            if (weights[key] > bestWeight) { bestWeight = weights[key]; best = key; }
+        return best;
+    }
+
+    /// <summary>The polity's seat port id (its homeworld harbor), or its
+    /// biggest port when the seat hex holds none.</summary>
+    private static int SeatPortOf(SimState state, int polityId)
+    {
+        var seat = state.Actors[polityId].Seat;
+        int fallback = -1;
+        foreach (var port in state.Ports)                     // id order (P6)
+        {
+            if (port.OwnerActorId != polityId) continue;
+            if (port.Hex.Equals(seat)) return port.Id;
+            if (fallback < 0) fallback = port.Id;
+        }
+        return fallback;
+    }
+
+    private static string SyllableName(SimState state, int key)
+    {
+        ulong seed = state.Config.MasterSeed;
+        int syllables = 2 + (EpochRolls.NextDouble(seed,
+            RollChannel.FederationSeed, key, -1, 100) < 0.4 ? 1 : 0);
+        string word = "";
+        for (int i = 0; i < syllables; i++)
+            word += NameTables.Syllables.Pick(EpochRolls.NextDouble(seed,
+                RollChannel.FederationSeed, key, -1, 10 + i));
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(word);
+    }
+}

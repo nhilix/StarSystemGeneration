@@ -39,4 +39,45 @@ public static class EpochTestKit
         state.PolityOf(actorId).HullsBuilt += hulls;
         return fleet;
     }
+
+    /// <summary>The first relation whose parties are both still on the
+    /// stage and not at war with each other — the crafting anchor most
+    /// slice-H tests ride (federations retire actors mid-history, so
+    /// Relations[0] can be a dead pair).</summary>
+    public static PolityRelation FirstLiveRelation(SimState state)
+    {
+        foreach (var rel in state.Relations)
+            if (RelationsOps.BothLive(state, rel)
+                && WarOps.ActiveWarBetween(state, rel.PolityAId,
+                                           rel.PolityBId) == null
+                // unbonded parties: vassalage locks diplomacy and wars
+                && rel.VassalPolityId < 0
+                && FederationOps.OverlordOf(state, rel.PolityAId) < 0
+                && FederationOps.OverlordOf(state, rel.PolityBId) < 0)
+                return rel;
+        throw new System.InvalidOperationException(
+            "no live unbonded at-peace relation in this history");
+    }
+
+    /// <summary>Station a blockade squadron at a port's approaches — the
+    /// real interdiction that replaced the debug lane-cut hook (slice H):
+    /// every lane touching the port severs via FleetOps.SeveredLaneIds.</summary>
+    public static FleetRecord BlockadePort(SimState state, int actorId,
+                                           int portId, int hulls = 2)
+    {
+        var design = DesignRegistry.Current(state, actorId,
+                ShipRole.Escort, ShipSize.Light)
+            ?? DesignRegistry.Register(state, actorId,
+                ShipRole.Escort, ShipSize.Light, grade: 0.5);
+        var fleet = new FleetRecord(state.Fleets.Count, actorId,
+                                    state.Ports[portId].Hex)
+        {
+            Posture = FleetPosture.Blockade,
+            TargetId = portId,
+        };
+        fleet.AddHulls(design.Id, hulls, 0.5);
+        state.Fleets.Add(fleet);
+        state.PolityOf(actorId).HullsBuilt += hulls;
+        return fleet;
+    }
 }

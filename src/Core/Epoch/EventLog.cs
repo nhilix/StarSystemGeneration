@@ -52,7 +52,12 @@ public sealed class EventLog
     public IEnumerable<WorldEvent> ForCharacter(int characterId)
     {
         foreach (var e in _events)
-            if (e.Payload is ICharacterPayload p && p.CharacterId == characterId)
+            if ((e.Payload is ICharacterPayload p && p.CharacterId == characterId)
+                // battles name two commanders — both bios carry the day
+                || (e.Payload is BattleFoughtPayload b
+                    && (b.AttackerCommanderId == characterId
+                        || b.DefenderCommanderId == characterId)
+                    && characterId >= 0))
                 yield return e;
     }
 }

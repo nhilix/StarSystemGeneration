@@ -197,7 +197,9 @@ public static class SkeletonBuilder
     /// character. Temperament axes stay seeded rolls keyed to the origin
     /// cell (the species-profile seed); catastrophe-scarred origins lean
     /// harder (militancy floor rises with setbacks).</summary>
-    private static SpeciesProfile DeriveSpecies(GalaxySkeleton s,
+    /// <remarks>Public since slice H: native emergences mint their species
+    /// with the same derivation, whenever their date fires.</remarks>
+    public static SpeciesProfile DeriveSpecies(GalaxySkeleton s,
         SapientOrigin origin, int id)
     {
         var cell = s.CellAt(origin.CellCoord);

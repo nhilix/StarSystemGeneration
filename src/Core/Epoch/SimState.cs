@@ -62,9 +62,13 @@ public sealed class SimState
     /// actors of Kind.Corporation with conserved books. Dead corps stay as
     /// history.</summary>
     public List<Corporation> Corporations { get; } = new List<Corporation>();
-    /// <summary>Debug-only lane cuts for the REPL blockade hook — transient,
-    /// never serialized; slice H replaces this with real interdiction.</summary>
-    public HashSet<int> SeveredLanes { get; } = new HashSet<int>();
+    /// <summary>Relations state per pair of polities that have met
+    /// (interpolity/relations.md) — creation order (contact scans pairs
+    /// ascending, P6). The pressure gauge war reads.</summary>
+    public List<PolityRelation> Relations { get; } = new List<PolityRelation>();
+    /// <summary>Wars declared and fought (interpolity/war.md) — id order
+    /// (P6); ended wars stay as history.</summary>
+    public List<War> Wars { get; } = new List<War>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>
@@ -90,6 +94,17 @@ public sealed class SimState
         foreach (var c in Corporations)
             if (c.ActorId == actorId) return c;
         throw new KeyNotFoundException($"no credit ledger for actor {actorId}");
+    }
+
+    /// <summary>The relation between two polities, or null before contact.
+    /// Order-insensitive (relations key the smaller actor id first).</summary>
+    public PolityRelation? RelationOf(int polityA, int polityB)
+    {
+        int a = polityA < polityB ? polityA : polityB;
+        int b = polityA < polityB ? polityB : polityA;
+        foreach (var r in Relations)
+            if (r.PolityAId == a && r.PolityBId == b) return r;
+        return null;
     }
 
     /// <summary>The corporation record behind an actor id, or null.</summary>

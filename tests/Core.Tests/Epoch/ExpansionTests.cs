@@ -31,10 +31,16 @@ public class ExpansionTests
             var payload = Assert.IsType<PortEstablishedPayload>(e.Payload);
             var port = state.Ports[payload.PortId];
             Assert.Equal(e.Location, port.Hex);
-            // schisms (slice G) may since have transferred sovereignty
-            if (!state.Log.Events.Any(ev =>
+            // schisms (slice G), mergers, and conquests (slice H) may since
+            // have transferred sovereignty
+            if (!state.Actors[e.Actors[0]].Retired
+                && !state.Log.Events.Any(ev =>
                     ev.Type == WorldEventType.SchismDeclared
-                    && ev.Actors.Contains(e.Actors[0])))
+                    && ev.Actors.Contains(e.Actors[0]))
+                && !state.Log.Events.Any(ev =>
+                    ev.Type == WorldEventType.PortCaptured
+                    && ev.Payload is PortCapturedPayload pc
+                    && pc.PortId == port.Id))
                 Assert.Equal(e.Actors[0], port.OwnerActorId);
             // founded at tier 1 (may be raised later; founding year pins the record)
             Assert.Equal(e.WorldYear, port.FoundedYear);

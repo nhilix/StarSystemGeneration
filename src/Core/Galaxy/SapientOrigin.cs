@@ -44,4 +44,8 @@ public sealed class SapientOrigin
     /// this origin (its homeworld is that wave's capital); -1 = an organic
     /// origin.</summary>
     public int DescendantOfWaveId { get; set; } = -1;
+    /// <summary>Epoch a pre-spaceflight native's emergence resolved (free
+    /// birth, client, member, or suppression — slice H); −1 pending.
+    /// Meaningless for other eras.</summary>
+    public int ResolvedEpoch { get; set; } = -1;
 }

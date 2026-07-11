@@ -189,4 +189,4 @@ contracts are play-scope flavor — registry-level only if cheap.
    (narrative: perception/news/chronicle/POI/plagues — read the roadmap
    row first) · flip the box below · push only on user say-so.
 
-- [ ] Slice H complete
+- [x] Slice H complete

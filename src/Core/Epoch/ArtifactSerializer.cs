@@ -26,10 +26,10 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 4), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
-        ("features", 1), ("origins", 1), ("precursors", 1), ("interior", 5),
-        ("corporations", 1),
+        ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
+        ("corporations", 1), ("relations", 4), ("wars", 1),
     };
 
     public static string ToText(SimState state)
@@ -97,9 +97,10 @@ public static class ArtifactSerializer
         Layer(w, "actors");
         foreach (var a in state.Actors)
         {
+            // actors v5 (slice H): the retired flag rides along
             w.WriteLine(Join("ACTOR", a.Id.ToString(Inv), ((int)a.Kind).ToString(Inv),
                 Name(a.Name), a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
-                a.EntryEpoch.ToString(Inv), B(a.Entered)));
+                a.EntryEpoch.ToString(Inv), B(a.Entered), B(a.Retired)));
             if (a.Policies is PolityPolicies pp)
                 w.WriteLine(Join("POLICY", a.Id.ToString(Inv),
                     R(pp.Budget.Development), R(pp.Budget.Military),
@@ -220,7 +221,9 @@ public static class ArtifactSerializer
                 o.AbiogenesisYear.ToString(Inv), o.SapienceYear.ToString(Inv),
                 o.SpaceflightYear.ToString(Inv), R(o.Richness),
                 o.Setbacks.ToString(Inv), ((int)o.Era).ToString(Inv),
-                o.DescendantOfWaveId.ToString(Inv)));
+                o.DescendantOfWaveId.ToString(Inv),
+                // origins v2 (slice H): native resolution rides along
+                o.ResolvedEpoch.ToString(Inv)));
 
         Layer(w, "precursors");
         foreach (var wave in state.Skeleton.PrecursorWaves)
@@ -296,7 +299,62 @@ public static class ArtifactSerializer
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
                 c.HullsScrapped.ToString(Inv), c.LeanEpochs.ToString(Inv),
                 c.TargetId.ToString(Inv)));
+
+        Layer(w, "relations");
+        foreach (var r in state.Relations)
+        {
+            // relations v4 (slice H): clocks + the spark's freshness window
+            w.WriteLine(Join("REL", r.PolityAId.ToString(Inv),
+                r.PolityBId.ToString(Inv), r.MetEpoch.ToString(Inv),
+                R(r.Warmth), R(r.Tension), ((int)r.Rung).ToString(Inv),
+                ((int)r.OfferedRung).ToString(Inv), r.OfferedById.ToString(Inv),
+                r.OfferEpoch.ToString(Inv), r.DynasticTies.ToString(Inv),
+                r.VassalPolityId.ToString(Inv), r.RungEpoch.ToString(Inv),
+                r.VassalSinceEpoch.ToString(Inv), r.LastTieYear.ToString(Inv),
+                r.LastIncidentEpoch.ToString(Inv)));
+            foreach (var c in r.Claims)
+                w.WriteLine(Join("CLM", r.PolityAId.ToString(Inv),
+                    r.PolityBId.ToString(Inv), ((int)c.Type).ToString(Inv),
+                    c.HolderPolityId.ToString(Inv), c.SubjectId.ToString(Inv),
+                    c.RaisedYear.ToString(Inv), B(c.Released),
+                    c.ReleasedYear.ToString(Inv)));
+        }
+
+        Layer(w, "wars");
+        foreach (var war in state.Wars)
+        {
+            w.WriteLine(Join("WAR", war.Id.ToString(Inv), Name(war.Name),
+                war.AttackerId.ToString(Inv), war.DefenderId.ToString(Inv),
+                ((int)war.Cause).ToString(Inv), war.SubjectId.ToString(Inv),
+                ((int)war.Demand).ToString(Inv), war.DeclaredYear.ToString(Inv),
+                B(war.Active), war.EndedYear.ToString(Inv),
+                R(war.AttackerExhaustion), R(war.DefenderExhaustion),
+                R(war.AttackerStrengthAtStart), R(war.DefenderStrengthAtStart),
+                IntList(war.AttackerAllies), IntList(war.DefenderAllies)));
+            foreach (var o in war.Objectives)
+                w.WriteLine(Join("OBJ", war.Id.ToString(Inv),
+                    o.Id.ToString(Inv), ((int)o.Type).ToString(Inv),
+                    o.TargetId.ToString(Inv), ((int)o.Status).ToString(Inv),
+                    o.SiegeEpochs.ToString(Inv)));
+        }
         w.WriteLine("END");
+    }
+
+    /// <summary>Int list as "v;v;…"; "-" when empty.</summary>
+    private static string IntList(IReadOnlyList<int> values)
+    {
+        if (values.Count == 0) return "-";
+        var parts = new string[values.Count];
+        for (int i = 0; i < values.Count; i++)
+            parts[i] = values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseIntList(string field, List<int> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+            into.Add(int.Parse(part, Inv));
     }
 
     /// <summary>Fixed-length double vector as "v;v;…"; "-" when null.</summary>
@@ -532,6 +590,7 @@ public static class ArtifactSerializer
                             Setbacks = int.Parse(f[10], Inv),
                             Era = (OriginEra)int.Parse(f[11], Inv),
                             DescendantOfWaveId = int.Parse(f[12], Inv),
+                            ResolvedEpoch = int.Parse(f[13], Inv),
                         });
                         break;
                     case "WAVE":
@@ -611,7 +670,7 @@ public static class ArtifactSerializer
                         state!.Actors.Add(new Actor(int.Parse(f[1], Inv), kind, f[3],
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), controller)
-                        { Entered = f[7] == "1" });
+                        { Entered = f[7] == "1", Retired = f[8] == "1" });
                         break;
                     case "POLICY":
                         state!.Actors[int.Parse(f[1], Inv)].Policies = new PolityPolicies(
@@ -876,6 +935,80 @@ public static class ArtifactSerializer
                             TargetId = int.Parse(f[15], Inv),
                         });
                         break;
+                    case "REL":
+                        state!.Relations.Add(new PolityRelation(
+                            int.Parse(f[1], Inv), int.Parse(f[2], Inv),
+                            int.Parse(f[3], Inv))
+                        {
+                            Warmth = double.Parse(f[4], Inv),
+                            Tension = double.Parse(f[5], Inv),
+                            Rung = (TreatyRung)int.Parse(f[6], Inv),
+                            OfferedRung = (TreatyRung)int.Parse(f[7], Inv),
+                            OfferedById = int.Parse(f[8], Inv),
+                            OfferEpoch = int.Parse(f[9], Inv),
+                            DynasticTies = int.Parse(f[10], Inv),
+                            VassalPolityId = int.Parse(f[11], Inv),
+                            RungEpoch = int.Parse(f[12], Inv),
+                            VassalSinceEpoch = int.Parse(f[13], Inv),
+                            LastTieYear = long.Parse(f[14], Inv),
+                            LastIncidentEpoch = int.Parse(f[15], Inv),
+                        });
+                        break;
+                    case "WAR":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Wars.Count)
+                            throw new InvalidDataException("war ids out of order");
+                        var war = new War(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            (CasusBelli)int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv),
+                            (WarDemand)int.Parse(f[7], Inv),
+                            long.Parse(f[8], Inv))
+                        {
+                            Active = f[9] == "1",
+                            EndedYear = long.Parse(f[10], Inv),
+                            AttackerExhaustion = double.Parse(f[11], Inv),
+                            DefenderExhaustion = double.Parse(f[12], Inv),
+                            AttackerStrengthAtStart = double.Parse(f[13], Inv),
+                            DefenderStrengthAtStart = double.Parse(f[14], Inv),
+                        };
+                        ParseIntList(f[15], war.AttackerAllies);
+                        ParseIntList(f[16], war.DefenderAllies);
+                        state.Wars.Add(war);
+                        break;
+                    }
+                    case "OBJ":
+                    {
+                        var objWar = state!.Wars[int.Parse(f[1], Inv)];
+                        if (int.Parse(f[2], Inv) != objWar.Objectives.Count)
+                            throw new InvalidDataException(
+                                "objective ids out of order");
+                        objWar.Objectives.Add(new WarObjective(
+                            int.Parse(f[2], Inv),
+                            (WarObjectiveType)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv))
+                        {
+                            Status = (ObjectiveStatus)int.Parse(f[5], Inv),
+                            SiegeEpochs = int.Parse(f[6], Inv),
+                        });
+                        break;
+                    }
+                    case "CLM":
+                    {
+                        var rel = state!.RelationOf(int.Parse(f[1], Inv),
+                                int.Parse(f[2], Inv))
+                            ?? throw new InvalidDataException(
+                                "claim on an unknown relation");
+                        rel.Claims.Add(new RelationClaim(
+                            (ClaimType)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            long.Parse(f[6], Inv))
+                        {
+                            Released = f[7] == "1",
+                            ReleasedYear = long.Parse(f[8], Inv),
+                        });
+                        break;
+                    }
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
@@ -1007,6 +1140,69 @@ public static class ArtifactSerializer
         NotableEmergedPayload e => Join("notableEmerged",
             e.CharacterId.ToString(Inv), Name(e.CharacterName),
             e.NotableType.ToString(Inv)),
+        FirstContactPayload e => Join("firstContact",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName)),
+        ClaimRaisedPayload e => Join("claimRaised",
+            e.HolderPolityId.ToString(Inv), e.AgainstPolityId.ToString(Inv),
+            e.ClaimType.ToString(Inv), e.SubjectId.ToString(Inv)),
+        ClaimReleasedPayload e => Join("claimReleased",
+            e.HolderPolityId.ToString(Inv), e.AgainstPolityId.ToString(Inv),
+            e.ClaimType.ToString(Inv), e.SubjectId.ToString(Inv)),
+        TreatySignedPayload e => Join("treatySigned",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName), e.Rung.ToString(Inv)),
+        TreatyBrokenPayload e => Join("treatyBroken",
+            e.BreakerPolityId.ToString(Inv), e.OtherPolityId.ToString(Inv),
+            Name(e.BreakerName), Name(e.OtherName), e.Rung.ToString(Inv)),
+        FederationFormedPayload e => Join("federationFormed",
+            e.NewPolityId.ToString(Inv), Name(e.NewPolityName),
+            e.ParentAId.ToString(Inv), e.ParentBId.ToString(Inv),
+            Name(e.ParentAName), Name(e.ParentBName)),
+        VassalageBoundPayload e => Join("vassalageBound",
+            e.OverlordPolityId.ToString(Inv), e.VassalPolityId.ToString(Inv),
+            Name(e.OverlordName), Name(e.VassalName)),
+        VassalAbsorbedPayload e => Join("vassalAbsorbed",
+            e.OverlordPolityId.ToString(Inv), e.VassalPolityId.ToString(Inv),
+            Name(e.OverlordName), Name(e.VassalName)),
+        VassalSecededPayload e => Join("vassalSeceded",
+            e.OverlordPolityId.ToString(Inv), e.VassalPolityId.ToString(Inv),
+            Name(e.OverlordName), Name(e.VassalName)),
+        DynasticInstrumentPayload e => Join("dynasticInstrument",
+            e.FromPolityId.ToString(Inv), e.ToPolityId.ToString(Inv),
+            Name(e.FromName), Name(e.ToName), e.Instrument.ToString(Inv)),
+        WarDeclaredPayload e => Join("warDeclared", e.WarId.ToString(Inv),
+            Name(e.WarName), e.AttackerId.ToString(Inv),
+            e.DefenderId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName), e.Cause.ToString(Inv),
+            e.Demand.ToString(Inv)),
+        BorderIncidentPayload e => Join("borderIncident",
+            e.PolityAId.ToString(Inv), e.PolityBId.ToString(Inv),
+            Name(e.PolityAName), Name(e.PolityBName), B(e.Loaded)),
+        BattleFoughtPayload e => Join("battleFought", e.WarId.ToString(Inv),
+            Name(e.WarName), e.ObjectiveType.ToString(Inv),
+            e.TargetId.ToString(Inv), e.AttackerId.ToString(Inv),
+            e.DefenderId.ToString(Inv), e.Outcome.ToString(Inv),
+            e.AttackerLosses.ToString(Inv), e.DefenderLosses.ToString(Inv),
+            e.AttackerCommanderId.ToString(Inv), Name(e.AttackerCommanderName),
+            e.DefenderCommanderId.ToString(Inv), Name(e.DefenderCommanderName)),
+        SiegeBegunPayload e => Join("siegeBegun", e.WarId.ToString(Inv),
+            Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName)),
+        PortCapturedPayload e => Join("portCaptured", e.WarId.ToString(Inv),
+            Name(e.WarName), e.PortId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName)),
+        EmergenceSuppressedPayload e => Join("emergenceSuppressed",
+            e.OriginId.ToString(Inv), e.HostPolityId.ToString(Inv),
+            Name(e.HostName), Name(e.NativeName), e.Policy.ToString(Inv)),
+        NativesIntegratedPayload e => Join("nativesIntegrated",
+            e.OriginId.ToString(Inv), e.HostPolityId.ToString(Inv),
+            Name(e.HostName), Name(e.NativeName)),
+        PeaceSettledPayload e => Join("peaceSettled", e.WarId.ToString(Inv),
+            Name(e.WarName), e.Outcome.ToString(Inv),
+            e.WinnerId.ToString(Inv), Name(e.AttackerName),
+            Name(e.DefenderName), e.PortsCeded.ToString(Inv),
+            R(e.Reparations)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1090,6 +1286,59 @@ public static class ArtifactSerializer
             f[at + 2], int.Parse(f[at + 3], Inv)),
         "notableEmerged" => new NotableEmergedPayload(int.Parse(f[at + 1], Inv),
             f[at + 2], int.Parse(f[at + 3], Inv)),
+        "firstContact" => new FirstContactPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "claimRaised" => new ClaimRaisedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
+        "claimReleased" => new ClaimReleasedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv)),
+        "treatySigned" => new TreatySignedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4],
+            int.Parse(f[at + 5], Inv)),
+        "treatyBroken" => new TreatyBrokenPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4],
+            int.Parse(f[at + 5], Inv)),
+        "federationFormed" => new FederationFormedPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv),
+            int.Parse(f[at + 4], Inv), f[at + 5], f[at + 6]),
+        "vassalageBound" => new VassalageBoundPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "vassalAbsorbed" => new VassalAbsorbedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "vassalSeceded" => new VassalSecededPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), f[at + 3], f[at + 4]),
+        "dynasticInstrument" => new DynasticInstrumentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], int.Parse(f[at + 5], Inv)),
+        "warDeclared" => new WarDeclaredPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
+            int.Parse(f[at + 8], Inv)),
+        "borderIncident" => new BorderIncidentPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], f[at + 5] == "1"),
+        "battleFought" => new BattleFoughtPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            int.Parse(f[at + 5], Inv), int.Parse(f[at + 6], Inv),
+            int.Parse(f[at + 7], Inv), int.Parse(f[at + 8], Inv),
+            int.Parse(f[at + 9], Inv), int.Parse(f[at + 10], Inv), f[at + 11],
+            int.Parse(f[at + 12], Inv), f[at + 13]),
+        "siegeBegun" => new SiegeBegunPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
+        "portCaptured" => new PortCapturedPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), f[at + 4], f[at + 5]),
+        "emergenceSuppressed" => new EmergenceSuppressedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4], int.Parse(f[at + 5], Inv)),
+        "nativesIntegrated" => new NativesIntegratedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv), f[at + 3],
+            f[at + 4]),
+        "peaceSettled" => new PeaceSettledPayload(int.Parse(f[at + 1], Inv),
+            f[at + 2], int.Parse(f[at + 3], Inv), int.Parse(f[at + 4], Inv),
+            f[at + 5], f[at + 6], int.Parse(f[at + 7], Inv),
+            double.Parse(f[at + 8], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

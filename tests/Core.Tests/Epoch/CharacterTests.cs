@@ -54,8 +54,9 @@ public class CharacterTests
             var living = state.Characters
                 .Where(c => c.Alive && c.PolityId == pr.ActorId).ToList();
             // "perhaps a dozen": court + commanders + notables + faction
-            // leaders + corporate boardrooms (slice G task 7) at the top end
-            Assert.InRange(living.Count, 1, 25);
+            // leaders + corporate boardrooms (slice G task 7) at the top
+            // end — and mergers (slice H) pool two realms' rosters
+            Assert.InRange(living.Count, 1, 50);
             // the seat never sits empty
             var ruler = state.Characters[pr.Interior.RulerCharacterId];
             Assert.True(ruler.Alive, "a dead ruler holds the seat");
@@ -139,10 +140,21 @@ public class CharacterTests
         {
             if (pr.Interior == null) continue;
             // the cap governs notable-typed characters, whatever role they
-            // hold; deposed nobodies (Notable role, no type) don't count
+            // hold; deposed nobodies (Notable role, no type) don't count.
+            // The cap is a mint-time valve: a merger (slice H) legitimately
+            // pools the parents' notables past it — no new ones mint until
+            // deaths bring the union back under
+            bool merged = state.Log.Events.Any(e =>
+                (e.Type == WorldEventType.FederationFormed
+                 && e.Payload is FederationFormedPayload f
+                 && f.NewPolityId == pr.ActorId)
+                || (e.Type == WorldEventType.VassalAbsorbed
+                    && e.Payload is VassalAbsorbedPayload v
+                    && v.OverlordPolityId == pr.ActorId));
             int notables = CharacterOps.NotableCount(state, pr.ActorId);
-            Assert.True(notables <= state.Config.Character.MaxNotablesPerPolity,
-                $"polity {pr.ActorId} carries {notables} notables over the cap");
+            if (!merged)
+                Assert.True(notables <= state.Config.Character.MaxNotablesPerPolity,
+                    $"polity {pr.ActorId} carries {notables} notables over the cap");
         }
     }
 

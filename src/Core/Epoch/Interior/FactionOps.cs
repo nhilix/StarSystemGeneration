@@ -419,8 +419,9 @@ public static class FactionOps
     }
 
     /// <summary>Dissolution: the war chest returns to the polity's segments
-    /// pro-rata (conserved), the leader steps down into notability.</summary>
-    private static void Dissolve(SimState state, PolityRecord pr, Faction faction)
+    /// pro-rata (conserved), the leader steps down into notability. Public
+    /// since slice H — mergers dissolve the parents' politics.</summary>
+    public static void Dissolve(SimState state, PolityRecord pr, Faction faction)
     {
         faction.Active = false;
         double popTotal = 0;

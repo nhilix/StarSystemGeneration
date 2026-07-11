@@ -50,9 +50,27 @@ public enum WorldEventType
     FactionDissolved = 305,
     RevoltCrushed = 306,
     GovernmentReformed = 307,
+    EmergenceSuppressed = 308,
+    NativesIntegrated = 309,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
+    WarDeclared = 403,
+    BorderIncident = 404,
+    BattleFought = 405,
+    SiegeBegun = 406,
+    PortCaptured = 407,
+    FirstContact = 500,
+    ClaimRaised = 501,
+    ClaimReleased = 502,
+    TreatySigned = 503,
+    TreatyBroken = 504,
+    FederationFormed = 505,
+    VassalageBound = 506,
+    VassalAbsorbed = 507,
+    VassalSeceded = 508,
+    DynasticInstrument = 509,
+    PeaceSettled = 510,
     CorporationChartered = 600,
     PirateBandFormed = 601,
     CorporationNationalized = 602,
@@ -197,6 +215,121 @@ public sealed record CorporationBankruptPayload(
 /// evaporates — the corporation follows its niche into history.</summary>
 public sealed record NicheDiedPayload(
     int CorpId, string Name, int Niche) : EventPayload;
+
+/// <summary>Two polities meet — reach overlapped (interpolity/relations.md
+/// §Contact). The relation seeds at its first-stance targets.</summary>
+public sealed record FirstContactPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName)
+    : EventPayload;
+
+/// <summary>A standing claim raises — a tension source that persists until
+/// its cause resolves (§Relations state per pair).</summary>
+public sealed record ClaimRaisedPayload(
+    int HolderPolityId, int AgainstPolityId, int ClaimType, int SubjectId)
+    : EventPayload;
+
+/// <summary>A standing claim's cause resolved; the grudge may now cool.</summary>
+public sealed record ClaimReleasedPayload(
+    int HolderPolityId, int AgainstPolityId, int ClaimType, int SubjectId)
+    : EventPayload;
+
+/// <summary>Mutual consent seals a treaty rung (interpolity/relations.md
+/// §Relations state per pair). Rung is the TreatyRung reached.</summary>
+public sealed record TreatySignedPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName,
+    int Rung) : EventPayload;
+
+/// <summary>A rung breaks — a reputation event the galaxy hears; warmth
+/// crashes with it.</summary>
+public sealed record TreatyBrokenPayload(
+    int BreakerPolityId, int OtherPolityId, string BreakerName,
+    string OtherName, int Rung) : EventPayload;
+
+/// <summary>Two allies fuse into a NEW polity (interpolity/relations.md
+/// §Federation) — it plays subsequent epochs as itself.</summary>
+public sealed record FederationFormedPayload(
+    int NewPolityId, string NewPolityName, int ParentAId, int ParentBId,
+    string ParentAName, string ParentBName) : EventPayload;
+
+/// <summary>The asymmetric rung binds: tribute, defensive obligation,
+/// foreign-policy lock (§Vassalage).</summary>
+public sealed record VassalageBoundPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
+
+/// <summary>Long stable vassalage completes as peaceful annexation.</summary>
+public sealed record VassalAbsorbedPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
+
+/// <summary>Overlord weakness ends the bond — an independence bid that
+/// carried (the fought variant is a war, H5+).</summary>
+public sealed record VassalSecededPayload(
+    int OverlordPolityId, int VassalPolityId, string OverlordName,
+    string VassalName) : EventPayload;
+
+/// <summary>An emergence inside claimed space, suppressed
+/// (interpolity/relations.md §Natives): exploitation or a protectorate
+/// turned cage — every rival gains a standing liberation casus belli.</summary>
+public sealed record EmergenceSuppressedPayload(
+    int OriginId, int HostPolityId, string HostName, string NativeName,
+    int Policy) : EventPayload;
+
+/// <summary>An emergence resolved as membership: the natives join the host
+/// with rights per its ideology, an instant cultural minority.</summary>
+public sealed record NativesIntegratedPayload(
+    int OriginId, int HostPolityId, string HostName, string NativeName)
+    : EventPayload;
+
+/// <summary>Tension discharges through a casus belli (interpolity/war.md):
+/// a declaration with objectives and a settlement demand.</summary>
+public sealed record WarDeclaredPayload(
+    int WarId, string WarName, int AttackerId, int DefenderId,
+    string AttackerName, string DefenderName, int Cause, int Demand)
+    : EventPayload;
+
+/// <summary>A patrol clash or enforcement killing in contested-overlap
+/// space (war.md §Causes: the spark). Loaded incidents prime the
+/// BorderIncident casus belli; the rest fizzle into demands and apologies.</summary>
+public sealed record BorderIncidentPayload(
+    int PolityAId, int PolityBId, string PolityAName, string PolityBName,
+    bool Loaded) : EventPayload;
+
+/// <summary>An engagement at one objective (war.md §Conduct 2): fleet
+/// vectors × fortification × supply × competence, seeded rolls. Both
+/// commanders' biographies carry the day (EventLog.ForCharacter).</summary>
+public sealed record BattleFoughtPayload(
+    int WarId, string WarName, int ObjectiveType, int TargetId,
+    int AttackerId, int DefenderId, int Outcome, int AttackerLosses,
+    int DefenderLosses, int AttackerCommanderId, string AttackerCommanderName,
+    int DefenderCommanderId, string DefenderCommanderName) : EventPayload;
+
+/// <summary>A blockade turns to siege — the port's larder and fortress
+/// tiers set the clock (war.md §Conduct 3).</summary>
+public sealed record SiegeBegunPayload(
+    int WarId, string WarName, int PortId, string AttackerName,
+    string DefenderName) : EventPayload;
+
+/// <summary>A fallen port transfers its domain with population segments
+/// intact — conquest composition is automatic.</summary>
+public sealed record PortCapturedPayload(
+    int WarId, string WarName, int PortId, string AttackerName,
+    string DefenderName) : EventPayload;
+
+/// <summary>A marriage or wardship between dynastic thrones
+/// (interpolity/relations.md §Dynastic instruments) — warmth this
+/// generation, a succession claim two reigns later.</summary>
+public sealed record DynasticInstrumentPayload(
+    int FromPolityId, int ToPolityId, string FromName, string ToName,
+    int Instrument) : EventPayload;
+
+/// <summary>The settlement record (war.md §Termination): negotiated from
+/// per-objective outcomes — cessions, reparations, vassalization,
+/// independence, or white peace. WinnerId −1 = white peace.</summary>
+public sealed record PeaceSettledPayload(
+    int WarId, string WarName, int Outcome, int WinnerId,
+    string AttackerName, string DefenderName, int PortsCeded,
+    double Reparations) : EventPayload;
 
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the
