@@ -56,6 +56,8 @@ public sealed class Repl
                     Console.WriteLine("features — the cosmic feature registry (mergers, globulars, nebulae, AGN epochs)");
                     Console.WriteLine("precursors [waveId] — the precursor registry, or one wave's arc + typed sites");
                     Console.WriteLine("esave <path> | eload <path> — the layer-sectioned world-state artifact");
+                    Console.WriteLine("edsave <base> <delta> | edload <base> <delta> — the delta boundary: a save is the base");
+                    Console.WriteLine("   artifact + what the live game changed + the log's continuation");
                     Console.WriteLine("knobs [filter] — every calibration dial: name, live value, doc (see docs/TUNING.md)");
                     Console.WriteLine("goods — the 17-good catalog, grade bands, demand profiles");
                     Console.WriteLine("infra [q r] — the facility catalog + potentials/siting for sample cells (or a galaxy cell)");
@@ -502,6 +504,52 @@ public sealed class Repl
                     break;
                 case "esave":
                     Console.WriteLine("run a sim first (epoch <seed>), then: esave <path>");
+                    break;
+                case "edsave" when parts.Length == 3 && _sim != null:
+                    // the delta boundary (handoff.md): a save = the base
+                    // artifact + what the live game changed + the log's
+                    // continuation — genesis strata never re-record
+                    try
+                    {
+                        string baseText = System.IO.File.ReadAllText(parts[1]);
+                        string delta = Core.Epoch.DeltaSerializer.Diff(
+                            baseText, Core.Epoch.ArtifactSerializer.ToText(_sim));
+                        System.IO.File.WriteAllText(parts[2], delta);
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"delta saved to {parts[2]} ({delta.Length:N0} chars ")
+                            + FormattableString.Invariant(
+                            $"against a {baseText.Length:N0}-char base)"));
+                    }
+                    catch (System.IO.IOException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot save: {ex.Message}"); }
+                    break;
+                case "edsave":
+                    Console.WriteLine("usage: edsave <basePath> <deltaPath> (needs a loaded sim)");
+                    break;
+                case "edload" when parts.Length == 3:
+                    try
+                    {
+                        string baseText = System.IO.File.ReadAllText(parts[1]);
+                        string full = Core.Epoch.DeltaSerializer.Apply(
+                            baseText, System.IO.File.ReadAllText(parts[2]));
+                        using (var reader = new System.IO.StringReader(full))
+                        {
+                            var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
+                            _sim = loaded;
+                            _seed = loaded.Skeleton.Config.MasterSeed;
+                            _galaxy = new GalaxyContext(loaded.Skeleton.Config)
+                            { Skeleton = loaded.Skeleton };
+                            Console.WriteLine($"base + delta loaded: seed {_seed}, "
+                                + $"epoch {loaded.EpochIndex} (y{loaded.WorldYear}), "
+                                + $"{loaded.Log.Events.Count} events");
+                        }
+                    }
+                    catch (System.IO.InvalidDataException ex) { Console.WriteLine($"refused: {ex.Message}"); }
+                    catch (System.IO.IOException) { Console.WriteLine("file not found"); }
+                    catch (UnauthorizedAccessException ex) { Console.WriteLine($"cannot load: {ex.Message}"); }
+                    break;
+                case "edload":
+                    Console.WriteLine("usage: edload <basePath> <deltaPath>");
                     break;
                 case "eload" when parts.Length == 2:
                     try
