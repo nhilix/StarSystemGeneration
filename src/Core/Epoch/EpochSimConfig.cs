@@ -395,6 +395,10 @@ public sealed class CorporateKnobs
     /// its home market per epoch — the price signal that hauls its hulls'
     /// makings in (the slice-E lesson applied to corporations).</summary>
     public double FreightPullComponents { get; set; } = 6.0;
+    /// <summary>Relation tension at or above which a corp won't bridge two
+    /// polities (non-hostility bar; no treaty required —
+    /// lane-economics spec §4).</summary>
+    public double GateTensionCeiling { get; set; } = 0.7;
     /// <summary>Epoch receipts below which a corporation counts as lean —
     /// enough lean epochs and the niche is dead.</summary>
     public double LeanReceiptsFloor { get; set; } = 1.0;
@@ -405,6 +409,8 @@ public sealed class CorporateKnobs
     public double MagnateReceipts { get; set; } = 50.0;
     /// <summary>Facilities one corporation may hold (portfolio cap).</summary>
     public int MaxFacilities { get; set; } = 4;
+    /// <summary>Gate-lane pairs a freight line may own.</summary>
+    public int MaxGateLanes { get; set; } = 3;
     /// <summary>Legitimacy a polity eats for nationalizing — the domestic
     /// half; the foreign half travels the news graph as stance damage
     /// (slice I: capital sanctions the seizing state).</summary>
@@ -414,6 +420,9 @@ public sealed class CorporateKnobs
     public double NationalizeWealthFactor { get; set; } = 2.0;
     /// <summary>Consecutive lean epochs that kill the niche.</summary>
     public int NicheDeathEpochs { get; set; } = 5;
+    /// <summary>Piracy exposure per hex of lane length — longer lanes tempt
+    /// raiders at thinner cargo (lane-economics spec §5).</summary>
+    public double PiracyLengthPerHex { get; set; } = 0.05;
     /// <summary>Posted lane capacity that reads as raid-worthy cargo where
     /// the owner keeps no warships (the pirate-band trigger).</summary>
     public double RaidCapacityFloor { get; set; } = 8.0;
@@ -706,6 +715,9 @@ public sealed class EconomyKnobs
     // -- Freight --
     /// <summary>Credits per unit of goods per hex of lane distance.</summary>
     public double FreightCostPerUnitPerHex { get; set; } = 0.02;
+    /// <summary>Corp-owned gate toll as a share of the destination price —
+    /// the trader→gate-owner flow (lane-economics spec §4).</summary>
+    public double GateTollRate { get; set; } = 0.05;
     /// <summary>Fuel demand per unit shipped per hex — movement is never free.</summary>
     public double FuelPerUnitPerHex { get; set; } = 0.005;
     /// <summary>Share of a market's stock arbitrage may lift per step —
@@ -801,6 +813,16 @@ public sealed class InfrastructureKnobs
     /// <summary>How decisively extraction must out-value farmland before a
     /// colony founds on it instead of farming — food security's premium.</summary>
     public double FoodSecurityPremium { get; set; } = 1.25;
+    /// <summary>Gate slots a port hosts per tier — the lane-degree cap:
+    /// hub ports must grow before they fan out (lane-economics spec §1).</summary>
+    public int GateSlotsPerPortTier { get; set; } = 2;
+    /// <summary>Max lane length linkable by a tier-1 gate pair, in hexes.</summary>
+    public int GateReachTier1Hexes { get; set; } = 8;
+    public int GateReachTier2Hexes { get; set; } = 16;
+    public int GateReachTier3Hexes { get; set; } = 28;
+    /// <summary>Condition below which a gate stops functioning and its
+    /// lane goes dead (war damage severs without touching the port).</summary>
+    public double GateFunctionalCondition { get; set; } = 0.25;
 }
 
 /// <summary>Expansion/colonization dials, per world-year where a rate.
@@ -828,6 +850,14 @@ public sealed class ExpansionKnobs
     public double SegmentGrowthPerYear { get; set; } = 0.01;
     /// <summary>Port population cap = port tier × this, shared across segments.</summary>
     public double SegmentCapPerTier { get; set; } = 2.0;
+    /// <summary>A direct lane is redundant while the network path is within
+    /// this factor of the direct distance (lane-economics spec §3).</summary>
+    public double DetourFactor { get; set; } = 1.8;
+    /// <summary>Used/capacity ratio at which a lane counts as saturated.</summary>
+    public double ExpressSaturationFloor { get; set; } = 0.9;
+    /// <summary>Consecutive saturated Markets steps after which a congested
+    /// corridor earns a direct express bypass despite the detour rule.</summary>
+    public int SaturatedEpochsForExpress { get; set; } = 3;
 }
 
 /// <summary>Fleet dials (fleets/ships-and-fleets.md), per world-year where a

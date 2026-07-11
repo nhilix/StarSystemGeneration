@@ -61,6 +61,8 @@ public static class Siting
             // support: junction ports, approaches, chokepoint lanes
             InfraTypeId.Depot => 0.6 * portness + 0.4 * (s.IsChokepoint ? 1.0 : 0.0),
             InfraTypeId.Fortress => 0.5 * (s.IsChokepoint ? 1.0 : 0.0) + 0.5 * portness,
+            // gates are placed by the lane builder, not the siting scorer
+            InfraTypeId.Gate => portness,
 
             _ => 0.0,
         };
