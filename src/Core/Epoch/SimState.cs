@@ -46,8 +46,9 @@ public sealed class SimState
     public List<PopulationSegment> Segments { get; } = new List<PopulationSegment>();
     /// <summary>One market per port, parallel to Ports (market id = port id).</summary>
     public List<Market> Markets { get; } = new List<Market>();
-    /// <summary>The slow identity layer's registry — id == species id until a
-    /// split mechanic lands.</summary>
+    /// <summary>The slow identity layer's registry. Seeded one per species;
+    /// schisms and native emergences mint new entries (separation-drift
+    /// splits and blending remain undone — slice J acceptance).</summary>
     public List<Culture> Cultures { get; } = new List<Culture>();
     public List<Loan> Loans { get; } = new List<Loan>();
     /// <summary>Sparse by construction (characters.md): role occupants and

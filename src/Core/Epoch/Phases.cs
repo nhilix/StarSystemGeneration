@@ -1042,10 +1042,11 @@ public sealed class ResolutionPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 6 — interiors and demographics. Slice B carries the stub
-/// emergence schedule (frame/time.md §Asymmetric emergence) and homeworld
-/// founding: a polity enters by establishing its first port at its seat —
-/// homeworlds are simply the first ports (space-and-travel.md).</summary>
+/// <summary>Phase 6 — interiors and demographics: the causal emergence
+/// schedule fires entries (frame/time.md §Asymmetric emergence — slice F
+/// retired the stub), homeworld founding (a polity enters by establishing
+/// its first port at its seat — homeworlds are simply the first ports),
+/// factions, characters, tech, corporations, growth, and migration.</summary>
 public sealed class InteriorPhase : ISimPhase
 {
     public string Name => "Interior";

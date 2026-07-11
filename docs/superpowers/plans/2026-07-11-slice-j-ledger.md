@@ -61,20 +61,42 @@ lawlessness/piracy, memorial stance anchors).
 
 ## Tasks
 
-- [ ] J1 — Ruins lawlessness wire: pirate-band trigger reads standing
+- [x] J1 — Ruins lawlessness wire: pirate-band trigger reads standing
       ruins POIs (reduced raid floor near ruins, ruins-haven bands);
       knob(s) in Poi.*; TDD: band founds near ruins that wouldn't
       otherwise; no ruins → old behavior byte-identical.
-- [ ] J2 — Memorial stance anchors: DecayStances anchors victim →
-      perpetrator stance at a negative floor while the memorial stands;
-      knob(s) in Poi.*; TDD: anchored stance outlives normal decay;
-      fades when the POI is displaced.
-- [ ] J3 — Fine-tick resumability: parametrized determinism +
-      LoadThenContinue + conservation suites at YearsPerEpoch ∈ {25, 5,
-      1}; hunt and fix integration-rate breakages (per-epoch constants,
-      grace/death clocks, drift targets, growth clamps); REPL fine-tick
-      `estep` variant (step a loaded artifact at overridden
-      YearsPerEpoch).
+      Notes: a Ruins/RuinedCapital POI within Poi.LawlessnessReachHexes
+      (3) of either lane mouth = lawless lane: raid floor ×
+      Poi.LawlessRaidFactor (0.4) AND the navyless requirement waived.
+      Golden regen: +2 KNOB lines only — seed 42 history byte-identical.
+- [x] J2 — Memorial stance anchors: DecayStances holds any stance that
+      reached −Poi.MemorialStanceAnchor (0.25) against a standing
+      memorial's perpetrator; suppression memorials carry SubjectId =
+      the suppressing polity (famines keep −1 — no foreign author).
+      Golden: seed 42 memorials name their perpetrators; stances
+      against them persist; small warmth/tension reprice downstream.
+- [x] J3 — Fine-tick resumability. Landed in four waves:
+      (a) **Sim.GenerationYears** (ESIM, config v6) — the calendar unit
+      every *Epochs knob counts; all persisted clocks converted to
+      world-years: relations Met/Rung/Offer/LastIncident/VassalSince
+      (v5), WarObjective.SiegeYears (v2), Corporation.LeanYears (v2),
+      Faction.NichePersistenceYears (interior v6); entry + native
+      emergence fire on the calendar; era buckets are generations.
+      Golden diff = pure unit rescale, zero event drift.
+      (b) Per-generation intensities × Sim.StepFraction: incident
+      sparks, battle loss shares (hash-rounded hulls, RollChannel 72),
+      facility damage, commander rout-death.
+      (c) Regional news spreads by age-crossing (once per observer,
+      when age crosses delay; horizon one generation).
+      (d) FineTickTests: fine determinism byte-identity, fine
+      LoadThenContinue, seven-phase/clock honesty, hull conservation,
+      liveness + macro bands over 2 seeds. Bands caught 2 real bugs:
+      price signal compared per-step demand flow to inventory stock
+      (universal glut at fine tick → floor crash; demand now
+      normalizes by StepFraction) and yard slots truncated fractional
+      throughput (0 hulls forever at fine; hash-round, RollChannel
+      73). Coarse behavior byte-identical throughout. REPL:
+      `estep [n] [years]`.
 - [ ] J4 — Controller handover certification: scripted controller takes
       a corporation slot mid-run (polity already certified);
       byte-compare the untouched remainder; assert no sim code reads
