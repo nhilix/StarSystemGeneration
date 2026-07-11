@@ -110,4 +110,4 @@ yes) — J certifies, frames, and hands off.
    (Unity atlas rebuild — read the roadmap row and the PoC atlas notes
    first) · flip the box below · push only on user say-so.
 
-- [ ] Slice J complete
+- [x] Slice J complete
