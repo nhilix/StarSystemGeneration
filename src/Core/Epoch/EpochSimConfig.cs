@@ -24,6 +24,26 @@ public sealed class EpochSimConfig
     public CorporateKnobs Corporate { get; } = new CorporateKnobs();
     public RelationsKnobs Relations { get; } = new RelationsKnobs();
     public WarKnobs War { get; } = new WarKnobs();
+    public NewsKnobs News { get; } = new NewsKnobs();
+}
+
+/// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc
+/// §Information carriage): how fast word travels lanes and wilds, when a
+/// public event pulses, and how long a pulse stays live. Slice I. The
+/// speeds are hexes per world-year; traffic is FleetOps.TrafficPerYear.</summary>
+public sealed class NewsKnobs
+{
+    /// <summary>News carriage of a lane with no posted traffic — a standing
+    /// lane always carries some word (occasional independents).</summary>
+    public double BaseLaneSpeedHexPerYear { get; set; } = 4.0;
+    /// <summary>Extra carriage a fully-saturated lane adds on the base —
+    /// busy lanes carry news fast.</summary>
+    public double TrafficSpeedBonus { get; set; } = 12.0;
+    /// <summary>Posted round trips per world-year at which a lane's news
+    /// carriage saturates.</summary>
+    public double TrafficSaturationTripsPerYear { get; set; } = 4.0;
+    /// <summary>Off-lane carriage — wilds barely carry news.</summary>
+    public double OffLaneSpeedHexPerYear { get; set; } = 0.5;
 }
 
 /// <summary>War dials (interpolity/war.md): the spark's incidence, the

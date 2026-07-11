@@ -584,6 +584,24 @@ public static class KnobRegistry
           c => c.Interior.StrainPerPort,
           (c, v) => c.Interior.StrainPerPort = v),
 
+        // ---- News (the news graph — slice I) ----
+        K("News.BaseLaneSpeedHexPerYear",
+          "news carriage (hex/yr) of a lane with no posted traffic",
+          c => c.News.BaseLaneSpeedHexPerYear,
+          (c, v) => c.News.BaseLaneSpeedHexPerYear = v),
+        K("News.OffLaneSpeedHexPerYear",
+          "off-lane news crawl (hex/yr) — wilds barely carry word",
+          c => c.News.OffLaneSpeedHexPerYear,
+          (c, v) => c.News.OffLaneSpeedHexPerYear = v),
+        K("News.TrafficSaturationTripsPerYear",
+          "posted round trips/yr at which lane news carriage saturates",
+          c => c.News.TrafficSaturationTripsPerYear,
+          (c, v) => c.News.TrafficSaturationTripsPerYear = v),
+        K("News.TrafficSpeedBonus",
+          "extra news carriage (hex/yr) a fully-saturated lane adds",
+          c => c.News.TrafficSpeedBonus,
+          (c, v) => c.News.TrafficSpeedBonus = v),
+
         // ---- Population (demographics, migration, ideology) ----
         K("Population.FamineLine",
           "subsistence fraction below which segments shrink and famines chronicle",

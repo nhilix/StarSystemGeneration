@@ -257,6 +257,20 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.VassalSecessionCohesion` | 0.40 | Only crumbling overlords lose vassals. | Every wobble frees the periphery. |
 | `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
 
+## News — the news graph (slice I)
+
+Word travels the lane network at traffic-derived speed and crawls the
+wilds otherwise (perception-and-news.md). The delay field these speeds
+produce is what stales every belief: decisions run on perception,
+consequences on truth.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `News.BaseLaneSpeedHexPerYear` | 4.0 | Even dead lanes gossip — the rim barely lags. | Unposted lanes go dark; only trade carries word. |
+| `News.TrafficSpeedBonus` | 12.0 | Busy corridors are near-instant (the core thinks as one). | Traffic doesn't matter; all lanes crawl alike. |
+| `News.TrafficSaturationTripsPerYear` | 4.0 | Only huge convoys speed the mail (most lanes stay slow). | A single posted hauler maxes the lane's carriage. |
+| `News.OffLaneSpeedHexPerYear` | 0.5 | Wilds leak news; isolation stops working. | Off-network polities live years behind the times. |
+
 ## Infrastructure — port physics and construction
 
 The radii/ranges set the map's granularity (slice B); the construction knobs
