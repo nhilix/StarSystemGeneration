@@ -32,7 +32,7 @@ public class LensStackTests
     }
 
     [Fact]
-    public void PortMarkersCarryHexTierAndOwnerColor()
+    public void PortMarkersCarryHexTierOwnerColorAndServiceRadius()
     {
         var (_, state) = EpochTestKit.Seeded();
         var hex = new HexCoordinate(3, 2);
@@ -43,6 +43,7 @@ public class LensStackTests
         Assert.Equal(hex, m.Hex);
         Assert.Equal(3, m.Tier);
         Assert.Equal(state.Actors[0].Id, m.OwnerActorId);
+        Assert.Equal(PortDomains.ServiceRadius(state.Config, 3), m.ServiceRadiusHexes);
         var own = AtlasPalette.OwnerColor(m.OwnerActorId);
         Assert.True(m.Color.R >= own.R && m.Color.G >= own.G && m.Color.B >= own.B,
             "marker reads as a brightened owner color");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using StarGen.Core.Epoch;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Atlas;
@@ -31,9 +32,11 @@ public static class LensStack
 }
 
 /// <summary>One drawable port: the domain glow's anchor point, brightened
-/// past the owner color so the keystone reads above its own glow.</summary>
+/// past the owner color so the keystone reads above its own glow.
+/// ServiceRadiusHexes sizes the glow field — tier-derived, never stored.</summary>
 public readonly record struct PortMarker(
-    int PortId, HexCoordinate Hex, int Tier, int OwnerActorId, Rgba Color);
+    int PortId, HexCoordinate Hex, int Tier, int OwnerActorId, Rgba Color,
+    int ServiceRadiusHexes);
 
 public static class PortLens
 {
@@ -50,7 +53,8 @@ public static class PortLens
                 (byte)(own.R + (255 - own.R) / 2),
                 (byte)(own.G + (255 - own.G) / 2),
                 (byte)(own.B + (255 - own.B) / 2));
-            markers[i] = new PortMarker(p.Id, p.Hex, p.Tier, p.OwnerActorId, bright);
+            markers[i] = new PortMarker(p.Id, p.Hex, p.Tier, p.OwnerActorId, bright,
+                PortDomains.ServiceRadius(model.State.Config, p.Tier));
         }
         return markers;
     }

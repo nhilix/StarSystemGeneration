@@ -58,9 +58,27 @@ to start K1 in the same session.
       that count (reviewer verified zero sim-behavior diff) · Unity
       EditMode 6/6 headless · AtlasSmoke renders seed 42 (galaxy +
       region shots).
-- [ ] **T7 — USER: atlas eyeball** (P1 image: wilds dark, domain glows
-      with organic borders + contested overlap, lanes as highways; zoom
-      galaxy→hex; nature lenses toggle)
+- [x] **T7a — USER: atlas eyeball — REJECTED** (2026-07-11): "looks
+      NOTHING like the interface design document. No smooth LOD zoom
+      continuum, rendering choppy, massive port icons, lane spaghetti,
+      harsh colored hexagons." Root cause: the presentation used a
+      filled-hex-board grammar; the validated mockup
+      (unity-atlas-design.html drawMap) uses dark space + starfield +
+      per-port radial glows + thin screen-constant lanes + small
+      screen-fixed port dots + lattice as faint outlines at region
+      LOD only. The taste gate IS K1 scope ("a real taste gate, not a
+      tech demo") — fix wave in-slice.
+- [ ] **T7b — taste-gate fix wave** (match the mockup's grammar):
+  - [ ] Core: StarfieldLens (deterministic star points per cell by
+        density) · PortLens gains service-radius for glow sizing
+  - [ ] Unity: StarfieldLayer base · DomainGlowLayer (radial gradient
+        sprites per port, owner-tinted) · lattice outline overlay
+        fading in at region/hex · nature fills as translucent overlay
+  - [ ] Screen-constant lanes (thin, subtle) + port dots (2px+tier)
+  - [ ] CameraRig: damped smooth zoom; styles = continuous curves of
+        zoom (bands only gate what resolves)
+  - [ ] Smoke shots re-rendered and compared against the mockup
+- [ ] **T7c — USER: atlas eyeball, second pass**
 - [ ] **T8 — Wrap-up**: merge on user nod · HANDOFF · tick K1 in the K
       roadmap · write K2 kickoff prompt · republish design diagram if
       deviated · push only on say-so
