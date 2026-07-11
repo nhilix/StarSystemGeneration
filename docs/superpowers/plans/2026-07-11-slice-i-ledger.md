@@ -89,10 +89,14 @@ scope restated in-session.
       by whoever is within one epoch's news delay. FirstContact seeding
       is automatic (Contact seeds at WarmthTarget, which now reads
       stances heard before the pair ever met).
-- [ ] I5 — War staleness teeth: WarBriefs through belief; shape test —
+- [x] I5 — War staleness teeth: WarBriefs through belief; shape test —
       slow news concedes later than fast news (fog of war).
-- [ ] I6 — Chronicle views + era detection: EraDetector over the log;
+- [x] I6 — Chronicle views + era detection: EraDetector over the log;
       REPL `eras`, era-annotated `chronicle`, per-place/per-actor views.
+      Notes: weights war 3 / upheaval 2 / treaty 2 / expansion 1,
+      signature floor 3, quiet ≥ 4 epochs = "The Long Peace"; repeat
+      names take numerals. `chronicle place <q> <r>` is the archaeology
+      view; annotation is recomputed, never stored.
 - [ ] I7 — POI compiler: PoiRecord registry + Chronicle compiler +
       `pois` layer + REPL `poi`; POIs-accumulate-where-history-happened
       shape test.

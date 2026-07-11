@@ -42,7 +42,8 @@ public sealed class Repl
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
-                    Console.WriteLine("chronicle [actorId|deep] — the event log; one biography; or the deep-time strata only");
+                    Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
+                    Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
                     Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
@@ -246,24 +247,40 @@ public sealed class Repl
                         + "`fleetpost <fleetId> blockade <portId>` stations a squadron and "
                         + "severs every lane at that port's approaches");
                     break;
-                case "chronicle" when _sim == null:
+                case "chronicle" or "eras" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "eras":
+                    Console.WriteLine(NarrativeView.RenderEras(_sim!));
+                    break;
+                case "chronicle" when parts.Length >= 4 && parts[1] == "place"
+                        && int.TryParse(parts[2], out var cq)
+                        && int.TryParse(parts[3], out var cr):
+                    // the per-place view: everything that happened HERE —
+                    // the archaeology surface (chronicle-and-poi.md §Indexes)
+                    Console.Write(NarrativeView.RenderChronicle(_sim!,
+                        _sim!.Log.AtPlace(new Core.Model.HexCoordinate(cq, cr))));
                     break;
                 case "chronicle":
                 {
                     bool deepOnly = parts.Length >= 2 && parts[1] == "deep";
                     int filter = !deepOnly && parts.Length >= 2
                         && int.TryParse(parts[1], out var cf) ? cf : -1;
-                    var events = filter >= 0 ? _sim!.Log.ForActor(filter) : _sim!.Log.Events;
-                    int shown = 0;
-                    foreach (var e in events)
+                    if (deepOnly)
                     {
-                        if (deepOnly && e.Stratum is not (Core.Epoch.ClockStratum.Cosmic
-                            or Core.Epoch.ClockStratum.Evolutionary)) continue;
-                        Console.WriteLine("  " + Core.Epoch.SimTraceView.Describe(e));
-                        shown++;
+                        int shown = 0;
+                        foreach (var e in _sim!.Log.Events)
+                        {
+                            if (e.Stratum is not (Core.Epoch.ClockStratum.Cosmic
+                                or Core.Epoch.ClockStratum.Evolutionary)) continue;
+                            Console.WriteLine("  " + Core.Epoch.SimTraceView.Describe(e));
+                            shown++;
+                        }
+                        if (shown == 0) Console.WriteLine("  (no events)");
+                        break;
                     }
-                    if (shown == 0) Console.WriteLine("  (no events)");
+                    var events = filter >= 0 ? _sim!.Log.ForActor(filter) : _sim!.Log.Events;
+                    Console.Write(NarrativeView.RenderChronicle(_sim!, events));
                     break;
                 }
                 case "watch" when parts.Length >= 2 && ulong.TryParse(parts[1], out var wseed):
