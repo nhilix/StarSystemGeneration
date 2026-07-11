@@ -7,14 +7,15 @@ using UnityEngine;
 
 namespace StarGen.AtlasView.EditorTools
 {
-    /// <summary>Builds (or rebuilds) the Atlas scene from scratch — the
-    /// PoC's idempotent pattern: every run starts from a fresh empty scene,
-    /// so re-running never leaves duplicates. Camera + CameraRig + SimHost
-    /// + MapSurface + LaneLayer + PortLayer + AtlasRoot + provisional HUD.</summary>
+    /// <summary>Builds (or rebuilds) the Atlas scene from scratch —
+    /// idempotent: every run starts from a fresh empty scene. Perspective
+    /// 2.5D camera + the layer stack (starfield, domain field, nature
+    /// field, lattice, lanes, ports) + SimHost + AtlasRoot + provisional
+    /// HUD.</summary>
     public static class AtlasViewSceneSetup
     {
         private const string ScenePath = "Assets/Scenes/Atlas.unity";
-        private static readonly Color CameraBackground = new Color32(0x0A, 0x0A, 0x0E, 255);
+        private static readonly Color CameraBackground = new Color32(0x0A, 0x0E, 0x17, 255);
 
         [MenuItem("StarGen/Setup Atlas Scene")]
         public static void SetupScene() => Build();
@@ -34,27 +35,23 @@ namespace StarGen.AtlasView.EditorTools
 
             var cameraGo = new GameObject("Main Camera");
             var cam = cameraGo.AddComponent<Camera>();
-            cam.orthographic = true;
             cam.backgroundColor = CameraBackground;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cameraGo.tag = "MainCamera";
-            cameraGo.transform.position = new Vector3(0f, 0f, -10f);
             var rig = cameraGo.AddComponent<CameraRig>();
             rig.Configure(cam);
 
-            var mapGo = new GameObject("MapSurface");
-            var map = mapGo.AddComponent<MapSurface>();
-
-            var laneGo = new GameObject("LaneLayer");
-            var lanes = laneGo.AddComponent<LaneLayer>();
-
-            var portGo = new GameObject("PortLayer");
-            var ports = portGo.AddComponent<PortLayer>();
+            var stars = new GameObject("Starfield").AddComponent<StarfieldLayer>();
+            var domains = new GameObject("DomainField").AddComponent<DomainFieldLayer>();
+            var nature = new GameObject("NatureField").AddComponent<NatureFieldLayer>();
+            var lattice = new GameObject("Lattice").AddComponent<LatticeLayer>();
+            var lanes = new GameObject("LaneLayer").AddComponent<LaneLayer>();
+            var ports = new GameObject("PortLayer").AddComponent<PortLayer>();
 
             var atlasGo = new GameObject("Atlas");
             var host = atlasGo.AddComponent<SimHost>();
             var root = atlasGo.AddComponent<AtlasRoot>();
-            root.Wire(host, map, lanes, ports, rig);
+            root.Wire(host, stars, domains, nature, lattice, lanes, ports, rig);
             var hud = atlasGo.AddComponent<AtlasHud>();
             hud.Wire(root);
 

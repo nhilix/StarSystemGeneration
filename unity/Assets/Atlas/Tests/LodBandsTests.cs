@@ -3,20 +3,19 @@ using StarGen.AtlasView;
 
 namespace StarGen.AtlasView.Tests
 {
-    /// <summary>The zoom continuum's band table: thresholds are fractions
-    /// of the galaxy extent, and styling steps down monotonically as the
-    /// camera closes in.</summary>
+    /// <summary>The zoom continuum's thresholds (camera altitude over
+    /// galaxy extent) and the continuous lattice fade curve.</summary>
     public class LodBandsTests
     {
         [Test]
-        public void BandsStepDownAsTheCameraClosesIn()
+        public void BandsStepDownAsTheCameraDescends()
         {
             const double extent = 100.0;
-            Assert.AreEqual(LodBand.Galaxy, LodBands.BandFor(100, extent));
-            Assert.AreEqual(LodBand.Galaxy, LodBands.BandFor(56, extent));
-            Assert.AreEqual(LodBand.Domains, LodBands.BandFor(40, extent));
-            Assert.AreEqual(LodBand.Region, LodBands.BandFor(12, extent));
-            Assert.AreEqual(LodBand.Hex, LodBands.BandFor(3, extent));
+            Assert.AreEqual(LodBand.Galaxy, LodBands.BandFor(220, extent));
+            Assert.AreEqual(LodBand.Galaxy, LodBands.BandFor(111, extent));
+            Assert.AreEqual(LodBand.Domains, LodBands.BandFor(80, extent));
+            Assert.AreEqual(LodBand.Region, LodBands.BandFor(20, extent));
+            Assert.AreEqual(LodBand.Hex, LodBands.BandFor(6, extent));
         }
 
         [Test]
@@ -26,16 +25,16 @@ namespace StarGen.AtlasView.Tests
         }
 
         [Test]
-        public void LaneAndPortStylingNarrowWithTheBands()
+        public void TheLatticeFadesInContinuouslyTowardHex()
         {
-            Assert.Greater(LodBands.LaneWidth(LodBand.Galaxy),
-                           LodBands.LaneWidth(LodBand.Domains));
-            Assert.Greater(LodBands.LaneWidth(LodBand.Domains),
-                           LodBands.LaneWidth(LodBand.Region));
-            Assert.Greater(LodBands.LaneWidth(LodBand.Region),
-                           LodBands.LaneWidth(LodBand.Hex));
-            Assert.Greater(LodBands.PortScale(LodBand.Galaxy),
-                           LodBands.PortScale(LodBand.Hex));
+            const double extent = 100.0;
+            Assert.AreEqual(0f, LodBands.LatticeAlpha(120, extent));
+            Assert.AreEqual(0f, LodBands.LatticeAlpha(40, extent));
+            float mid = LodBands.LatticeAlpha(15, extent);
+            float close = LodBands.LatticeAlpha(7, extent);
+            Assert.Greater(mid, 0f);
+            Assert.Greater(close, mid);
+            Assert.LessOrEqual(close, 0.12f);
         }
     }
 }

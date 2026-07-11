@@ -18,9 +18,11 @@ public readonly record struct LaneSegment(
 /// lapse clock against the state's world-year.</summary>
 public static class LaneLens
 {
-    private static readonly Rgba OpenColor = new(255, 190, 80, 170);
-    private static readonly Rgba QuarantinedColor = new(180, 200, 60, 190);
-    private static readonly Rgba SeveredColor = new(230, 70, 60, 190);
+    // The artifact's lane hue (#56C4DC) at its restraint: lanes support
+    // the glows, they never outshine them. Trouble states stay loud.
+    private static readonly Rgba OpenColor = new(86, 196, 220, 120);
+    private static readonly Rgba QuarantinedColor = new(190, 205, 70, 185);
+    private static readonly Rgba SeveredColor = new(235, 85, 75, 195);
 
     public static IReadOnlyList<LaneSegment> Segments(AtlasReadModel model,
                                                       EyeContext eye)

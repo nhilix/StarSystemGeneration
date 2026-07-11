@@ -5,17 +5,17 @@ using UnityEngine;
 
 namespace StarGen.AtlasView.EditorTools
 {
-    /// <summary>Headless acceptance shot (the PoC AtlasAcceptance pattern):
-    /// build the scene, load the default artifact (the seed-42 golden),
-    /// show every K1 layer, and render the camera to atlas-smoke.png at the
-    /// repo root. Batchmode: -executeMethod
+    /// <summary>Headless acceptance shots: build the scene, load the
+    /// default artifact (the seed-42 golden), show every K1 layer, render
+    /// three views — top-down galaxy, tilted 2.5D domains, tilted region
+    /// closeup — to PNGs at the repo root. Batchmode: -executeMethod
     /// StarGen.AtlasView.EditorTools.AtlasSmoke.RunFromCli (graphics ON —
     /// no -nographics — or there is nothing to render with).</summary>
     public static class AtlasSmoke
     {
         private const int Width = 1600, Height = 1000;
 
-        [MenuItem("StarGen/Atlas Smoke Shot")]
+        [MenuItem("StarGen/Atlas Smoke Shots")]
         public static void RunFromMenu() => Run(exitOnFailure: false);
 
         public static void RunFromCli() => Run(exitOnFailure: true);
@@ -25,18 +25,22 @@ namespace StarGen.AtlasView.EditorTools
             AtlasViewSceneSetup.SetupScene();
 
             var host = Object.FindFirstObjectByType<SimHost>();
-            var map = Object.FindFirstObjectByType<MapSurface>();
+            var stars = Object.FindFirstObjectByType<StarfieldLayer>();
+            var domains = Object.FindFirstObjectByType<DomainFieldLayer>();
+            var nature = Object.FindFirstObjectByType<NatureFieldLayer>();
+            var lattice = Object.FindFirstObjectByType<LatticeLayer>();
             var lanes = Object.FindFirstObjectByType<LaneLayer>();
             var ports = Object.FindFirstObjectByType<PortLayer>();
             var rig = Object.FindFirstObjectByType<CameraRig>();
             var cam = rig.Cam;
 
-            // Edit mode: Awake never ran, so assign the vertex-color
-            // material by hand (play mode does this in each layer's Awake).
-            var material = new Material(Shader.Find("Sprites/Default"));
-            map.GetComponent<MeshRenderer>().sharedMaterial = material;
-            lanes.GetComponent<MeshRenderer>().sharedMaterial = material;
-            ports.GetComponent<MeshRenderer>().sharedMaterial = material;
+            // Edit mode: Awake never ran; each layer builds its own material.
+            stars.EnsureMaterial();
+            domains.EnsureMaterial();
+            nature.EnsureMaterial();
+            lattice.EnsureMaterial();
+            lanes.EnsureMaterial();
+            ports.EnsureMaterial();
 
             if (!host.LoadArtifact())
             {
@@ -45,36 +49,50 @@ namespace StarGen.AtlasView.EditorTools
                 return;
             }
             var eye = host.Eye;
-            map.Show(host.Model, eye);
-            lanes.Show(host.Model, eye);
-            ports.Show(host.Model, eye);
-            // Aspect before FitTo, so framing and band calibration match
-            // the shot Capture renders (not the editor game view's aspect).
-            cam.aspect = (float)Width / Height;
-            rig.FitTo(map.MapBounds);
-            lanes.SetBand(rig.Band);
-            ports.SetBand(rig.Band);
+            var model = host.Model;
+            stars.Show(model);
+            domains.Show(model, eye);
+            nature.Show(model, eye);
+            lattice.Prepare(model);
+            lanes.Show(model, eye);
+            ports.Show(model, eye);
 
+            cam.aspect = (float)Width / Height;
+            var bounds = AtlasGeometry.DiscBounds(model);
+            rig.FitTo(bounds);
+            float extent = rig.GalaxyExtent;
+            float fit = rig.Distance;
+
+            // Shot 1: the whole disc, top-down (the 90° limit).
+            SetAndStyle(rig, lanes, lattice, bounds.center, fit, 90f);
             Capture(cam, "atlas-smoke.png");
-            Debug.Log($"AtlasSmoke: galaxy shot — year {host.State.WorldYear}, "
+            Debug.Log($"AtlasSmoke: galaxy top-down — year {host.State.WorldYear}, "
                 + $"{host.State.Ports.Count} ports, {host.State.Lanes.Count} lanes, "
                 + $"band {rig.Band}");
 
-            // Second shot down the continuum: Region band centered on the
-            // first port — per-hex organic borders should resolve. Extent
-            // matches CameraRig.FitTo's formula so the band label agrees
-            // with what the interactive rig would publish.
-            float extent = Mathf.Max(map.MapBounds.extents.y,
-                                     map.MapBounds.extents.x / cam.aspect);
-            var (px, py) = StarGen.Core.Galaxy.HexGrid.HexToWorld(host.State.Ports[0].Hex);
-            cam.transform.position = new Vector3((float)px, (float)py, -10f);
-            cam.orthographicSize = extent * 0.12f;
-            var band = LodBands.BandFor(cam.orthographicSize, extent);
-            lanes.SetBand(band);
-            ports.SetBand(band);
+            // Shot 2: the settled reach, tilted — the 2.5D domains view.
+            var port0 = AtlasGeometry.HexToWorld(host.State.Ports[0].Hex);
+            SetAndStyle(rig, lanes, lattice, port0, extent * 0.7f, 55f);
+            Capture(cam, "atlas-smoke-domains.png");
+            Debug.Log($"AtlasSmoke: tilted domains at band {rig.Band}");
+
+            // Shot 3: region closeup, tilted — lattice resolving.
+            SetAndStyle(rig, lanes, lattice, port0, extent * 0.11f, 60f);
             Capture(cam, "atlas-smoke-region.png");
-            Debug.Log($"AtlasSmoke: region shot at port 0, band {band}");
+            Debug.Log($"AtlasSmoke: region closeup at band {rig.Band}");
+
             if (exitOnFailure) EditorApplication.Exit(0);
+        }
+
+        private static void SetAndStyle(CameraRig rig, LaneLayer lanes,
+            LatticeLayer lattice, Vector3 focus, float distance, float pitch)
+        {
+            rig.SetView(focus, distance, pitch);
+            // Edit mode: the rig's ZoomChanged fires, but listeners are
+            // wired by AtlasRoot.OnEnable which never ran — style by hand.
+            lanes.SetExtent(rig.GalaxyExtent);
+            lanes.OnZoom(rig.Distance);
+            lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
         }
 
         private static void Capture(Camera cam, string fileName)

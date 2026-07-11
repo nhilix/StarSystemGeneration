@@ -68,16 +68,29 @@ to start K1 in the same session.
       screen-fixed port dots + lattice as faint outlines at region
       LOD only. The taste gate IS K1 scope ("a real taste gate, not a
       tech demo") — fix wave in-slice.
-- [ ] **T7b — taste-gate fix wave** (match the mockup's grammar):
-  - [ ] Core: StarfieldLens (deterministic star points per cell by
-        density) · PortLens gains service-radius for glow sizing
-  - [ ] Unity: StarfieldLayer base · DomainGlowLayer (radial gradient
-        sprites per port, owner-tinted) · lattice outline overlay
-        fading in at region/hex · nature fills as translucent overlay
-  - [ ] Screen-constant lanes (thin, subtle) + port dots (2px+tier)
-  - [ ] CameraRig: damped smooth zoom; styles = continuous curves of
-        zoom (bands only gate what resolves)
-  - [ ] Smoke shots re-rendered and compared against the mockup
+- [ ] **T7b — taste-gate fix wave** (user-steered, 2 course corrections:
+      (1) field shader over gradient sprites for long-term control;
+      (2) **2.5D perspective camera** — focus+distance+pitch on the
+      plane, top-down = 90° limit, "localize every data point in space").
+      Spec amended ("The camera"); asset boundary set: fields computed,
+      glyphs authored (game-icons.net/Kenney, runtime-tinted), placement
+      is data:
+  - [x] Core: StarfieldLens (StableHash star points per cell by
+        density, lean-tinted) · PortMarker.ServiceRadiusHexes (31 tests)
+  - [x] Shaders: StarGen/DomainField (per-pixel port-registry field,
+        512-port uniform array, contested-brightening, additive) ·
+        StarGen/AtlasBillboard (camera-facing, px-clamped point sprites)
+  - [x] Unity: StarfieldLayer (additive billboards) · DomainFieldLayer
+        (plane quad + port upload) · NatureFieldLayer (rasters baked to
+        bilinear data textures — nebular fields, off by default) ·
+        LatticeLayer (GPU-line outlines, continuous fade near Region) ·
+        LaneLayer/PortLayer screen-constant · **MapSurface +
+        HexMeshBuilder deleted** (the hex-board grammar is gone)
+  - [x] CameraRig: perspective, damped targets, dolly-to-cursor,
+        middle-drag tilt 25–90°, ZoomChanged (continuous) + BandChanged
+        (resolve gates only)
+  - [ ] Gates re-run + smoke shots (top-down / tilted domains / region)
+        compared against the mockup
 - [ ] **T7c — USER: atlas eyeball, second pass**
 - [ ] **T8 — Wrap-up**: merge on user nod · HANDOFF · tick K1 in the K
       roadmap · write K2 kickoff prompt · republish design diagram if
