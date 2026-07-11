@@ -40,7 +40,18 @@ public static class FleetOps
                 throughput += f.Tier * cfg.Fleet.YardHullsPerTierPerYear
                               * years * f.Condition;
             }
+            // the generation integrator keeps its truncation (goldens
+            // hold); a fine step hash-rounds its fractional throughput so
+            // slow yards still lay hulls over time (P7, slice J)
             int slots = (int)throughput;
+            if (cfg.Sim.StepFraction < 1.0)
+            {
+                double fraction = throughput - slots;
+                if (fraction > 0 && EpochRolls.NextDouble(cfg.MasterSeed,
+                        Rng.RollChannel.YardSlots, state.EpochIndex,
+                        pr.ActorId, port.Id) < fraction)
+                    slots++;
+            }
             if (slots <= 0) continue;
             var market = state.Markets[port.Id];
 

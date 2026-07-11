@@ -599,7 +599,12 @@ public static class MarketEngine
             var market = state.Markets[mIx];
             for (int g = 0; g < market.Price.Length; g++)
             {
-                double demand = scratch.Demand[mIx][g];
+                // the pressure signal compares a FLOW to a STOCK, calibrated
+                // at generation scale: a fine step's smaller demand must not
+                // read as glut, so demand normalizes to a generation's worth
+                // (P7 certification, slice J)
+                double demand = scratch.Demand[mIx][g]
+                                / state.Config.Sim.StepFraction;
                 double supply = market.Inventory[g];
                 if (demand <= eps && supply <= eps) continue;   // dormant good
                 double factor = Math.Pow((demand + eps) / (supply + eps),

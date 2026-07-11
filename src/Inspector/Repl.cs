@@ -31,7 +31,8 @@ public sealed class Repl
                     Console.WriteLine("seed <n> | galaxy <seed> [radiusCells] | goto <q> <r> | next | prev | reroll");
                     Console.WriteLine("find <criterion> | stats <n> | map [layer] | cell <q> <r>");
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
-                    Console.WriteLine("estep [n] — step the loaded sim n more epochs (default 1)");
+                    Console.WriteLine("estep [n] [years] — step the loaded sim n more epochs (default 1); years overrides the");
+                    Console.WriteLine("   integration step (fine tick: estep 25 1 plays a generation year by year)");
                     Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech|war|tension] — political / lane / traffic / price / tech / war maps");
                     Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
                     Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
@@ -226,6 +227,19 @@ public sealed class Repl
                 {
                     int n = parts.Length >= 2 && int.TryParse(parts[1], out var en)
                         ? Math.Max(1, en) : 1;
+                    // the fine-tick variant (slice J): the SAME machine, a
+                    // smaller integration step — estep 20 5 steps 20 times
+                    // at 5 world-years each (play-tick resumability)
+                    if (parts.Length >= 3 && int.TryParse(parts[2], out var ey)
+                        && ey >= 1)
+                    {
+                        _sim!.Config.Sim.YearsPerEpoch = ey;
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"integration step set to {ey} world-year")
+                            + (ey == 1 ? "" : "s")
+                            + FormattableString.Invariant(
+                            $" (generation stays {_sim.Config.Sim.GenerationYears})"));
+                    }
                     var engine = new Core.Epoch.EpochEngine();
                     int traceFrom = _sim!.Trace.Count;
                     for (int i = 0; i < n; i++) engine.Step(_sim);
