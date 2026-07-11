@@ -224,14 +224,18 @@ public static class PoiCompiler
             if (e.WorldYear < state.WorldYear) break;
             int cause;
             double magnitude;
+            // suppressions carry their perpetrator — the stance anchor's
+            // subject (famines have no foreign author to hold)
+            int perpetrator = -1;
             if (e.Type == WorldEventType.FamineStruck
                 && e.Magnitude >= knobs.MemorialShortfallFloor)
             { cause = 0; magnitude = 2.0; }
-            else if (e.Type == WorldEventType.EmergenceSuppressed)
-            { cause = 1; magnitude = 3.0; }
+            else if (e.Type == WorldEventType.EmergenceSuppressed
+                     && e.Payload is EmergenceSuppressedPayload es)
+            { cause = 1; magnitude = 3.0; perpetrator = es.HostPolityId; }
             else continue;
             var poi = Anchor(state, PoiType.Memorial, e.Location, magnitude,
-                             detail: cause);
+                             subjectId: perpetrator, detail: cause);
             if (poi == null) continue;
             poi.ParticipantActorIds.AddRange(e.Actors);
             poi.SourceEventIds.Add(e.Id);

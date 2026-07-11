@@ -102,6 +102,10 @@ public sealed class PoiKnobs
     /// a band when the walls to hide in already stand — and no navy roots
     /// it out of them.</summary>
     public double LawlessRaidFactor { get; set; } = 0.4;
+    /// <summary>Stance depth a standing memorial holds against its
+    /// perpetrator: an audience whose stance ever reached −this never
+    /// fades above it while the stone stands (slice J wire).</summary>
+    public double MemorialStanceAnchor { get; set; } = 0.25;
 }
 
 /// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc

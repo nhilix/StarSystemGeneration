@@ -321,6 +321,7 @@ hex, arbitrated by magnitude (chronicle-and-poi.md).
 | `Poi.DigResearchPerYear` | 0.01 | Digging precursors is a tech strategy. | Ruins yield goods, not insight. |
 | `Poi.LawlessnessReachHexes` | 3 | Ruins shadow whole regions with piracy. | Only the lane at the ruin's gate reads lawless. |
 | `Poi.LawlessRaidFactor` | 0.4 | Havens barely tempt (near-normal cargo needed). | Any trickle of freight past a ruin draws a band. |
+| `Poi.MemorialStanceAnchor` | 0.25 | Atrocities are held forever at real depth — permanent pariahs. | Memorials are ornament; every horror fades to indifference. |
 
 ## Infrastructure — port physics and construction
 

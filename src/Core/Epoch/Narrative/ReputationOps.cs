@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
@@ -15,16 +16,33 @@ namespace StarGen.Core.Epoch;
 public static class ReputationOps
 {
     /// <summary>Memory fades: every stance drifts toward 0. Runs once per
-    /// Perception, before this step's news lands.</summary>
+    /// Perception, before this step's news lands. Exception: a standing
+    /// memorial anchors the memory of its perpetrator — any audience whose
+    /// stance reached the anchor is held there while the stone stands
+    /// (chronicle-and-poi.md live-effects table, slice J wire).</summary>
     public static void DecayStances(SimState state)
     {
         double keep = Math.Max(0.0, 1.0 - state.Config.News.StanceDecayPerYear
                                           * state.Config.Sim.YearsPerEpoch);
+        HashSet<int>? memorialized = null;
+        foreach (var poi in state.Pois)                   // id order (P6)
+            if (!poi.Depleted && poi.Type == PoiType.Memorial
+                && poi.SubjectId >= 0)
+                (memorialized ??= new HashSet<int>()).Add(poi.SubjectId);
+        double anchor = -state.Config.Poi.MemorialStanceAnchor;
         foreach (var a in state.Actors)                   // id order (P6)
         {
             var stances = a.Beliefs.Stances;
             for (int i = 0; i < stances.Count; i++)
-                stances[stances.Keys[i]] *= keep;
+            {
+                int subject = stances.Keys[i];
+                double held = stances[subject];
+                double faded = held * keep;
+                if (faded > anchor && held <= anchor
+                    && memorialized != null && memorialized.Contains(subject))
+                    faded = anchor;
+                stances[subject] = faded;
+            }
         }
     }
 
