@@ -97,21 +97,36 @@ lawlessness/piracy, memorial stance anchors).
       throughput (0 hulls forever at fine; hash-round, RollChannel
       73). Coarse behavior byte-identical throughout. REPL:
       `estep [n] [years]`.
-- [ ] J4 — Controller handover certification: scripted controller takes
-      a corporation slot mid-run (polity already certified);
-      byte-compare the untouched remainder; assert no sim code reads
-      controller identity.
-- [ ] J5 — Delta boundary: DeltaSerializer (save/load against a base
-      artifact), round-trip byte-identity gate (base + deltas + log ≡
-      live state), REPL delta save/load pair.
-- [ ] J6 — Handoff framing: HandoffView open-threads computation +
-      REPL `threads` panel ("the world in motion"); index-view gaps
-      filled where the design names them (per-war view).
-- [ ] J7 — Full-design acceptance pass: sweep docs/design/ vs
-      implementation; every P-number certified or gap filed; remaining
-      perfect-info/stub comments hunted; design amendments in-branch;
-      certification record committed
-      (docs/superpowers/specs/2026-07-XX-design-acceptance.md).
+- [x] J4 — Controller handover certification (HandoverTests): every
+      controller wrapped in a delegating driver mid-run → byte-identical
+      continuation; scripted player takes a polity throne (pinned tax
+      code + TreatyAct resolving by the same ladder rules) and a
+      corporation board (dividend policy) mid-run; load reattaches
+      stock controllers (occupation is client state).
+      NOTE: no such byte-compare test existed before J despite the
+      kickoff's claim — it does now.
+- [x] J5 — Delta boundary: DeltaSerializer over the artifact's own line
+      grammar — layer-granular diff, events layer ships only its
+      continuation, unchanged layers absent (genesis strata never
+      re-record), FNV-64 base fingerprint refuses foreign bases.
+      Round-trip byte-identity certified at both tick resolutions.
+      REPL `edsave <base> <delta>` / `edload` (smoke: 100y fine
+      continuation = 57KB delta on a 107KB base).
+- [x] J6 — Handoff framing: HandoffView.OpenThreads (half-won wars,
+      loaded tensions with live casus belli, old thrones by species
+      span + standing succession claims, leveraged corporations,
+      burning plagues, quarantines, unanswered offers) + REPL `threads`
+      panel; EventLog.ForWar via IWarPayload completes the four
+      chronicle indexes. Seed 42 hands off the Alloys War at 3/4
+      objectives, 7 pairs at the brink, 6 old thrones, 2 plagues.
+- [x] J7 — Full-design acceptance pass:
+      docs/superpowers/specs/2026-07-11-design-acceptance.md — P1–P8
+      certified with evidence (P2 partial: character personal acts
+      unarmed; P3 one filed exception: true-price freight), per-plane
+      verdicts, 13-item consolidated gap list (headline: 11 contract
+      acts are type-only — the player-verb backlog). Six files'
+      stale perfect-info/stub comments fixed; perception-and-news.md
+      amended to the landed per-subject snapshot model.
 - [ ] J8 — Gates + review: full suite green (hex tier untouched),
       determinism byte-identity at both resolutions, golden refrozen
       once, fresh-eyes whole-branch review + one fix wave.
