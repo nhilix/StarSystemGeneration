@@ -56,7 +56,7 @@ namespace StarGen.AtlasView
             var stars = StarfieldLens.Stars(model);
             var vertices = new Vector3[stars.Count * 4];
             var corners = new List<Vector4>(stars.Count * 4);
-            var colors = new Color32[stars.Count * 4];
+            var colors = new Color[stars.Count * 4];   // linearized floats
             var triangles = new int[stars.Count * 6];
             for (int i = 0; i < stars.Count; i++)
             {
@@ -72,8 +72,11 @@ namespace StarGen.AtlasView
                     StellarLean.RemnantGraveyard => TintRemnant,
                     _ => TintBalanced,
                 };
-                var color = new Color32(tint.r, tint.g, tint.b,
-                    (byte)(30 + 170 * b));
+                // Vertex colors are authored in sRGB; the linear pipeline
+                // gets the converted value (alpha stays perceptual).
+                var color = ((Color)new Color32(tint.r, tint.g, tint.b, 255))
+                    .linear;
+                color.a = (30 + 170 * b) / 255f;
                 int v = i * 4;
                 for (int c = 0; c < 4; c++)
                 {

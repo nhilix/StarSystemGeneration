@@ -89,9 +89,38 @@ to start K1 in the same session.
   - [x] CameraRig: perspective, damped targets, dolly-to-cursor,
         middle-drag tilt 25–90°, ZoomChanged (continuous) + BandChanged
         (resolve gates only)
-  - [ ] Gates re-run + smoke shots (top-down / tilted domains / region)
-        compared against the mockup
-- [ ] **T7c — USER: atlas eyeball, second pass**
+  - [x] Gates re-run + smoke shots (top-down / tilted domains / region)
+        compared against the mockup; lanes recalibrated to the
+        artifact's cyan restraint with altitude fade
+- [x] **T7c — USER: atlas eyeball, second pass** — "a step in the right
+      direction" + two notes driving T7d: ports should be solid circles
+      (tier- AND zoom-relative); domains showed destructive interference
+      banding, worst between SAME-polity glows (root cause: contested
+      logic compared top-two PORT weights, not owners).
+- [ ] **T7d — domain semantics wave** (user-specified):
+  - [x] Core: DomainLens.PolitySlots (deterministic shader slot order)
+        + DomainLens.OverlapShade (war > tension > warmth > neutral,
+        symmetric; 33 atlas tests)
+  - [x] Shader v2: per-POLITY max fields (union = uniform region, no
+        self-interference) · flat fills · fwidth-crisp border outline
+        per combined region · Venn overlap shaded by the relationship
+        (RelationTex baked from OverlapShade), both outlines drawn
+        through the overlap. Polities past 32 fold into the last slot
+        (seed-scale is ~13).
+  - [x] Ports: solid AA circles (SolidDot), dual sizing — tier-scaled
+        pixel floor at altitude, tier-scaled world size resolving at
+        region/hex
+  - [x] Gates + smoke shots re-rendered (595/595 dotnet, 3/3 EditMode).
+        Two rendering bugs found via a layer-isolation diagnostic
+        (temporary AtlasDiag, deleted): (1) the project renders LINEAR —
+        shaders now compose in sRGB (the artifact's space) and linearize
+        once on output; billboard vertex colors CPU-linearized; the
+        relation texture created linear so it stays in sRGB terms.
+        (2) built-in _ScreenParams/P uniforms are unreliable in batch RT
+        renders — billboard sizing rode its pixel caps (96px ports!);
+        replaced with explicit _AtlasFocalY/_AtlasViewportPx globals set
+        by CameraRig per frame and by capture tooling per shot.
+- [ ] **T7e — USER: atlas eyeball, third pass**
 - [ ] **T8 — Wrap-up**: merge on user nod · HANDOFF · tick K1 in the K
       roadmap · write K2 kickoff prompt · republish design diagram if
       deviated · push only on say-so

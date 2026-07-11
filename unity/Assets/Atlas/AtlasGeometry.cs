@@ -46,6 +46,38 @@ namespace StarGen.AtlasView
     public static class AtlasTextures
     {
         private static Texture2D _softDot;
+        private static Texture2D _solidDot;
+
+        /// <summary>64² crisp filled circle with a 2-texel AA rim — the
+        /// port marker until authored tier glyphs land (K2).</summary>
+        public static Texture2D SolidDot
+        {
+            get
+            {
+                if (_solidDot != null) return _solidDot;
+                const int size = 64;
+                _solidDot = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                {
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                var pixels = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = (x + 0.5f) / size - 0.5f;
+                        float dy = (y + 0.5f) / size - 0.5f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                        float a = 1f - Mathf.Clamp01((d - 0.92f) / 0.08f);
+                        pixels[y * size + x] = new Color32(255, 255, 255,
+                            (byte)(a * 255f));
+                    }
+                _solidDot.SetPixels32(pixels);
+                _solidDot.Apply();
+                return _solidDot;
+            }
+        }
 
         /// <summary>64² radial gaussian-ish falloff, white, alpha-carried.</summary>
         public static Texture2D SoftDot

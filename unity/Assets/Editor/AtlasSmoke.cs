@@ -24,14 +24,14 @@ namespace StarGen.AtlasView.EditorTools
         {
             AtlasViewSceneSetup.SetupScene();
 
-            var host = Object.FindFirstObjectByType<SimHost>();
-            var stars = Object.FindFirstObjectByType<StarfieldLayer>();
-            var domains = Object.FindFirstObjectByType<DomainFieldLayer>();
-            var nature = Object.FindFirstObjectByType<NatureFieldLayer>();
-            var lattice = Object.FindFirstObjectByType<LatticeLayer>();
-            var lanes = Object.FindFirstObjectByType<LaneLayer>();
-            var ports = Object.FindFirstObjectByType<PortLayer>();
-            var rig = Object.FindFirstObjectByType<CameraRig>();
+            var host = Object.FindAnyObjectByType<SimHost>();
+            var stars = Object.FindAnyObjectByType<StarfieldLayer>();
+            var domains = Object.FindAnyObjectByType<DomainFieldLayer>();
+            var nature = Object.FindAnyObjectByType<NatureFieldLayer>();
+            var lattice = Object.FindAnyObjectByType<LatticeLayer>();
+            var lanes = Object.FindAnyObjectByType<LaneLayer>();
+            var ports = Object.FindAnyObjectByType<PortLayer>();
+            var rig = Object.FindAnyObjectByType<CameraRig>();
             var cam = rig.Cam;
 
             // Edit mode: Awake never ran; each layer builds its own material.
@@ -91,6 +91,7 @@ namespace StarGen.AtlasView.EditorTools
             // Edit mode: the rig's ZoomChanged fires, but listeners are
             // wired by AtlasRoot.OnEnable which never ran — style by hand.
             lanes.SetExtent(rig.GalaxyExtent);
+            lanes.ViewportPx = Height;
             lanes.OnZoom(rig.Distance);
             lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
         }
@@ -100,6 +101,9 @@ namespace StarGen.AtlasView.EditorTools
             var rt = new RenderTexture(Width, Height, 24);
             cam.targetTexture = rt;
             cam.aspect = (float)Width / Height;
+            Shader.SetGlobalFloat("_AtlasFocalY",
+                1f / Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            Shader.SetGlobalFloat("_AtlasViewportPx", Height);
             cam.Render();
             RenderTexture.active = rt;
             var shot = new Texture2D(Width, Height, TextureFormat.RGB24, false);

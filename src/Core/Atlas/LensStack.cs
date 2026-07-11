@@ -49,10 +49,12 @@ public static class PortLens
         {
             var p = ports[i];
             var own = AtlasPalette.OwnerColor(p.OwnerActorId);
+            // Solid markers need only a nudge above their own glow — the
+            // half-white lift of the soft-dot era washed them cream.
             var bright = new Rgba(
-                (byte)(own.R + (255 - own.R) / 2),
-                (byte)(own.G + (255 - own.G) / 2),
-                (byte)(own.B + (255 - own.B) / 2));
+                (byte)(own.R + (255 - own.R) / 4),
+                (byte)(own.G + (255 - own.G) / 4),
+                (byte)(own.B + (255 - own.B) / 4));
             markers[i] = new PortMarker(p.Id, p.Hex, p.Tier, p.OwnerActorId, bright,
                 PortDomains.ServiceRadius(model.State.Config, p.Tier));
         }

@@ -67,6 +67,7 @@ namespace StarGen.AtlasView
 
         private void OnZoomChanged(float distance)
         {
+            laneLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
             laneLayer.OnZoom(distance);
             lattice.OnZoom(distance, cameraRig.GalaxyExtent);
         }

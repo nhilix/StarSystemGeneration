@@ -29,7 +29,14 @@ Shader "StarGen/AtlasBillboard"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
-            float _MaxPx;
+            CBUFFER_START(UnityPerMaterial)
+                float _MaxPx;
+            CBUFFER_END
+            // Explicit view globals (set by CameraRig / capture tooling):
+            // the built-in _ScreenParams/P uniforms proved unreliable in
+            // batch RT renders — sizes then ride their pixel caps.
+            float _AtlasFocalY;      // 1 / tan(fov/2)
+            float _AtlasViewportPx;  // render-target height in pixels
 
             struct Attributes
             {
@@ -51,7 +58,8 @@ Shader "StarGen/AtlasBillboard"
                 float3 centerVS = TransformWorldToView(centerWS);
                 float depth = max(0.01, -centerVS.z);
                 // World units spanned by one pixel at this depth.
-                float pxWorld = 2.0 * depth / (UNITY_MATRIX_P._m11 * _ScreenParams.y);
+                float pxWorld = 2.0 * depth
+                    / (max(0.01, _AtlasFocalY) * max(1.0, _AtlasViewportPx));
                 float size = max(input.corner.z, input.corner.w * pxWorld);
                 size = min(size, _MaxPx * pxWorld);
                 centerVS.xy += input.corner.xy * size;

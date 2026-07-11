@@ -159,6 +159,11 @@ namespace StarGen.AtlasView
             var rotation = Quaternion.Euler(_pitch - 90f, 0f, 0f);
             cam.transform.rotation = rotation;
             cam.transform.position = _focus - rotation * Vector3.forward * _distance;
+            // Billboard sizing globals — explicit because the built-in
+            // uniforms proved unreliable in batch RT renders.
+            Shader.SetGlobalFloat("_AtlasFocalY",
+                1f / Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            Shader.SetGlobalFloat("_AtlasViewportPx", cam.pixelHeight);
         }
 
         /// <summary>The cursor ray's intersection with the galactic plane.</summary>

@@ -39,6 +39,42 @@ public static class DomainLens
         return shades;
     }
 
+    // Overlap (Venn) relationship shades — what the intersection of two
+    // polities' regions says about the pair.
+    private static readonly Rgba WarShade = new(225, 70, 60, 255);
+    private static readonly Rgba TensionShade = new(235, 150, 60, 255);
+    private static readonly Rgba WarmShade = new(80, 210, 160, 255);
+    private static readonly Rgba NeutralShade = new(125, 145, 185, 255);
+
+    /// <summary>Distinct port owners, ascending — the field shader's slot
+    /// order (deterministic: registry-derived, id-sorted).</summary>
+    public static IReadOnlyList<int> PolitySlots(AtlasReadModel model, EyeContext eye)
+    {
+        var slots = new List<int>();
+        foreach (var port in model.State.Ports)
+        {
+            int at = slots.BinarySearch(port.OwnerActorId);
+            if (at < 0) slots.Insert(~at, port.OwnerActorId);
+        }
+        return slots;
+    }
+
+    /// <summary>The shade of the region where two polities' domains
+    /// overlap: an active war overrides everything, then loaded tension,
+    /// then real warmth; strangers and lukewarm pairs read neutral.
+    /// Symmetric by construction.</summary>
+    public static Rgba OverlapShade(AtlasReadModel model, EyeContext eye,
+                                    int actorA, int actorB)
+    {
+        if (WarOps.ActiveWarBetween(model.State, actorA, actorB) != null)
+            return WarShade;
+        var rel = model.State.RelationOf(actorA, actorB);
+        if (rel == null) return NeutralShade;
+        if (rel.Tension >= 0.4) return TensionShade;
+        if (rel.Warmth >= 0.3) return WarmShade;
+        return NeutralShade;
+    }
+
     /// <summary>Per-hex domain shades for an arbitrary hex list — the map
     /// surface samples service radii at hex resolution, which is where the
     /// organic borders come from.</summary>

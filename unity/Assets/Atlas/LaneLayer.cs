@@ -56,12 +56,16 @@ namespace StarGen.AtlasView
         /// <summary>Screen-constant width plus the altitude fade: lanes
         /// defer to the glows at galaxy distance. Rebuilds only when the
         /// width drifts >8%; the fade rides the material tint.</summary>
+        /// <summary>Render-target height — Screen.height lies in batch
+        /// captures; the root/tooling supplies the real value.</summary>
+        public float ViewportPx = 1080f;
+
         public void OnZoom(float cameraDistance)
         {
             _material.color = new Color(1f, 1f, 1f,
                 LodBands.LaneFade(cameraDistance, _extentForFade));
             float worldPerPx = 2f * cameraDistance
-                * Mathf.Tan(FovDegrees * 0.5f * Mathf.Deg2Rad) / Screen.height;
+                * Mathf.Tan(FovDegrees * 0.5f * Mathf.Deg2Rad) / ViewportPx;
             float width = Mathf.Max(0.02f, WidthPx * worldPerPx);
             if (_width > 0f && Mathf.Abs(width - _width) / _width < 0.08f) return;
             _width = width;

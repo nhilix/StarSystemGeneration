@@ -20,10 +20,10 @@ namespace StarGen.AtlasView
         private void Awake()
         {
             _material = new Material(Shader.Find("StarGen/AtlasBillboard"));
-            _material.SetTexture("_MainTex", AtlasTextures.SoftDot);
+            _material.SetTexture("_MainTex", AtlasTextures.SolidDot);
             _material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
             _material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            _material.SetFloat("_MaxPx", 26f);
+            _material.SetFloat("_MaxPx", 96f);
             GetComponent<MeshRenderer>().material = _material;
         }
 
@@ -52,25 +52,30 @@ namespace StarGen.AtlasView
             var markers = PortLens.Markers(model, eye);
             var vertices = new Vector3[markers.Count * 4];
             var corners = new List<Vector4>(markers.Count * 4);
-            var colors = new Color32[markers.Count * 4];
+            var colors = new Color[markers.Count * 4];   // linearized floats
             var triangles = new int[markers.Count * 6];
             for (int i = 0; i < markers.Count; i++)
             {
                 var m = markers[i];
                 var center = AtlasGeometry.HexToWorld(m.Hex, Z);
-                // The artifact's dot: ~(2 + 1.4·tier) px radius → diameter.
-                float px = (2f + 1.4f * m.Tier) * 2.4f;
-                var color = AtlasGeometry.ToColor32(m.Color);
+                // Dual sizing: a tier-scaled pixel floor at altitude (the
+                // artifact's 2+1.4·tier px dots), a tier-scaled WORLD size
+                // that takes over as the camera descends — tier differences
+                // become spatial at region/hex bands.
+                float px = (2f + 1.4f * m.Tier) * 2.0f;
+                float world = (0.35f + 0.25f * m.Tier) * AtlasGeometry.HexStep;
+                var color = ((Color)AtlasGeometry.ToColor32(m.Color)).linear;
+                color.a = 1f;
                 int v = i * 4;
                 for (int c = 0; c < 4; c++)
                 {
                     vertices[v + c] = center;
                     colors[v + c] = color;
                 }
-                corners.Add(new Vector4(-0.5f, -0.5f, 0f, px));
-                corners.Add(new Vector4(0.5f, -0.5f, 0f, px));
-                corners.Add(new Vector4(0.5f, 0.5f, 0f, px));
-                corners.Add(new Vector4(-0.5f, 0.5f, 0f, px));
+                corners.Add(new Vector4(-0.5f, -0.5f, world, px));
+                corners.Add(new Vector4(0.5f, -0.5f, world, px));
+                corners.Add(new Vector4(0.5f, 0.5f, world, px));
+                corners.Add(new Vector4(-0.5f, 0.5f, world, px));
                 int t = i * 6;
                 triangles[t] = v;
                 triangles[t + 1] = v + 2;
