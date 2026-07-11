@@ -29,7 +29,8 @@ public static class NarrativeView
                                          IEnumerable<WorldEvent> events)
     {
         var eras = EraDetector.Detect(state);
-        int years = state.Config.Sim.YearsPerEpoch;
+        // era buckets are generations, not integration steps (slice J)
+        int years = state.Config.Sim.GenerationYears;
         var sb = new StringBuilder();
         Era? current = null;
         int shown = 0;
@@ -55,6 +56,26 @@ public static class NarrativeView
     private static string EraHeader(Era era) =>
         era.Name + " · " + SimTraceView.YearLabel(era.StartYear) + "–"
         + SimTraceView.YearLabel(era.EndYear);
+
+    // ---- the open-threads panel (slice J: the world in motion) ----
+
+    /// <summary>The handoff's open-threads surface: what is loaded, half
+    /// won, leveraged, burning, or unanswered right now.</summary>
+    public static string RenderThreads(SimState state)
+    {
+        var threads = HandoffView.OpenThreads(state);
+        var sb = new StringBuilder();
+        sb.AppendLine(Invariant(
+            $"the world in motion — {threads.Count} open ")
+            + (threads.Count == 1 ? "thread" : "threads")
+            + Invariant($" at y{state.WorldYear}"));
+        foreach (var t in threads)
+            sb.AppendLine(Invariant($"  [{t.Kind,-11}] ") + t.Text);
+        if (threads.Count == 0)
+            sb.AppendLine("  (a tidied museum — nothing is in motion;"
+                          + " this should worry you more than a war)");
+        return sb.ToString();
+    }
 
     // ---- the poi registry panel ----
 

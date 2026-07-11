@@ -48,6 +48,8 @@ public sealed class Repl
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
                     Console.WriteLine("belief <x> [y] — what polity x believes (vs truth) · news [id] — pulses in transit / one journey");
                     Console.WriteLine("stances [id] — reputation per audience · emap plague — the contagion layer");
+                    Console.WriteLine("threads — the world in motion: loaded tensions, half-won wars, old thrones,");
+                    Console.WriteLine("   leveraged corporations, burning plagues, unanswered offers (the handoff surface)");
                     Console.WriteLine("watch <seed> [radius] [epochs] [frameMs] — the whole story as one in-place animation:");
                     Console.WriteLine("   cosmic gas → life + precursor waves → political domains, every sim step a frame");
                     Console.WriteLine("gwatch [cosmic|life] [layer] [every N] — one genesis clock, in-place animated");
@@ -267,7 +269,7 @@ public sealed class Repl
                         + "severs every lane at that port's approaches");
                     break;
                 case "chronicle" or "eras" or "poi" or "belief" or "news"
-                    or "stances" when _sim == null:
+                    or "stances" or "threads" when _sim == null:
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "belief" when parts.Length >= 2 && int.TryParse(parts[1], out var bObs):
@@ -292,6 +294,9 @@ public sealed class Repl
                     break;
                 case "eras":
                     Console.WriteLine(NarrativeView.RenderEras(_sim!));
+                    break;
+                case "threads":
+                    Console.WriteLine(NarrativeView.RenderThreads(_sim!));
                     break;
                 case "poi" when parts.Length >= 2 && int.TryParse(parts[1], out var poiId):
                     Console.WriteLine(NarrativeView.RenderPoi(_sim!, poiId));
