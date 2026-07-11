@@ -93,4 +93,4 @@ helpers only. Controller eye stays a seam.
    interfaces that just landed) · update/republish the living design
    diagram if the build deviated · push only on user say-so.
 
-- [ ] Slice K1 complete
+- [x] Slice K1 complete

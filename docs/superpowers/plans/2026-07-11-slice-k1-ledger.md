@@ -136,10 +136,16 @@ to start K1 in the same session.
         draws every hex in the disc. Economic exclusion untouched.
         CONVENTION: the atlas diverges from the REPL's blank-glyph
         voids going forward (user-confirmed).
-- [ ] **T7f — USER: atlas eyeball, final pass**
-- [ ] **T8 — Wrap-up**: merge on user nod · HANDOFF · tick K1 in the K
-      roadmap · write K2 kickoff prompt · republish design diagram if
-      deviated · push only on say-so
+- [x] **T7f — USER: atlas eyeball — ACCEPTED** (2026-07-11, "good
+      start, let's wrap up") after one last flavor wave: denser
+      two-population starfield with filament clumping (`d7d4a15` — the
+      distribution pin caught Frac(h>>55) starving the 21-bit mask).
+      Final gates: 602/602 dotnet · EditMode 3/3 · goldens/determinism
+      untouched throughout · smoke suite (4 shots incl. gas+starfield)
+      renders the design language.
+- [x] **T8 — Wrap-up**: merged to main · HANDOFF · K1 ticked in the K
+      roadmap · K2 kickoff prompt written · design diagram amended +
+      republished · push on say-so
 
 ## Salvaged rendering lessons (PoC read 2026-07-11, then deleted)
 
