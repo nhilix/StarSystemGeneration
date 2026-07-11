@@ -110,8 +110,19 @@ scope restated in-session.
       salvage fields. Lawlessness/piracy wire deliberately deferred
       (design table lists it; kickoff scope names salvage + expeditions
       — flag for J if wanted).
-- [ ] I8 — Salvage + expeditions: corporate salvage niche, conserving
+- [x] I8 — Salvage + expeditions: corporate salvage niche, conserving
       draws, Explorer notable, precursor digging; hull-ledger test.
+      Notes: CorporateNiche.Salvage (6, "Salvors"); supply lands in the
+      Markets phase via scratch.Supplies (buyers pay at distribution —
+      no credit mint); WreckageRecords stay immutable, depletion on the
+      POI; stripped fields stop teaching (TechOps lesson × remaining
+      fraction); precursor digs yield exotics + Astrogation lessons and
+      deplete the site; salvage charter mints the Explorer. Ruins-POI
+      salvage deliberately skipped (battlefields + precursor sites are
+      the kickoff's named niches). Seed 42 × 40: 8+ salvor corps
+      chartered organically. ExpansionTests guard extended: civil-war
+      splits move ports without capture events (new history hit an old
+      gap).
 - [ ] I9 — Plagues: PlagueOps + QuarantineAct resolution + immunity/
       burnout + events + `emap plague`; conservation + burnout tests.
 - [ ] I10 — REPL polish: `belief`, `news`, `stances` panels; chronicle

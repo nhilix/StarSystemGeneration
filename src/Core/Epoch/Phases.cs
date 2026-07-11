@@ -207,6 +207,7 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.SupplyLands(state, scratch);
+        CorporationOps.SalvageLands(state, scratch);   // salvors strip fields
         MarketEngine.AssembleDemand(state, scratch);
         MarketEngine.AddIndustrialDemand(state, scratch);
         MarketEngine.AddConstructionPull(state, scratch);

@@ -12,6 +12,7 @@ public enum CorporateNiche
     Fabrication = 3,  // industrial gaps → fabricator combine
     Cartel = 4,       // profitable *prohibited* niche — chartered nowhere
     Raiding = 5,      // lawless lanes → pirate band (teeth arrive with H)
+    Salvage = 6,      // battlefield/precursor POIs → salvors (slice I)
 }
 
 /// <summary>The unified credit surface production and payouts move money

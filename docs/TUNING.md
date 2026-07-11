@@ -294,6 +294,13 @@ hex, arbitrated by magnitude (chronicle-and-poi.md).
 | `Poi.PermanentMagnitude` | 20 | Most salvaged-out fields fade; archaeology is rare. | Every old battlefield litters the map forever. |
 | `Poi.RuinsDeadEpochs` | 2 | Cities must lie long dead before ruins anchor (migration blips forgiven). | Any evacuation reads as a fall. |
 | `Poi.SurveyReachHexes` | 10 | Precursor sites chart from far off — the deep past surfaces early. | Sites stay unknown until someone builds next door. |
+| `Poi.SalvageNicheHullFloor` | 6 | Only rich fields draw salvors. | Every skirmish spawns an expedition. |
+| `Poi.SalvageReachHexes` | 12 | Salvors work fields deep in the wilds. | Only battlefields at the doorstep get stripped. |
+| `Poi.SalvageHullsPerYear` | 0.2 | Fields strip within an epoch or two (salvage booms are short). | Wrecks outlast the wars that made them. |
+| `Poi.SalvageAlloysPerHull` / `ComponentsPerHull` | 3 / 1 | Salvage floods the alloy market (frontier yards run on the dead). | Stripping barely pays. |
+| `Poi.DigExoticsPerYear` | 0.15 | Precursor digs rival exotics mines. | Digs are archaeology, not industry. |
+| `Poi.DigMagnitudeDecayPerYear` | 0.02 | Sites dig out within centuries. | The deep past is effectively bottomless. |
+| `Poi.DigResearchPerYear` | 0.01 | Digging precursors is a tech strategy. | Ruins yield goods, not insight. |
 
 ## Infrastructure — port physics and construction
 

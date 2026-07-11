@@ -17,7 +17,7 @@ public static class CorporationOps
 {
     /// <summary>Corp name suffix per niche (index = CorporateNiche).</summary>
     private static readonly string[] Suffix =
-        { "", "Consortium", "Line", "Works", "Cartel", "Corsairs" };
+        { "", "Consortium", "Line", "Works", "Cartel", "Corsairs", "Salvors" };
 
     // ---- the niche watcher (Interior phase) ----
 
@@ -109,6 +109,20 @@ public static class CorporationOps
             if (best < knobs.DepositNichePotential) continue;
             if (!HasFacilityKind(state, port, extraction: true))
                 return (CorporateNiche.Extraction, port.Id);
+        }
+        // salvage in reach → salvage corporation: a battlefield's hulls or
+        // a charted (non-dormant) precursor site is a persistent profit
+        // niche (chronicle-and-poi.md §The POI compiler, slice I)
+        foreach (var poi in state.Pois)                       // id order (P6)
+        {
+            if (poi.Depleted || SalvorExists(state, poi.Id)) continue;
+            bool diggable = poi.Type == PoiType.Battlefield
+                    && poi.SalvageRemaining >= state.Config.Poi.SalvageNicheHullFloor
+                || (poi.Type == PoiType.PrecursorSite && !poi.Dormant);
+            if (!diggable) continue;
+            if (NearestOwnPort(state, pr.ActorId, poi.Hex,
+                    state.Config.Poi.SalvageReachHexes) >= 0)
+                return (CorporateNiche.Salvage, poi.Id);
         }
         // industrial gaps → fabricator combine
         foreach (var port in state.Ports)
@@ -210,6 +224,28 @@ public static class CorporationOps
         return false;
     }
 
+    private static bool SalvorExists(SimState state, int poiId)
+    {
+        foreach (var corp in state.Corporations)
+            if (corp.Active && corp.Niche == CorporateNiche.Salvage
+                && corp.TargetId == poiId) return true;
+        return false;
+    }
+
+    /// <summary>Nearest port an actor owns within reach of a hex; −1 none.</summary>
+    private static int NearestOwnPort(SimState state, int actorId,
+                                      Model.HexCoordinate hex, int reach)
+    {
+        int best = -1, bestDist = int.MaxValue;
+        foreach (var port in state.Ports)                     // id order (P6)
+        {
+            if (port.OwnerActorId != actorId) continue;
+            int d = HexGrid.Distance(port.Hex, hex);
+            if (d <= reach && d < bestDist) { best = port.Id; bestDist = d; }
+        }
+        return best;
+    }
+
     // ---- founding (Interior phase) ----
 
     /// <summary>Charter graduations: a merchant faction whose niche has
@@ -249,8 +285,14 @@ public static class CorporationOps
                                 Faction faction, bool outlaw)
     {
         var niche = (CorporateNiche)faction.NicheType;
-        int homePort = niche == CorporateNiche.Freight
-            ? state.Lanes[faction.ContextId].PortAId : faction.ContextId;
+        int homePort = niche switch
+        {
+            CorporateNiche.Freight => state.Lanes[faction.ContextId].PortAId,
+            // salvors base at the nearest own port to their field
+            CorporateNiche.Salvage => NearestOwnPort(state, pr.ActorId,
+                state.Pois[faction.ContextId].Hex, int.MaxValue),
+            _ => faction.ContextId,
+        };
         int actorId = state.Actors.Count;
         string name = CorpName(state, actorId, niche);
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
@@ -261,6 +303,8 @@ public static class CorporationOps
             outlaw ? -1 : pr.ActorId, niche, homePort, state.WorldYear)
         {
             Credits = faction.Wealth,   // the war chest capitalizes it (P4)
+            // the field (or site) the expedition works
+            TargetId = niche == CorporateNiche.Salvage ? faction.ContextId : -1,
         };
         faction.Wealth = 0;
         faction.Active = false;         // the merchant faction incorporated
@@ -281,6 +325,11 @@ public static class CorporationOps
             outlaw ? EventVisibility.Regional : EventVisibility.Public,
             new CorporationCharteredPayload(corp.Id, name,
                 outlaw ? -1 : pr.ActorId, (int)niche)));
+        // a salvage charter is a ruin expedition setting out — it arms the
+        // Explorer notable (characters.md §Notables, slice I)
+        if (niche == CorporateNiche.Salvage)
+            CharacterOps.MintNotable(state, pr.ActorId, NotableType.Explorer,
+                                     state.Pois[corp.TargetId].Hex);
     }
 
     /// <summary>The other outlaw cousin: where the profitable niche is
@@ -549,6 +598,78 @@ public static class CorporationOps
                     break;
             }
         }
+    }
+
+    /// <summary>Salvage supply lands with everyone else's (Markets phase,
+    /// after SupplyLands): salvors strip their field — battlefield hulls
+    /// become alloys and components at declining grade; a precursor dig
+    /// yields exotics and teaches the host polity (the full-consumption
+    /// channel TechOps only hinted at). Goods are minted from wreckage the
+    /// hull ledger already counted; credits arrive only when buyers pay at
+    /// distribution — conserved end to end (P4). Returns working salvors.</summary>
+    public static int SalvageLands(SimState state, MarketStepScratch scratch)
+    {
+        var knobs = state.Config.Poi;
+        int years = state.Config.Sim.YearsPerEpoch;
+        int working = 0;
+        foreach (var corp in state.Corporations)              // id order (P6)
+        {
+            if (!corp.Active || corp.Niche != CorporateNiche.Salvage) continue;
+            if (corp.TargetId < 0 || corp.TargetId >= state.Pois.Count) continue;
+            var poi = state.Pois[corp.TargetId];
+            if (poi.Depleted) continue;
+            int mIx = corp.HomePortId;
+            if (poi.Type == PoiType.Battlefield)
+            {
+                int hulls = (int)Math.Min(poi.SalvageRemaining, Math.Max(1.0,
+                    Math.Round(knobs.SalvageHullsPerYear * years)));
+                if (hulls <= 0) continue;
+                // declining grade: the best pickings go first
+                double grade = 0.3 + 0.4 * (poi.Magnitude > 0
+                    ? poi.SalvageRemaining / poi.Magnitude : 0.0);
+                poi.HullsSalvaged += hulls;
+                DepositSalvage(state, scratch, mIx, corp.ActorId,
+                    GoodId.Alloys, hulls * knobs.SalvageAlloysPerHull, grade);
+                DepositSalvage(state, scratch, mIx, corp.ActorId,
+                    GoodId.ShipComponents,
+                    hulls * knobs.SalvageComponentsPerHull, grade);
+                working++;
+            }
+            else if (poi.Type == PoiType.PrecursorSite && !poi.Dormant)
+            {
+                double dig = Math.Min(poi.Magnitude,
+                                      knobs.DigMagnitudeDecayPerYear * years);
+                if (dig <= 0) continue;
+                poi.Magnitude -= dig;
+                if (poi.Magnitude <= 0.25) poi.Depleted = true;   // dug out
+                DepositSalvage(state, scratch, mIx, corp.ActorId,
+                    GoodId.Exotics, knobs.DigExoticsPerYear * years,
+                    grade: 0.9);
+                if (corp.HostPolityId >= 0)
+                {
+                    var pr = state.PolityOf(corp.HostPolityId);
+                    double lesson = knobs.DigResearchPerYear * years;
+                    TechOps.Advance(state, pr, TechDomain.Astrogation, lesson);
+                    TechOps.Advance(state, pr, TechDomain.Industrial,
+                                    lesson * 0.5);
+                }
+                working++;
+            }
+        }
+        return working;
+    }
+
+    /// <summary>Deposit recovered goods and register the supply so buyers'
+    /// payments flow to the salvor at distribution (MarketEngine.Deposit's
+    /// pattern — unsold salvage earns nothing).</summary>
+    private static void DepositSalvage(SimState state, MarketStepScratch scratch,
+        int mIx, int ownerActorId, GoodId good, double qty, double grade)
+    {
+        if (qty <= 0) return;
+        var market = state.Markets[mIx];
+        market.Deposit((int)good, qty, grade);
+        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId,
+                                              qty * market.Price[(int)good]));
     }
 
     /// <summary>Conglomerates and combines build where their niche points:

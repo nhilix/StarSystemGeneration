@@ -47,6 +47,26 @@ public sealed class PoiKnobs
     /// <summary>Hexes from any entered port at which a precursor site gets
     /// charted — exploration surfaces the deep past.</summary>
     public int SurveyReachHexes { get; set; } = 10;
+    /// <summary>Battlefield hulls remaining below which no salvor bothers
+    /// to incorporate.</summary>
+    public double SalvageNicheHullFloor { get; set; } = 6.0;
+    /// <summary>Hexes from an own port within which a POI reads as a
+    /// workable salvage niche.</summary>
+    public int SalvageReachHexes { get; set; } = 12;
+    /// <summary>Hulls a working salvor strips from its field per world-year.</summary>
+    public double SalvageHullsPerYear { get; set; } = 0.2;
+    /// <summary>Alloys recovered per stripped hull (declining grade).</summary>
+    public double SalvageAlloysPerHull { get; set; } = 3.0;
+    /// <summary>Ship components recovered per stripped hull.</summary>
+    public double SalvageComponentsPerHull { get; set; } = 1.0;
+    /// <summary>Exotics a precursor dig yields per world-year.</summary>
+    public double DigExoticsPerYear { get; set; } = 0.15;
+    /// <summary>Site magnitude a dig consumes per world-year — the site
+    /// depletes toward archaeology-done.</summary>
+    public double DigMagnitudeDecayPerYear { get; set; } = 0.02;
+    /// <summary>Astrogation research progress a precursor dig hands the
+    /// host polity per world-year (Industrial at half).</summary>
+    public double DigResearchPerYear { get; set; } = 0.01;
 }
 
 /// <summary>News-graph dials (narrative/perception-and-news.md, fleets doc
