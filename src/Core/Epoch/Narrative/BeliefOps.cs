@@ -66,19 +66,69 @@ public static class BeliefOps
         }
         if (fresh || state.WorldYear - b!.HeardYear
                 >= DelayBetween(state, observerId, subjectId, fields))
-        {
-            b!.HeardYear = state.WorldYear;
-            b.Strength = strengths.TryGetValue(subjectId, out double s) ? s : 0;
-            b.DefensiveStrength = DefensiveStrength(state, subjectId, strengths);
-            b.Menu.Clear();
-            foreach (var (cause, subject) in WarOps.Menu(state, observerId,
-                                                         subjectId))
-                b.Menu.Add(new CasusBelliOption(cause, subject));
-            b.ObjectiveCandidates.Clear();
-            b.ObjectiveCandidates.AddRange(
-                ObjectiveCandidates(state, observerId, subjectId));
-        }
+            RefreshPolity(state, observerId, b!, strengths);
         return b!;
+    }
+
+    /// <summary>Take the snapshot: truth as of now, frozen until the next
+    /// refresh.</summary>
+    private static void RefreshPolity(SimState state, int observerId,
+        PolityBelief b, IReadOnlyDictionary<int, double> strengths)
+    {
+        b.HeardYear = state.WorldYear;
+        b.Strength = strengths.TryGetValue(b.SubjectId, out double s) ? s : 0;
+        b.DefensiveStrength = DefensiveStrength(state, b.SubjectId, strengths);
+        b.Menu.Clear();
+        foreach (var (cause, subject) in WarOps.Menu(state, observerId,
+                                                     b.SubjectId))
+            b.Menu.Add(new CasusBelliOption(cause, subject));
+        b.ObjectiveCandidates.Clear();
+        b.ObjectiveCandidates.AddRange(
+            ObjectiveCandidates(state, observerId, b.SubjectId));
+    }
+
+    /// <summary>Walk the active pulses and deliver each to every polity the
+    /// word has reached — arrival, not emission, updates belief
+    /// (perception-and-news.md §News pulses). Returns deliveries made.</summary>
+    public static int DeliverPulses(SimState state,
+        IReadOnlyDictionary<int, double> strengths, NewsFieldCache fields)
+    {
+        var knobs = state.Config.News;
+        int delivered = 0;
+        foreach (var pulse in state.Pulses)               // id order (P6)
+        {
+            double age = state.WorldYear - pulse.EmitYear;
+            if (age < 0 || age > knobs.PulseMaxYears) continue;
+            double[]? field = null;
+            foreach (var a in state.Actors)               // id order (P6)
+            {
+                if (!a.Entered || a.Kind != ActorKind.Polity
+                    || pulse.DeliveredTo(a.Id)) continue;
+                field ??= fields.FieldFor(state, pulse.Origin);
+                if (age < NewsOps.DelayYears(state, a.Id, field, pulse.Origin))
+                    continue;
+                pulse.Delivered.Add((a.Id, state.WorldYear));
+                delivered++;
+                OnArrival(state, a, pulse, strengths);
+            }
+        }
+        return delivered;
+    }
+
+    /// <summary>What one arrival does to the hearer: any belief it holds
+    /// about an involved polity refreshes if the word is newer than the
+    /// snapshot (the courier carries more than the headline).</summary>
+    private static void OnArrival(SimState state, Actor observer,
+        NewsPulse pulse, IReadOnlyDictionary<int, double> strengths)
+    {
+        var e = state.Log.Events[(int)pulse.EventId];
+        foreach (var subjectId in e.Actors)
+        {
+            if (subjectId == observer.Id) continue;
+            if (observer.Beliefs.Polities.TryGetValue(subjectId, out var b)
+                && pulse.EmitYear > b.HeardYear)
+                RefreshPolity(state, observer.Id, b, strengths);
+        }
     }
 
     /// <summary>The belligerent's belief about a war it is in: the front

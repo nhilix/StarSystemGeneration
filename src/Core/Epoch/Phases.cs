@@ -28,6 +28,9 @@ public sealed class PerceptionPhase : ISimPhase
         foreach (var a in state.Actors)
             if (a.Entered && a.Kind == ActorKind.Polity)
                 strengths[a.Id] = FleetOps.WarStrength(state, a.Id);
+        // news arrives first: pulses whose age covers the delay deliver,
+        // refreshing beliefs (and repricing stances) before anyone decides
+        int arrivals = BeliefOps.DeliverPulses(state, strengths, fields);
         int perceiving = 0;
         foreach (var a in state.Actors)
         {
@@ -112,7 +115,11 @@ public sealed class PerceptionPhase : ISimPhase
                                               wars);
             perceiving++;
         }
-        return $"{perceiving} actors perceive";
+        string note = $"{perceiving} actors perceive";
+        if (arrivals > 0)
+            note += $", {arrivals} news " + (arrivals == 1
+                ? "arrival" : "arrivals");
+        return note;
     }
 
     /// <summary>One polity's relation briefs: the pair-diplomatic state it
@@ -1362,20 +1369,36 @@ public sealed class InteriorPhase : ISimPhase
 }
 
 /// <summary>Phase 7 — events finalized with world-years and appended to the
-/// one log. News pulses and map residue attach in later slices; chronicle
-/// runs last so next step's news is this step's history.</summary>
+/// one log; public events over the magnitude floor emit news pulses that
+/// arrive in future steps by distance and traffic (slice I). Chronicle runs
+/// last so next step's news is this step's history.</summary>
 public sealed class ChroniclePhase : ISimPhase
 {
     public string Name => "Chronicle";
 
     public string Run(SimState state)
     {
+        int pulses = 0;
         foreach (var e in state.Staged)
-            state.Log.Append(state.WorldYear, e.Stratum, e.Type, e.Actors,
-                             e.Location, e.Magnitude, e.Valence, e.Visibility,
-                             e.Payload);
+        {
+            var appended = state.Log.Append(state.WorldYear, e.Stratum, e.Type,
+                             e.Actors, e.Location, e.Magnitude, e.Valence,
+                             e.Visibility, e.Payload);
+            if (e.Visibility == EventVisibility.Public
+                && e.Magnitude >= state.Config.News.PulseMagnitudeFloor)
+            {
+                state.Pulses.Add(new NewsPulse(state.Pulses.Count, appended.Id,
+                    e.Location, state.WorldYear, e.Magnitude));
+                pulses++;
+            }
+        }
         int count = state.Staged.Count;
         state.Staged.Clear();
-        return count == 1 ? "1 event finalized" : $"{count} events finalized";
+        string note = count == 1 ? "1 event finalized"
+            : $"{count} events finalized";
+        if (pulses > 0)
+            note += $", {pulses} " + (pulses == 1 ? "pulse" : "pulses")
+                + " emitted";
+        return note;
     }
 }

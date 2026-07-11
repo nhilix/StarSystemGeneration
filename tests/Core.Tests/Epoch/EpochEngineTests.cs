@@ -127,7 +127,7 @@ public class EpochEngineTests
         // the trace pluralizes correctly (byte-compared text: get it right now)
         Assert.Equal("1 polity enters",
             state.Trace.Single(t => t.Epoch == 0 && t.Phase == "Interior").Note);
-        Assert.Equal("1 event finalized",
+        Assert.Equal("1 event finalized, 1 pulse emitted",
             state.Trace.Single(t => t.Epoch == 0 && t.Phase == "Chronicle").Note);
 
         engine.Step(state);   // epoch 1: Perception serves Early, Intent reads it

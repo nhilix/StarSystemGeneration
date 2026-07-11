@@ -44,6 +44,12 @@ public sealed class NewsKnobs
     public double TrafficSaturationTripsPerYear { get; set; } = 4.0;
     /// <summary>Off-lane carriage — wilds barely carry news.</summary>
     public double OffLaneSpeedHexPerYear { get; set; } = 0.5;
+    /// <summary>Magnitude below which a public event emits no pulse —
+    /// the galaxy doesn't gossip about every dock fee.</summary>
+    public double PulseMagnitudeFloor { get; set; } = 0.5;
+    /// <summary>Age at which an undelivered pulse attenuates to rumor and
+    /// stops being carried.</summary>
+    public double PulseMaxYears { get; set; } = 150.0;
 }
 
 /// <summary>War dials (interpolity/war.md): the spark's incidence, the

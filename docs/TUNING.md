@@ -270,6 +270,8 @@ consequences on truth.
 | `News.TrafficSpeedBonus` | 12.0 | Busy corridors are near-instant (the core thinks as one). | Traffic doesn't matter; all lanes crawl alike. |
 | `News.TrafficSaturationTripsPerYear` | 4.0 | Only huge convoys speed the mail (most lanes stay slow). | A single posted hauler maxes the lane's carriage. |
 | `News.OffLaneSpeedHexPerYear` | 0.5 | Wilds leak news; isolation stops working. | Off-network polities live years behind the times. |
+| `News.PulseMagnitudeFloor` | 0.5 | Only landmark events travel; the log stays quiet abroad. | Every public hiccup pulses galaxy-wide. |
+| `News.PulseMaxYears` | 150 | Ancient rumors still land on the far rim. | Word that misses its window is lost to distance. |
 
 ## Infrastructure — port physics and construction
 

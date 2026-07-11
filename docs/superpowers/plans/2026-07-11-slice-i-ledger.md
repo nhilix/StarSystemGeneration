@@ -69,8 +69,13 @@ scope restated in-session.
       deliberately left as the capital's own view (it surveys nature,
       which doesn't move — nothing to stale). Golden regenerated
       (belief layer + behavior change); refreezes at slice end.
-- [ ] I3 — News pulses: emission at Chronicle, delivery at Perception,
+- [x] I3 — News pulses: emission at Chronicle, delivery at Perception,
       serialization, expiry; arrival-not-emission test.
+      Notes: pulse journeys (per-polity arrival years) live on the pulse
+      record — the REPL news panel reads them; NO NewsArrived log events
+      (would multiply the log by the polity count). Delivery also
+      force-refreshes any existing belief about involved polities when
+      the word is newer than the snapshot.
 - [ ] I4 — Stances + reputation: stance table, temperament-filtered
       updates per conduct event family, decay; WarmthTarget reputation
       term; FirstContact seeds pre-heard stances; tests (breaker meets

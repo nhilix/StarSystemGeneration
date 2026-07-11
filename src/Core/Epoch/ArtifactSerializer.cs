@@ -30,6 +30,7 @@ public static class ArtifactSerializer
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
         ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
+        ("pulses", 1),
     };
 
     public static string ToText(SimState state)
@@ -358,7 +359,38 @@ public static class ArtifactSerializer
                     b.CorpId.ToString(Inv), b.HeardYear.ToString(Inv),
                     R(b.Credits)));
         }
+
+        Layer(w, "pulses");
+        foreach (var p in state.Pulses)
+            w.WriteLine(Join("PULSE", p.Id.ToString(Inv),
+                p.EventId.ToString(Inv), p.Origin.Q.ToString(Inv),
+                p.Origin.R.ToString(Inv), p.EmitYear.ToString(Inv),
+                R(p.Magnitude), DeliveryList(p.Delivered)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Pulse deliveries as "actor:year;…"; "-" when unheard.</summary>
+    private static string DeliveryList(
+        IReadOnlyList<(int ActorId, long Year)> delivered)
+    {
+        if (delivered.Count == 0) return "-";
+        var parts = new string[delivered.Count];
+        for (int i = 0; i < delivered.Count; i++)
+            parts[i] = delivered[i].ActorId.ToString(Inv) + ":"
+                       + delivered[i].Year.ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseDeliveryList(string field,
+        List<(int ActorId, long Year)> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add((int.Parse(part.Substring(0, colon), Inv),
+                      long.Parse(part.Substring(colon + 1), Inv)));
+        }
     }
 
     /// <summary>Casus-belli menu as "cause:subject;…"; "-" when empty.</summary>
@@ -1112,6 +1144,20 @@ public static class ArtifactSerializer
                         };
                         state!.Actors[int.Parse(f[1], Inv)].Beliefs.Corporations
                             .Add(belief.CorpId, belief);
+                        break;
+                    }
+                    case "PULSE":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Pulses.Count)
+                            throw new InvalidDataException(
+                                "pulse ids out of order");
+                        var pulse = new NewsPulse(int.Parse(f[1], Inv),
+                            long.Parse(f[2], Inv),
+                            new HexCoordinate(int.Parse(f[3], Inv),
+                                              int.Parse(f[4], Inv)),
+                            long.Parse(f[5], Inv), double.Parse(f[6], Inv));
+                        ParseDeliveryList(f[7], pulse.Delivered);
+                        state.Pulses.Add(pulse);
                         break;
                     }
                     case "EVENT":
