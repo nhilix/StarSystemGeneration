@@ -77,8 +77,13 @@ visible wound.
   clock) to earn a congested corridor its express bypass. A→B→C→D chains carry
   the traffic, intermediate ports get their hauler wages and market flow, and
   hubs emerge from geometry instead of subsidy.
-- **Pace**: a gate pair is a generational project — one lane per polity per
-  generation, whatever the integration step (P7).
+- **Founding links**: an isolated port's first lane is the colonization
+  chain's last step — colony ship arrives, the foothold establishes (port +
+  essential industry), then the connecting gate joins the new system to the
+  polity network for import/export/migration. The builder links every isolated
+  port to its nearest eligible partner (preferring one already on the network)
+  before any densification project; no port is left off the web while a
+  reachable, affordable partner exists.
 - **Cross-border lanes**: polities pair with trade-pact partners' ports;
   **freight-line corporations** bridge any profitable, non-hostile border on
   their own books, owning and tolling both gates — no treaty required, so

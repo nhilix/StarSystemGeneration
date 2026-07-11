@@ -209,18 +209,29 @@ public class CorporationTests
         knobs.FabricationPriceRatio = 1e9;
         knobs.PiracyLengthPerHex = piracyLengthPerHex;
         foreach (var poi in state.Pois) poi.Depleted = true;
-        // lower-id port must belong to an interior polity (the scan's key)
+        // lower-id port must belong to an interior polity (the scan's key).
+        // Both lane ends are FRESH ports far out in the wilds: founding
+        // links now web up history's ports, and ruins at a homeworld would
+        // shadow every lane there — the fixture needs the only lane in the
+        // ruin's reach to be its own (FieldsAt is total off-raster).
         foreach (var port in state.Ports)
         {
             int owner = port.OwnerActorId;
             if (owner < 0 || !state.Actors[owner].Entered) continue;
             if (state.PolityOf(owner).Interior == null) continue;
-            var far = new Port(state.Ports.Count, owner,
-                new StarGen.Core.Model.HexCoordinate(port.Hex.Q + 10,
-                    port.Hex.R), 1, (int)state.WorldYear);
-            state.Ports.Add(far);
-            state.Markets.Add(new Market(far.Id, state.Config.Economy));
-            var lane = EpochTestKit.AddLane(state, port.Id, far.Id);
+            var hexA = new StarGen.Core.Model.HexCoordinate(
+                port.Hex.Q + 40, port.Hex.R + 40);
+            var hexB = new StarGen.Core.Model.HexCoordinate(
+                hexA.Q + 10, hexA.R);
+            var pa = new Port(state.Ports.Count, owner, hexA, 1,
+                              (int)state.WorldYear);
+            state.Ports.Add(pa);
+            state.Markets.Add(new Market(pa.Id, state.Config.Economy));
+            var pb = new Port(state.Ports.Count, owner, hexB, 1,
+                              (int)state.WorldYear);
+            state.Ports.Add(pb);
+            state.Markets.Add(new Market(pb.Id, state.Config.Economy));
+            var lane = EpochTestKit.AddLane(state, pa.Id, pb.Id);
             EpochTestKit.PostFreight(state, owner, lane.Id, hulls: 8);
             double capacity = FleetOps.PostedCapacity(state, lane);
             Assert.True(capacity > 0);
@@ -228,7 +239,7 @@ public class CorporationTests
             knobs.RaidCapacityFloor =
                 capacity * 1.2 / state.Config.Poi.LawlessRaidFactor;
             state.Pois.Add(new PoiRecord(state.Pois.Count, PoiType.Ruins,
-                port.Hex, magnitude: 2.0, state.WorldYear));
+                hexA, magnitude: 2.0, state.WorldYear));
             return (state, lane);
         }
         throw new System.InvalidOperationException("no interior polity port");

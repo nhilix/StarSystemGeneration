@@ -693,28 +693,19 @@ public sealed class AllocationPhase : ISimPhase
         return issued;
     }
 
-    /// <summary>Gate-pair lane construction (lane-economics spec §§1–3):
-    /// candidates are own-port pairs plus pact-partner ports (one end must
-    /// be own — interpolity/relations.md §Treaties teeth), filtered by gate
-    /// reach, slot budgets, and the network detour/congestion rule; the
-    /// cheapest eligible pair builds first while the development treasury
-    /// and both port markets afford the two gates. One funder pays both
-    /// ends in one step — half-built gates only ever arise from later
-    /// destruction.</summary>
+    /// <summary>Gate-pair lane construction (lane-economics spec §§1–3), two
+    /// passes. **Founding links** first: every isolated own port seeks its
+    /// nearest eligible partner (preferring one already on the network) —
+    /// the connecting gate is the colonization chain's last step and rides
+    /// outside the generational cadence, so a new colony joins the polity's
+    /// import/export/migration web as it is founded. **Densification**
+    /// second: one extra lane per generation through the full
+    /// detour/congestion rule. One funder pays both ends in one step —
+    /// half-built gates only ever arise from later destruction.</summary>
     private static int BuildLanes(SimState state, PolityRecord pr, List<Port> ownPorts)
     {
         var cfg = state.Config;
         int built = 0;
-        // one lane per polity per generation, in world-time: a gate pair is
-        // a generational project, and fine ticks must not build faster than
-        // coarse ones (P7 — the same rate at any integration step)
-        long lastGateYear = long.MinValue;
-        foreach (var f in state.Facilities)
-            if (f.OwnerActorId == pr.ActorId
-                && f.TypeId == (int)Substrate.InfraTypeId.Gate
-                && f.BuiltYear > lastGateYear) lastGateYear = f.BuiltYear;
-        if (lastGateYear > long.MinValue && state.WorldYear - lastGateYear
-                < cfg.Sim.GenerationYears) return 0;
         // Astrogation stretches the pairing reach (slice G)
         int rangeBonus = TechOps.AstroRangeBonus(state, pr.ActorId);
         // trade-pact partners' ports join the candidate pool (one end of
@@ -728,6 +719,55 @@ public sealed class AllocationPhase : ISimPhase
             if (relation != null && relation.Rung >= TreatyRung.TradePact)
                 pactPorts.Add(port);
         }
+        // ports already on the live network
+        var connected = new HashSet<int>();
+        foreach (var lane in state.Lanes)
+            if (LaneMath.IsLive(state, lane))
+            { connected.Add(lane.PortAId); connected.Add(lane.PortBId); }
+
+        // ---- pass 1: founding links (isolated ports have no network path,
+        // so the detour rule is trivially satisfied and never consulted)
+        foreach (var port in ownPorts)                        // id order (P6)
+        {
+            if (connected.Contains(port.Id)) continue;
+            Port? pick = null;
+            int pickTier = 0, pickDist = int.MaxValue;
+            bool pickConnected = false;
+            for (int j = 0; j < ownPorts.Count + pactPorts.Count; j++)
+            {
+                var other = j < ownPorts.Count ? ownPorts[j]
+                    : pactPorts[j - ownPorts.Count];
+                if (other.Id == port.Id) continue;
+                var (a, b) = port.Id < other.Id ? (port, other) : (other, port);
+                if (LaneExists(state, a.Id, b.Id)) continue;
+                int dist = HexGrid.Distance(a.Hex, b.Hex);
+                int tier = LaneMath.RequiredGateTier(cfg, dist, rangeBonus);
+                if (tier < 0) continue;                        // out of reach
+                if (!LaneNetwork.HasFreeGateSlot(state, a)
+                    || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
+                double cost = 2.0 * GateValue(cfg, tier);
+                if (pr.DevelopmentPoints < cost) continue;
+                // no stock-on-hand gate here: the expedition ships the
+                // founding equipment (ColonizeResolve's convention — the
+                // colony's founding facilities draw no goods either);
+                // BuildGate still consumes whatever the pair holds
+                bool otherOn = connected.Contains(other.Id);
+                if (pick == null || (otherOn && !pickConnected)
+                    || (otherOn == pickConnected && (dist < pickDist
+                        || (dist == pickDist && other.Id < pick.Id))))
+                { pick = other; pickTier = tier; pickDist = dist;
+                  pickConnected = otherOn; }
+            }
+            if (pick == null) continue;
+            BuildLanePair(state, pr, port, pick, pickTier);
+            connected.Add(port.Id);
+            connected.Add(pick.Id);
+            built++;
+        }
+
+        // ---- pass 2: densification — cheapest eligible pair first, built
+        // while the treasury and the pair's pooled goods afford the gates
+        // (the detour/congestion rule is the pace-setter, spec §3)
         while (true)
         {
             Port? bestA = null, bestB = null;
@@ -759,26 +799,33 @@ public sealed class AllocationPhase : ISimPhase
                       bestA = a; bestB = b; }
                 }
             if (bestA == null) break;
-            pr.DevelopmentPoints -= bestCost;
-            // each end draws locally first; the shortfall ships from the
-            // partner port — state logistics, the colonization-convoy pattern
-            int gateA = BuildGate(state, pr.ActorId, bestA, bestTier, pr,
-                                  state.Markets[bestB!.Id]);
-            int gateB = BuildGate(state, pr.ActorId, bestB, bestTier, pr,
-                                  state.Markets[bestA.Id]);
-            var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id,
-                                state.WorldYear)
-            { GateAId = gateA, GateBId = gateB };
-            state.Lanes.Add(lane);
+            BuildLanePair(state, pr, bestA, bestB!, bestTier);
             built++;
-            state.Staged.Add(new StagedEvent(
-                ClockStratum.Generational, WorldEventType.LaneOpened,
-                new[] { pr.ActorId }, Midpoint(bestA.Hex, bestB.Hex),
-                Magnitude: bestTier, Valence: 1.0, EventVisibility.Regional,
-                new LaneOpenedPayload(bestA.Id, bestB.Id)));
-            break;   // the generation's one project — next lane next epoch
         }
         return built;
+    }
+
+    /// <summary>Fund and raise one gate pair and its lane: dev treasury pays
+    /// the administered value, each end draws goods locally first and ships
+    /// the shortfall from the partner port (the colonization-convoy
+    /// pattern), the LaneOpened event stages.</summary>
+    private static void BuildLanePair(SimState state, PolityRecord pr,
+                                      Port a, Port b, int tier)
+    {
+        if (a.Id > b.Id) (a, b) = (b, a);
+        pr.DevelopmentPoints -= 2.0 * GateValue(state.Config, tier);
+        int gateA = BuildGate(state, pr.ActorId, a, tier, pr,
+                              state.Markets[b.Id]);
+        int gateB = BuildGate(state, pr.ActorId, b, tier, pr,
+                              state.Markets[a.Id]);
+        state.Lanes.Add(new Lane(state.Lanes.Count, a.Id, b.Id,
+                                 state.WorldYear)
+        { GateAId = gateA, GateBId = gateB });
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.LaneOpened,
+            new[] { pr.ActorId }, Midpoint(a.Hex, b.Hex),
+            Magnitude: tier, Valence: 1.0, EventVisibility.Regional,
+            new LaneOpenedPayload(a.Id, b.Id)));
     }
 
     /// <summary>Administered founding value of one gate at a tier — the

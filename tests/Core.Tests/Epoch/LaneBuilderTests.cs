@@ -43,6 +43,24 @@ public class LaneBuilderTests
         }
     }
 
+    /// <summary>The colonization chain ends in a connecting gate (founding
+    /// links): a port off the network is cut off from its polity's
+    /// import/export/migration web, so isolation must be the rare exception
+    /// (freshly founded this epoch, or genuinely out of reach/slots).</summary>
+    [Fact]
+    public void FoundingLinks_LeaveAlmostNoPortIsolated()
+    {
+        var state = ReferenceRun();
+        var linked = new System.Collections.Generic.HashSet<int>();
+        foreach (var lane in state.Lanes)
+        { linked.Add(lane.PortAId); linked.Add(lane.PortBId); }
+        int isolated = 0;
+        foreach (var p in state.Ports)
+            if (!linked.Contains(p.Id)) isolated++;
+        Assert.True(isolated <= state.Ports.Count / 10,
+            $"{isolated} of {state.Ports.Count} ports sit off the network");
+    }
+
     [Fact]
     public void EveryBuiltLane_HasBothGates_WithinSlotBudgets()
     {

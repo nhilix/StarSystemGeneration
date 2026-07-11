@@ -23,14 +23,23 @@ world-time (P7). Lanes layer v3 (gate ids + SaturatedYears). Deleted:
 amended in-branch: space-and-travel §Lanes (rewritten), infrastructure
 table (+Gate row), corporations (freight-line acts), markets (tariff
 collection point). Seed-42 baseline before: mean lane degree 9.0 over
-10 ports (all-pairs web); after: ~50 galaxy-wide, all live, hub degree
-pinned at slot caps. REPL: new `elanes`; `emap lanes` marks dead
-lanes `~`. Two spec deviations flagged: gates pair-build by a single
-funder (half-built = a destroyed far gate, no cross-actor escrow), and
-no emergence gate-seeding (no lanes exist at emergence). FineTick's
-provisions band now compares the MEDIAN over shared ports (sparse
-networks let one ceiling-priced port swing a mean 3× on connectivity
-luck); RelationsTests contact-reach allows schism-born far pairs.
+10 ports (all-pairs web); after: ~90 lanes / 89 ports, 2 isolated, all
+live, hub degree pinned at slot caps. **Founding links** (user
+directive): an isolated port's first lane is the colonization chain's
+last step — built before any densification, no stock-on-hand gate
+(the ColonizeResolve convention: the expedition ships the equipment;
+BuildGate still consumes what the pair holds). **No rate limiters**
+(user directive): one-per-generation caps were added mid-branch to
+chase FineTick P7 and removed — durations belong in world-time state,
+not step caps (see next-up). REPL: new `elanes`; `emap lanes` marks
+dead lanes `~`. Two spec deviations flagged: gates pair-build by a
+single funder (half-built = a destroyed far gate, no cross-actor
+escrow), and no emergence gate-seeding. FineTick's provisions band now
+compares the MEDIAN over shared ports (sparse networks let one
+ceiling-priced port swing a mean 3× on connectivity luck); tests
+guarding formation-time or single-actor premises against end-state
+histories got the honest guards (schism-born far pairs, conquered
+homeworlds, pre-existing vassals).
 
 ## What this session did
 
@@ -114,6 +123,18 @@ decisions they forced.
 
 ## Next up
 
+0. **Durations design pass (user-mandated, not yet scheduled).** The
+   epoch→fine-tick move broke the "completes within the generational
+   tick" wave galaxy-wide: construction, convoy travel, shipyard
+   queues, manufacturing, freight delivery, war mobilization all
+   complete instantly today. The user's principle: **things take
+   time, not ticks** — durations are world-time state (an action
+   decided in Intent/Allocation completes in year Y), never per-step
+   or per-generation rate caps. `InfraDef.ConstructionYears` already
+   exists on every facility and is ignored. This wants a brainstorm →
+   spec → slice of its own; it also subsumes the lane-branch interim
+   compromises (founding links' no-goods-gate exception, instant gate
+   raising) and is what makes FineTick P7 honesty automatic.
 1. **Slice K2 (Lens catalog)** — fresh session, point it at
    `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`
    (complete: what K1 left ready, per-lens scope, conventions,

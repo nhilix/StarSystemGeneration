@@ -778,19 +778,10 @@ public static class CorporationOps
         var cfg = state.Config;
         var knobs = cfg.Corporate;
         int gatesOwned = 0;
-        long lastGateYear = long.MinValue;
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId
-                && f.TypeId == (int)InfraTypeId.Gate)
-            {
-                gatesOwned++;
-                if (f.BuiltYear > lastGateYear) lastGateYear = f.BuiltYear;
-            }
+                && f.TypeId == (int)InfraTypeId.Gate) gatesOwned++;
         if (gatesOwned / 2 >= knobs.MaxGateLanes) return;
-        // one bridge per generation, in world-time — fine ticks must not
-        // build 25× faster than coarse ones (P7)
-        if (lastGateYear > long.MinValue && state.WorldYear - lastGateYear
-                < state.Config.Sim.GenerationYears) return;
 
         Port? bestA = null, bestB = null;
         int bestTier = 0, bestDist = int.MaxValue;
