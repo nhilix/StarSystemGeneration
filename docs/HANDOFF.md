@@ -1,7 +1,7 @@
 # Session Handoff — 2026-07-11 (Slice I: Narrative — merged)
 
-State: `main`, merged locally, **not yet pushed** (push on user say-so;
-slices F, G, H, and I are all local-only). Tests 532/532 green — hex-tier
+State: `main`, merged and **pushed** (user pushed 2026-07-11 — slices
+F through I are all on origin now). Tests 532/532 green — hex-tier
 suite untouched at 100%. ProjectSettings churn remains uncommitted as
 always.
 
@@ -110,10 +110,7 @@ arcs the news does. All new code in `src/Core/Epoch/Narrative/`. Ledger
 1. **Slice J (Handoff & certification)** — fresh session, point it at
    `docs/superpowers/plans/2026-07-11-slice-j-kickoff-prompt.md`
    (complete: reading list, what I left ready, scope, boundary).
-2. **Push main** when ready (slices F–I are all local-only).
-3. **User read-through of the design specs** — still outstanding.
-4. **Generation-flow diagram** — update `docs/diagrams/generation-flow.html`
-   status chips for slice I and republish to the existing artifact URL.
+2. **User read-through of the design specs** — still outstanding.
 
 ## Carried process conventions (unchanged)
 
