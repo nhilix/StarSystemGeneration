@@ -250,6 +250,11 @@ public sealed class MarketsPhase : ISimPhase
         MarketEngine.AdjustPrices(state, scratch);
         int famines = MarketEngine.Clear(state, scratch);
         MarketEngine.DistributePools(state, scratch);
+        int spanYears = state.Config.Sim.YearsPerEpoch;
+        foreach (var pr in state.Polities)
+            pr.LastIncomePerYear = pr.Receipts / spanYears;
+        foreach (var corp in state.Corporations)
+            if (corp.Active) corp.LastIncomePerYear = corp.Receipts / spanYears;
         int producing = 0;
         foreach (var f in state.Facilities)
             if (MarketEngine.IsActive(state, f)
