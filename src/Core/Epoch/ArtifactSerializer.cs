@@ -26,11 +26,11 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 5), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 5), ("ports", 1), ("lanes", 1), ("facilities", 1),
+        ("actors", 5), ("ports", 1), ("lanes", 2), ("facilities", 1),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 5),
         ("corporations", 1), ("relations", 4), ("wars", 1), ("belief", 1),
-        ("pulses", 1), ("pois", 1),
+        ("pulses", 1), ("pois", 1), ("plagues", 1),
     };
 
     public static string ToText(SimState state)
@@ -132,8 +132,10 @@ public static class ArtifactSerializer
 
         Layer(w, "lanes");
         foreach (var l in state.Lanes)
+            // lanes v2 (slice I): the quarantine clock rides along
             w.WriteLine(Join("LANE", l.Id.ToString(Inv), l.PortAId.ToString(Inv),
-                l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv)));
+                l.PortBId.ToString(Inv), l.BuiltYear.ToString(Inv),
+                l.QuarantinedUntil.ToString(Inv)));
 
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
@@ -381,7 +383,39 @@ public static class ArtifactSerializer
                 B(poi.Depleted), B(poi.Dormant),
                 IntList(poi.ParticipantActorIds),
                 LongList(poi.SourceEventIds)));
+
+        Layer(w, "plagues");
+        foreach (var plague in state.Plagues)
+            w.WriteLine(Join("PLAGUE", plague.Id.ToString(Inv),
+                Name(plague.Name), plague.OriginPortId.ToString(Inv),
+                plague.StartYear.ToString(Inv), B(plague.Active),
+                plague.EndedYear.ToString(Inv), R(plague.TotalDeaths),
+                LongMap(plague.InfectedSince), LongMap(plague.ImmuneUntil)));
         w.WriteLine("END");
+    }
+
+    /// <summary>Int-keyed long map as "k:v;k:v" in key order; "-" empty.</summary>
+    private static string LongMap(
+        System.Collections.Generic.SortedList<int, long> map)
+    {
+        if (map.Count == 0) return "-";
+        var parts = new string[map.Count];
+        for (int i = 0; i < map.Count; i++)
+            parts[i] = map.Keys[i].ToString(Inv) + ":"
+                       + map.Values[i].ToString(Inv);
+        return string.Join(";", parts);
+    }
+
+    private static void ParseLongMap(string field,
+        System.Collections.Generic.SortedList<int, long> into)
+    {
+        if (field == "-" || field.Length == 0) return;
+        foreach (var part in field.Split(';'))
+        {
+            int colon = part.IndexOf(':');
+            into.Add(int.Parse(part.Substring(0, colon), Inv),
+                     long.Parse(part.Substring(colon + 1), Inv));
+        }
     }
 
     /// <summary>Long list as "v;v;…"; "-" when empty.</summary>
@@ -847,7 +881,8 @@ public static class ArtifactSerializer
                         break;
                     case "LANE":
                         state!.Lanes.Add(new Lane(int.Parse(f[1], Inv), int.Parse(f[2], Inv),
-                            int.Parse(f[3], Inv), int.Parse(f[4], Inv)));
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv))
+                        { QuarantinedUntil = long.Parse(f[5], Inv) });
                         break;
                     case "FACILITY":
                         if (int.Parse(f[1], Inv) != state!.Facilities.Count)
@@ -1199,6 +1234,23 @@ public static class ArtifactSerializer
                         state.Pois.Add(poi);
                         break;
                     }
+                    case "PLAGUE":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Plagues.Count)
+                            throw new InvalidDataException(
+                                "plague ids out of order");
+                        var plague = new Plague(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv), long.Parse(f[4], Inv))
+                        {
+                            Active = f[5] == "1",
+                            EndedYear = long.Parse(f[6], Inv),
+                            TotalDeaths = double.Parse(f[7], Inv),
+                        };
+                        ParseLongMap(f[8], plague.InfectedSince);
+                        ParseLongMap(f[9], plague.ImmuneUntil);
+                        state.Plagues.Add(plague);
+                        break;
+                    }
                     case "STANCE":
                         state!.Actors[int.Parse(f[1], Inv)].Beliefs.Stances
                             .Add(int.Parse(f[2], Inv), double.Parse(f[3], Inv));
@@ -1422,6 +1474,12 @@ public static class ArtifactSerializer
         PrecursorSiteChartedPayload e => Join("precursorSiteCharted",
             e.PoiId.ToString(Inv), e.SiteType.ToString(Inv), B(e.Dormant),
             Name(e.WaveName)),
+        PlagueOutbreakPayload e => Join("plagueOutbreak",
+            e.PlagueId.ToString(Inv), Name(e.Name), e.PortId.ToString(Inv)),
+        PlagueBurnedOutPayload e => Join("plagueBurnedOut",
+            e.PlagueId.ToString(Inv), Name(e.Name), R(e.Deaths)),
+        QuarantineImposedPayload e => Join("quarantineImposed",
+            e.PolityId.ToString(Inv), e.LaneId.ToString(Inv)),
         _ => throw new InvalidOperationException(
             $"unserializable payload {p.GetType().Name} — extend the events layer"),
     };
@@ -1569,6 +1627,13 @@ public static class ArtifactSerializer
         "precursorSiteCharted" => new PrecursorSiteChartedPayload(
             int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
             f[at + 3] == "1", f[at + 4]),
+        "plagueOutbreak" => new PlagueOutbreakPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2], int.Parse(f[at + 3], Inv)),
+        "plagueBurnedOut" => new PlagueBurnedOutPayload(
+            int.Parse(f[at + 1], Inv), f[at + 2],
+            double.Parse(f[at + 3], Inv)),
+        "quarantineImposed" => new QuarantineImposedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv)),
         _ => throw new InvalidDataException($"unknown payload tag '{f[at]}'"),
     };
 

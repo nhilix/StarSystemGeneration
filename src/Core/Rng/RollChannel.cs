@@ -96,4 +96,8 @@ public enum RollChannel : ulong
     WarSpark = 67,             // border-incident roll: step = epoch, actor = pair's lower polity id, subIndex = higher
     Battle = 68,               // engagement resolution: step = epoch, actor = war id, subIndex = objective id
     CommanderFate = 69,        // commander death on a decisive defeat: step = epoch, actor = commander character id
+
+    // --- Narrative (slice I). ---
+    PlagueOutbreak = 70,       // outbreak gate: step = epoch, actor = port id; subIndex 1+ = name syllables (100 = length, 200 = strain)
+    PlagueSpread = 71,         // lane-borne spread: step = epoch, actor = plague id, subIndex = lane id
 }

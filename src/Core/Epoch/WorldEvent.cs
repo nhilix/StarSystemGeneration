@@ -361,6 +361,21 @@ public sealed record MemorialRaisedPayload(int PoiId, int Cause) : EventPayload;
 public sealed record PrecursorSiteChartedPayload(
     int PoiId, int SiteType, bool Dormant, string WaveName) : EventPayload;
 
+/// <summary>An index case: a contagion breaks out at a crowded port and
+/// will ride the lanes the news does (slice I).</summary>
+public sealed record PlagueOutbreakPayload(
+    int PlagueId, string Name, int PortId) : EventPayload;
+
+/// <summary>The strain's last infection cleared — plagues burn out, never
+/// sterilize; the toll is the chronicle's.</summary>
+public sealed record PlagueBurnedOutPayload(
+    int PlagueId, string Name, double Deaths) : EventPayload;
+
+/// <summary>A QuarantineAct carried: a sovereign closes its own lane —
+/// freight, migration, and contagion stop together.</summary>
+public sealed record QuarantineImposedPayload(
+    int PolityId, int LaneId) : EventPayload;
+
 /// <summary>Payloads that name an individual — the biography index key
 /// (characters have their own id space; the event's Actors list carries the
 /// institution). P8: a life reconstructs from the log by this interface.</summary>

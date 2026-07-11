@@ -26,6 +26,34 @@ public sealed class EpochSimConfig
     public WarKnobs War { get; } = new WarKnobs();
     public NewsKnobs News { get; } = new NewsKnobs();
     public PoiKnobs Poi { get; } = new PoiKnobs();
+    public PlagueKnobs Plague { get; } = new PlagueKnobs();
+}
+
+/// <summary>Plague dials (slice I): outbreak incidence, lane-borne spread,
+/// the toll, the burnout/immunity clocks, and the quarantine hold. Machine
+/// immunity and the one-strain-per-port rule are structural.</summary>
+public sealed class PlagueKnobs
+{
+    /// <summary>Outbreak chance per port per world-year at full crowding.</summary>
+    public double OutbreakChancePerYear { get; set; } = 0.0004;
+    /// <summary>Chance per world-year an infection crosses a traffic-
+    /// saturated lane (scaled down on quiet lanes).</summary>
+    public double SpreadChancePerYear { get; set; } = 0.06;
+    /// <summary>Posted round trips per world-year at which lane spread
+    /// saturates — contagion rides the same traffic the news does.</summary>
+    public double SpreadTrafficSaturation { get; set; } = 2.0;
+    /// <summary>Fraction of an infected port's organic population lost per
+    /// world-year before the Life-tech discount.</summary>
+    public double MortalityPerYear { get; set; } = 0.008;
+    /// <summary>Mortality discount per Life tech tier (medicine).</summary>
+    public double MortalityLifeTierDiscount { get; set; } = 0.2;
+    /// <summary>World-years an infection burns at one port before it
+    /// clears — plagues burn out, never sterilize.</summary>
+    public double BurnoutYears { get; set; } = 30.0;
+    /// <summary>World-years a recovered port resists reinfection.</summary>
+    public double ImmunityYears { get; set; } = 75.0;
+    /// <summary>World-years one QuarantineAct holds a lane closed.</summary>
+    public double QuarantineYears { get; set; } = 30.0;
 }
 
 /// <summary>POI-compiler dials (chronicle-and-poi.md §The POI compiler):

@@ -417,6 +417,12 @@ public static class FleetOps
                 if (lane.PortAId == fleet.TargetId || lane.PortBId == fleet.TargetId)
                     severed.Add(lane.Id);
         }
+        // self-imposed closures cut freight and contagion alike (slice I);
+        // they are NOT blockade progress — war objectives read fleet
+        // postures above, never this flag
+        foreach (var lane in state.Lanes)                 // id order (P6)
+            if (lane.QuarantinedUntil >= state.WorldYear)
+                severed.Add(lane.Id);
         return severed;
     }
 

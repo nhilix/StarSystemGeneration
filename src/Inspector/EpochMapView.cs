@@ -78,6 +78,12 @@ public static class EpochMapView
                     _ => '?',
                 };
             }
+            else if (layer == "plague")
+            {
+                // contagion made visible: infected port cells burn, immune
+                // ones carry the scar, quarantined approaches close
+                glyph = PlagueGlyph(state, cell, portCells, owners);
+            }
             else if (layer == "tech")
             {
                 // the tech gap made visible: each domain cell shows its
@@ -124,6 +130,8 @@ public static class EpochMapView
                          + "(the war-pressure gauge)",
             "tech" => "owner's Astrogation tier per domain cell: digit=tier "
                       + "?=contested .=wilds (leaders' ports reach farther)",
+            "plague" => "!=infected port o=immune (recovered) x=quarantined "
+                        + "approach letter=healthy domain .=wilds",
             "lanes" => "*=port cell +=lane .=off-network (wilds dark)",
             "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
                          + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "
@@ -134,6 +142,48 @@ public static class EpochMapView
             _ => "letter=domain ?=contested overlap .=wilds " + Legend(state),
         });
         return sb.ToString();
+    }
+
+    /// <summary>The contagion layer: infected port cells '!', immune 'o',
+    /// cells crossed by a quarantined lane 'x', healthy domains keep their
+    /// letter, wilds stay dark.</summary>
+    private static char PlagueGlyph(SimState state, RegionCell cell,
+        HashSet<HexCoordinate> portCells, List<int> owners)
+    {
+        if (portCells.Contains(cell.Coord))
+            foreach (var port in state.Ports)
+            {
+                if (!HexGrid.CellOf(port.Hex).Equals(cell.Coord)) continue;
+                if (PlagueOps.Afflicted(state, port.Id)) return '!';
+                foreach (var plague in state.Plagues)
+                    if (plague.ImmuneUntil.TryGetValue(port.Id, out long lapse)
+                        && lapse >= state.WorldYear) return 'o';
+            }
+        foreach (var lane in state.Lanes)
+            if (lane.QuarantinedUntil >= state.WorldYear
+                && LaneCrosses(state, lane, cell.Coord)) return 'x';
+        PortDomains.OwnersAt(state.Skeleton, state.Config, state.Ports,
+                             HexGrid.CellCenter(cell.Coord), owners);
+        return owners.Count switch
+        {
+            0 => '.', 1 => OwnerLetter(owners[0]), _ => '?',
+        };
+    }
+
+    private static bool LaneCrosses(SimState state, Lane lane,
+                                    HexCoordinate cellCoord)
+    {
+        var a = state.Ports[lane.PortAId].Hex;
+        var b = state.Ports[lane.PortBId].Hex;
+        int n = HexGrid.Distance(a, b);
+        for (int i = 0; i <= n; i++)
+        {
+            double t = n == 0 ? 0.0 : (double)i / n;
+            if (HexGrid.CellOf(HexGrid.Round(
+                    a.Q + (b.Q - a.Q) * t, a.R + (b.R - a.R) * t))
+                .Equals(cellCoord)) return true;
+        }
+        return false;
     }
 
     /// <summary>Per-good price shading at the nearest servicing port —

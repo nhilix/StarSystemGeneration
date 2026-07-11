@@ -280,6 +280,24 @@ sanction treaty-breakers, militants respect bold conquest, dogmatic
 distance amplifies condemnation) are structural constants in
 `ReputationOps.Judge`, like the stance buckets.
 
+## Plague — contagion on the lanes (slice I)
+
+Outbreaks roll where people crowd; spread rides posted traffic exactly as
+news does; quarantines and blockades stop contagion as surely as freight;
+Life tech blunts the toll; machine minds never sicken (structural). Deaths
+shrink segments and never touch a credit — the dead leave inheritances.
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Plague.OutbreakChancePerYear` | 0.0004 | Every crowded century has its pestilence. | Plagues are once-a-history events. |
+| `Plague.SpreadChancePerYear` | 0.06 | The trade web is a death web — quarantine or perish. | Plagues stay local embarrassments. |
+| `Plague.SpreadTrafficSaturation` | 2.0 | Only the busiest corridors carry contagion at full odds. | A single posted hauler is a vector. |
+| `Plague.MortalityPerYear` | 0.008 | Black-death demographics (~18%/epoch unmitigated). | Plagues inconvenience rather than kill. |
+| `Plague.MortalityLifeTierDiscount` | 0.2 | Medicine ends plagues as a threat by tier 3–4. | Tech is no shield. |
+| `Plague.BurnoutYears` | 30 | Infections smolder for generations. | One epoch and done. |
+| `Plague.ImmunityYears` | 75 | Survivors are safe for living memory. | The same strain returns within a reign. |
+| `Plague.QuarantineYears` | 30 | One act seals a lane for a generation. | Quarantines lapse before the plague does. |
+
 ## Poi — the incremental POI compiler (slice I)
 
 Residue becomes anchored places every Chronicle: battlefields from

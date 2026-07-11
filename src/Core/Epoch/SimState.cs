@@ -77,6 +77,9 @@ public sealed class SimState
     /// Chronicle (chronicle-and-poi.md) — id order (P6); depleted POIs
     /// stay as history.</summary>
     public List<PoiRecord> Pois { get; } = new List<PoiRecord>();
+    /// <summary>Contagions riding the lanes (slice I) — id order (P6);
+    /// burned-out plagues stay as history.</summary>
+    public List<Plague> Plagues { get; } = new List<Plague>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

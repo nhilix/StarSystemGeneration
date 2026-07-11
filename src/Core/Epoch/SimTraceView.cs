@@ -303,6 +303,16 @@ public static class SimTraceView
                 + $" of the {p.WaveName}"
                 + (p.Dormant ? " — and something inside is still awake" : "")
                 + Invariant($" (POI #{p.PoiId})"),
+            PlagueOutbreakPayload p =>
+                Invariant($"the {p.Name} breaks out at port #{p.PortId} — ")
+                + "ships carry more than cargo",
+            PlagueBurnedOutPayload p =>
+                $"the {p.Name} burns itself out"
+                + (p.Deaths >= 0.05
+                    ? Invariant($" ({p.Deaths:0.0} population lost)") : ""),
+            QuarantineImposedPayload p =>
+                Invariant($"polity #{p.PolityId} quarantines lane ")
+                + Invariant($"#{p.LaneId} — nothing crosses, not even grain"),
             DynasticInstrumentPayload p =>
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"

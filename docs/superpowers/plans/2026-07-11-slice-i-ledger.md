@@ -123,8 +123,16 @@ scope restated in-session.
       chartered organically. ExpansionTests guard extended: civil-war
       splits move ports without capture events (new history hit an old
       gap).
-- [ ] I9 — Plagues: PlagueOps + QuarantineAct resolution + immunity/
+- [x] I9 — Plagues: PlagueOps + QuarantineAct resolution + immunity/
       burnout + events + `emap plague`; conservation + burnout tests.
+      Notes: RollChannels 70/71; lanes layer v2 (QuarantinedUntil);
+      quarantined lanes join SeveredLaneIds (freight, migration, and
+      contagion stop together — war blockade progress reads postures,
+      not this flag); machine embodiment immune; deaths shrink Size,
+      wealth stays (inheritance); one strain per port; quarantine
+      knowledge is doorstep-local (adjacent infection is visible truth
+      — no news gating needed); events 209/210/313 + prose. Seed 42
+      × 40: outbreak → spread → AI quarantines → burnout, end to end.
 - [ ] I10 — REPL polish: `belief`, `news`, `stances` panels; chronicle
       prose for every new event; `watch` intact.
 - [ ] I11 — Gates: full suite, determinism byte-identity, golden regen

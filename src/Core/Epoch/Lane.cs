@@ -14,6 +14,10 @@ public sealed class Lane
     public int PortAId { get; }
     public int PortBId { get; }
     public int BuiltYear { get; }
+    /// <summary>Self-imposed closure (a QuarantineAct carried, slice I):
+    /// the lane is severed to freight, migration, and contagion until this
+    /// world-year; −1 open. Lanes layer v2.</summary>
+    public long QuarantinedUntil { get; set; } = -1;
 
     public Lane(int id, int portAId, int portBId, int builtYear)
     {

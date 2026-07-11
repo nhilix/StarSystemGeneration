@@ -68,6 +68,23 @@ public sealed class PerceptionPhase : ISimPhase
             var temperament = a.Kind == ActorKind.Polity
                 ? Temperament.Compose(state, state.PolityOf(a.Id))
                 : Temperament.Neutral;
+            // plague on the doorstep is locally observable: open lanes
+            // from an own healthy port to an infected one (slice I)
+            List<QuarantineCandidate>? frontier = null;
+            if (a.Kind == ActorKind.Polity && state.Plagues.Count > 0)
+                foreach (var lane in state.Lanes)             // id order (P6)
+                {
+                    if (lane.QuarantinedUntil >= state.WorldYear) continue;
+                    bool aInf = PlagueOps.Afflicted(state, lane.PortAId);
+                    bool bInf = PlagueOps.Afflicted(state, lane.PortBId);
+                    if (aInf == bInf) continue;   // nothing left to protect
+                    int infected = aInf ? lane.PortAId : lane.PortBId;
+                    int healthy = aInf ? lane.PortBId : lane.PortAId;
+                    if (state.Ports[healthy].OwnerActorId != a.Id) continue;
+                    (frontier ??= new List<QuarantineCandidate>())
+                        .Add(new QuarantineCandidate(lane.Id, healthy,
+                                                     infected));
+                }
             double ownCredits = 0;
             List<CorporateBrief>? hosted = null;
             List<RelationBrief>? relations = null;
@@ -116,7 +133,7 @@ public sealed class PerceptionPhase : ISimPhase
                                               a.Kind == ActorKind.Polity
                                                   && RelationsOps.IsDynastic(
                                                       state, a.Id),
-                                              wars);
+                                              wars, frontier);
             perceiving++;
         }
         string note = $"{perceiving} actors perceive";
@@ -800,7 +817,7 @@ public sealed class ResolutionPhase : ISimPhase
     {
         int acts = 0, founded = 0, nationalized = 0;
         int signed = 0, broken = 0, vassalized = 0, instruments = 0;
-        int warsDeclared = 0;
+        int warsDeclared = 0, quarantines = 0;
         HashSet<(int, int)>? concessions = null;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
@@ -828,6 +845,9 @@ public sealed class ResolutionPhase : ISimPhase
                 if (act is SettlementResponseAct sue && sue.Accept)
                     (concessions ??= new HashSet<(int, int)>())
                         .Add((sue.WarId, sue.ActorId));
+                if (act is QuarantineAct quarantine
+                    && PlagueOps.Quarantine(state, quarantine))
+                    quarantines++;
             }
         // the theater/objective model fights every active war one epoch
         // forward — doctrine posts fleets, engagements resolve on vectors,
@@ -860,6 +880,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (settled > 0)
             note += $", {settled} " + (settled == 1
                 ? "peace settled" : "peaces settled");
+        if (quarantines > 0)
+            note += $", {quarantines} " + (quarantines == 1
+                ? "lane quarantined" : "lanes quarantined");
         return note;
     }
 
@@ -1108,6 +1131,10 @@ public sealed class InteriorPhase : ISimPhase
         // uplift-born clients kneel to their hosts now that they exist
         NativeOps.BindClients(state, pendingClients);
 
+        // contagion first: plagues outbreak, ride the lanes, and take their
+        // toll before anyone flees or grows (slice I)
+        var (plagueOutbreaks, plagueSpread, plaguesBurnedOut) =
+            PlagueOps.Step(state);
         // refugees flee before attrition bites: migration reads last step's
         // market outcomes, demographics apply to whoever stayed
         int migrations = Migrate(state, preexisting);
@@ -1178,6 +1205,15 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {emergencesSuppressed} "
                 + (emergencesSuppressed == 1 ? "emergence suppressed"
                     : "emergences suppressed");
+        if (plagueOutbreaks > 0)
+            note += $", {plagueOutbreaks} plague "
+                + (plagueOutbreaks == 1 ? "outbreak" : "outbreaks");
+        if (plagueSpread > 0)
+            note += $", plague spreads to {plagueSpread} "
+                + (plagueSpread == 1 ? "port" : "ports");
+        if (plaguesBurnedOut > 0)
+            note += $", {plaguesBurnedOut} " + (plaguesBurnedOut == 1
+                ? "plague burns out" : "plagues burn out");
         if (interiors > 0)
             note += $", {interiors} " + (interiors == 1 ? "interior" : "interiors")
                     + " recomputed";
