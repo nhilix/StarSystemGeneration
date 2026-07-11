@@ -63,8 +63,8 @@ namespace StarGen.AtlasView
                 var s = stars[i];
                 var center = new Vector3((float)s.X, (float)s.Y, 0f);
                 float b = (float)s.Brightness;
-                float world = 0.30f + 0.45f * b;
-                float minPx = 1.0f + 1.2f * b;
+                float world = 0.22f + 0.55f * b;
+                float minPx = 0.8f + 1.8f * b;
                 var tint = model.Cells[s.CellIndex].Lean switch
                 {
                     StellarLean.YoungBright => TintYoung,
@@ -76,7 +76,7 @@ namespace StarGen.AtlasView
                 // gets the converted value (alpha stays perceptual).
                 var color = ((Color)new Color32(tint.r, tint.g, tint.b, 255))
                     .linear;
-                color.a = (30 + 170 * b) / 255f;
+                color.a = (28 + 210 * b) / 255f;
                 int v = i * 4;
                 for (int c = 0; c < 4; c++)
                 {

@@ -70,11 +70,12 @@ namespace StarGen.AtlasView.EditorTools
                 + $"{host.State.Ports.Count} ports, {host.State.Lanes.Count} lanes, "
                 + $"band {rig.Band}");
 
-            // Shot 1b: same view with a nature field on — the nebular read.
-            nature.Select(StarGen.Core.Atlas.NatureLayer.Metal);
+            // Shot 1b: same view with the gas field on — gas + starfield
+            // should read as a naturally rendered galaxy.
+            nature.Select(StarGen.Core.Atlas.NatureLayer.Gas);
             Capture(cam, "atlas-smoke-nature.png");
             nature.Select(null);
-            Debug.Log("AtlasSmoke: nature (metal) shot");
+            Debug.Log("AtlasSmoke: nature (gas) shot");
 
             // Shot 2: the settled reach, tilted — the 2.5D domains view.
             var port0 = AtlasGeometry.HexToWorld(host.State.Ports[0].Hex);

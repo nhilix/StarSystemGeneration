@@ -18,14 +18,20 @@ public readonly record struct StarPoint(
 public static class StarfieldLens
 {
     /// <summary>Stars per cell at full density; scaled by MeanDensity.</summary>
-    private const int MaxStarsPerCell = 14;
-    /// <summary>Scatter radius in hex-world units — inside the superhex.</summary>
-    private const double ScatterRadius = 8.0;
+    private const int MaxStarsPerCell = 52;
+    /// <summary>Scatter radius in hex-world units — a little past the
+    /// superhex so neighboring cells' fields blend.</summary>
+    private const double ScatterRadius = 9.5;
+    /// <summary>Share of stars in the bright population.</summary>
+    private const double BrightShare = 0.08;
+    /// <summary>Clump filaments ride finer noise than the nebula fields.</summary>
+    private const double ClumpFrequency = 0.15;
     private const ulong Channel = 0x51A2F1E1D;
 
     public static IReadOnlyList<StarPoint> Stars(AtlasReadModel model)
     {
-        var stars = new List<StarPoint>(model.Cells.Count * 4);
+        ulong seed = model.Skeleton.Config.MasterSeed;
+        var stars = new List<StarPoint>(model.Cells.Count * 12);
         for (int i = 0; i < model.Cells.Count; i++)
         {
             var cell = model.Cells[i];
@@ -36,13 +42,27 @@ public static class StarfieldLens
             {
                 ulong h = StableHash.Mix(Channel,
                     (ulong)(long)cell.Coord.Q, (ulong)(long)cell.Coord.R, (ulong)k);
+                // Second independent hash: shifting h past 43 bits starves
+                // the 21-bit Frac mask (a always-zero draw).
+                ulong h2 = StableHash.Mix(Channel + 1,
+                    (ulong)(long)cell.Coord.Q, (ulong)(long)cell.Coord.R, (ulong)k);
                 double angle = Frac(h) * Math.PI * 2.0;
                 double radius = Math.Sqrt(Frac(h >> 21)) * ScatterRadius;
-                double brightness = 0.15 + 0.85 * Frac(h >> 42);
-                stars.Add(new StarPoint(i,
-                    cx + Math.Cos(angle) * radius,
-                    cy + Math.Sin(angle) * radius,
-                    brightness));
+                double x = cx + Math.Cos(angle) * radius;
+                double y = cy + Math.Sin(angle) * radius;
+                // Two populations: a dim majority gives the disc its
+                // body, rare bright stars give it sparkle.
+                double brightness = Frac(h2) < BrightShare
+                    ? 0.72 + 0.28 * Frac(h2 >> 21)
+                    : 0.10 + 0.42 * Frac(h2 >> 21);
+                // Filament clumping: the same deterministic noise family
+                // as the nebula fields, finer wavelength — texture, not
+                // erasure (the dim majority carries the disc's body).
+                double clump = ValueNoise.Sample(seed, RollChannel.AtlasNebula,
+                    x, y, octaves: 2, ClumpFrequency);
+                brightness *= 0.55 + 1.0 * clump;
+                stars.Add(new StarPoint(i, x, y,
+                    Math.Clamp(brightness, 0.03, 1.0)));
             }
         }
         return stars;

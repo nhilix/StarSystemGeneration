@@ -39,6 +39,21 @@ public class StarfieldLensTests
     }
 
     [Fact]
+    public void TheFieldIsMostlyFaintWithRareBrightStars()
+    {
+        // A natural field: a dim majority giving the disc its body, a
+        // small bright population giving it sparkle — never uniform.
+        var (_, state) = EpochTestKit.Seeded();
+        var stars = StarfieldLens.Stars(new AtlasReadModel(state));
+        Assert.True(stars.Count > 2000, $"field too sparse: {stars.Count}");
+        var sorted = stars.Select(s => s.Brightness).OrderBy(b => b).ToList();
+        double median = sorted[sorted.Count / 2];
+        double brightShare = sorted.Count(b => b > 0.7) / (double)sorted.Count;
+        Assert.True(median < 0.45, $"median {median} — too uniformly bright");
+        Assert.InRange(brightShare, 0.01, 0.18);
+    }
+
+    [Fact]
     public void StarsSitInsideTheirCell()
     {
         var (_, state) = EpochTestKit.Seeded();
