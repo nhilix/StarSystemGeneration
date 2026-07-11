@@ -89,9 +89,32 @@ public sealed class PerceptionPhase : ISimPhase
             List<CorporateBrief>? hosted = null;
             List<RelationBrief>? relations = null;
             List<WarBrief>? wars = null;
+            CapabilityBrief? capability = null;
+            List<ConstructionCandidate>? constructionCandidates = null;
+            List<PortBrief>? ownPortBriefs = null;
             if (a.Kind == ActorKind.Polity)
             {
                 ownCredits = state.PolityOf(a.Id).Credits;
+                // the capability brief: own-side rates the planner
+                // schedules against (spec §2), assembled fresh each step
+                capability = CapabilityOps.BriefFor(state, a.Id);
+                constructionCandidates =
+                    CapabilityOps.ConstructionCandidatesFor(state, a.Id);
+                ownPortBriefs = new List<PortBrief>();
+                foreach (var port in state.Ports)              // id order (P6)
+                {
+                    if (port.OwnerActorId != a.Id) continue;
+                    int yardTiers = 0;
+                    foreach (var f in state.Facilities)
+                        if (f.TypeId == (int)Substrate.InfraTypeId.Shipyard
+                            && f.OwnerActorId == a.Id
+                            && MarketEngine.IsActive(state, f)
+                            && MarketEngine.AttachedMarketIndex(state, f)
+                                == port.Id)
+                            yardTiers += f.Tier;
+                    ownPortBriefs.Add(new PortBrief(port.Id, port.Tier,
+                                                    yardTiers));
+                }
                 foreach (var corp in state.Corporations)
                     if (corp.Active && corp.HostPolityId == a.Id)
                     {
@@ -133,7 +156,9 @@ public sealed class PerceptionPhase : ISimPhase
                                               a.Kind == ActorKind.Polity
                                                   && RelationsOps.IsDynastic(
                                                       state, a.Id),
-                                              wars, frontier);
+                                              wars, frontier,
+                                              capability, constructionCandidates,
+                                              ownPortBriefs);
             perceiving++;
         }
         string note = $"{perceiving} actors perceive";

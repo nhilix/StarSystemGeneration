@@ -137,7 +137,7 @@ public class ProjectOpsTests
     /// first-wave polities to enter and found their homeworld port; run
     /// history BEFORE spawning the test's own project so AdvanceAll below
     /// only ever sees that one project in flight.</summary>
-    private static void RunHistory(SimState state)
+    internal static void RunHistory(SimState state)
     {
         state.Config.Sim.EpochCount = 3;
         new EpochEngine().Run(state);

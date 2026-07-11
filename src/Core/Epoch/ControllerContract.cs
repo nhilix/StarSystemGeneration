@@ -60,6 +60,10 @@ public sealed class PerceptionView
     private static readonly IReadOnlyList<WarBrief> NoWars = new WarBrief[0];
     private static readonly IReadOnlyList<QuarantineCandidate> NoFrontier =
         new QuarantineCandidate[0];
+    private static readonly IReadOnlyList<ConstructionCandidate>
+        NoConstructionCandidates = new ConstructionCandidate[0];
+    private static readonly IReadOnlyList<PortBrief> NoOwnPorts =
+        new PortBrief[0];
 
     public int SelfId { get; }
     public int WorldYear { get; }
@@ -115,6 +119,16 @@ public sealed class PerceptionView
     /// <summary>Open lanes from own ports to visibly infected ports —
     /// what a QuarantineAct closes (slice I; empty when healthy).</summary>
     public IReadOnlyList<QuarantineCandidate> PlagueFrontier { get; }
+    /// <summary>The perceived economy-as-rates (spec §2): trailing income,
+    /// coarse generation, in-flight commitments — null for non-polities and
+    /// shape-only test skeletons.</summary>
+    public CapabilityBrief? Capability { get; }
+    /// <summary>Sited, scored construction options across own under-capacity
+    /// ports, best first per port (spec §2; empty otherwise).</summary>
+    public IReadOnlyList<ConstructionCandidate> ConstructionCandidates { get; }
+    /// <summary>Own ports as the planner sees them — tier and attached
+    /// shipyard capacity (spec §2; empty otherwise).</summary>
+    public IReadOnlyList<PortBrief> OwnPorts { get; }
 
     public PerceptionView(int selfId, int worldYear, IReadOnlyList<int> knownPolityIds,
                           double expansionPoints = 0,
@@ -132,9 +146,17 @@ public sealed class PerceptionView
                           bool selfDynastic = false,
                           IReadOnlyList<WarBrief>? wars = null,
                           IReadOnlyList<QuarantineCandidate>? plagueFrontier
-                              = null)
+                              = null,
+                          CapabilityBrief? capability = null,
+                          IReadOnlyList<ConstructionCandidate>?
+                              constructionCandidates = null,
+                          IReadOnlyList<PortBrief>? ownPorts = null)
     {
         PlagueFrontier = plagueFrontier ?? NoFrontier;
+        Capability = capability;
+        ConstructionCandidates = constructionCandidates
+            ?? NoConstructionCandidates;
+        OwnPorts = ownPorts ?? NoOwnPorts;
         OwnCredits = ownCredits;
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;

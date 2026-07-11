@@ -11,6 +11,35 @@ namespace StarGen.Core.Epoch;
 public sealed record ConstructionCandidate(
     int TypeId, HexCoordinate Hex, int PortId, double Score);
 
+/// <summary>One own port as the planner sees it (spec §2).</summary>
+public sealed record PortBrief(int PortId, int Tier, int YardTiers);
+
+/// <summary>One in-flight funding obligation: value drawn per world-year
+/// (goods at founding prices + wages) and naive years to completion.</summary>
+public sealed record CommitmentBrief(double CostPerYear, double YearsRemaining);
+
+/// <summary>The perceived economy-as-rates (spec §2): what the planner
+/// schedules against. Own-side facts, assembled fresh each Perception.</summary>
+public sealed class CapabilityBrief
+{
+    public double IncomePerYear { get; }               // trailing (P3)
+    public IReadOnlyList<double> GenerationPerYear { get; }  // per good
+    public IReadOnlyList<CommitmentBrief> Commitments { get; }
+    public double CommittedCostPerYear { get; }        // Σ commitments now
+
+    public CapabilityBrief(double incomePerYear,
+        IReadOnlyList<double> generationPerYear,
+        IReadOnlyList<CommitmentBrief> commitments)
+    {
+        IncomePerYear = incomePerYear;
+        GenerationPerYear = generationPerYear;
+        Commitments = commitments;
+        double sum = 0;
+        foreach (var c in commitments) sum += c.CostPerYear;
+        CommittedCostPerYear = sum;
+    }
+}
+
 /// <summary>Perception-side capability assembly (spec §2). The candidate
 /// scan is the siting-score × price-signal × saturation math that lived in
 /// AllocationPhase.BuildFacilities — moved here so deciding what to build
@@ -99,6 +128,51 @@ public static class CapabilityOps
             result.AddRange(top);
         }
         return result;
+    }
+
+    /// <summary>Own-side capability facts assembled fresh (spec §2): trailing
+    /// income, coarse per-good generation from own active facilities, and
+    /// the in-flight projects this actor funds. Works for polity and
+    /// corporation actor ids alike — Perception wires it for polities only
+    /// today; the method itself does not care.</summary>
+    public static CapabilityBrief BriefFor(SimState state, int actorId)
+    {
+        var corp = state.CorporationOf(actorId);
+        double incomePerYear = corp != null
+            ? corp.LastIncomePerYear
+            : state.PolityOf(actorId).LastIncomePerYear;
+
+        var generation = new double[Substrate.Goods.All.Count];
+        foreach (var f in state.Facilities)                // id order (P6)
+        {
+            if (f.OwnerActorId != actorId || !MarketEngine.IsActive(state, f))
+                continue;
+            var def = Substrate.Infrastructure.Get((Substrate.InfraTypeId)f.TypeId);
+            if (def.Produces.Count == 0) continue;
+            double perGood = def.BaseOutputPerYear
+                * Substrate.Production.TierOutputFactor(f.Tier)
+                * f.Condition / def.Produces.Count;
+            foreach (var g in def.Produces)
+                generation[(int)g] += perGood;
+        }
+
+        var commitments = new List<CommitmentBrief>();
+        foreach (var p in state.Projects)                  // id order (P6)
+        {
+            if (!p.InFlight || p.FunderActorId != actorId) continue;
+            double costPerYear = p.WagesPerYear;
+            for (int g = 0; g < p.PerYearBasket.Length; g++)
+            {
+                if (p.PerYearBasket[g] == 0) continue;
+                costPerYear += p.PerYearBasket[g]
+                    * Market.InitialPrice(state.Config.Economy,
+                                          (Substrate.GoodId)g);
+            }
+            commitments.Add(new CommitmentBrief(costPerYear,
+                p.YearsRequired - p.YearsDelivered));
+        }
+
+        return new CapabilityBrief(incomePerYear, generation, commitments);
     }
 
     /// <summary>Insert into the per-port top-3 list, keeping it ranked by
