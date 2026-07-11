@@ -430,8 +430,12 @@ public static class RelationsOps
         foreach (var c in relation.Claims)
             if (!c.Released) liveClaims++;
         var t = relation.LastTensionTerms;
+        // entanglement reads by the relationship: strangers see a loaded
+        // border, friends see a shared one (warmth damps the overlap term —
+        // the soup either federates or fights, it doesn't simmer)
         t[0] = knobs.OverlapTensionWeight
-               * Math.Min(1.0, overlapPairs / knobs.OverlapSaturation);
+               * Math.Min(1.0, overlapPairs / knobs.OverlapSaturation)
+               * (1.0 - relation.Warmth);
         t[1] = Math.Min(1.0, knobs.ClaimTensionWeight * liveClaims);
         t[2] = knobs.InterdictionTensionWeight
                * InterdictionStrain(state, relation);
@@ -526,6 +530,37 @@ public static class RelationsOps
         }
         return 0.0;
     }
+
+    /// <summary>Contested-overlap count for one pair, computed directly:
+    /// port pairs whose service areas touch. The geometry survey computes
+    /// this in bulk each Interior; this is the on-demand form the
+    /// federation gate and perception briefs read.</summary>
+    public static int OverlapPairs(SimState state, int polityA, int polityB)
+    {
+        var cfg = state.Config;
+        int pairs = 0;
+        foreach (var pa in state.Ports)                       // id order (P6)
+        {
+            if (pa.OwnerActorId != polityA) continue;
+            foreach (var pb in state.Ports)
+            {
+                if (pb.OwnerActorId != polityB) continue;
+                if (HexGrid.Distance(pa.Hex, pb.Hex)
+                    <= PortDomains.ServiceRadius(cfg, pa.Tier)
+                       + TechOps.AstroRadiusBonus(state, polityA)
+                       + PortDomains.ServiceRadius(cfg, pb.Tier)
+                       + TechOps.AstroRadiusBonus(state, polityB))
+                    pairs++;
+            }
+        }
+        return pairs;
+    }
+
+    /// <summary>Saturated overlap [0,1] — the entanglement share the
+    /// federation gate discounts by.</summary>
+    public static double OverlapShare(SimState state, int polityA, int polityB)
+        => Math.Min(1.0, OverlapPairs(state, polityA, polityB)
+                         / state.Config.Relations.OverlapSaturation);
 
     /// <summary>Posted freight capacity on lanes joining the pair's ports —
     /// the trade-volume warmth source (physical, derivable).</summary>

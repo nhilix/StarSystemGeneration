@@ -302,7 +302,41 @@ surprises — updated as work lands.
   at peace), ~50 treaty signings each, vassalizations everywhere,
   1 federation, 1 civil war, captures real. TUNING complete (Genesis/
   Relations/War tables + structural notes). Golden regen; 479/479)*.
-- [ ] **H12 — eyeball gate — AWAITING USER**: a war readable as a story
+- [x] **H12a — eyeball wave 1 (user-flagged: map soup, war depth, war
+  cost)** *(done: (1) CONTIGUITY — colony valuation discounts
+  `Expansion.EncroachmentPenalty` (1.5) per foreign domain the new
+  port's service area would entangle, the controller refuses
+  net-negative sites outright (boxed-in realms consolidate), and
+  founding into a sphere costs `Relations.EncroachmentTensionBump`
+  with every entangled neighbor; (2) FEDERATION PULL — warmth damps
+  the overlap tension term (friends see a shared border, strangers a
+  loaded one), entanglement discounts the federation warmth gate
+  (`FederationOverlapDiscount` 0.25), openness gate became the pair
+  mean at floor 0.40, alliance clock 4→3 epochs — seed 42 now chains
+  three federations out of the crowded core (Belselvo → Lusnora;
+  Veli); (3) WAR AIMS — new CasusBelli.Expulsion (the other side's
+  newest port that settled an OLDER sphere of ours, by founding
+  dates; objectives target exactly that port) vs
+  WarDemand.Annihilation (hatred = tension × (1−warmth) ≥ 0.75 with
+  stacked claims: no surrender accepted, victory = WarOutcome.Annexed
+  — the loser merges whole into a conquest empire); (4) WAR COST —
+  wartime budget shift (`WarBudgetMilitaryShift` 0.20 out of
+  development/expansion), yards pivot to warships, stockpile targets
+  × `MobilizationFactor` (3) corner armaments/parts/fuel (real
+  purchases — the fabricator boom), and `RationsPerHullPerYear`
+  (0.04): belligerent warships EAT from the households' markets, and
+  unfed fleets lose readiness (sieges starve navies). A/B probe:
+  a 6-epoch war costs ~1.5 points of realm SoL from rationing alone,
+  on top of blockade famines and starved development. Design docs
+  amended (war.md: Spatial cause row, war-aims-scale-with-hatred,
+  total mobilization; relations.md: expansion-prices-the-neighbors,
+  entanglement-pushes-fusion). Wars 17 → ~8 per 40 epochs (fewer,
+  deliberate), frontier blobs contiguous, the interleaved core
+  federates or fights. Tests +8 (ContiguityAndWarAimTests), test kit
+  gains FirstLiveRelation (federations retire actors mid-history —
+  Relations[0] can be a dead pair); knobs +7 + TUNING; golden regen;
+  487/487 green)*.
+- [ ] **H12 — eyeball gate (round 2) — AWAITING USER**: a war readable as a story
   (tension loading, spark, declaration with casus belli, named battles,
   a siege, the settlement ceding a port, the grudge left behind).
   Suggested route (seed 42, radius 12 — the golden config):

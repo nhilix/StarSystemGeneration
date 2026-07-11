@@ -104,12 +104,49 @@ public static class WarOps
         // political: a vassal's independence is fought for, not asked
         if (FederationOps.OverlordOf(state, selfId) == otherId)
             menu.Add((CasusBelli.VassalSecession, -1));
+        // spatial: they settled into OUR sphere — the expulsion war's aim
+        // is exactly the ports that came to us (eyeball feedback: is the
+        // war to drive out an encroacher, or hate to the end?)
+        int encroaching = EncroachingPort(state, selfId, otherId);
+        if (encroaching >= 0)
+            menu.Add((CasusBelli.Expulsion, encroaching));
         // the spark: a recent incident in contested space
         if (relation.LastIncidentEpoch >= 0
             && state.EpochIndex - relation.LastIncidentEpoch
                <= IncidentFreshEpochs)
             menu.Add((CasusBelli.BorderIncident, -1));
         return menu;
+    }
+
+    /// <summary>The other side's newest port whose service area overlaps an
+    /// OLDER port of ours — they expanded into an established sphere, and
+    /// the founding years say who was there first. −1 when nobody has.</summary>
+    public static int EncroachingPort(SimState state, int selfId, int otherId)
+    {
+        var cfg = state.Config;
+        int offender = -1;
+        long newest = long.MinValue;
+        foreach (var theirs in state.Ports)                   // id order (P6)
+        {
+            if (theirs.OwnerActorId != otherId) continue;
+            foreach (var ours in state.Ports)
+            {
+                if (ours.OwnerActorId != selfId
+                    || ours.FoundedYear >= theirs.FoundedYear) continue;
+                if (HexGrid.Distance(ours.Hex, theirs.Hex)
+                    > PortDomains.ServiceRadius(cfg, ours.Tier)
+                      + TechOps.AstroRadiusBonus(state, selfId)
+                      + PortDomains.ServiceRadius(cfg, theirs.Tier)
+                      + TechOps.AstroRadiusBonus(state, otherId)) continue;
+                if (theirs.FoundedYear > newest)
+                {
+                    newest = theirs.FoundedYear;
+                    offender = theirs.Id;
+                }
+                break;
+            }
+        }
+        return offender;
     }
 
     /// <summary>A good shocked at home (price ≥ multiple × founding at any
@@ -399,6 +436,8 @@ public static class WarOps
                        + " Secession War";   // named for the overlord fought
             case CasusBelli.CivilWar:
                 return "the " + defender + " Civil War";
+            case CasusBelli.Expulsion:
+                return "the " + defender + " Expulsion";
             default:
                 return "the " + defender + " War";
         }

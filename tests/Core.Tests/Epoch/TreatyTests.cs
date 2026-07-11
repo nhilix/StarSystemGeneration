@@ -31,7 +31,7 @@ public class TreatyTests
         var state = Run();
         Assert.True(state.Relations.Count > 0);
         // force a very warm, calm pair and let diplomacy work
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Warmth = 0.9;
         rel.Tension = 0.0;
         Continue(state, 3);
@@ -56,7 +56,7 @@ public class TreatyTests
     public void ColdPairs_NeverSign()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Warmth = 0.1;
         rel.Tension = 0.9;
         int before = CountSignings(state, rel);
@@ -79,7 +79,7 @@ public class TreatyTests
     public void HostileTurn_BreaksTheRung_AndWarmthCrashes()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.DefenseAlliance;
         // hostile: tension pinned high by claims, warmth pinned low
         rel.Warmth = 0.05;
@@ -99,7 +99,7 @@ public class TreatyTests
     public void NonAggression_DampsTheTensionTarget()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.None;
         double loose = RelationsOps.TensionTarget(state, rel, overlapPairs: 3);
         rel.Rung = TreatyRung.NonAggression;
@@ -113,7 +113,7 @@ public class TreatyTests
     public void TradePact_CutsTheTariff()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.None;
         Assert.Equal(1.0,
             RelationsOps.TariffFactor(state, rel.PolityAId, rel.PolityBId));
@@ -133,6 +133,9 @@ public class TreatyTests
         int bestDist = int.MaxValue;
         foreach (var rel in state.Relations)
         {
+            if (!RelationsOps.BothLive(state, rel)
+                || WarOps.ActiveWarBetween(state, rel.PolityAId,
+                                           rel.PolityBId) != null) continue;
             foreach (var pa in state.Ports)
             {
                 if (pa.OwnerActorId != rel.PolityAId) continue;
@@ -150,7 +153,9 @@ public class TreatyTests
         best.Tension = 0.0;
         state.PolityOf(best.PolityAId).DevelopmentPoints += 200;
         state.PolityOf(best.PolityBId).DevelopmentPoints += 200;
-        Continue(state, 2);
+        // drive Allocation directly: a full continuation can federate the
+        // partner away mid-test (histories churn)
+        new AllocationPhase().Run(state);
         bool crossLane = false;
         foreach (var lane in state.Lanes)
         {
@@ -167,7 +172,7 @@ public class TreatyTests
     public void Offers_ExpireQuietly()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.OfferedRung = TreatyRung.TradePact;
         rel.OfferedById = rel.PolityAId;
         rel.OfferEpoch = state.EpochIndex - 10;

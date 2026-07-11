@@ -247,8 +247,10 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.TreatyGateBase` / `TreatyGateStep` | 0.40 / 0.12 | Rungs demand deep warmth (alliances rare and meaningful). | Everyone allies with everyone (seed 42: pairs reach alliance in ~3 epochs once warm). |
 | `Relations.BreakWarmthPenalty` | 0.25 | Broken treaties end friendships for good. | Rungs churn — break and re-sign. |
 | `Relations.NonAggressionDamping` | 0.30 | The second rung genuinely calms borders (fewer sparks reach powder). | Non-aggression is paper. |
-| `Relations.FederationAllianceEpochs` | 4 | Fusions need a generation of proven alliance. | Whirlwind federations. |
-| `Relations.FederationIdeologyGapMax` / `CohesionFloor` / `OpennessFloor` | 0.20 / 0.55 / 0.50 | Only aligned, healthy, open pairs merge (federations rare and durable — seed 42: one, the Belzen Federation at y475). | Everything fuses; the galaxy consolidates to a blob. |
+| `Relations.FederationAllianceEpochs` | 3 | Fusions need a generation of proven alliance. | Whirlwind federations. |
+| `Relations.FederationIdeologyGapMax` / `CohesionFloor` / `OpennessFloor` | 0.20 / 0.55 / 0.40 | Only aligned, healthy, open pairs merge (openness is the PAIR MEAN — one open partner carries a warier one; seed 42: three federations chaining out of the crowded core). | Everything fuses; the galaxy consolidates to a blob. |
+| `Relations.FederationOverlapDiscount` | 0.25 | Entangled friendly borders fuse readily (the interleaved core federates or fights, never simmers). | Entanglement is diplomatically inert. |
+| `Relations.EncroachmentTensionBump` | 0.10 | Every colony in a neighbor's sphere is an incident. | Settling someone's sphere is free. |
 | `Relations.VassalStrengthRatio` | 0.35 | Only the genuinely outmatched kneel (chosen vassalage rare). | Peers vassalize on a bad epoch. |
 | `Relations.VassalTributeShare` | 0.15 | Protection is expensive; vassal economies drag. | Vassalage is symbolic. |
 | `Relations.VassalAbsorptionEpochs` / `AbsorptionWarmth` | 8 / 0.60 | Annexation takes two centuries of warm bond. | Vassals dissolve into overlords within a lifetime. |
@@ -276,6 +278,7 @@ set how fast the built world thickens (slice D).
 
 | Knob | Default | Raise it | Lower it |
 |---|---|---|---|
+| `Expansion.EncroachmentPenalty` | 1.5 | Contiguous borders: only truly rich contested sites get settled; boxed-in realms consolidate (**the map-soup dial**, slice H eyeball). | Land-rush interleaving returns. |
 | `Expansion.ColonyCost` | 15 | Fewer, better-funded expeditions (the cost lands in settler pockets). | Colony spam. |
 | `Expansion.ColonizationReachHexes` | 24 | Bolder leaps into the dark (further from lane relief). | Tight incremental sprawl. |
 | `Expansion.LaneCost` | 25 | Sparser networks; more isolated famine pockets. | Everything connects fast; blockades matter less each. |
@@ -393,6 +396,10 @@ and the incident freshness window (2 epochs) are structural.
 | `War.SettlementTensionRelief` | 0.5 | Peace genuinely clears the air (until claims restock it). | The next war starts where the last one ended. |
 | `War.VeteranMilitancyBump` | 0.10 | Every war hardens the sword parties (militarization ratchets). | Veterans retire quietly. |
 | `War.VictoryLegitimacy` / `DefeatLegitimacy` | 0.08 / 0.12 | War outcomes make and break governments (defeat → graduation risk). | Thrones indifferent to the front. |
+| `War.AnnihilationHatred` | 0.75 | Only saturated hatred with stacked claims turns total (wars of annihilation rare). | Every grudge is a war of extermination. |
+| `War.MobilizationFactor` | 3.0 | Wartime economies pivot hard to the front (fabricators boom, stockpiles corner markets). | War is fought from peacetime stocks. |
+| `War.WarBudgetMilitaryShift` | 0.20 | Guns before butter: development and expansion starve at war. | The exchequer ignores the front. |
+| `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
 
 ## Structural constants (code, not knobs — deliberately)
 

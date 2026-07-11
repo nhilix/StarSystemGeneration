@@ -55,7 +55,7 @@ public class FederationTests
     public void Federate_FusesANewPolity_AndConserves()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         double creditsBefore = TotalCredits(state);
         var ledgerBefore = HullLedger(state);
         int portsA = 0, portsB = 0;
@@ -101,7 +101,7 @@ public class FederationTests
     public void FederationGate_RequiresSustainedWarmAlliance()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         // no alliance: closed
         rel.Rung = TreatyRung.None;
         Assert.False(FederationOps.FederationGateHolds(state, rel));
@@ -138,7 +138,7 @@ public class FederationTests
     public void Vassalage_Binds_TributeFlows_TableCloses()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int vassal = rel.PolityAId, overlord = rel.PolityBId;
         FederationOps.Bind(state, rel, vassal);
         Assert.Equal(vassal, rel.VassalPolityId);
@@ -167,7 +167,7 @@ public class FederationTests
     public void ChosenVassalage_NeedsRealWeakness()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         // a peer (similar strength) is refused
         var act = new VassalageAct(rel.PolityAId, rel.PolityBId, IsDemand: false);
         double a = FleetOps.WarStrength(state, rel.PolityAId);
@@ -182,7 +182,7 @@ public class FederationTests
     public void Absorption_CompletesLongWarmVassalage()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int vassal = rel.PolityAId, overlord = rel.PolityBId;
         FederationOps.Bind(state, rel, vassal);
         rel.VassalSinceEpoch = state.EpochIndex
@@ -204,7 +204,7 @@ public class FederationTests
     public void Secession_FiresOnOverlordWeakness_AndLeavesAGrudge()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int vassal = rel.PolityAId, overlord = rel.PolityBId;
         FederationOps.Bind(state, rel, vassal);
         state.PolityOf(overlord).Interior!.Cohesion = 0.2;
@@ -224,7 +224,7 @@ public class FederationTests
     public void RetiredActors_AndBondClocks_RoundTrip()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.DefenseAlliance;
         rel.RungEpoch = 7;
         FederationOps.Bind(state, state.Relations.Count > 1
@@ -254,7 +254,7 @@ public class FederationTests
     public void RetiredPolity_NeverReenters_AndSimContinues()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         FederationOps.Federate(state, rel);
         int actorCount = state.Actors.Count;
         Continue(state, 3);

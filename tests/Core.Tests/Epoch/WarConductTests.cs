@@ -29,7 +29,7 @@ public class WarConductTests
     private static (War War, int Attacker, int Defender, Port Target)
         StageWar(SimState state, int lineHulls = 120)
     {
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int attacker = rel.PolityAId, defender = rel.PolityBId;
         var design = DesignRegistry.Current(state, attacker,
                 ShipRole.Line, ShipSize.Medium)

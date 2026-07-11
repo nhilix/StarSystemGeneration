@@ -22,7 +22,9 @@ public class DynasticInstrumentTests
     /// living rulers and houses.</summary>
     private static PolityRelation MakeDynasticPair(SimState state)
     {
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        rel.DynasticTies = 0;   // the new history's warm pairs marry early
+        rel.LastTieYear = -1;
         foreach (int id in new[] { rel.PolityAId, rel.PolityBId })
         {
             var pr = state.PolityOf(id);
@@ -62,7 +64,7 @@ public class DynasticInstrumentTests
     public void Ties_WarmTheTarget()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.DynasticTies = 0;
         double cold = RelationsOps.WarmthTarget(state, rel, 0);
         rel.DynasticTies = 2;
@@ -75,6 +77,10 @@ public class DynasticInstrumentTests
     {
         var state = Run();
         var rel = MakeDynasticPair(state);
+        // cold enough that nobody re-marries during the step — only the
+        // lapse moves the tie count
+        rel.Warmth = 0.1;
+        rel.Tension = 0.4;
         rel.DynasticTies = 1;
         rel.LastTieYear = state.WorldYear
             - state.Config.Relations.DynasticTieLapseYears;
@@ -106,12 +112,14 @@ public class DynasticInstrumentTests
     public void TieClock_RoundTrips()
     {
         var state = Run();
-        state.Relations[0].DynasticTies = 2;
-        state.Relations[0].LastTieYear = 425;
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int at = state.Relations.IndexOf(rel);
+        rel.DynasticTies = 2;
+        rel.LastTieYear = 425;
         var loaded = ArtifactSerializer.Load(
             new System.IO.StringReader(ArtifactSerializer.ToText(state)));
-        Assert.Equal(2, loaded.Relations[0].DynasticTies);
-        Assert.Equal(425, loaded.Relations[0].LastTieYear);
+        Assert.Equal(2, loaded.Relations[at].DynasticTies);
+        Assert.Equal(425, loaded.Relations[at].LastTieYear);
         Assert.Equal(ArtifactSerializer.ToText(state),
                      ArtifactSerializer.ToText(loaded));
     }

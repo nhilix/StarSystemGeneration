@@ -17,6 +17,7 @@ public enum CasusBelli
     VassalSecession = 8,     // a vassal fights for independence
     BorderIncident = 9,      // the spark itself, when tension is loaded
     CivilWar = 10,           // a contested coup fought out (H9)
+    Expulsion = 11,          // drive the late-comer out of our sphere
 }
 
 /// <summary>What a war objective is over (war.md §Conduct). Domains ride
@@ -43,6 +44,10 @@ public enum WarDemand
     Vassalize = 2,
     Independence = 3,  // vassal-secession wars
     Submission = 4,    // civil wars: the provisional polity dissolves back
+    /// <summary>Total war (slice H eyeball): hatred deep enough that the
+    /// attacker accepts no surrender — the war ends when the defender is
+    /// annexed whole or the attacker itself breaks.</summary>
+    Annihilation = 5,
 }
 
 /// <summary>One objective target in a declaration act — the Intent-side

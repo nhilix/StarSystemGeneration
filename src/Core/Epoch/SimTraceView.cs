@@ -281,6 +281,9 @@ public static class SimTraceView
                         $"{p.DefenderName} kneels to {p.AttackerName}",
                     WarOutcome.Independence =>
                         $"{p.AttackerName} wins its independence",
+                    WarOutcome.Annexed =>
+                        $"{p.DefenderName} is annexed outright — "
+                        + "its flag comes down for good",
                     _ => "white peace — the borders stand where they stood",
                 },
             DynasticInstrumentPayload p =>
@@ -308,6 +311,7 @@ public static class SimTraceView
         CasusBelli.VassalSecession => "independence",
         CasusBelli.BorderIncident => "a border incident",
         CasusBelli.CivilWar => "the throne itself",
+        CasusBelli.Expulsion => "expulsion from a claimed sphere",
         _ => "war",
     };
 

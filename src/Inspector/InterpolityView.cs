@@ -115,6 +115,7 @@ public static class InterpolityView
             WarDemand.Reparations => "reparations",
             WarDemand.Vassalize => "vassalage",
             WarDemand.Independence => "independence",
+            WarDemand.Annihilation => "ANNIHILATION — no surrender accepted",
             _ => "submission",
         };
         sb.AppendLine(Invariant($"  cause: {CauseNameShort(war.Cause)} · demand: ")
@@ -219,6 +220,7 @@ public static class InterpolityView
         CasusBelli.VassalSecession => "secession",
         CasusBelli.BorderIncident => "border incident",
         CasusBelli.CivilWar => "civil war",
+        CasusBelli.Expulsion => "expulsion",
         _ => "war",
     };
 }

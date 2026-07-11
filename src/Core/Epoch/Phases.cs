@@ -147,7 +147,8 @@ public sealed class PerceptionPhase : ISimPhase
                     rel.DynasticTies,
                     menu,
                     DefensiveStrength(state, other, strengths),
-                    ObjectiveCandidates(state, selfId, other)));
+                    ObjectiveCandidates(state, selfId, other),
+                    RelationsOps.OverlapShare(state, selfId, other)));
         }
         return relations;
     }
@@ -1025,6 +1026,23 @@ public sealed class ResolutionPhase : ISimPhase
         // a founding convoy mints its founder (characters.md §Notables)
         CharacterOps.MintNotable(state, act.ActorId, NotableType.Founder,
                                  act.Target);
+        // settling into someone's sphere is a provocation: every entangled
+        // neighbor's gauge jumps now, and the standing overlap term holds
+        // it up (slice H — expansion carries risk)
+        foreach (var other in state.Ports)                // id order (P6)
+        {
+            if (other.OwnerActorId == act.ActorId
+                || !state.Actors[other.OwnerActorId].Entered) continue;
+            if (HexGrid.Distance(other.Hex, act.Target)
+                > PortDomains.ServiceRadius(cfg, 1)
+                  + PortDomains.ServiceRadius(cfg, other.Tier)
+                  + TechOps.AstroRadiusBonus(state, other.OwnerActorId))
+                continue;
+            var relation = state.RelationOf(act.ActorId, other.OwnerActorId);
+            if (relation != null)
+                relation.Tension = System.Math.Min(1.0, relation.Tension
+                    + cfg.Relations.EncroachmentTensionBump);
+        }
         return true;
     }
 

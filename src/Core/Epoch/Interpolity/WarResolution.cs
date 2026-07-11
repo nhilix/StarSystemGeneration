@@ -13,6 +13,7 @@ public enum WarOutcome
     WhitePeace = 3,       // status quo ante — captures return
     Independence = 4,     // a secession war carried
     Submission = 5,       // civil wars: the loser merges back whole
+    Annexed = 6,          // a war of annihilation carried: the loser is no more
 }
 
 /// <summary>Termination and settlement (interpolity/war.md §Termination):
@@ -75,7 +76,11 @@ public static class WarResolution
 
             bool attackerConcedes = concessions != null
                 && concessions.Contains((war.Id, war.AttackerId));
-            bool defenderConcedes = concessions != null
+            // a war of annihilation accepts no surrender: the defender's
+            // concession falls on deaf ears — only broken politics, a
+            // broken fleet, or the attacker's own exhaustion end it
+            bool defenderConcedes = war.Demand != WarDemand.Annihilation
+                && concessions != null
                 && concessions.Contains((war.Id, war.DefenderId));
             bool attackerBroke = attackerConcedes || SideBroke(state, war, true);
             bool defenderBroke = defenderConcedes || SideBroke(state, war, false);
@@ -143,6 +148,9 @@ public static class WarResolution
                 => WarOutcome.Vassalized,
             WarDemand.Independence => WarOutcome.Independence,
             WarDemand.Submission => WarOutcome.Submission,
+            WarDemand.Annihilation
+                when state.Actors[war.DefenderId].Entered
+                => WarOutcome.Annexed,
             _ => WarOutcome.ObjectivesCeded,
         };
         Settle(state, war, outcome, winner: war.AttackerId);
@@ -244,10 +252,13 @@ public static class WarResolution
             }
         }
 
-        if (outcome == WarOutcome.Submission && winner >= 0 && loser >= 0)
+        if ((outcome == WarOutcome.Submission
+             || outcome == WarOutcome.Annexed) && winner >= 0 && loser >= 0)
         {
-            // the realm reunites at gunpoint: the loser merges back whole
-            // through the same plumbing federations use
+            // the loser merges whole through the same plumbing federations
+            // use — for Annexed this is conquest: the winner inherits the
+            // segments (and the accommodation strain of ruling them; a
+            // conquest empire is NOT a treaty federation)
             FederationOps.DissolveFactionsOf(state, loser);
             FederationOps.MergeInto(state, loser, winner);
             FederationOps.Retire(state, loser);

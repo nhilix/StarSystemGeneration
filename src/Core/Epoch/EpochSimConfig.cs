@@ -118,6 +118,21 @@ public sealed class WarKnobs
     public double VictoryLegitimacy { get; set; } = 0.08;
     /// <summary>Legitimacy a settlement costs the loser's throne.</summary>
     public double DefeatLegitimacy { get; set; } = 0.12;
+    /// <summary>Wartime multiplier on the yard pull and on armaments/parts/
+    /// fuel stockpile targets — the mobilization surge that diverts an
+    /// economy to the front (fabricators boom, households ration).</summary>
+    public double MobilizationFactor { get; set; } = 3.0;
+    /// <summary>Budget share shifted from development and expansion into
+    /// the military line while at war — guns before butter.</summary>
+    public double WarBudgetMilitaryShift { get; set; } = 0.20;
+    /// <summary>Tension × (1 − warmth) at which a declaration turns total:
+    /// demand Annihilation, no surrender accepted (needs standing claims
+    /// on the table too — hatred has history).</summary>
+    public double AnnihilationHatred { get; set; } = 0.75;
+    /// <summary>Provisions a belligerent's warship draws per hull per
+    /// world-year on top of normal upkeep — armies eat, and the rations
+    /// compete with the households' subsistence (wartime rationing).</summary>
+    public double RationsPerHullPerYear { get; set; } = 0.04;
 }
 
 /// <summary>Relations dials (interpolity/relations.md): contact reach, the
@@ -188,6 +203,14 @@ public sealed class RelationsKnobs
     /// <summary>Warmth lost outright by the pair when a rung is broken —
     /// the galaxy hears, the partner remembers.</summary>
     public double BreakWarmthPenalty { get; set; } = 0.25;
+    /// <summary>Instant tension a colony founded inside a neighbor's
+    /// service area costs with that neighbor — expansion into contested
+    /// space is a provocation the founder chooses.</summary>
+    public double EncroachmentTensionBump { get; set; } = 0.10;
+    /// <summary>Warmth-gate discount per point of saturated overlap at the
+    /// federation rung — entangled friendly borders push toward fusion
+    /// rather than friction (slice H eyeball feedback).</summary>
+    public double FederationOverlapDiscount { get; set; } = 0.25;
     /// <summary>Fractional tension-target damping under a non-aggression
     /// rung or above — the rung's teeth (spark de-escalation is war.md's).</summary>
     public double NonAggressionDamping { get; set; } = 0.30;
@@ -196,14 +219,14 @@ public sealed class RelationsKnobs
     public double PactTariffFactor { get; set; } = 0.40;
     /// <summary>Epochs a defense alliance must stand before the federation
     /// gate opens — sustained alliance, not a fling.</summary>
-    public int FederationAllianceEpochs { get; set; } = 4;
+    public int FederationAllianceEpochs { get; set; } = 3;
     /// <summary>Both cohesions must sit at or above this to fuse — troubled
     /// realms don't merge, they fracture.</summary>
     public double FederationCohesionFloor { get; set; } = 0.55;
     /// <summary>Official-ideology gap above which the merge is off.</summary>
     public double FederationIdeologyGapMax { get; set; } = 0.20;
     /// <summary>Composed openness both sides need to contemplate fusion.</summary>
-    public double FederationOpennessFloor { get; set; } = 0.50;
+    public double FederationOpennessFloor { get; set; } = 0.40;
     /// <summary>Epochs of stable vassalage before the absorption exit can
     /// fire — cultural drift takes generations.</summary>
     public int VassalAbsorptionEpochs { get; set; } = 8;
@@ -665,6 +688,10 @@ public sealed class ExpansionKnobs
     public double ColonyCost { get; set; } = 15.0;
     /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>
     public int ColonizationReachHexes { get; set; } = 24;
+    /// <summary>Colony-score penalty per foreign polity whose domain the
+    /// new port's service area would overlap — settling someone's sphere
+    /// must be outweighed by real riches (slice H: contiguous borders).</summary>
+    public double EncroachmentPenalty { get; set; } = 1.5;
     /// <summary>Development points to raise a port: cost = base × current tier.</summary>
     public double PortUpgradeCostBase { get; set; } = 40.0;
     /// <summary>Development points per lane built.</summary>

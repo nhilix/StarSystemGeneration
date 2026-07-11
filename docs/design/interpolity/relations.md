@@ -29,6 +29,16 @@ every rival a standing **liberation casus belli** and the natives a graduation
 path (exploitation/protectorate-turned-cage). Late emergence is a story
 generator, not an edge case.
 
+## Expansion prices the neighbors
+
+Settling into another polity's service sphere is a provocation, not a land
+rush: colony valuation discounts a site per foreign domain the new port
+would entangle, so only genuinely rich contested ground gets settled — and
+founding it costs instant tension with every entangled neighbor. A realm
+whose whole frontier is someone's sphere consolidates instead of settling
+trouble. Borders stay contiguous by choice, not decree; the interleaved
+exceptions are exactly the loaded ones.
+
 ## Relations state per pair
 
 - **Warmth** — accumulated positive interdependence: trade volume, dynastic ties,
@@ -53,11 +63,15 @@ Warmth gates ascent; breaking any rung is a reputation event the galaxy hears.
 ## Federation
 
 The merge gate: sustained alliance + high warmth + ideology compatibility +
-openness + both cohesions healthy. The fused polity is **new** — multi-species
-membership, population-weighted composition, fresh name, government form from the
-combined ideology — and plays subsequent epochs as itself. Treaty-built
-federations are structurally stabler than conquest empires: their segments chose
-membership, so legitimacy starts high.
+openness (pair-mean: one open partner can carry a warier one) + both cohesions
+healthy. **Entangled borders push toward fusion**: overlap between friendly
+domains reads as a shared border, not friction (warmth damps the overlap
+tension term), and discounts the federation warmth gate — the interleaved
+core either federates or fights; it doesn't simmer. The fused polity is
+**new** — multi-species membership, population-weighted composition, fresh
+name, government form from the combined ideology — and plays subsequent
+epochs as itself. Treaty-built federations are structurally stabler than
+conquest empires: their segments chose membership, so legitimacy starts high.
 
 ## Vassalage
 

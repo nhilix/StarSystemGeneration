@@ -97,15 +97,19 @@ public class RelationsTests
     {
         var state = Run();
         Assert.True(state.Relations.Count > 0);
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         double before = RelationsOps.TensionTarget(state, rel, overlapPairs: 0);
-        rel.Claims.Add(new RelationClaim(ClaimType.LostTerritory,
-            rel.PolityAId, 0, state.WorldYear));
-        rel.Claims.Add(new RelationClaim(ClaimType.Succession,
-            rel.PolityBId, 0, state.WorldYear));
+        var mine = new[]
+        {
+            new RelationClaim(ClaimType.LostTerritory, rel.PolityAId, 0,
+                              state.WorldYear),
+            new RelationClaim(ClaimType.Succession, rel.PolityBId, 0,
+                              state.WorldYear),
+        };
+        foreach (var c in mine) rel.Claims.Add(c);
         double loaded = RelationsOps.TensionTarget(state, rel, overlapPairs: 0);
         Assert.True(loaded > before, "live claims must load the target");
-        foreach (var c in rel.Claims) c.Released = true;
+        foreach (var c in mine) c.Released = true;   // only the synthetic two
         double released = RelationsOps.TensionTarget(state, rel, overlapPairs: 0);
         Assert.Equal(before, released, 12);
     }
@@ -125,7 +129,7 @@ public class RelationsTests
         // manufacture kin: move a big segment of polity 0's founding culture
         // under a related foreign polity's port
         Assert.True(state.Relations.Count > 0);
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int holder = rel.PolityAId;
         int other = rel.PolityBId;
         int kinCulture = state.PolityOf(holder).Interior!.FoundingCultureId;

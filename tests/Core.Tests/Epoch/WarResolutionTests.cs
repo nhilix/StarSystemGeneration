@@ -44,18 +44,35 @@ public class WarResolutionTests
     public void WarScore_ReadsProgressAndExhaustion()
     {
         var state = Run();
-        var rel = state.Relations[0];
-        Assert.Equal(0.5, WarResolution.WarScore(state, rel.PolityAId));
+        // a polity at peace scores neutral (histories shift with tuning —
+        // find one)
+        foreach (var pr in state.Polities)
+            if (state.Actors[pr.ActorId].Entered
+                && !WarOps.AtWar(state, pr.ActorId))
+            {
+                Assert.Equal(0.5, WarResolution.WarScore(state, pr.ActorId));
+                break;
+            }
+        PolityRelation? rel = null;
+        foreach (var r in state.Relations)
+            if (RelationsOps.BothLive(state, r)
+                && WarOps.ActiveWarBetween(state, r.PolityAId, r.PolityBId)
+                   == null)
+            { rel = r; break; }
+        Assert.NotNull(rel);
+        double attackerBefore = WarResolution.WarScore(state, rel!.PolityAId);
+        double defenderBefore = WarResolution.WarScore(state, rel.PolityBId);
         var war = Declare(state, rel.PolityAId, rel.PolityBId,
             WarDemand.Reparations);
         war.AttackerExhaustion = 0.6;
-        Assert.True(WarResolution.WarScore(state, rel.PolityAId) < 0.5,
-            "a grinding war saps the throne");
+        Assert.True(WarResolution.WarScore(state, rel.PolityAId)
+                    < attackerBefore, "a grinding war saps the throne");
         war.Objectives[0].Status = ObjectiveStatus.Taken;
         war.AttackerExhaustion = 0.0;
-        Assert.True(WarResolution.WarScore(state, rel.PolityAId) > 0.5,
-            "winning steadies it");
-        Assert.True(WarResolution.WarScore(state, rel.PolityBId) < 0.5,
+        Assert.True(WarResolution.WarScore(state, rel.PolityAId)
+                    > attackerBefore, "winning steadies it");
+        Assert.True(WarResolution.WarScore(state, rel.PolityBId)
+                    < defenderBefore,
             "the defender watches its objectives fall");
     }
 
@@ -63,7 +80,7 @@ public class WarResolutionTests
     public void Exhaustion_BreaksASide_WhitePeaceRestores()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         Port? target = null;
         foreach (var p in state.Ports)
             if (p.OwnerActorId == rel.PolityBId) { target = p; break; }
@@ -88,7 +105,7 @@ public class WarResolutionTests
     public void Victory_CedesTheTaken_AndLeavesAGrudge()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         Port? target = null;
         foreach (var p in state.Ports)
             if (p.OwnerActorId == rel.PolityBId) { target = p; break; }
@@ -112,7 +129,7 @@ public class WarResolutionTests
     public void Reparations_Conserve()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         var war = Declare(state, rel.PolityAId, rel.PolityBId,
             WarDemand.Reparations);
         war.Objectives[0].Status = ObjectiveStatus.Taken;   // navy broken
@@ -131,7 +148,7 @@ public class WarResolutionTests
     public void VassalizeDemand_BindsTheLoser()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         var war = Declare(state, rel.PolityAId, rel.PolityBId,
             WarDemand.Vassalize);
         war.Objectives[0].Status = ObjectiveStatus.Taken;
@@ -146,7 +163,7 @@ public class WarResolutionTests
     public void Concession_SettlesTheWar()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         var war = Declare(state, rel.PolityAId, rel.PolityBId,
             WarDemand.Reparations);
         var concessions = new System.Collections.Generic
@@ -159,7 +176,7 @@ public class WarResolutionTests
     public void Demobilization_SendsTheFleetsHome()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         Port? target = null;
         foreach (var p in state.Ports)
             if (p.OwnerActorId == rel.PolityBId) { target = p; break; }

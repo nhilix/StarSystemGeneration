@@ -485,8 +485,15 @@ public static class MarketEngine
             if (pr.MilitaryPoints < hullValue) continue;  // can't pay, don't pull
             int at = YardPortOf(state, pr.ActorId);
             if (at < 0) continue;
+            // mobilization (slice H): a belligerent's yards pull hard —
+            // components AND armaments — the fabricator boom of wartime
+            double surge = WarOps.AtWar(state, pr.ActorId)
+                ? state.Config.War.MobilizationFactor : 1.0;
             scratch.Demand[at][(int)GoodId.ShipComponents]
-                += fleet.MilitaryPullComponents;
+                += fleet.MilitaryPullComponents * surge;
+            if (surge > 1.0)
+                scratch.Demand[at][(int)GoodId.Armaments]
+                    += fleet.MilitaryPullComponents * (surge - 1.0);
         }
     }
 

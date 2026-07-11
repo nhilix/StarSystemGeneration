@@ -40,6 +40,25 @@ public static class EpochTestKit
         return fleet;
     }
 
+    /// <summary>The first relation whose parties are both still on the
+    /// stage and not at war with each other — the crafting anchor most
+    /// slice-H tests ride (federations retire actors mid-history, so
+    /// Relations[0] can be a dead pair).</summary>
+    public static PolityRelation FirstLiveRelation(SimState state)
+    {
+        foreach (var rel in state.Relations)
+            if (RelationsOps.BothLive(state, rel)
+                && WarOps.ActiveWarBetween(state, rel.PolityAId,
+                                           rel.PolityBId) == null
+                // unbonded parties: vassalage locks diplomacy and wars
+                && rel.VassalPolityId < 0
+                && FederationOps.OverlordOf(state, rel.PolityAId) < 0
+                && FederationOps.OverlordOf(state, rel.PolityBId) < 0)
+                return rel;
+        throw new System.InvalidOperationException(
+            "no live unbonded at-peace relation in this history");
+    }
+
     /// <summary>Station a blockade squadron at a port's approaches — the
     /// real interdiction that replaced the debug lane-cut hook (slice H):
     /// every lane touching the port severs via FleetOps.SeveredLaneIds.</summary>

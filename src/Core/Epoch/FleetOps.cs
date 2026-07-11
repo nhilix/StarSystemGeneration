@@ -446,7 +446,11 @@ public static class FleetOps
 
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? knobs.ReserveUpkeepFactor : 1.0;
-            double fuelNeed = 0, armsNeed = 0, partsNeed = 0;
+            // rationing (slice H eyeball): a belligerent's warships eat —
+            // the rations come out of the same markets the households eat
+            // from, and an unfed fleet loses readiness like an unfueled one
+            bool atWar = WarOps.AtWar(state, pr.ActorId);
+            double fuelNeed = 0, armsNeed = 0, partsNeed = 0, rationsNeed = 0;
             foreach (var g in fleet.Hulls)                // design-id order
             {
                 var design = state.Designs[g.DesignId];
@@ -456,7 +460,12 @@ public static class FleetOps
                               * posture;
                 fuelNeed += draw * knobs.UpkeepFuelShare;
                 if (ShipCatalog.IsWarship(design.Role))
+                {
                     armsNeed += draw * (1 - knobs.UpkeepFuelShare);
+                    if (atWar)
+                        rationsNeed += g.Count * posture * years
+                            * state.Config.War.RationsPerHullPerYear;
+                }
                 else
                     partsNeed += draw * (1 - knobs.UpkeepFuelShare);
             }
@@ -465,7 +474,7 @@ public static class FleetOps
             // fueled fleet toward degraded readiness instead of erasing it —
             // militia rot, not evaporation (attrition still bites below the
             // floor when fuel fails too)
-            double totalNeed = fuelNeed + armsNeed + partsNeed;
+            double totalNeed = fuelNeed + armsNeed + partsNeed + rationsNeed;
             double met = totalNeed <= 0 ? 1.0
                 : (DrawUpkeep(state, pr, market, (int)GoodId.Fuel, fuelNeed)
                        * fuelNeed
@@ -473,7 +482,10 @@ public static class FleetOps
                        * armsNeed
                    + DrawUpkeep(state, pr, market,
                          (int)GoodId.ShipComponents, partsNeed)
-                       * partsNeed) / totalNeed;
+                       * partsNeed
+                   + DrawUpkeep(state, pr, market,
+                         (int)GoodId.Provisions, rationsNeed)
+                       * rationsNeed) / totalNeed;
 
             if (met >= fleet.Readiness)
                 fleet.Readiness = Math.Min(met, fleet.Readiness
@@ -573,6 +585,7 @@ public static class FleetOps
                 || fleet.HomePortId >= state.Markets.Count) continue;
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? knobs.ReserveUpkeepFactor : 1.0;
+            bool atWar = WarOps.AtWar(state, fleet.OwnerActorId);
             foreach (var g in fleet.Hulls)                // design-id order
             {
                 var design = state.Designs[g.DesignId];
@@ -586,6 +599,12 @@ public static class FleetOps
                     ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
                 scratch.Demand[fleet.HomePortId][rest]
                     += draw * (1 - knobs.UpkeepFuelShare);
+                // wartime rations register too — the price signal the
+                // households then compete against
+                if (atWar && ShipCatalog.IsWarship(design.Role))
+                    scratch.Demand[fleet.HomePortId][(int)GoodId.Provisions]
+                        += g.Count * posture * years
+                           * state.Config.War.RationsPerHullPerYear;
             }
         }
     }

@@ -33,15 +33,22 @@ public static class FederationOps
         if (rel.Rung != TreatyRung.DefenseAlliance) return false;
         if (rel.RungEpoch < 0 || state.EpochIndex - rel.RungEpoch
             < knobs.FederationAllianceEpochs) return false;
-        if (rel.Warmth < RelationsOps.TreatyGate(state.Config,
-                TreatyRung.Federation)) return false;
+        // entangled friendly borders lower the bar: interleaved domains
+        // are a reason to fuse, not just a thing to tolerate
+        double gate = RelationsOps.TreatyGate(state.Config,
+                TreatyRung.Federation)
+            - knobs.FederationOverlapDiscount
+              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
+        if (rel.Warmth < gate) return false;
         var a = state.PolityOf(rel.PolityAId);
         var b = state.PolityOf(rel.PolityBId);
         if (RelationsOps.IdeologyGap(a, b) > knobs.FederationIdeologyGapMax)
             return false;
-        if (Temperament.Compose(state, a).Openness < knobs.FederationOpennessFloor
-            || Temperament.Compose(state, b).Openness
-               < knobs.FederationOpennessFloor) return false;
+        // pair-mean openness: one open partner can carry a warier one over
+        // the line (both still consented through the offer/accept dance)
+        if (0.5 * (Temperament.Compose(state, a).Openness
+                   + Temperament.Compose(state, b).Openness)
+            < knobs.FederationOpennessFloor) return false;
         if (a.Interior == null || b.Interior == null) return false;
         if (a.Interior.Cohesion < knobs.FederationCohesionFloor
             || b.Interior.Cohesion < knobs.FederationCohesionFloor) return false;

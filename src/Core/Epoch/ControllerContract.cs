@@ -25,7 +25,8 @@ public sealed record RelationBrief(
     double OtherStrength, int VassalPolityId, bool OtherDynastic,
     int DynasticTies, IReadOnlyList<CasusBelliOption> CasusBelli,
     double OtherDefensiveStrength,
-    IReadOnlyList<WarObjectiveSpec> ObjectiveCandidates);
+    IReadOnlyList<WarObjectiveSpec> ObjectiveCandidates,
+    double OverlapShare);
 
 /// <summary>One viable declared goal on the menu (war.md §Causes).</summary>
 public sealed record CasusBelliOption(CasusBelli Cause, int SubjectId);
@@ -186,6 +187,10 @@ public sealed class GenesisController : IController
         if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
             && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0
+            // a site must be worth its provocation: when every option in
+            // reach is net-negative (encroachment outweighs the riches),
+            // a wise realm consolidates instead of settling trouble
+            && perceived.ColonyCandidates[0].Score > 0
             && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
             acts.Add(new FoundColonyAct(perceived.SelfId,
                                         perceived.ColonyCandidates[0].Target));
@@ -212,14 +217,13 @@ public sealed class GenesisController : IController
                 if (stance < DiplomaticPosture.Cordial) continue;
                 if (rel.OfferedRung > rel.Rung
                     && rel.OfferedById == rel.OtherPolityId
-                    && rel.Warmth >= RelationsOps.TreatyGate(_config,
-                                                             rel.OfferedRung)
+                    && rel.Warmth >= EffectiveGate(rel, rel.OfferedRung)
                     && FederationTermsAgreeable(perceived, rel, rel.OfferedRung))
                     acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
                         (int)rel.OfferedRung, TreatyVerb.Accept));
                 else if (rel.OfferedRung == TreatyRung.None
                     && rel.Rung < TreatyRung.Federation
-                    && rel.Warmth >= RelationsOps.TreatyGate(_config, rel.Rung + 1)
+                    && rel.Warmth >= EffectiveGate(rel, rel.Rung + 1)
                     && FederationTermsAgreeable(perceived, rel, rel.Rung + 1))
                     acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
                         (int)(rel.Rung + 1), TreatyVerb.Offer));
@@ -271,10 +275,16 @@ public sealed class GenesisController : IController
             if (front != null)
             {
                 var pick = PickCause(front.CasusBelli);
+                // hatred deep enough turns any cause into a war of
+                // annihilation: no surrender accepted, everything taken
+                bool hatred = front.Tension * (1.0 - front.Warmth)
+                        >= _config.War.AnnihilationHatred
+                    && front.LiveClaimsHeld + front.LiveClaimsAgainst >= 2;
                 acts.Add(new DeclareWarAct(perceived.SelfId,
                     front.OtherPolityId, (int)pick.Cause, pick.SubjectId,
-                    PickObjectives(front, pick.Cause),
-                    (int)DemandFor(pick.Cause)));
+                    PickObjectives(front, pick.Cause, pick.SubjectId, hatred),
+                    (int)(hatred ? WarDemand.Annihilation
+                        : DemandFor(pick.Cause))));
             }
         }
         // the protection market: a genuinely outmatched polity facing a
@@ -330,6 +340,29 @@ public sealed class GenesisController : IController
         var knobs = _config.Controller;
         var policies = PolityPolicies.Default;
         var temperament = perceived.SelfTemperament;
+        bool atWar = perceived.Wars.Count > 0;
+        // guns before butter: a belligerent shifts development and
+        // expansion spending into the military line (slice H eyeball:
+        // war diverts large portions of the economy)
+        if (atWar)
+        {
+            var b = policies.Budget;
+            double shift = _config.War.WarBudgetMilitaryShift;
+            double fromDev = System.Math.Min(
+                System.Math.Max(0.0, b.Development - 0.05), shift * 0.6);
+            double fromExp = System.Math.Min(
+                System.Math.Max(0.0, b.Expansion - 0.02), shift * 0.4);
+            policies = policies with
+            {
+                Budget = new BudgetWeights(
+                    Development: b.Development - fromDev,
+                    Military: b.Military + fromDev + fromExp,
+                    Research: b.Research,
+                    Expansion: b.Expansion - fromExp,
+                    Appeasement: b.Appeasement,
+                    Reserves: b.Reserves),
+            };
+        }
         // the research split follows temperament: hawks fund the arsenal,
         // expansionists the astrogators; the rest splits industry and life
         double militarySplit = 0.10 + 0.20 * temperament.Militancy;
@@ -403,6 +436,19 @@ public sealed class GenesisController : IController
                 targets[(int)Substrate.GoodId.Armaments] =
                     militancy * knobs.ArmamentsPerPortPerMilitancy
                     * perceived.OwnPortCount;
+            if (atWar)
+            {
+                // mobilization: the quartermaster corners armaments, ship
+                // parts, and fuel — real purchases that divert the markets
+                double surge = _config.War.MobilizationFactor;
+                targets[(int)Substrate.GoodId.Armaments] = System.Math.Max(
+                    targets.TryGetValue((int)Substrate.GoodId.Armaments,
+                        out double arms) ? arms : 0,
+                    knobs.ArmamentsPerPortPerMilitancy
+                    * perceived.OwnPortCount * 0.5) * surge;
+                targets[(int)Substrate.GoodId.ShipComponents] *= surge;
+                targets[(int)Substrate.GoodId.Fuel] *= surge;
+            }
             policies = policies with { StockpileTargets = targets };
         }
         if (perceived.Relations.Count > 0)
@@ -425,20 +471,23 @@ public sealed class GenesisController : IController
                 switch (brief.Role)
                 {
                     case ShipRole.Freight:
-                        builds[brief.DesignId] = 1.0;
+                        // wartime yards build warships, not haulers
+                        builds[brief.DesignId] = atWar ? 0.3 : 1.0;
                         break;
                     case ShipRole.Colony:
-                        builds[brief.DesignId] =
-                            perceived.ColonyHullsAvailable == 0 ? 0.6 : 0.05;
+                        builds[brief.DesignId] = atWar ? 0.02
+                            : perceived.ColonyHullsAvailable == 0 ? 0.6 : 0.05;
                         break;
                     case ShipRole.Scout:
                         builds[brief.DesignId] = 0.1;
                         break;
                     case ShipRole.Escort:
-                        builds[brief.DesignId] = 0.5 * militancy;
+                        builds[brief.DesignId] = atWar ? 1.0
+                            : 0.5 * militancy;
                         break;
                     case ShipRole.Line:
-                        builds[brief.DesignId] = 0.35 * militancy;
+                        builds[brief.DesignId] = atWar ? 1.0
+                            : 0.35 * militancy;
                         break;
                 }
             policies = policies with { ShipbuildingPriorities = builds };
@@ -451,10 +500,11 @@ public sealed class GenesisController : IController
     private static readonly CasusBelli[] CausePriority =
     {
         CasusBelli.SuccessionClaim, CasusBelli.Liberation,
-        CasusBelli.VassalSecession, CasusBelli.ResourceSeizure,
-        CasusBelli.GrievanceDischarge, CasusBelli.Crusade,
-        CasusBelli.ChokepointControl, CasusBelli.PunitiveInterdiction,
-        CasusBelli.Containment, CasusBelli.BorderIncident,
+        CasusBelli.VassalSecession, CasusBelli.Expulsion,
+        CasusBelli.ResourceSeizure, CasusBelli.GrievanceDischarge,
+        CasusBelli.Crusade, CasusBelli.ChokepointControl,
+        CasusBelli.PunitiveInterdiction, CasusBelli.Containment,
+        CasusBelli.BorderIncident,
     };
 
     private static CasusBelliOption PickCause(
@@ -466,26 +516,33 @@ public sealed class GenesisController : IController
         return menu[0];
     }
 
-    /// <summary>Objectives per cause flavor: territorial causes take ports,
-    /// punitive ones cut lanes; the navy is always on the list.</summary>
+    /// <summary>Objectives per aim: an expulsion war targets exactly the
+    /// port that came to us; territorial causes take ports, punitive ones
+    /// cut lanes; annihilation takes everything on the list; the navy is
+    /// always on it.</summary>
     private static IReadOnlyList<WarObjectiveSpec> PickObjectives(
-        RelationBrief front, CasusBelli cause)
+        RelationBrief front, CasusBelli cause, int subjectId, bool hatred)
     {
         var specs = new List<WarObjectiveSpec>();
-        bool territorial = cause is CasusBelli.ResourceSeizure
+        if (cause == CasusBelli.Expulsion && subjectId >= 0)
+            specs.Add(new WarObjectiveSpec(WarObjectiveType.CapturePort,
+                                           subjectId));
+        bool territorial = hatred || cause is CasusBelli.ResourceSeizure
             or CasusBelli.ChokepointControl or CasusBelli.Liberation
             or CasusBelli.SuccessionClaim or CasusBelli.GrievanceDischarge;
-        int ports = 0;
+        int ports = specs.Count;
+        int portCap = hatred ? 3 : 2;
         foreach (var candidate in front.ObjectiveCandidates)
             switch (candidate.Type)
             {
                 case WarObjectiveType.CapturePort
-                    when territorial && ports < 2:
+                    when territorial && ports < portCap
+                         && candidate.TargetId != subjectId:
                     specs.Add(candidate);
                     ports++;
                     break;
                 case WarObjectiveType.BlockadeLane
-                    when cause is CasusBelli.PunitiveInterdiction
+                    when hatred || cause is CasusBelli.PunitiveInterdiction
                         or CasusBelli.ResourceSeizure
                         or CasusBelli.Containment:
                     specs.Add(candidate);
@@ -503,9 +560,21 @@ public sealed class GenesisController : IController
         CasusBelli.VassalSecession => WarDemand.Independence,
         CasusBelli.ResourceSeizure or CasusBelli.ChokepointControl
             or CasusBelli.Liberation or CasusBelli.GrievanceDischarge
+            or CasusBelli.Expulsion
             => WarDemand.CedeObjectives,
         _ => WarDemand.Reparations,
     };
+
+    /// <summary>The warmth gate for a rung, discounted at the top rung by
+    /// entanglement: interleaved friendly borders push toward fusion.</summary>
+    private double EffectiveGate(RelationBrief rel, TreatyRung rung)
+    {
+        double gate = RelationsOps.TreatyGate(_config, rung);
+        if (rung == TreatyRung.Federation)
+            gate -= _config.Relations.FederationOverlapDiscount
+                    * rel.OverlapShare;
+        return gate;
+    }
 
     /// <summary>Rungs below federation carry no extra conditions; the top
     /// one asks what the controller can see of the merge gate — ideology
@@ -519,8 +588,10 @@ public sealed class GenesisController : IController
         return rel.Rung == TreatyRung.DefenseAlliance
                && rel.EpochsAtRung >= knobs.FederationAllianceEpochs
                && rel.IdeologyGap <= knobs.FederationIdeologyGapMax
+               // its own half of the pair-mean gate Resolution verifies —
+               // a warier partner still offers when a friend can carry it
                && perceived.SelfTemperament.Openness
-                  >= knobs.FederationOpennessFloor;
+                  >= knobs.FederationOpennessFloor * 0.5;
     }
 
     /// <summary>Net warmth − tension mapped to the five-stance scale

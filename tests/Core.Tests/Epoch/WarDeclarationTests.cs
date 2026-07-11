@@ -29,7 +29,7 @@ public class WarDeclarationTests
     public void Menu_CarriesClaimBackedCauses()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int self = rel.PolityAId, other = rel.PolityBId;
         rel.Claims.Add(new RelationClaim(ClaimType.Succession, self, 0,
                                          state.WorldYear));
@@ -38,17 +38,20 @@ public class WarDeclarationTests
         var menu = WarOps.Menu(state, self, other);
         Assert.Contains(menu, m => m.Cause == CasusBelli.SuccessionClaim);
         Assert.Contains(menu, m => m.Cause == CasusBelli.Liberation);
-        // the other side holds neither claim
+        // the other side never holds MY synthetic claims (its own real
+        // history may arm its own)
         var reverse = WarOps.Menu(state, other, self);
         Assert.DoesNotContain(reverse,
-            m => m.Cause == CasusBelli.SuccessionClaim);
+            m => m.Cause == CasusBelli.SuccessionClaim && m.SubjectId == 0);
+        Assert.DoesNotContain(reverse,
+            m => m.Cause == CasusBelli.Liberation && m.SubjectId == 1);
     }
 
     [Fact]
     public void Menu_SparkNeedsARecentIncident()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.LastIncidentEpoch = -1;
         Assert.DoesNotContain(WarOps.Menu(state, rel.PolityAId, rel.PolityBId),
             m => m.Cause == CasusBelli.BorderIncident);
@@ -79,7 +82,7 @@ public class WarDeclarationTests
     public void Declaration_GroundsObjectives_AndAlliesAnswer()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         int attacker = rel.PolityAId, defender = rel.PolityBId;
         // the defender's ally stands ready
         int ally = -1;
@@ -122,7 +125,7 @@ public class WarDeclarationTests
     public void DeclaringOnATreatyPartner_BreaksTheTreaty()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
         rel.Rung = TreatyRung.NonAggression;
         double warmth = rel.Warmth = 0.6;
         var war = WarOps.DeclareWar(state, new DeclareWarAct(rel.PolityAId,
@@ -140,7 +143,7 @@ public class WarDeclarationTests
     {
         var state = Run();
         Assert.True(state.Relations.Count >= 2);
-        var bond = state.Relations[0];
+        var bond = EpochTestKit.FirstLiveRelation(state);
         int vassal = bond.PolityAId, overlord = bond.PolityBId;
         FederationOps.Bind(state, bond, vassal);
         // war on a third party: locked
@@ -177,7 +180,8 @@ public class WarDeclarationTests
     public void WarsAndIncidents_RoundTrip()
     {
         var state = Run();
-        var rel = state.Relations[0];
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int relAt = state.Relations.IndexOf(rel);
         rel.LastIncidentEpoch = 5;
         var war = WarOps.DeclareWar(state, new DeclareWarAct(rel.PolityAId,
             rel.PolityBId, (int)CasusBelli.BorderIncident, -1,
@@ -196,7 +200,7 @@ public class WarDeclarationTests
         Assert.Equal(war.Demand, l.Demand);
         Assert.Equal(war.Objectives.Count, l.Objectives.Count);
         Assert.Equal(0.25, l.AttackerExhaustion);
-        Assert.Equal(5, loaded.Relations[0].LastIncidentEpoch);
+        Assert.Equal(5, loaded.Relations[relAt].LastIncidentEpoch);
         Assert.Equal(ArtifactSerializer.ToText(state),
                      ArtifactSerializer.ToText(loaded));
     }
