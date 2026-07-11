@@ -1,0 +1,13 @@
+{
+    "name": "StarGen.AtlasView",
+    "rootNamespace": "StarGen.AtlasView",
+    "references": [
+        "StarGen.Core",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": false,
+    "noEngineReferences": false
+}
