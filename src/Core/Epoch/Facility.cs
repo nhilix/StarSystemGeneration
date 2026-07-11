@@ -19,6 +19,10 @@ public sealed class Facility
     /// output scales with it (economy/assets-and-investment.md).</summary>
     public double Condition { get; set; } = 1.0;
     public int BuiltYear { get; }
+    /// <summary>World-year output began; −1 while under construction (the
+    /// site exists before the facility does, P1 — spec §1 replaced the
+    /// BuiltYear+ConstructionYears date-check with delivered work).</summary>
+    public long CommissionedYear { get; set; }
 
     public Facility(int id, int typeId, int tier, HexCoordinate hex,
                     int ownerActorId, int builtYear)
@@ -29,5 +33,6 @@ public sealed class Facility
         Hex = hex;
         OwnerActorId = ownerActorId;
         BuiltYear = builtYear;
+        CommissionedYear = builtYear;
     }
 }

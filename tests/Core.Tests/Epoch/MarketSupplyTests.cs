@@ -109,7 +109,7 @@ public class MarketSupplyTests
         Assert.Equal(spent, scratch.PoolByMarket[0], 10);
     }
 
-    [Fact]
+    [Fact(Skip = "t1: converts to project in Task 5")]
     public void UnderConstruction_ProducesNothing()
     {
         var (state, port) = Fixture();

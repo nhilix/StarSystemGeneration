@@ -27,4 +27,26 @@ public class ProjectTests
             new HexCoordinate(3, -1), yearsRequired: 0.0, startedYear: 50);
         Assert.Equal(1.0, p.Progress, 9);
     }
+
+    [Fact]
+    public void Facility_Uncommissioned_IsInactive_AndLaneIsDead()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        // Seeded() runs genesis only — ports are founded later by Phases;
+        // give the fixture the two ports AddLane needs (sibling tests'
+        // convention, e.g. PlagueTests.cs).
+        var a0 = state.Actors[0];
+        var pa = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        var pb = new Port(1, a0.Id,
+            new HexCoordinate(a0.Seat.Q + 10, a0.Seat.R), tier: 2, foundedYear: 0);
+        state.Ports.Add(pa);
+        state.Ports.Add(pb);
+        var lane = EpochTestKit.AddLane(state, 0, 1);
+        var gateA = state.Facilities[lane.GateAId];
+        Assert.True(MarketEngine.IsActive(state, gateA));
+        Assert.True(LaneMath.IsLive(state, lane));
+        gateA.CommissionedYear = -1;               // under construction
+        Assert.False(MarketEngine.IsActive(state, gateA));
+        Assert.False(LaneMath.IsLive(state, lane));
+    }
 }

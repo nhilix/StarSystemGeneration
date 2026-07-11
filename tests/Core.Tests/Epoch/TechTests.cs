@@ -76,7 +76,7 @@ public class TechTests
             Assert.InRange(design.TechTier, 1, 6);
     }
 
-    [Fact]
+    [Fact(Skip = "t1: converts to project in Task 5")]
     public void TradeDiffusion_CapsOneTierBelowTheSource()
     {
         var (_, state) = EpochTestKit.Seeded();

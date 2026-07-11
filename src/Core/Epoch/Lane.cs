@@ -70,6 +70,8 @@ public static class LaneMath
     /// severs the lane without touching the port.</summary>
     public static bool IsLive(SimState state, Lane lane) =>
         lane.GateAId >= 0 && lane.GateBId >= 0
+        && state.Facilities[lane.GateAId].CommissionedYear >= 0
+        && state.Facilities[lane.GateBId].CommissionedYear >= 0
         && state.Facilities[lane.GateAId].Condition
            >= state.Config.Infrastructure.GateFunctionalCondition
         && state.Facilities[lane.GateBId].Condition

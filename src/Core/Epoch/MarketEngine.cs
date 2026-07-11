@@ -106,11 +106,11 @@ public static class MarketEngine
         return best;
     }
 
-    /// <summary>True once construction time has elapsed (assets-and-
-    /// investment.md: the site exists before the facility does).</summary>
+    /// <summary>True once the construction project delivered its years —
+    /// commissioning is a project completion, never date arithmetic
+    /// (spec §1).</summary>
     public static bool IsActive(SimState state, Facility f) =>
-        state.WorldYear >= f.BuiltYear
-                           + Infrastructure.Get((InfraTypeId)f.TypeId).ConstructionYears;
+        f.CommissionedYear >= 0;
 
     // ------------------------------------------------------------------
     // Step 1 — supply lands
