@@ -80,27 +80,14 @@ public class PortDomainTests
     }
 
     [Fact]
-    public void LaneMath_RangeCapacitySpeed()
+    public void LaneMath_ReachStepsWithGateTier()
     {
+        // reach lives in the gate, not the port (lane-economics spec §2);
+        // capacity/speed from gate tiers are covered by LaneGateTests
         var cfg = new EpochSimConfig();
-        int b = cfg.Infrastructure.InterPortRangeBaseHexes;
-        int p = cfg.Infrastructure.InterPortRangePerTierHexes;
-        Assert.Equal(b, LaneMath.InterPortRange(cfg, 1));
-        Assert.Equal(b + 2 * p, LaneMath.InterPortRange(cfg, 3));
-
-        var origin = new HexCoordinate(0, 0);
-        var t1 = new Port(0, 0, origin, 1, 0);
-        // both ends must reach: pairable iff distance ≤ min of the two ranges
-        var withinT1 = new Port(1, 0, new HexCoordinate(b, 0), 3, 0);
-        var beyondT1 = new Port(2, 0, new HexCoordinate(b + 1, 0), 3, 0);
-        Assert.True(LaneMath.InRange(cfg, t1, withinT1));
-        Assert.False(LaneMath.InRange(cfg, t1, beyondT1));
-
-        var t3a = new Port(3, 0, origin, 3, 0);
-        var t3b = new Port(4, 0, new HexCoordinate(b + 1, 0), 3, 0);
-        Assert.True(LaneMath.InRange(cfg, t3a, t3b));       // two t3s reach further
-
-        Assert.Equal(2.0, LaneMath.Capacity(t3a, t1));      // (3+1)×0.5
-        Assert.Equal(1.5, LaneMath.TransitSpeed(t3a, t1));  // 1 + 0.5×min(3,1)
+        Assert.Equal(cfg.Infrastructure.GateReachTier1Hexes, LaneMath.ReachHexes(cfg, 1));
+        Assert.Equal(cfg.Infrastructure.GateReachTier2Hexes, LaneMath.ReachHexes(cfg, 2));
+        Assert.Equal(cfg.Infrastructure.GateReachTier3Hexes, LaneMath.ReachHexes(cfg, 3));
+        Assert.True(LaneMath.ReachHexes(cfg, 3) > LaneMath.ReachHexes(cfg, 1));
     }
 }

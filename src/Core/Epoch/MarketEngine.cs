@@ -59,7 +59,8 @@ public sealed class MarketStepScratch
         LaneCapacityUsed = new double[state.Lanes.Count];
         LaneFleetCapacity = new double[state.Lanes.Count];
         foreach (var lane in state.Lanes)                 // id order (P6)
-            LaneFleetCapacity[lane.Id] = FleetOps.PostedCapacity(state, lane);
+            LaneFleetCapacity[lane.Id] = LaneMath.IsLive(state, lane)
+                ? FleetOps.PostedCapacity(state, lane) : 0.0;
         Severed = FleetOps.SeveredLaneIds(state);
     }
 }

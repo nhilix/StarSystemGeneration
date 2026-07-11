@@ -16,6 +16,29 @@ public static class EpochTestKit
         return (skeleton, state);
     }
 
+    /// <summary>Build a linked gate pair and its lane directly — the
+    /// registry state the Allocation builder would produce, minus the
+    /// treasury/goods flow (unit tests aren't economies).</summary>
+    public static Lane AddLane(SimState state, int portAId, int portBId,
+                               int gateTier = 2, int ownerActorId = -1)
+    {
+        if (portAId > portBId) (portAId, portBId) = (portBId, portAId);
+        var a = state.Ports[portAId];
+        var b = state.Ports[portBId];
+        var gateA = new Facility(state.Facilities.Count,
+            (int)StarGen.Core.Substrate.InfraTypeId.Gate, gateTier, a.Hex,
+            ownerActorId >= 0 ? ownerActorId : a.OwnerActorId, state.WorldYear);
+        state.Facilities.Add(gateA);
+        var gateB = new Facility(state.Facilities.Count,
+            (int)StarGen.Core.Substrate.InfraTypeId.Gate, gateTier, b.Hex,
+            ownerActorId >= 0 ? ownerActorId : b.OwnerActorId, state.WorldYear);
+        state.Facilities.Add(gateB);
+        var lane = new Lane(state.Lanes.Count, portAId, portBId, state.WorldYear)
+        { GateAId = gateA.Id, GateBId = gateB.Id };
+        state.Lanes.Add(lane);
+        return lane;
+    }
+
     /// <summary>Post a freight fleet on a lane (slice E: freight only moves
     /// on posted hulls) — registers a hauler design for the owner if none
     /// exists. Returns the posted fleet.</summary>

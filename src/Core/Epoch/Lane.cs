@@ -18,6 +18,15 @@ public sealed class Lane
     /// the lane is severed to freight, migration, and contagion until this
     /// world-year; −1 open. Lanes layer v2.</summary>
     public long QuarantinedUntil { get; set; } = -1;
+    /// <summary>Gate facility at each end (lane-economics spec §2): GateAId
+    /// stands at PortAId's system. −1 only mid-construction; a lane whose
+    /// gate is destroyed keeps the id — the ruin is the half-built state.
+    /// Lanes layer v3.</summary>
+    public int GateAId { get; set; } = -1;
+    public int GateBId { get; set; } = -1;
+    /// <summary>Consecutive saturated Markets steps (used/capacity ≥
+    /// ExpressSaturationFloor) — the express-bypass earn-in clock.</summary>
+    public int SaturatedEpochs { get; set; }
 
     public Lane(int id, int portAId, int portBId, int builtYear)
     {
@@ -31,32 +40,47 @@ public sealed class Lane
     }
 }
 
-/// <summary>Lane quantities derived from the linked ports' tiers
-/// (space-and-travel.md: capacity and transit speed derive from the ports'
-/// tiers and technology) — functions, never stored state.</summary>
+/// <summary>Lane quantities derived from the two gate facilities' tiers
+/// (lane-economics spec §2) — functions, never stored state. Reach,
+/// capacity, and speed all live in the built thing.</summary>
 public static class LaneMath
 {
-    /// <summary>Inter-port reach in hexes: base + per-tier step above tier 1 —
-    /// the second, independent port growth axis.</summary>
-    public static int InterPortRange(EpochSimConfig cfg, int tier) =>
-        cfg.Infrastructure.InterPortRangeBaseHexes
-        + cfg.Infrastructure.InterPortRangePerTierHexes * (tier - 1);
-
-    /// <summary>Pairable iff both ends reach: distance ≤ min of the two
-    /// ranges, plus the builder's Astrogation bonus (slice G).</summary>
-    public static bool InRange(EpochSimConfig cfg, Port a, Port b,
-                               int astroBonusHexes = 0)
+    public static int ReachHexes(EpochSimConfig cfg, int gateTier) => gateTier switch
     {
-        int range = System.Math.Min(InterPortRange(cfg, a.Tier), InterPortRange(cfg, b.Tier))
-                    + astroBonusHexes;
-        return StarGen.Core.Galaxy.HexGrid.Distance(a.Hex, b.Hex) <= range;
+        1 => cfg.Infrastructure.GateReachTier1Hexes,
+        2 => cfg.Infrastructure.GateReachTier2Hexes,
+        _ => cfg.Infrastructure.GateReachTier3Hexes,
+    };
+
+    /// <summary>Smallest gate tier whose reach (plus the builder's
+    /// Astrogation bonus, slice G) covers the distance; −1 when even
+    /// tier 3 can't.</summary>
+    public static int RequiredGateTier(EpochSimConfig cfg, int distanceHexes,
+                                       int astroBonusHexes)
+    {
+        for (int tier = 1; tier <= 3; tier++)
+            if (distanceHexes <= ReachHexes(cfg, tier) + astroBonusHexes)
+                return tier;
+        return -1;
     }
 
-    /// <summary>Bulk throughput per world-year unit: the tier sum, halved.</summary>
-    public static double Capacity(Port a, Port b) => (a.Tier + b.Tier) * 0.5;
+    /// <summary>Live iff both gates stand and function — a raided gate
+    /// severs the lane without touching the port.</summary>
+    public static bool IsLive(SimState state, Lane lane) =>
+        lane.GateAId >= 0 && lane.GateBId >= 0
+        && state.Facilities[lane.GateAId].Condition
+           >= state.Config.Infrastructure.GateFunctionalCondition
+        && state.Facilities[lane.GateBId].Condition
+           >= state.Config.Infrastructure.GateFunctionalCondition;
+
+    /// <summary>Bulk throughput per world-year unit: the gate-tier sum, halved.</summary>
+    public static double Capacity(SimState state, Lane lane) =>
+        (state.Facilities[lane.GateAId].Tier
+         + state.Facilities[lane.GateBId].Tier) * 0.5;
 
     /// <summary>Transit speed multiplier over off-lane crossing: the weaker
-    /// terminus bounds the lane.</summary>
-    public static double TransitSpeed(Port a, Port b) =>
-        1.0 + 0.5 * System.Math.Min(a.Tier, b.Tier);
+    /// gate bounds the lane.</summary>
+    public static double TransitSpeed(SimState state, Lane lane) =>
+        1.0 + 0.5 * System.Math.Min(state.Facilities[lane.GateAId].Tier,
+                                    state.Facilities[lane.GateBId].Tier);
 }

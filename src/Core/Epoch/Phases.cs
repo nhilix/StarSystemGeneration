@@ -712,7 +712,9 @@ public sealed class AllocationPhase : ISimPhase
                     var b = j < ownPorts.Count ? ownPorts[j]
                         : pactPorts[j - ownPorts.Count];
                     if (a.Id > b.Id) (a, b) = (b, a);
-                    if (!LaneMath.InRange(cfg, a, b, rangeBonus)) continue;
+                    if (LaneMath.RequiredGateTier(cfg,
+                            HexGrid.Distance(a.Hex, b.Hex), rangeBonus) < 0)
+                        continue;
                     if (LaneExists(state, a.Id, b.Id)) continue;
                     int dist = HexGrid.Distance(a.Hex, b.Hex);
                     if (dist < bestDist
@@ -725,7 +727,19 @@ public sealed class AllocationPhase : ISimPhase
             // lane budgets pay the two ports' construction crews
             MarketEngine.PayWages(state, bestA.Id, cfg.Expansion.LaneCost * 0.5);
             MarketEngine.PayWages(state, bestB!.Id, cfg.Expansion.LaneCost * 0.5);
-            var lane = new Lane(state.Lanes.Count, bestA.Id, bestB.Id, state.WorldYear);
+            // interim gate creation (lane-economics task 2): the pair the
+            // rewritten builder (task 4) will price and pay for properly
+            int gateTier = LaneMath.RequiredGateTier(cfg, bestDist, rangeBonus);
+            var gateA = new Facility(state.Facilities.Count,
+                (int)Substrate.InfraTypeId.Gate, gateTier, bestA.Hex,
+                pr.ActorId, state.WorldYear);
+            state.Facilities.Add(gateA);
+            var gateB = new Facility(state.Facilities.Count,
+                (int)Substrate.InfraTypeId.Gate, gateTier, bestB.Hex,
+                pr.ActorId, state.WorldYear);
+            state.Facilities.Add(gateB);
+            var lane = new Lane(state.Lanes.Count, bestA.Id, bestB.Id, state.WorldYear)
+            { GateAId = gateA.Id, GateBId = gateB.Id };
             state.Lanes.Add(lane);
             built++;
             state.Staged.Add(new StagedEvent(
