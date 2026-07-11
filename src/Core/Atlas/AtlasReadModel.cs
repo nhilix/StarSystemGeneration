@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using StarGen.Core.Epoch;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
 
 namespace StarGen.Core.Atlas;
 
@@ -18,8 +19,17 @@ public sealed class AtlasReadModel
     /// returns colors against.</summary>
     public IReadOnlyList<RegionCell> Cells => State.Skeleton.Cells;
 
+    private readonly Dictionary<HexCoordinate, int> _cellIndex = new();
+
     public AtlasReadModel(SimState state)
     {
         State = state;
+        for (int i = 0; i < Cells.Count; i++)
+            _cellIndex[Cells[i].Coord] = i;
     }
+
+    /// <summary>Raster index of a cell coordinate — the bridge between
+    /// per-hex sampling and the parallel per-cell shade lists.</summary>
+    public bool TryIndexOfCell(HexCoordinate cellCoord, out int index) =>
+        _cellIndex.TryGetValue(cellCoord, out index);
 }

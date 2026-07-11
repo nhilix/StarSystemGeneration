@@ -118,4 +118,31 @@ public class DomainLensTests
             if (model.Cells[i].Coord.Equals(cellCoord)) return i;
         throw new System.InvalidOperationException("cell not in raster");
     }
+
+    [Fact]
+    public void HexShadesResolveServiceRadiiAtHexResolution()
+    {
+        var (model, state, port) = WithPort();
+        var eye = EyeContext.God(state.WorldYear);
+        int radius = PortDomains.ServiceRadius(state.Config, port.Tier);
+        var inside = port.Hex;
+        var outside = new HexCoordinate(port.Hex.Q + radius + 1, port.Hex.R + radius + 1);
+        var hexes = new[] { inside, outside };
+        var shades = DomainLens.HexShades(model, eye, hexes);
+        Assert.Equal(2, shades.Count);
+        Assert.True(shades[0].A > 0);
+        Assert.Equal(0, shades[1].A);
+    }
+
+    [Fact]
+    public void TheReadModelIndexesCellsByCoord()
+    {
+        var (model, _, _) = WithPort();
+        for (int i = 0; i < model.Cells.Count; i++)
+        {
+            Assert.True(model.TryIndexOfCell(model.Cells[i].Coord, out int at));
+            Assert.Equal(i, at);
+        }
+        Assert.False(model.TryIndexOfCell(new HexCoordinate(9999, 9999), out _));
+    }
 }

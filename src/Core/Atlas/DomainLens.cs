@@ -39,6 +39,22 @@ public static class DomainLens
         return shades;
     }
 
+    /// <summary>Per-hex domain shades for an arbitrary hex list — the map
+    /// surface samples service radii at hex resolution, which is where the
+    /// organic borders come from.</summary>
+    public static IReadOnlyList<Rgba> HexShades(AtlasReadModel model, EyeContext eye,
+                                                IReadOnlyList<HexCoordinate> hexes)
+    {
+        var shades = new Rgba[hexes.Count];
+        var owners = new List<int>();
+        for (int i = 0; i < shades.Length; i++)
+        {
+            OwnersAt(model, eye, hexes[i], owners);
+            shades[i] = Shade(owners);
+        }
+        return shades;
+    }
+
     private static Rgba Shade(List<int> owners)
     {
         if (owners.Count == 0) return AtlasPalette.Clear;
