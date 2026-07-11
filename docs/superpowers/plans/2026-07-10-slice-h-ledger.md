@@ -336,7 +336,10 @@ surprises — updated as work lands.
   gains FirstLiveRelation (federations retire actors mid-history —
   Relations[0] can be a dead pair); knobs +7 + TUNING; golden regen;
   487/487 green)*.
-- [ ] **H12 — eyeball gate (round 2) — AWAITING USER**: a war readable as a story
+- [x] **H12 — eyeball gate — ACCEPTED 2026-07-11** ("looks much
+  better, merge it") after one user-flagged wave (H12a: map soup →
+  contiguous borders, war aims, total mobilization): a war readable
+  as a story
   (tension loading, spark, declaration with casus belli, named battles,
   a siege, the settlement ceding a port, the grudge left behind).
   Suggested route (seed 42, radius 12 — the golden config):
@@ -352,8 +355,11 @@ surprises — updated as work lands.
   Belzen Federation at y475, the Thanymi Loyalists' civil war at
   y750). "Looks right" = wars that END, most borders quiet most of
   the time, and a war you can read like a story.
-- [ ] **H13 — merge + wrap-up**: merge · HANDOFF · Slice I kickoff prompt
-  · flip the kickoff checkbox · golden frozen · push on user say-so.
+- [x] **H13 — merge + wrap-up**: merged to main locally · HANDOFF
+  updated · Slice I kickoff prompt written
+  (`2026-07-11-slice-i-kickoff-prompt.md`) · kickoff checkbox flipped ·
+  golden frozen at the final format (last regen: the rationing wave) ·
+  push on user say-so.
 
 ## Decisions
 
