@@ -608,9 +608,9 @@ public sealed class AllocationPhase : ISimPhase
                     || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
                 double cost = 2.0 * GateValue(cfg, tier);
                 if (pr.DevelopmentPoints < cost) continue;
-                // no stock-on-hand gate: the gate pair is a construction
-                // project now (SpawnGatePair) — its basket and wages arrive
-                // over the gate's build years, the lane opens on commission
+                // no stock-on-hand gate: the expedition shipped the founding
+                // pair's basket at departure (spec §4) — the project here
+                // streams wages only, and the lane opens on commission
                 bool otherOn = connected.Contains(other.Id);
                 if (pick == null || (otherOn && !pickConnected)
                     || (otherOn == pickConnected && (dist < pickDist
@@ -619,7 +619,9 @@ public sealed class AllocationPhase : ISimPhase
                   pickConnected = otherOn; }
             }
             if (pick == null) continue;
-            BuildLanePair(state, pr, port, pick, pickTier);
+            // founding link: goods-free — the expedition shipped the pair's
+            // basket from its staging market (time-and-logistics spec §4)
+            BuildLanePair(state, pr, port, pick, pickTier, foundingLink: true);
             connected.Add(port.Id);
             connected.Add(pick.Id);
             built++;
@@ -669,12 +671,14 @@ public sealed class AllocationPhase : ISimPhase
     /// project delivers the pair over the gate's build years, streaming its
     /// wages from the dev treasury and drawing the pair basket at the A end.
     /// The LaneOpened event fires at completion, not at groundbreaking — a
-    /// half-built highway opens no lane.</summary>
+    /// half-built highway opens no lane. Founding links spawn goods-free:
+    /// the expedition shipped the pair's basket (spec §4).</summary>
     private static void BuildLanePair(SimState state, PolityRecord pr,
-                                      Port a, Port b, int tier)
+                                      Port a, Port b, int tier,
+                                      bool foundingLink = false)
     {
         ProjectOps.SpawnGatePair(state, pr.ActorId, pr.ActorId, a, b, tier,
-                                 ProjectPriority.Growth, 0);
+                                 ProjectPriority.Growth, 0, foundingLink);
     }
 
     /// <summary>Administered founding value of one gate at a tier — the
@@ -998,6 +1002,17 @@ public sealed class ResolutionPhase : ISimPhase
                 * stagingMarket.Price[(int)Substrate.GoodId.Fuel];
             record.Credits -= fuelCost;
             MarketEngine.PayWages(state, staging.Id, fuelCost);
+        }
+        // the departure basket includes the founding gate PAIR's goods
+        // (time-and-logistics spec §4, "Founding links get subsumed"): a
+        // best-effort draw at the staging market, like the fuel — clamped to
+        // what's there, no hard gate; the colony's founding-link project
+        // then streams no goods (tier-1 sizing: the shipped kit)
+        var gateDef = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        foreach (var q in gateDef.BuildCost)
+        {
+            double drawn = stagingMarket.Draw((int)q.Good, 2.0 * q.Quantity);
+            if (drawn > 0) stagingMarket.LastCleared[(int)q.Good] += drawn;
         }
         // the crossing takes world-time now: the founding body (port,
         // market, colony, founding facilities, the convoy's docking, the

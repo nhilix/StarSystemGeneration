@@ -104,10 +104,13 @@ public static class ProjectOps
     /// reads dead until both commission (LaneMath.IsLive). One project
     /// delivers the pair over the gate's ConstructionYears: basket = the full
     /// PAIR build cost per year, wages = the pair's administered value per
-    /// year — a half-built highway opens no lane.</summary>
+    /// year — a half-built highway opens no lane. Founding links stream no
+    /// goods: the colony expedition shipped the pair's basket from its
+    /// staging market at departure (time-and-logistics spec §4, "Founding
+    /// links get subsumed") — the project runs on time + wages alone.</summary>
     public static Project SpawnGatePair(SimState state, int ownerActorId,
         int funderActorId, Port a, Port b, int tier, ProjectPriority priority,
-        int planOrder)
+        int planOrder, bool foundingLink = false)
     {
         if (a.Id > b.Id) (a, b) = (b, a);
         var cfg = state.Config;
@@ -132,7 +135,10 @@ public static class ProjectOps
         double value = 0;
         foreach (var q in def.BuildCost)
         {
-            p.PerYearBasket[(int)q.Good] = 2.0 * q.Quantity * scale / years;
+            // spec §4: a founding link's goods arrived with the expedition —
+            // empty basket, wages and duration unchanged
+            if (!foundingLink)
+                p.PerYearBasket[(int)q.Good] = 2.0 * q.Quantity * scale / years;
             value += 2.0 * q.Quantity * scale
                      * Market.InitialPrice(cfg.Economy, q.Good);
         }

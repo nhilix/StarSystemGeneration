@@ -71,10 +71,20 @@ public class PlannerTests
         var plan = Planner.BuildPlan(view, PolityPolicies.Default,
                                      state.Config);
         // with real commitments some entries should start in the future —
-        // the staggered schedule is the point (spec §3)
-        if (plan.Entries.Count >= 2)
-            Assert.Contains(plan.Entries,
-                e => e.StartYear > view.WorldYear);
+        // the staggered schedule is the point (spec §3). Honest guard: a
+        // plan whose ENTIRE cost fits the income rate concurrently is
+        // correctly unstaggered (a small plan on a healthy economy — the
+        // spec defers work only past the affordability horizon), so only
+        // assert deferral when starting everything now would over-commit.
+        if (plan.Entries.Count < 2) return;
+        double concurrent = 0;
+        foreach (var c in view.Capability!.Commitments)
+            if (c.YearsRemaining > 0) concurrent += c.CostPerYear;
+        foreach (var e in plan.Entries)
+            concurrent += Planner.CostOf(e, view, state.Config).CostPerYear;
+        if (concurrent <= view.Capability.IncomePerYear + 1e-6) return;
+        Assert.Contains(plan.Entries,
+            e => e.StartYear > view.WorldYear);
     }
 
     [Fact]
