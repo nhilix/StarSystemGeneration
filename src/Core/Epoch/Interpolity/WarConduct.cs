@@ -284,9 +284,12 @@ public static class WarConduct
                 BattleOutcome.Attrition => knobs.LossAttrition,
                 _ => knobs.LossStalemate,
             };
+            double frac = state.Config.Sim.StepFraction;
             int attLost = WreckAt(state, warFleet, hex,
-                (int)Math.Round(warFleet.TotalHulls * attShare));
-            int defLost = WreckDefendersAt(state, war, hex, defShare);
+                RoundLoss(state, warFleet.TotalHulls * attShare * frac,
+                          war.Id, objective.Id * 1024));
+            int defLost = WreckDefendersAt(state, war, hex, defShare * frac,
+                                           objective.Id);
             attackerHullsLost += attLost;
             defenderHullsLost += defLost;
             battles++;
@@ -294,7 +297,8 @@ public static class WarConduct
             // decisive days scar the ground they were fought over
             if (outcome == BattleOutcome.DecisiveAttacker)
                 DamageFacilities(state, war.DefenderId, hex,
-                                 knobs.BattleFacilityDamage);
+                                 knobs.BattleFacilityDamage
+                                 * state.Config.Sim.StepFraction);
 
             CommanderFates(state, war, warFleet.CommanderId, defCommander,
                            outcome, hex);
@@ -532,7 +536,8 @@ public static class WarConduct
     /// <summary>Defender losses come off the warships that fought: fleets
     /// at the hex first, then the mobile response drawn from home stations.</summary>
     private static int WreckDefendersAt(SimState state, War war,
-                                        HexCoordinate hex, double share)
+                                        HexCoordinate hex, double share,
+                                        int objectiveId)
     {
         int lost = 0;
         foreach (bool localPass in new[] { true, false })
@@ -551,11 +556,30 @@ public static class WarConduct
                         warships += g.Count;
                 double effectiveShare = localPass ? share
                     : share * state.Config.War.MobileResponseShare;
-                int toLose = (int)Math.Round(warships * effectiveShare);
+                int toLose = RoundLoss(state, warships * effectiveShare,
+                    war.Id, objectiveId * 1024 + 1 + fleet.Id);
                 if (toLose <= 0) continue;
                 lost += WreckWarships(state, fleet, hex, toLose);
             }
         return lost;
+    }
+
+    /// <summary>Integer hulls from an expected loss: the generation
+    /// integrator keeps its deterministic round (goldens hold); a fine
+    /// step integrates the same expected rate with a keyed hash round so
+    /// small expectations still bleed hulls over time (P7, slice J).</summary>
+    private static int RoundLoss(SimState state, double expected,
+                                 int warId, int lossKey)
+    {
+        if (state.Config.Sim.StepFraction >= 1.0)
+            return (int)Math.Round(expected);
+        int whole = (int)expected;
+        double fraction = expected - whole;
+        if (fraction > 0 && EpochRolls.NextDouble(state.Config.MasterSeed,
+                RollChannel.BattleLosses, state.EpochIndex, warId, lossKey)
+            < fraction)
+            whole++;
+        return whole;
     }
 
     /// <summary>Wreck only warship hulls (the freight marine survives the
@@ -626,7 +650,7 @@ public static class WarConduct
         if (beaten >= 0 && state.Characters[beaten].Alive
             && EpochRolls.NextDouble(state.Config.MasterSeed,
                 RollChannel.CommanderFate, state.EpochIndex, beaten)
-               < knobs.CommanderDeathOnRout)
+               < knobs.CommanderDeathOnRout * state.Config.Sim.StepFraction)
         {
             var fallen = state.Characters[beaten];
             fallen.Alive = false;

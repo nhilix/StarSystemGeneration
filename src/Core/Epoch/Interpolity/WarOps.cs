@@ -245,7 +245,9 @@ public static class WarOps
             if (!geometry.TryGetValue((relation.PolityAId, relation.PolityBId),
                                       out var g) || g.OverlapPairs <= 0)
                 continue;
+            // the rate is per generation; a fine step rolls its share
             double p = knobs.IncidentRatePerEpoch
+                       * state.Config.Sim.StepFraction
                        * Math.Min(1.0, g.OverlapPairs / relKnobs.OverlapSaturation);
             // the non-aggression rung's spark de-escalation
             if (relation.Rung >= TreatyRung.NonAggression)

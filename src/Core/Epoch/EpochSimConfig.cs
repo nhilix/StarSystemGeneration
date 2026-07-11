@@ -598,6 +598,10 @@ public sealed class SimKnobs
     /// generation). Fixed at genesis scale: fine-tick stepping lowers
     /// YearsPerEpoch, never this.</summary>
     public int GenerationYears { get; set; } = 25;
+    /// <summary>This step's share of a generation (1.0 at genesis scale) —
+    /// the factor per-generation intensities scale by each step (P7).</summary>
+    public double StepFraction =>
+        (double)YearsPerEpoch / System.Math.Max(1, GenerationYears);
 }
 
 /// <summary>Genesis-side knobs: the emergence window, plus the native

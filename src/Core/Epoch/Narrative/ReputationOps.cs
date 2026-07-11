@@ -145,29 +145,37 @@ public static class ReputationOps
         return Math.Max(0.25, 1.0 - 0.75 * Math.Min(1.0, ageYears / horizon));
     }
 
-    /// <summary>Regional events spread by contact, not pulse: last epoch's
-    /// regional news reaches every polity close enough to have heard it
-    /// within the epoch (chronicle-and-poi.md §Visibility). Stateless —
-    /// derived from the log tail each Perception.</summary>
+    /// <summary>Regional events spread by contact, not pulse: regional
+    /// news reaches every polity close enough to have heard it within a
+    /// generation (chronicle-and-poi.md §Visibility). Stateless — derived
+    /// from the log tail each Perception. Each observer judges an event
+    /// exactly once, on the step its age crosses that observer's news
+    /// delay — so fine ticks deliver the same word to the same audience,
+    /// just spread across the steps it actually takes to travel (P7).</summary>
     public static void SpreadRegional(SimState state,
                                       BeliefOps.NewsFieldCache fields)
     {
         int years = state.Config.Sim.YearsPerEpoch;
-        long lastEpochYear = state.WorldYear - years;
+        int horizon = state.Config.Sim.GenerationYears;
         var events = state.Log.Events;
         for (int i = events.Count - 1; i >= 0; i--)
         {
             var e = events[i];
-            if (e.WorldYear < lastEpochYear) break;
-            if (e.WorldYear != lastEpochYear
-                || e.Visibility != EventVisibility.Regional) continue;
+            long age = state.WorldYear - e.WorldYear;
+            if (age > horizon) break;
+            if (age < years || e.Visibility != EventVisibility.Regional)
+                continue;
             double[]? field = null;
             foreach (var a in state.Actors)               // id order (P6)
             {
                 if (!a.Entered || a.Kind != ActorKind.Polity) continue;
                 field ??= fields.FieldFor(state, e.Location);
-                if (NewsOps.DelayYears(state, a.Id, field, e.Location) > years)
-                    continue;
+                double delay = NewsOps.DelayYears(state, a.Id, field,
+                                                  e.Location);
+                if (delay > age) continue;                 // still in transit
+                // the word arrived within THIS step (fresh events take
+                // everyone the first step their delay allows)
+                if (age > years && delay <= age - years) continue;
                 Judge(state, a, e, attenuation: 1.0);
             }
         }
