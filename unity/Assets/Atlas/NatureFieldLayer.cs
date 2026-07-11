@@ -76,7 +76,9 @@ namespace StarGen.AtlasView
 
         private void Bake(NatureLayer layer)
         {
-            var shades = NatureLens.Shades(_model, _eye, layer);
+            // The sampler does the nebular work: Gaussian blend across
+            // cells, presence-scaled alpha, void feathering, cloud noise.
+            var sampler = new NatureFieldSampler(_model, _eye, layer);
             if (_texture == null)
             {
                 _texture = new Texture2D(TextureSize, TextureSize,
@@ -95,18 +97,9 @@ namespace StarGen.AtlasView
                 {
                     double wx = Mathf.Lerp(_bounds.min.x, _bounds.max.x,
                                            (x + 0.5f) / TextureSize);
-                    var cellCoord = HexGrid.CellOf(HexGrid.WorldToHex(wx, wy));
-                    Color32 px = default;   // outside the disc: transparent
-                    if (_model.TryIndexOfCell(cellCoord, out int i))
-                    {
-                        var s = shades[i];
-                        // Void reads transparent — the starfield's darkness
-                        // is the void; fields only tint where nature speaks.
-                        px = s == AtlasPalette.Void
-                            ? default
-                            : new Color32(s.R, s.G, s.B, FieldAlpha);
-                    }
-                    pixels[y * TextureSize + x] = px;
+                    var s = sampler.Sample(wx, wy);
+                    pixels[y * TextureSize + x] = new Color32(
+                        s.R, s.G, s.B, (byte)(s.A * FieldAlpha / 255));
                 }
             }
             _texture.SetPixels32(pixels);

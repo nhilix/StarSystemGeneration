@@ -104,4 +104,7 @@ public enum RollChannel : ulong
     // --- Handoff & certification (slice J). ---
     BattleLosses = 72,         // fine-tick hull-loss rounding: step = epoch, actor = war id, subIndex = objective/fleet key
     YardSlots = 73,            // fine-tick yard-slot rounding: step = epoch, actor = owner actor id, subIndex = port id
+
+    // --- Atlas (slice K1). ---
+    AtlasNebula = 74,          // VIEW-ONLY: nature-field cloud-breakup noise (src/Core/Atlas) — the sim never rolls here
 }
