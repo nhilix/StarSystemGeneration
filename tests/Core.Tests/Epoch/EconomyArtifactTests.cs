@@ -83,19 +83,20 @@ public class EconomyArtifactTests
     }
 
     [Fact]
-    public void ReservesAndLoans_RoundTrip()
+    public void StockpilesAndLoans_RoundTrip()
     {
         var built = Run();
-        // force some credit state whatever the run produced
-        built.Polities[0].ReserveQty[(int)GoodId.Provisions] = 12.5;
-        built.Polities[0].ReserveGrade[(int)GoodId.Provisions] = 0.44;
+        // force some located stock whatever the run produced (markets v2:
+        // STOCK lines replace the polity-aggregate RESERVE pool, spec §4b)
+        built.Ports[0].StockQty[(int)GoodId.Provisions] = 12.5;
+        built.Ports[0].StockGrade[(int)GoodId.Provisions] = 0.44;
         built.Loans.Add(new Loan(built.Loans.Count, 0, 1, 77.0, 0.02, 50, 250)
         { Closed = false });
 
         var loaded = Reload(built);
 
-        Assert.Equal(12.5, loaded.Polities[0].ReserveQty[(int)GoodId.Provisions]);
-        Assert.Equal(0.44, loaded.Polities[0].ReserveGrade[(int)GoodId.Provisions]);
+        Assert.Equal(12.5, loaded.Ports[0].StockQty[(int)GoodId.Provisions]);
+        Assert.Equal(0.44, loaded.Ports[0].StockGrade[(int)GoodId.Provisions]);
         var loan = loaded.Loans[loaded.Loans.Count - 1];
         Assert.Equal(77.0, loan.Principal);
         Assert.Equal(0.02, loan.RatePerYear);

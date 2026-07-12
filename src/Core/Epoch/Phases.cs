@@ -360,6 +360,7 @@ public sealed class AllocationPhase : ISimPhase
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayReserves(state, pr);
+            DecayStockpiles(state, pr, ownPorts);
         }
         // corporations run their portfolios on the same markets (slice G)
         int corporationsActive = CorporationOps.Operate(state);
@@ -469,6 +470,43 @@ public sealed class AllocationPhase : ISimPhase
                 1.0 - eco.StockpileDecayPerYear * perish * years);
             pr.ReserveQty[g] *= keep;
             if (pr.ReserveQty[g] <= 0) pr.ReserveGrade[g] = 0;
+        }
+    }
+
+    /// <summary>Perishability, located (spec §4b): each port's stockpile
+    /// decays where it sits — provisions rot, medicine ages, durables keep.
+    /// Active Depot tiers at the port cut the rot (the controller contract's
+    /// "stockpile targets → depots/reserves" mechanism).</summary>
+    private static void DecayStockpiles(SimState state, PolityRecord pr,
+                                        List<Port> ownPorts)
+    {
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        foreach (var port in ownPorts)                        // id order (P6)
+        {
+            int depotTiers = 0;
+            foreach (var f in state.Facilities)               // id order (P6)
+                if (f.TypeId == (int)Substrate.InfraTypeId.Depot
+                    && f.OwnerActorId == pr.ActorId
+                    && MarketEngine.IsActive(state, f)
+                    && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                    depotTiers += f.Tier;
+            double cut = Math.Pow(eco.DepotDecayFactor, depotTiers);
+            for (int g = 0; g < port.StockQty.Length; g++)
+            {
+                if (port.StockQty[g] <= 0) continue;
+                double perish = (Substrate.GoodId)g switch
+                {
+                    Substrate.GoodId.Provisions => 10.0,
+                    Substrate.GoodId.Organics => 5.0,
+                    Substrate.GoodId.Medicine => 3.0,
+                    _ => 1.0,
+                };
+                double keep = Math.Max(0.0,
+                    1.0 - eco.StockpileDecayPerYear * perish * cut * years);
+                port.StockQty[g] *= keep;
+                if (port.StockQty[g] <= 0) port.StockGrade[g] = 0;
+            }
         }
     }
 

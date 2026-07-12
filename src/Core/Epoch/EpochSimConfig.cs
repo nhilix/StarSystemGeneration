@@ -658,6 +658,11 @@ public sealed class EconomyKnobs
     /// <summary>Fractional durable-stockpile decay per world-year; perishable
     /// goods scale it up in code (provisions rot, alloys do not).</summary>
     public double StockpileDecayPerYear { get; set; } = 0.002;
+    /// <summary>Decay multiplier per active Depot tier at the stockpile's
+    /// port (stage 2, spec §4b) — the controller contract's "stockpile
+    /// targets → depots/reserves" mechanism: two depot tiers keep goods
+    /// 4× longer at the default 0.5.</summary>
+    public double DepotDecayFactor { get; set; } = 0.5;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

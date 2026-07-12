@@ -27,7 +27,7 @@ public static class ArtifactSerializer
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 6), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 2),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
@@ -224,6 +224,13 @@ public static class ArtifactSerializer
                 if (p.ReserveQty[g] != 0)
                     w.WriteLine(Join("RESERVE", p.ActorId.ToString(Inv),
                         g.ToString(Inv), R(p.ReserveQty[g]), R(p.ReserveGrade[g])));
+        // markets v2 (stage 2, spec §4b): located stockpiles — per port,
+        // per good, banked where they physically sit
+        foreach (var p in state.Ports)
+            for (int g = 0; g < p.StockQty.Length; g++)
+                if (p.StockQty[g] != 0)
+                    w.WriteLine(Join("STOCK", p.Id.ToString(Inv),
+                        g.ToString(Inv), R(p.StockQty[g]), R(p.StockGrade[g])));
         foreach (var l in state.Loans)
             w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
                 l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
@@ -1074,6 +1081,14 @@ public static class ArtifactSerializer
                         int good = int.Parse(f[2], Inv);
                         pr.ReserveQty[good] = double.Parse(f[3], Inv);
                         pr.ReserveGrade[good] = double.Parse(f[4], Inv);
+                        break;
+                    }
+                    case "STOCK":
+                    {
+                        var port = state!.Ports[int.Parse(f[1], Inv)];
+                        int good = int.Parse(f[2], Inv);
+                        port.StockQty[good] = double.Parse(f[3], Inv);
+                        port.StockGrade[good] = double.Parse(f[4], Inv);
                         break;
                     }
                     case "LOAN":
