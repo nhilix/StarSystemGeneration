@@ -340,6 +340,22 @@ public static class FederationOps
             if (port.OwnerActorId == fromId) port.OwnerActorId = intoId;
         foreach (var facility in state.Facilities)
             if (facility.OwnerActorId == fromId) facility.OwnerActorId = intoId;
+        // in-flight work follows the merge like its facilities do (owner AND
+        // funder pass to the successor); a Mobilization is the parent's war
+        // ramp, which the successor was never party to — it cancels (F2/F1)
+        foreach (var p in state.Projects)                     // id order (P6)
+        {
+            if (!p.InFlight
+                || (p.OwnerActorId != fromId && p.FunderActorId != fromId))
+                continue;
+            if (p.Kind == ProjectKind.Mobilization)
+            {
+                ProjectOps.Cancel(state, p);
+                continue;
+            }
+            if (p.OwnerActorId == fromId) p.OwnerActorId = intoId;
+            if (p.FunderActorId == fromId) p.FunderActorId = intoId;
+        }
         int hulls = 0;
         foreach (var fleet in state.Fleets)
         {

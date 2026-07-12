@@ -1000,6 +1000,13 @@ public static class CorporationOps
                                  WorldEventType cause)
     {
         corp.Active = false;
+        // in-flight work dies with the corp: leaving projects live would
+        // strip gate/facility-cap slots and pull phantom construction demand
+        // forever (nothing advances an un-entered funder, nothing cancels
+        // them) — cancel them as P1 residue in id order (F2)
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.InFlight && p.FunderActorId == corp.ActorId)
+                ProjectOps.Cancel(state, p);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId)
             {
@@ -1068,6 +1075,14 @@ public static class CorporationOps
         var pr = state.PolityOf(polityId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) f.OwnerActorId = polityId;
+        // seized work continues under the state: owner AND funder pass to the
+        // polity so AdvanceAll keeps feeding it (no corp mobilizations) (F2)
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.InFlight && p.FunderActorId == corp.ActorId)
+            {
+                p.OwnerActorId = polityId;
+                p.FunderActorId = polityId;
+            }
         int hullsMoved = 0;
         foreach (var fleet in state.Fleets)
             if (fleet.OwnerActorId == corp.ActorId)

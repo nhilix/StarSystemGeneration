@@ -37,7 +37,7 @@ public static class ProjectOps
     /// = administered value / ConstructionYears.</summary>
     public static Project SpawnFacilityConstruction(SimState state,
         int ownerActorId, int funderActorId, ConstructionCandidate c,
-        ProjectPriority priority, int planOrder)
+        ProjectPriority priority, int planOrder, int startedYear = int.MinValue)
     {
         var type = (Substrate.InfraTypeId)c.TypeId;
         var def = Substrate.Infrastructure.Get(type);
@@ -46,9 +46,10 @@ public static class ProjectOps
         { CommissionedYear = -1 };
         state.Facilities.Add(facility);
         double years = Math.Max(1.0, def.ConstructionYears);
-        var p = Spawn(state, ProjectKind.FacilityConstruction, ownerActorId,
+        var p = SpawnAt(state, ProjectKind.FacilityConstruction, ownerActorId,
                       funderActorId, c.PortId, c.Hex, years, priority,
-                      planOrder);
+                      planOrder,
+                      startedYear == int.MinValue ? state.WorldYear : startedYear);
         double value = 0;
         foreach (var q in def.BuildCost)
         {
@@ -70,7 +71,7 @@ public static class ProjectOps
     /// base); basket/wages are per world-year across the whole batch.</summary>
     public static Project SpawnHullBatch(SimState state, int ownerActorId,
         int portId, ShipDesign design, int count, ProjectPriority priority,
-        int planOrder)
+        int planOrder, int startedYear = int.MinValue)
     {
         var cfg = state.Config;
         double medium = DesignMath.ComponentsPerHull(cfg.Fleet, ShipSize.Medium);
@@ -79,9 +80,10 @@ public static class ProjectOps
             cfg.Fleet.HullBuildYearsBase * (comp / medium));
         double armaments = DesignMath.ArmamentsPerHull(cfg.Fleet, design.Role,
                                                         design.Size);
-        var p = Spawn(state, ProjectKind.HullBatch, ownerActorId, ownerActorId,
+        var p = SpawnAt(state, ProjectKind.HullBatch, ownerActorId, ownerActorId,
                       portId, state.Ports[portId].Hex, years, priority,
-                      planOrder);
+                      planOrder,
+                      startedYear == int.MinValue ? state.WorldYear : startedYear);
         p.PerYearBasket[(int)GoodId.ShipComponents] = comp * count / years;
         double value = comp
             * Market.InitialPrice(cfg.Economy, GoodId.ShipComponents) * count;
@@ -254,15 +256,22 @@ public static class ProjectOps
             {
                 double take = p.PerYearBasket[g] * needYears * fraction;
                 if (take <= 0) continue;
-                double grade = market.InventoryGrade[g];
+                double marketGrade = market.InventoryGrade[g];
                 double drawn = market.Draw(g, take);
                 market.LastCleared[g] += drawn;
+                double grade = marketGrade;
                 double shortfall = take - drawn;
                 if (shortfall > 0 && funderPolity != null)
                 {
                     double fromReserve = Math.Min(shortfall,
                         funderPolity.ReserveQty[g]);
-                    grade = funderPolity.ReserveGrade[g];
+                    // blend, don't replace: the market units already drawn
+                    // carry their own grade — a shortfall topped up from
+                    // reserves is a quantity-weighted mix of both (F8)
+                    double total = drawn + fromReserve;
+                    if (total > 0)
+                        grade = (marketGrade * drawn
+                            + funderPolity.ReserveGrade[g] * fromReserve) / total;
                     funderPolity.ReserveQty[g] -= fromReserve;
                     if (funderPolity.ReserveQty[g] <= 0)
                         funderPolity.ReserveGrade[g] = 0;

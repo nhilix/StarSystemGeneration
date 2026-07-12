@@ -584,11 +584,14 @@ public sealed class AllocationPhase : ISimPhase
             if (relation != null && relation.Rung >= TreatyRung.TradePact)
                 pactPorts.Add(port);
         }
-        // ports already on the live network
+        // ports already on the network — ANY lane row counts, not only live
+        // ones: a founding link's Lane row exists from groundbreaking, so a
+        // colony whose founding gate is still building already reads as
+        // connected and never spawns a second goods-free pair next step
+        // (a conservation hole — the founding link streams no goods) (F5)
         var connected = new HashSet<int>();
         foreach (var lane in state.Lanes)
-            if (LaneMath.IsLive(state, lane))
-            { connected.Add(lane.PortAId); connected.Add(lane.PortBId); }
+        { connected.Add(lane.PortAId); connected.Add(lane.PortBId); }
 
         // ---- pass 1: founding links (isolated ports have no network path,
         // so the detour rule is trivially satisfied and never consulted)
@@ -728,6 +731,11 @@ public sealed class AllocationPhase : ISimPhase
             pr.ActorId, pr.ActorId, capital, state.Ports[capital].Hex,
             cfg.War.MobilizationYears * (1.0 - pr.Mobilization),
             ProjectPriority.War, 0);
+        // stamp the war the ramp answers (Project.cs:71 — Mobilization
+        // TargetId = war id): the first active war this polity is party to,
+        // in war-id order (F8)
+        foreach (var w in state.Wars)                     // id order (P6)
+            if (w.Active && w.Involves(pr.ActorId)) { proj.TargetId = w.Id; break; }
         proj.PerYearBasket[(int)Substrate.GoodId.Armaments] =
             cfg.War.MobilizationArmamentsPerYear;
         proj.PerYearBasket[(int)Substrate.GoodId.Fuel] =
@@ -786,8 +794,28 @@ public sealed class AllocationPhase : ISimPhase
             + armaments * Market.InitialPrice(state.Config.Economy,
                 Substrate.GoodId.Armaments));
         if (pr.MilitaryPoints < value) return;
+        // yard-capacity truth (F4, plan-mandated): a port runs no more
+        // concurrent hull batches than the active own-shipyard tier attached
+        // to it — one tier-1 yard = one batch at a time
+        int yardTiers = 0;
+        foreach (var f in state.Facilities)               // id order (P6)
+            if (f.TypeId == (int)Substrate.InfraTypeId.Shipyard
+                && f.OwnerActorId == pr.ActorId
+                && MarketEngine.IsActive(state, f)
+                && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                yardTiers += f.Tier;
+        int inFlightBatches = 0;
+        foreach (var p in state.Projects)                 // id order (P6)
+            if (p.InFlight && p.Kind == ProjectKind.HullBatch
+                && p.PortId == port.Id)
+                inFlightBatches++;
+        if (inFlightBatches >= yardTiers) return;
+        // honor the planner's staggered schedule: break ground at the entry's
+        // scheduled year (clamped to now — never before this step), so a
+        // coarse step that straddles the start only delivers the overlap (F3)
         ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id, design, count,
-            entry.Priority, planOrder);
+            entry.Priority, planOrder,
+            Math.Max(state.WorldYear, entry.StartYear));
     }
 
     /// <summary>Facility groundbreak: an empty hex on an owned, under-capacity
@@ -818,10 +846,13 @@ public sealed class AllocationPhase : ISimPhase
         foreach (var q in def.BuildCost)
             value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good);
         if (pr.DevelopmentPoints < value) return;
+        // honor the planner's staggered schedule (F3): ground broken at the
+        // entry's scheduled year, clamped to now
         ProjectOps.SpawnFacilityConstruction(state, pr.ActorId, pr.ActorId,
             new ConstructionCandidate(entry.TypeId, entry.Hex, entry.PortId,
                                       0.0),
-            entry.Priority, planOrder);
+            entry.Priority, planOrder,
+            Math.Max(state.WorldYear, entry.StartYear));
     }
 
     /// <summary>Port-raise groundbreak: an owned port below the tier ceiling
@@ -842,8 +873,10 @@ public sealed class AllocationPhase : ISimPhase
         double baseCost = ex.PortUpgradeCostBase * port.Tier;
         if (pr.DevelopmentPoints < baseCost) return;
         double years = Math.Max(1.0, ex.PortUpgradeYears);
-        var proj = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
-            pr.ActorId, port.Id, port.Hex, years, entry.Priority, planOrder);
+        // honor the planner's staggered schedule (F3)
+        var proj = ProjectOps.SpawnAt(state, ProjectKind.PortRaise, pr.ActorId,
+            pr.ActorId, port.Id, port.Hex, years, entry.Priority, planOrder,
+            Math.Max(state.WorldYear, entry.StartYear));
         proj.TargetId = port.Id;
         proj.PerYearBasket[(int)Substrate.GoodId.Alloys] =
             ex.PortUpgradeAlloysPerYearPerTier * port.Tier;

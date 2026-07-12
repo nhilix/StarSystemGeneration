@@ -452,12 +452,21 @@ public static class WarConduct
                 fleet.Hex = state.Ports[fallback].Hex;
             }
         foreach (var p in state.Projects)                     // id order (P6)
-            if (p.InFlight && p.PortId == portId
-                && p.Kind != ProjectKind.ColonyExpedition)
+        {
+            if (!p.InFlight || p.PortId != portId
+                || p.Kind == ProjectKind.ColonyExpedition) continue;
+            // Mobilization is polity state, not site-anchored work: the war
+            // ramp belongs to the losing polity, not the captured port —
+            // a captured port cannot deliver the enemy's mobilization, so it
+            // cancels (the attacker's own mobilization is untouched). F1
+            if (p.Kind == ProjectKind.Mobilization)
             {
-                p.OwnerActorId = newOwnerActorId;
-                p.FunderActorId = newOwnerActorId;
+                ProjectOps.Cancel(state, p);
+                continue;
             }
+            p.OwnerActorId = newOwnerActorId;
+            p.FunderActorId = newOwnerActorId;
+        }
         port.OwnerActorId = newOwnerActorId;
     }
 

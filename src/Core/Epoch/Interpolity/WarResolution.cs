@@ -190,12 +190,11 @@ public static class WarResolution
                     || !state.Actors[war.DefenderId].Entered) continue;
                 var port = state.Ports[objective.TargetId];
                 if (port.OwnerActorId != war.AttackerId) continue;
-                foreach (var facility in state.Facilities)    // id order (P6)
-                    if (facility.OwnerActorId == war.AttackerId
-                        && MarketEngine.AttachedMarketIndex(state, facility)
-                           == port.Id)
-                        facility.OwnerActorId = war.DefenderId;
-                port.OwnerActorId = war.DefenderId;
+                // revert through TransferPort so facilities, homed fleets, and
+                // in-flight project ownership all follow the port back to the
+                // defender — captured mobilizations cancel rather than strand
+                // with the attacker (F6, riding F1's TransferPort fix)
+                WarConduct.TransferPort(state, port.Id, war.DefenderId);
             }
         }
         else if (winner == war.AttackerId)

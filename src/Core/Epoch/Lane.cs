@@ -66,7 +66,9 @@ public static class LaneMath
         return -1;
     }
 
-    /// <summary>Live iff both gates stand and function — a raided gate
+    /// <summary>Live iff both gates stand, are commissioned
+    /// (CommissionedYear ≥ 0 — a still-building founding pair opens no lane),
+    /// and function (condition above the functional floor) — a raided gate
     /// severs the lane without touching the port.</summary>
     public static bool IsLive(SimState state, Lane lane) =>
         lane.GateAId >= 0 && lane.GateBId >= 0
