@@ -47,6 +47,15 @@ namespace StarGen.AtlasView
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
 
+        /// <summary>K5 hex→orbit crossfade: port dots dissolve with the
+        /// rest of the map as the stage fades up.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.SetColor("_Tint", new Color(1f, 1f, 1f,
+                LodBands.MapFade(cameraDistance, galaxyExtent)));
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
             var markers = PortLens.Markers(model, eye);

@@ -60,6 +60,15 @@ namespace StarGen.AtlasView
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
 
+        /// <summary>K5 hex→orbit crossfade: pulse fronts blend additively
+        /// (SrcAlpha/One), so the fade scales the emitted light too.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            float fade = LodBands.MapFade(cameraDistance, galaxyExtent);
+            _material.SetColor("_Tint", new Color(fade, fade, fade, fade));
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
             var all = NewsLens.Pulses(model, eye);

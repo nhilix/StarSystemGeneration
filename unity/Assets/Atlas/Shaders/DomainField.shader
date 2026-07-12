@@ -14,6 +14,7 @@ Shader "StarGen/DomainField"
         _OverlapIntensity ("Overlap intensity", Float) = 0.30
         _BorderIntensity ("Border intensity", Float) = 0.55
         _BorderPx ("Border width (px)", Float) = 1.6
+        _MapFade ("Map fade (hex-to-orbit crossfade)", Float) = 1
         _RelationTex ("Relation matrix", 2D) = "black" {}
     }
     SubShader
@@ -44,6 +45,7 @@ Shader "StarGen/DomainField"
                 float _OverlapIntensity;
                 float _BorderIntensity;
                 float _BorderPx;
+                float _MapFade;
             CBUFFER_END
             TEXTURE2D(_RelationTex);
             SAMPLER(sampler_RelationTex);
@@ -124,7 +126,9 @@ Shader "StarGen/DomainField"
 
                 // Colors and intensities are composed in sRGB (the design
                 // artifact's space); linearize once for the linear buffer.
-                return half4(SRGBToLinear(fill + border), 1);
+                // additive blend: the K5 hex→orbit crossfade dims the
+                // whole field to nothing by scaling the emitted light
+                return half4(SRGBToLinear(fill + border) * _MapFade, 1);
             }
             ENDHLSL
         }

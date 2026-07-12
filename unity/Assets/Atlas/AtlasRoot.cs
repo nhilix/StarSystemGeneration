@@ -129,6 +129,14 @@ namespace StarGen.AtlasView
             worksLayer.OnZoom(distance, extent);
             plagueLayer.OnZoom(distance, extent);
             warLayer.OnZoom(distance, extent);
+            // the K5 hex→orbit crossfade: every remaining map layer
+            // dissolves as the stage fades up (starfield stays — space
+            // is still space under the orbit view)
+            portLayer.OnZoom(distance, extent);
+            newsLayer.OnZoom(distance, extent);
+            domainField.OnZoom(distance, extent);
+            natureField.OnZoom(distance, extent);
+            priceField.OnZoom(distance, extent);
         }
     }
 }

@@ -51,6 +51,15 @@ namespace StarGen.AtlasView
 
         public GoodId Good => _good;
 
+        /// <summary>K5 hex→orbit crossfade (Sprites/Default: the material
+        /// tint multiplies the baked price texture).</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.color = new Color(1f, 1f, 1f,
+                LodBands.MapFade(cameraDistance, galaxyExtent));
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
             _model = model;

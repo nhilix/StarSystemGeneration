@@ -66,6 +66,15 @@ namespace StarGen.AtlasView
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
 
+        /// <summary>K5 hex→orbit crossfade: the glow field dims to
+        /// nothing as the stage fades up.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.SetFloat("_MapFade",
+                LodBands.MapFade(cameraDistance, galaxyExtent));
+        }
+
         private AtlasReadModel _model;
         private EyeContext _eye;
         private IReadOnlyList<int> _slots;
