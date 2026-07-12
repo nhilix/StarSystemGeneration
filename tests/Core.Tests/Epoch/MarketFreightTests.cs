@@ -148,8 +148,44 @@ public class MarketFreightTests
         Assert.Equal(0.0, mB.Inventory[(int)GoodId.Narcotics]);
     }
 
+    /// <summary>Stage 2 (spec §4b, §5 Freight-delivery row): the market
+    /// channel's routed goods take transit time — a slow route turns the
+    /// trade into a shipment record arriving in a future year; costs still
+    /// settle at departure, the sale lands with arrival.</summary>
     [Fact]
-    public void Procurement_FillsReservesFromOwnMarkets()
+    public void Arbitrage_OverASlowRoute_BecomesAShipmentInTransit()
+    {
+        var (state, pa, pb) = TwoPortFixture();
+        state.Config.Sim.YearsPerEpoch = 1;
+        state.Config.Economy.FreightHexesPerYearBase = 1.0;   // 5y transit
+        var mA = state.Markets[0];
+        var mB = state.Markets[1];
+        mA.Deposit((int)GoodId.Provisions, 1000, 0.6);
+        mB.Price[(int)GoodId.Provisions] = mA.Price[(int)GoodId.Provisions] * 4;
+        var scratch = new MarketStepScratch(state);
+        scratch.Demand[1][(int)GoodId.Provisions] = 500;
+
+        MarketEngine.MoveFreight(state, scratch);
+
+        Assert.Equal(0.0, mB.Inventory[(int)GoodId.Provisions]);
+        var s = Assert.Single(state.Shipments);
+        Assert.Equal(ShipmentChannel.Freight, s.Channel);
+        Assert.True(s.Qty[(int)GoodId.Provisions] > 0,
+            "the routed goods ride the shipment");
+        Assert.True(mA.Inventory[(int)GoodId.Provisions] < 1000,
+            "the goods left the source at departure");
+
+        for (int i = 0; i < 4; i++)
+            ShipmentOps.Advance(state, new MarketStepScratch(state));
+        Assert.Empty(state.Shipments);
+        Assert.True(mB.Inventory[(int)GoodId.Provisions] > 0,
+            "arrival puts the cargo on the destination shelf");
+    }
+
+    /// <summary>Stage 2 (spec §4b): procurement buys into the LOCAL port
+    /// stockpile — stock lands where it was bought, never in a polity pool.</summary>
+    [Fact]
+    public void Procurement_FillsThePortStockpile_FromItsOwnMarket()
     {
         var (state, pa, _) = TwoPortFixture();
         var mA = state.Markets[0];
@@ -160,32 +196,96 @@ public class MarketFreightTests
             { [(int)GoodId.Provisions] = 20.0 },
         };
         var pr = state.PolityOf(pa.OwnerActorId);
-        double creditsBefore = pr.Credits;
+        // stage 2: procurement spends the RESERVE treasury (Budget.Reserves
+        // finally does its job) — a drained credit balance no longer
+        // silences the quartermaster
+        pr.Credits = 0;
+        pr.ReservePoints = 100;
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.MoveFreight(state, scratch);
 
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions] > 0);
-        Assert.True(pr.Credits < creditsBefore, "procurement is bought, not taken");
+        Assert.True(pa.StockQty[(int)GoodId.Provisions] > 0);
+        Assert.True(pr.ReservePoints < 100, "procurement is bought, not taken");
         Assert.True(mA.Inventory[(int)GoodId.Provisions] < 500);
-        Assert.Equal(0.6, pr.ReserveGrade[(int)GoodId.Provisions]);
+        Assert.Equal(0.6, pa.StockGrade[(int)GoodId.Provisions]);
+    }
+
+    /// <summary>Capacity is built, not assumed (spec §4b): the port's own
+    /// tier bounds the stockpile; depots extend it.</summary>
+    [Fact]
+    public void Procurement_StopsAtThePortsStockCapacity()
+    {
+        var (state, pa, _) = TwoPortFixture();
+        state.PolityOf(pa.OwnerActorId).ReservePoints = 100;
+        state.Config.Economy.StockCapPerPortTier = 3.0;   // tier 2 → cap 6
+        var mA = state.Markets[0];
+        mA.Deposit((int)GoodId.Provisions, 500, 0.6);
+        state.Actors[pa.OwnerActorId].Policies = PolityPolicies.Default with
+        {
+            StockpileTargets = new Dictionary<int, double>
+            { [(int)GoodId.Provisions] = 20.0 },
+        };
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.MoveFreight(state, scratch);
+
+        Assert.Equal(6.0, pa.StockQty[(int)GoodId.Provisions], 6);
     }
 
     [Fact]
-    public void ReserveRelease_FeedsAStarvingPort()
+    public void StockRelease_FeedsTheStarvingPort_FromItsOwnStockpile()
     {
         var (state, pa, _) = TwoPortFixture();
-        var pr = state.PolityOf(pa.OwnerActorId);
-        pr.ReserveQty[(int)GoodId.Provisions] = 100;
-        pr.ReserveGrade[(int)GoodId.Provisions] = 0.5;
+        pa.StockQty[(int)GoodId.Provisions] = 100;
+        pa.StockGrade[(int)GoodId.Provisions] = 0.5;
         state.Segments[0].LastSubsistence = 0.4;      // last step starved
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.MoveFreight(state, scratch);
 
         Assert.True(state.Markets[0].Inventory[(int)GoodId.Provisions] > 0,
-            "reserves should buffer famines (economy/markets.md §Stockpiles)");
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions] < 100);
+            "stockpiles should buffer famines (economy/markets.md §Stockpiles)");
+        Assert.True(pa.StockQty[(int)GoodId.Provisions] < 100);
+    }
+
+    /// <summary>Stage 2 residue: a project half a year from completion
+    /// pulls half a year's basket as demand, not the whole span's.</summary>
+    [Fact]
+    public void ConstructionPull_TapersToTheRemainingYears()
+    {
+        var (state, pa, _) = TwoPortFixture();
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise,
+            pa.OwnerActorId, pa.OwnerActorId, pa.Id, pa.Hex,
+            yearsRequired: 10.0, ProjectPriority.Core, 0);
+        p.TargetId = pa.Id;
+        p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
+        p.YearsDelivered = 9.5;                    // half a year to go
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.AddConstructionPull(state, scratch);
+
+        Assert.Equal(0.5, scratch.Demand[pa.Id][(int)GoodId.Alloys], 6);
+    }
+
+    /// <summary>The stockpile-target pull is located too: each own port's
+    /// deficit against its share of the target registers at THAT port —
+    /// procurement is a market participant everywhere it banks.</summary>
+    [Fact]
+    public void StockpileTargetDemand_LandsPerPort()
+    {
+        var (state, pa, pb) = TwoPortFixture(sameOwner: true);
+        state.Actors[pa.OwnerActorId].Policies = PolityPolicies.Default with
+        {
+            StockpileTargets = new Dictionary<int, double>
+            { [(int)GoodId.Provisions] = 20.0 },
+        };
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.AddConstructionPull(state, scratch);
+
+        Assert.Equal(10.0, scratch.Demand[pa.Id][(int)GoodId.Provisions], 6);
+        Assert.Equal(10.0, scratch.Demand[pb.Id][(int)GoodId.Provisions], 6);
     }
 
     [Fact]

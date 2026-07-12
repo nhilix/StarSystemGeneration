@@ -41,38 +41,50 @@ public static class Planner
         var desired = new List<(PlanEntry Entry, double Score)>();
 
         // facilities: the perceived siting scores, damped for the martial
+        // and leaned toward supplied sites (stage 2: the brief is located —
+        // a candidate whose port larder already holds the basket outranks
+        // its twin at a bare frontier; the sprawl pays a coordination tax)
         foreach (var c in view.ConstructionCandidates)     // best-first per port
-            desired.Add((new PlanEntry(PlanEntryKind.Facility,
-                ProjectPriority.Core, 0, c.TypeId, c.PortId, c.Hex, 1),
-                c.Score * civilBias));
+        {
+            var entry = new PlanEntry(PlanEntryKind.Facility,
+                ProjectPriority.Core, 0, c.TypeId, c.PortId, c.Hex, 1);
+            desired.Add((entry,
+                c.Score * civilBias * SupplyFactor(entry, view, cfg)));
+        }
 
         // port raises: one per own under-max port, cheaper tiers preferred
         foreach (var port in view.OwnPorts)                // id order (P6)
         {
             if (port.Tier >= cfg.Infrastructure.MaxPortTier) continue;
-            double score = cfg.Controller.PortRaisePlanScore
-                           / Math.Max(1, port.Tier) * civilBias;
-            desired.Add((new PlanEntry(PlanEntryKind.PortRaise,
+            var entry = new PlanEntry(PlanEntryKind.PortRaise,
                 ProjectPriority.Core, 0, -1, port.PortId,
-                new HexCoordinate(0, 0), 1), score));
+                new HexCoordinate(0, 0), 1);
+            double score = cfg.Controller.PortRaisePlanScore
+                           / Math.Max(1, port.Tier) * civilBias
+                           * SupplyFactor(entry, view, cfg);
+            desired.Add((entry, score));
         }
 
         // hull batches: D'Hondt over the ShipbuildingPriorities-weighted own
-        // designs. Slot count mirrors the old instant-laydown throughput
-        // (yard tier × Fleet.YardHullsPerTierPerYear × the epoch's years) so
-        // apportionment keeps its old shape — a low-priority role (colony
-        // ships once the reserve is empty) still wins a slot every so many
-        // picks instead of a single-slot yard handing everything to freight
-        // forever. Slots won by the same design collapse into one batch
-        // (Count = slots won) — one project per design, not per hull.
+        // designs. Slots accrue in WORLD-TIME (stage 2, P7): the cumulative
+        // throughput clock floor(rate·year) grants each step exactly the
+        // slots that matured inside its span — consecutive fine steps
+        // telescope to the coarse total, so a 1y clock builds the same navy
+        // per century as a 25y clock (the old Max(1,·) per-step floor fired
+        // a unit batch every step at fine tick). Slots won by the same
+        // design collapse into one batch (Count = slots won) — one project
+        // per design, not per hull.
         double hullBase = 0.2 + 0.6 * militancy;
         double warFactor = atWar ? 2.0 : 1.0;
         var hullPriority = atWar ? ProjectPriority.War : ProjectPriority.Growth;
         foreach (var port in view.OwnPorts)                // id order (P6)
         {
             if (port.YardTiers <= 0) continue;
-            int slots = Math.Max(1, (int)(port.YardTiers
-                * cfg.Fleet.YardHullsPerTierPerYear * cfg.Sim.YearsPerEpoch));
+            double rate = port.YardTiers * cfg.Fleet.YardHullsPerTierPerYear;
+            int slots = (int)Math.Floor(rate
+                            * (view.WorldYear + cfg.Sim.YearsPerEpoch))
+                        - (int)Math.Floor(rate * view.WorldYear);
+            if (slots <= 0) continue;
             var granted = new Dictionary<int, int>();
             var bestClaimOf = new Dictionary<int, double>();
             for (int b = 0; b < slots; b++)
@@ -201,6 +213,92 @@ public static class Planner
             }
         }
         return (0.0, 1.0);
+    }
+
+    /// <summary>The supply lean (stage 2, spec §4b "Planner consequence"):
+    /// 1 − w + w·coverage, coverage = the fraction of the entry's WHOLE
+    /// build basket the site port's larder already holds (worst good).
+    /// Bare larders everywhere damp uniformly — the lean only separates
+    /// sites once somebody pre-positions.</summary>
+    public static double SupplyFactor(PlanEntry entry, PerceptionView view,
+                                      EpochSimConfig cfg)
+    {
+        double w = cfg.Controller.PlanSupplyWeight;
+        if (w <= 0) return 1.0;
+        IReadOnlyList<double>? stock = null;
+        int portTier = 1;
+        foreach (var p in view.OwnPorts)
+            if (p.PortId == entry.PortId)
+            { stock = p.Stock; portTier = p.Tier; break; }
+        var (role, size) = entry.Kind == PlanEntryKind.HullBatch
+            ? DesignOf(view, entry.TypeId)
+            : (ShipRole.Freight, ShipSize.Medium);
+        var basket = new double[Substrate.Goods.All.Count];
+        double duration = EntryBasketPerYear(cfg, entry.Kind, entry.TypeId,
+            entry.Count, portTier, role, size, basket);
+        double coverage = 1.0;
+        bool anyGood = false;
+        for (int g = 0; g < basket.Length; g++)
+        {
+            if (basket[g] <= 0) continue;
+            anyGood = true;
+            double have = stock != null ? stock[g] : 0.0;
+            coverage = Math.Min(coverage,
+                Math.Min(1.0, have / (basket[g] * duration)));
+        }
+        return anyGood ? 1.0 - w + w * coverage : 1.0;
+    }
+
+    /// <summary>The per-year goods draw the entry's project will consume
+    /// once ground breaks — mirrored from the spawn arithmetic so the
+    /// scheduler and the quartermaster read the same rates (spec §4b).
+    /// Fills <paramref name="into"/>, returns the build duration.</summary>
+    public static double EntryBasketPerYear(EpochSimConfig cfg,
+        PlanEntryKind kind, int typeId, int count, int portTier,
+        ShipRole role, ShipSize size, double[] into)
+    {
+        Array.Clear(into, 0, into.Length);
+        switch (kind)
+        {
+            case PlanEntryKind.Facility:
+            {
+                var def = Substrate.Infrastructure.Get(
+                    (Substrate.InfraTypeId)typeId);
+                double years = Math.Max(1.0, def.ConstructionYears);
+                foreach (var q in def.BuildCost)
+                    into[(int)q.Good] += q.Quantity / years;
+                return years;
+            }
+            case PlanEntryKind.PortRaise:
+            {
+                var ex = cfg.Expansion;
+                double years = Math.Max(1.0, ex.PortUpgradeYears);
+                into[(int)Substrate.GoodId.Alloys] +=
+                    ex.PortUpgradeAlloysPerYearPerTier * portTier;
+                into[(int)Substrate.GoodId.Machinery] +=
+                    ex.PortUpgradeMachineryPerYearPerTier * portTier;
+                into[(int)Substrate.GoodId.RefinedExotics] +=
+                    ex.PortUpgradeExoticsPerYearPerTier * portTier;
+                return years;
+            }
+            case PlanEntryKind.HullBatch:
+            {
+                double medium = DesignMath.ComponentsPerHull(cfg.Fleet,
+                                                             ShipSize.Medium);
+                double comp = DesignMath.ComponentsPerHull(cfg.Fleet, size);
+                double years = Math.Max(1.0,
+                    cfg.Fleet.HullBuildYearsBase * (comp / medium));
+                int n = Math.Max(1, count);
+                into[(int)Substrate.GoodId.ShipComponents] +=
+                    comp * n / years;
+                double arms = DesignMath.ArmamentsPerHull(cfg.Fleet, role,
+                                                          size);
+                if (arms > 0)
+                    into[(int)Substrate.GoodId.Armaments] += arms * n / years;
+                return years;
+            }
+        }
+        return 1.0;
     }
 
     private static int PortTierOf(PerceptionView view, int portId)

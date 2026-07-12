@@ -44,6 +44,9 @@ public class AllocationEconomyTests
 
         var budget = PolityPolicies.Default.Budget;
         Assert.Equal(100 * budget.Expansion, pr.ExpansionPoints, 6);
+        // stage 2: the reserve share accrues too — Budget.Reserves was a
+        // dead line until located stockpiles gave it a treasury to fill
+        Assert.Equal(100 * budget.Reserves, pr.ReservePoints, 6);
         // development share accrued, then possibly spent on lanes/tiers/builds —
         // total credits + treasuries never exceed the original 100
         Assert.True(pr.Credits + pr.ExpansionPoints + pr.DevelopmentPoints
@@ -192,20 +195,58 @@ public class AllocationEconomyTests
     }
 
     [Fact]
-    public void Reserves_DecayByPerishability()
+    public void Stockpiles_DecayByPerishability_PerPort()
     {
-        var (state, _) = Fixture();
-        var pr = state.PolityOf(0);
-        pr.ReserveQty[(int)GoodId.Provisions] = 100;
-        pr.ReserveQty[(int)GoodId.Alloys] = 100;
+        var (state, port) = Fixture();
+        port.StockQty[(int)GoodId.Provisions] = 100;
+        port.StockQty[(int)GoodId.Alloys] = 100;
 
         new AllocationPhase().Run(state);
 
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions] < 100);
-        Assert.True(pr.ReserveQty[(int)GoodId.Alloys] < 100);
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions]
-                    < pr.ReserveQty[(int)GoodId.Alloys],
+        Assert.True(port.StockQty[(int)GoodId.Provisions] < 100);
+        Assert.True(port.StockQty[(int)GoodId.Alloys] < 100);
+        Assert.True(port.StockQty[(int)GoodId.Provisions]
+                    < port.StockQty[(int)GoodId.Alloys],
             "provisions rot faster than durables");
+    }
+
+    /// <summary>Review fix 4 (P7): decay compounds per world-year, so a
+    /// 25-year step rots exactly what twenty-five 1-year steps rot.</summary>
+    [Fact]
+    public void StockpileDecay_IsTickInvariant()
+    {
+        var (coarse, coarsePort) = Fixture();
+        coarsePort.StockQty[(int)GoodId.Provisions] = 100;
+        new AllocationPhase().Run(coarse);
+
+        var (fine, finePort) = Fixture();
+        fine.Config.Sim.YearsPerEpoch = 1;
+        finePort.StockQty[(int)GoodId.Provisions] = 100;
+        for (int i = 0; i < 25; i++) new AllocationPhase().Run(fine);
+
+        Assert.Equal(coarsePort.StockQty[(int)GoodId.Provisions],
+                     finePort.StockQty[(int)GoodId.Provisions], 6);
+    }
+
+    /// <summary>The controller contract's "stockpile targets →
+    /// depots/reserves" mechanism (spec §4b): an active Depot at the port
+    /// cuts the stockpile's decay.</summary>
+    [Fact]
+    public void Depot_CutsStockpileDecay()
+    {
+        var (withDepot, port) = Fixture();
+        port.StockQty[(int)GoodId.Provisions] = 100;
+        withDepot.Facilities.Add(new Facility(0,
+            (int)InfraTypeId.Depot, 1, port.Hex, 0, builtYear: 0));
+        var (bare, barePort) = Fixture();
+        barePort.StockQty[(int)GoodId.Provisions] = 100;
+
+        new AllocationPhase().Run(withDepot);
+        new AllocationPhase().Run(bare);
+
+        Assert.True(port.StockQty[(int)GoodId.Provisions]
+                    > barePort.StockQty[(int)GoodId.Provisions],
+            "a depot should slow the rot");
     }
 
     [Fact]

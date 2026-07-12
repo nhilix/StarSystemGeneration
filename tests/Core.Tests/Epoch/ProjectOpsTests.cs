@@ -24,9 +24,9 @@ public class ProjectOpsTests
         p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
         p.WagesPerYear = 0.0;
         int years = state.Config.Sim.YearsPerEpoch;              // 25
-        // stock exactly 60% of the span's need, wipe reserves
+        // stock exactly 60% of the span's need; the site larder stays bare
         market.Inventory[(int)GoodId.Alloys] = 0.6 * years;
-        pr.ReserveQty[(int)GoodId.Alloys] = 0;
+        state.Ports[port].StockQty[(int)GoodId.Alloys] = 0;
         double stockBefore = market.Inventory[(int)GoodId.Alloys];
         ProjectOps.AdvanceAll(state);
         Assert.Equal(0.6 * years, p.YearsDelivered, 6);
@@ -42,6 +42,35 @@ public class ProjectOpsTests
             p.PerYearBasket[(int)GoodId.Alloys] * p.YearsDelivered, 6);
     }
 
+    /// <summary>Stage 2 (spec §4b): Pass-1 draws are local-only — the site
+    /// market first, then the SITE port's own stockpile; a shortfall met
+    /// from the local larder feeds the work, nothing teleports in.</summary>
+    [Fact]
+    public void Advance_DrawsFromTheSitePortStockpile()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int port = OwnPort(state, pr.ActorId);
+        var market = state.Markets[port];
+        var site = state.Ports[port];
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
+            pr.ActorId, port, site.Hex, yearsRequired: 50.0,
+            ProjectPriority.Core, planOrder: 0);
+        p.TargetId = port;
+        p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
+        p.WagesPerYear = 0.0;
+        int years = state.Config.Sim.YearsPerEpoch;              // 25
+        // 40% on the market shelf, 60% in the port's own larder
+        market.Inventory[(int)GoodId.Alloys] = 0.4 * years;
+        site.StockQty[(int)GoodId.Alloys] = 0.6 * years;
+        site.StockGrade[(int)GoodId.Alloys] = 0.5;
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(years, p.YearsDelivered, 6);        // fully fed, locally
+        Assert.Equal(0.0, market.Inventory[(int)GoodId.Alloys], 6);
+        Assert.Equal(0.0, site.StockQty[(int)GoodId.Alloys], 6);
+    }
+
     /// <summary>Priority order: the War-class project drinks the shared
     /// market dry before the Growth-class one sees a unit (spec §4).</summary>
     [Fact]
@@ -54,7 +83,7 @@ public class ProjectOpsTests
         int years = state.Config.Sim.YearsPerEpoch;
         var market = state.Markets[port];
         market.Inventory[(int)GoodId.Fuel] = 1.0 * years;   // one project's worth
-        pr.ReserveQty[(int)GoodId.Fuel] = 0;
+        state.Ports[port].StockQty[(int)GoodId.Fuel] = 0;
         var growth = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
             pr.ActorId, port, state.Ports[port].Hex, 50.0,
             ProjectPriority.Growth, 0);
@@ -195,13 +224,171 @@ public class ProjectOpsTests
             own[0], own[1], tier: 1, ProjectPriority.Core, 0);
         var lane = state.Lanes[p.TargetId];
         Assert.False(LaneMath.IsLive(state, lane));   // half a highway is none
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Alloys] += 100;
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Machinery] += 100;
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Composites] += 100;
+        // stage 2 (spec §5 gate-pairs row): each end draws at ITS OWN
+        // market — both ends get stocked
+        foreach (var end in new[] { own[0].Id, own[1].Id })
+        {
+            state.Markets[end].Inventory[(int)GoodId.Alloys] += 100;
+            state.Markets[end].Inventory[(int)GoodId.Machinery] += 100;
+            state.Markets[end].Inventory[(int)GoodId.Composites] += 100;
+        }
         pr.DevelopmentPoints += 1000;
         ProjectOps.AdvanceAll(state);
         Assert.True(p.Completed);
         Assert.True(LaneMath.IsLive(state, lane));
+    }
+
+    /// <summary>Stage 2 (spec §5): the pair draws per end — a mountain of
+    /// alloys at the A end builds no gate at a bare B end; the scarcer end
+    /// paces the whole project (half a highway opens no lane). Shipments
+    /// cover the shortfall once the B end is supplied.</summary>
+    [Fact]
+    public void GatePair_EachEndDrawsLocally_TheScarcerEndPaces()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        var own = new System.Collections.Generic.List<Port>();
+        foreach (var port in state.Ports)
+            if (port.OwnerActorId == pr.ActorId) own.Add(port);
+        if (own.Count < 2)
+        {
+            var home = own[0];
+            var second = new Port(state.Ports.Count, pr.ActorId,
+                new StarGen.Core.Model.HexCoordinate(home.Hex.Q + 6, home.Hex.R),
+                tier: 1, state.WorldYear);
+            state.Ports.Add(second);
+            state.Markets.Add(new Market(second.Id, state.Config.Economy));
+            own.Add(second);
+        }
+        var p = ProjectOps.SpawnGatePair(state, pr.ActorId, pr.ActorId,
+            own[0], own[1], tier: 1, ProjectPriority.Core, 0);
+        // the WHOLE pair basket piled at the A end; the B end is bare
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Alloys] += 200;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Machinery] += 200;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Composites] += 200;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Alloys] = 0;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Machinery] = 0;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Composites] = 0;
+        pr.DevelopmentPoints += 1000;
+
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(0.0, p.YearsDelivered, 6);       // the bare end paces
+
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Alloys] += 100;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Machinery] += 100;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Composites] += 100;
+        ProjectOps.AdvanceAll(state);
+        Assert.True(p.Completed);                     // both ends fed → open
+    }
+
+    /// <summary>Stage 2 residue: completion stamps carry the INTERPOLATED
+    /// world-year — a 2-year build inside a 25-year span commissions in
+    /// year 2 of the span, not at its start.</summary>
+    [Fact]
+    public void Complete_StampsTheInterpolatedYear_NotTheSpanStart()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        var market = state.Markets[portId];
+        var def = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Mine);
+        foreach (var q in def.BuildCost)
+            market.Inventory[(int)q.Good] += q.Quantity * 2;
+        pr.DevelopmentPoints += 1000;
+        var candidate = new ConstructionCandidate(
+            (int)StarGen.Core.Substrate.InfraTypeId.Mine,
+            state.Ports[portId].Hex, portId, 1.0);
+        var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
+            pr.ActorId, candidate, ProjectPriority.Core, 0);
+        ProjectOps.AdvanceAll(state);                    // fully fed
+        Assert.True(p.Completed);
+        var f = state.Facilities[p.TargetId];
+        Assert.Equal(state.WorldYear + (int)System.Math.Round(p.YearsRequired),
+                     f.CommissionedYear);
+    }
+
+    /// <summary>Stage 2 residue: the founding kit is sized to the link the
+    /// crossing actually needs — a long link ships a tier-2/3 pair's
+    /// basket, recorded on the expedition as cargo.</summary>
+    [Fact]
+    public void FoundingKit_IsTierScaled_AndRidesTheExpedition()
+    {
+        var (state, pr, port) = FleetFixture();
+        pr.ExpansionPoints = state.Config.Expansion.ColonyCost * 2;
+        var market = state.Markets[port.Id];
+        var gateDef = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Gate);
+        foreach (var q in gateDef.BuildCost)
+            market.Inventory[(int)q.Good] += q.Quantity * 100;
+        // a target beyond tier-1 gate reach: the link needs a higher tier
+        int t1Reach = state.Config.Infrastructure.GateReachTier1Hexes;
+        var candidates = ColonyValuation.CandidatesFor(state, pr.ActorId);
+        StarGen.Core.Model.HexCoordinate? far = null;
+        foreach (var c in candidates)
+            if (StarGen.Core.Galaxy.HexGrid.Distance(port.Hex, c.Target)
+                > t1Reach) { far = c.Target; break; }
+        Assert.True(far.HasValue, "fixture needs a beyond-tier-1 candidate");
+        state.Decisions.Add(new ActorDecision(pr.ActorId,
+            new ControllerDecision(PolityPolicies.Default, new Act[]
+            { new FoundColonyAct(pr.ActorId, far!.Value) })));
+
+        new ResolutionPhase().Run(state);
+
+        Project? expedition = null;
+        foreach (var p in state.Projects)
+            if (p.Kind == ProjectKind.ColonyExpedition) expedition = p;
+        Assert.NotNull(expedition);
+        int dist = StarGen.Core.Galaxy.HexGrid.Distance(port.Hex, far.Value);
+        int tier = LaneMath.RequiredGateTier(state.Config, dist, 0);
+        Assert.True(tier >= 2);
+        double scale = StarGen.Core.Substrate.Production.TierCostFactor(tier);
+        foreach (var q in gateDef.BuildCost)
+            Assert.Equal(2.0 * q.Quantity * scale,
+                expedition!.PerYearBasket[(int)q.Good], 6);
+    }
+
+    /// <summary>Stage 2 residue: a convoy that turns back brings the kit
+    /// home — the staging larder banks it; sunk no more.</summary>
+    [Fact]
+    public void FailedExpedition_BringsTheKitHome()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int staging = OwnPort(state, pr.ActorId);
+        var target = new StarGen.Core.Model.HexCoordinate(
+            state.Ports[staging].Hex.Q + 12, state.Ports[staging].Hex.R);
+        var p = ProjectOps.SpawnExpedition(state, pr.ActorId, staging,
+            target, convoyFleetId: -1, offLaneHexes: 12);
+        p.PerYearBasket[(int)GoodId.Alloys] = 8.0;       // the shipped kit
+        // the hex gets taken mid-flight: the convoy must turn back
+        state.Ports.Add(new Port(state.Ports.Count, pr.ActorId, target,
+                                 tier: 1, state.WorldYear));
+        state.Markets.Add(new Market(state.Ports.Count - 1,
+                                     state.Config.Economy));
+        double before = state.Ports[staging].StockQty[(int)GoodId.Alloys];
+
+        ProjectOps.AdvanceAll(state);
+
+        Assert.True(p.Completed);
+        Assert.Equal(before + 8.0,
+            state.Ports[staging].StockQty[(int)GoodId.Alloys], 6);
+    }
+
+    private static (SimState State, PolityRecord Polity, Port Port)
+        FleetFixture()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        new EpochEngine().Step(state);
+        foreach (var a in state.Actors)
+            if (a.Entered)
+                foreach (var p in state.Ports)
+                    if (p.OwnerActorId == a.Id)
+                        return (state, state.PolityOf(a.Id), p);
+        throw new Xunit.Sdk.XunitException("no polity entered after one epoch");
     }
 
     /// <summary>A colony expedition takes world-time: the founding body fires
@@ -236,6 +423,10 @@ public class ProjectOpsTests
         ProjectOps.AdvanceAll(state);                  // 25y >= 12/6 = 2y
         Assert.True(p.Completed);
         Assert.True(PortAt(state, target));            // arrived → founded
+        // review fix 7: the founding stamp is the interpolated ARRIVAL
+        // year, not the span start — the crossing took its two years
+        Assert.Equal(state.WorldYear + 2,
+                     state.Ports[state.Ports.Count - 1].FoundedYear);
     }
 
     /// <summary>A fed Mobilization project completes and readiness reaches

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
+using StarGen.Core.Substrate;
 
 namespace StarGen.Core.Epoch;
 
@@ -25,6 +26,12 @@ public sealed class Port
     /// founding counts) — the dead-city grace clock reads how long the
     /// port has sat EMPTY, not how old it is (slice I, ports layer v2).</summary>
     public long LastPopulatedYear { get; set; }
+    /// <summary>Located stockpile per good (time-and-logistics spec §4b):
+    /// stock has an address — banked HERE, owned by whoever owns the port,
+    /// so conquest, federation, and schism move stock by moving the port.</summary>
+    public double[] StockQty { get; } = new double[Goods.All.Count];
+    /// <summary>Quantity-weighted mean grade of the stock (0 when empty).</summary>
+    public double[] StockGrade { get; } = new double[Goods.All.Count];
 
     public Port(int id, int ownerActorId, HexCoordinate hex, int tier, int foundedYear)
     {
@@ -34,6 +41,28 @@ public sealed class Port
         Tier = tier;
         FoundedYear = foundedYear;
         LastPopulatedYear = foundedYear;
+    }
+
+    /// <summary>Blend a delivery into the stockpile: quantities add, grade is
+    /// the quantity-weighted mean (the Market.Deposit convention).</summary>
+    public void DepositStock(int good, double quantity, double grade)
+    {
+        if (quantity <= 0) return;
+        double total = StockQty[good] + quantity;
+        StockGrade[good] =
+            (StockQty[good] * StockGrade[good] + quantity * grade) / total;
+        StockQty[good] = total;
+    }
+
+    /// <summary>Draw up to <paramref name="quantity"/> from the stockpile at
+    /// the mean grade; returns the quantity actually drawn.</summary>
+    public double DrawStock(int good, double quantity)
+    {
+        double drawn = quantity < StockQty[good] ? quantity : StockQty[good];
+        if (drawn <= 0) return 0;
+        StockQty[good] -= drawn;
+        if (StockQty[good] <= 0) { StockQty[good] = 0; StockGrade[good] = 0; }
+        return drawn;
     }
 }
 

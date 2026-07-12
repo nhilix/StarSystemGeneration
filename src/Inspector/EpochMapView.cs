@@ -35,6 +35,8 @@ public static class EpochMapView
         var deadLaneCells = layer == "lanes" ? LaneCells(state, live: false) : null;
         var traffic = layer == "traffic" ? TrafficCells(state) : null;
         var warCells = layer == "war" ? WarStationCells(state) : null;
+        var workCells = layer == "works" ? WorkCells(state) : null;
+        var freightCells = layer == "works" ? FreightCells(state) : null;
 
         var owners = new List<int>();
         foreach (var (cell, off) in offsets)
@@ -47,6 +49,12 @@ public static class EpochMapView
                     : deadLaneCells!.Contains(cell.Coord) ? '~' : '.';
             else if (layer == "price")
                 glyph = PriceGlyph(state, cell, good);
+            else if (layer == "works")
+                // the in-flight world (stage 2, P1): construction sites and
+                // freight on the move are residue while they happen
+                glyph = workCells!.Contains(cell.Coord) ? '#'
+                    : freightCells!.Contains(cell.Coord) ? '>'
+                    : portCells.Contains(cell.Coord) ? '*' : '.';
             else if (layer == "traffic")
                 glyph = portCells.Contains(cell.Coord) ? '*'
                     : traffic!.TryGetValue(cell.Coord, out double trips)
@@ -135,6 +143,8 @@ public static class EpochMapView
             "plague" => "!=infected port o=immune (recovered) x=quarantined "
                         + "approach letter=healthy domain .=wilds",
             "lanes" => "*=port cell +=lane ~=dead lane (gate down) .=off-network (wilds dark)",
+            "works" => "#=construction site >=freight/convoy in transit "
+                       + "*=port .=wilds (the in-flight world)",
             "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
                          + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "
                          + "(news rides this — busy lanes carry it fast)",
@@ -239,6 +249,48 @@ public static class EpochMapView
                 && fleet.Posture is FleetPosture.Blockade
                     or FleetPosture.Expedition
                 && WarOps.AtWar(state, fleet.OwnerActorId))
+                cells.Add(HexGrid.CellOf(fleet.Hex));
+        return cells;
+    }
+
+    /// <summary>Construction-site cells: every in-flight project's anchor
+    /// (both ends of a gate pair) — the works themselves, not travel.</summary>
+    private static HashSet<HexCoordinate> WorkCells(SimState state)
+    {
+        var cells = new HashSet<HexCoordinate>();
+        foreach (var p in state.Projects)
+        {
+            if (!p.InFlight || p.Kind == ProjectKind.ColonyExpedition)
+                continue;
+            cells.Add(HexGrid.CellOf(p.Hex));
+            if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+            {
+                var lane = state.Lanes[p.TargetId];
+                cells.Add(HexGrid.CellOf(state.Ports[lane.PortAId].Hex));
+                cells.Add(HexGrid.CellOf(state.Ports[lane.PortBId].Hex));
+            }
+        }
+        return cells;
+    }
+
+    /// <summary>Goods on the move: shipments interpolated along their
+    /// origin→destination line by sailed fraction, plus expedition convoys
+    /// at their live hexes (P1 — in-transit state is map residue).</summary>
+    private static HashSet<HexCoordinate> FreightCells(SimState state)
+    {
+        var cells = new HashSet<HexCoordinate>();
+        foreach (var s in state.Shipments)
+        {
+            var from = state.Ports[s.OriginPortId].Hex;
+            var to = state.Ports[s.DestPortId].Hex;
+            double f = s.TotalYears > 0
+                ? System.Math.Min(1.0, s.YearsInTransit / s.TotalYears) : 1.0;
+            cells.Add(HexGrid.CellOf(HexGrid.Round(
+                from.Q + (to.Q - from.Q) * f, from.R + (to.R - from.R) * f)));
+        }
+        foreach (var fleet in state.Fleets)
+            if (fleet.TotalHulls > 0
+                && fleet.Posture == FleetPosture.Expedition)
                 cells.Add(HexGrid.CellOf(fleet.Hex));
         return cells;
     }

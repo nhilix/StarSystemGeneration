@@ -438,6 +438,9 @@ public sealed class CorporateKnobs
     /// <summary>Posted lane capacity that reads as raid-worthy cargo where
     /// the owner keeps no warships (the pirate-band trigger).</summary>
     public double RaidCapacityFloor { get; set; } = 8.0;
+    /// <summary>Chance per world-year that a shipment sailing a hunted lane
+    /// is taken (stage 2, spec §4b) — the loot lands at the band's haven.</summary>
+    public double ShipmentLossPerHuntedYear { get; set; } = 0.15;
 }
 
 /// <summary>Tech dials (economy/technology.md): the tier ladder's cost
@@ -658,6 +661,28 @@ public sealed class EconomyKnobs
     /// <summary>Fractional durable-stockpile decay per world-year; perishable
     /// goods scale it up in code (provisions rot, alloys do not).</summary>
     public double StockpileDecayPerYear { get; set; } = 0.002;
+    /// <summary>Decay multiplier per active Depot tier at the stockpile's
+    /// port (stage 2, spec §4b) — the controller contract's "stockpile
+    /// targets → depots/reserves" mechanism: two depot tiers keep goods
+    /// 4× longer at the default 0.5.</summary>
+    public double DepotDecayFactor { get; set; } = 0.5;
+    /// <summary>Stockpile capacity per good per port tier (spec §4b) —
+    /// what a port can bank without dedicated storage.</summary>
+    public double StockCapPerPortTier { get; set; } = 100.0;
+    /// <summary>Extra stockpile capacity per good per active Depot tier at
+    /// the port — depots are how a polity builds deep larders.</summary>
+    public double StockCapPerDepotTier { get; set; } = 400.0;
+    /// <summary>Freight speed on a lane in hexes per world-year, before the
+    /// lane's gate-tier TransitSpeed multiplier (spec §4b: gate tier sets
+    /// speed) — a tier-2 lane moves goods at 2× this base.</summary>
+    public double FreightHexesPerYearBase { get; set; } = 8.0;
+    /// <summary>Freight speed off the lane network — the slow crawl (spec
+    /// §4b): supply that leaves the highways pays for it in years.</summary>
+    public double OffLaneFreightHexesPerYear { get; set; } = 2.0;
+    /// <summary>How many world-years beyond the step a requisition covers
+    /// (spec §4b): the quartermaster provisions ahead of the lead time, so
+    /// remote sites are pre-positioned rather than fed hand to mouth.</summary>
+    public double RequisitionLeadYears { get; set; } = 5.0;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year
@@ -834,6 +859,12 @@ public sealed class ExpansionKnobs
     public double ColonyCost { get; set; } = 15.0;
     /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>
     public int ColonizationReachHexes { get; set; } = 24;
+    /// <summary>World-years between one polity's colony dispatches (stage
+    /// 2, P7): the controller commits one founding per decision step, so
+    /// without this the founding RATE would follow the tick, not the
+    /// clock. At the 25-year default a coarse generation step behaves
+    /// exactly as before; a 1-year clock founds at the same world pace.</summary>
+    public double FoundingCadenceYears { get; set; } = 25.0;
     /// <summary>Colony-score penalty per foreign polity whose domain the
     /// new port's service area would overlap — settling someone's sphere
     /// must be outweighed by real riches (slice H: contiguous borders).</summary>
@@ -990,4 +1021,9 @@ public sealed class ControllerKnobs
     /// <summary>Base score of a port-raise plan entry, divided by the port's
     /// current tier — the standing bias toward deepening young ports first.</summary>
     public double PortRaisePlanScore { get; set; } = 0.5;
+    /// <summary>How hard the scheduler leans toward supplied sites (stage 2,
+    /// spec §4b "Planner consequence"): entry scores scale by
+    /// 1 − w + w·coverage, coverage = the site larder's share of the whole
+    /// build basket — a sprawling polity pays a real coordination tax.</summary>
+    public double PlanSupplyWeight { get; set; } = 0.3;
 }

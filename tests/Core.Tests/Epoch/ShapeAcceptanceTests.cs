@@ -83,7 +83,7 @@ public class ShapeAcceptanceTests
         double held = 0;
         foreach (var p in state.Polities)
             held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
-                    + p.MilitaryPoints;
+                    + p.MilitaryPoints + p.ReservePoints;
         foreach (var s in state.Segments)
             held += s.Wealth;
         foreach (var f in state.Factions)

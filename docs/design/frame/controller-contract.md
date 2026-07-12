@@ -19,7 +19,7 @@ list.
 | charter openness | corporate founding |
 | military doctrine (posture and engagement biases) | Resolution |
 | shipbuilding priorities (design mix, refit variants) | Allocation → yards |
-| stockpile targets (per good) | Allocation → depots/reserves |
+| stockpile targets (per good) | Markets → located per-port larders: each own port procures toward its share from its own market, paid from the reserve budget's treasury; depots extend capacity and cut decay; the requisition channel ships the banked construction stock to project sites |
 | diplomatic posture per known polity | Intent AI itself, treaty seeking |
 | native policy (protectorate / integrate / exploit / uplift) | contact resolution |
 

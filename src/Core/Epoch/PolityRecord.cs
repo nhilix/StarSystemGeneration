@@ -3,7 +3,7 @@ using StarGen.Core.Substrate;
 namespace StarGen.Core.Epoch;
 
 /// <summary>Polity-specific sim state beside the common actor substrate:
-/// founding species, the credit ledger, strategic reserves, and the
+/// founding species, the credit ledger, and the
 /// investment treasuries Allocation accrues and spends. Registry in
 /// SimState.Polities, actor-id order (P6). Slice D: real market income
 /// (transaction tax + tariffs + state facility revenue) replaces the slice-B
@@ -28,6 +28,10 @@ public sealed class PolityRecord : ICreditLedger
     /// <summary>Accrued military budget; yard hull production consumes it
     /// (slice E — the Budget.Military share stops idling in Credits).</summary>
     public double MilitaryPoints { get; set; }
+    /// <summary>Accrued reserve budget (stage 2 — Budget.Reserves finally
+    /// funds something): polity procurement buys located stock with it, so
+    /// the quartermaster no longer competes with a drained credit balance.</summary>
+    public double ReservePoints { get; set; }
     /// <summary>Hulls ever laid down (yards + genesis starter fleets) — the
     /// conservation ledger: Built == active + Wrecked + Scrapped, always (P4).</summary>
     public int HullsBuilt { get; set; }
@@ -37,12 +41,9 @@ public sealed class PolityRecord : ICreditLedger
     /// <summary>Hulls deliberately broken up (colony ships become the
     /// colony; partial alloy recovery lands with salvage).</summary>
     public int HullsScrapped { get; set; }
-    /// <summary>Strategic reserve stock per good — held against policy
-    /// targets, buffering sieges and famines (economy/markets.md
-    /// §Stockpiles). Polity-aggregate in slice D; wars make it spatial (H).</summary>
-    public double[] ReserveQty { get; } = new double[Goods.All.Count];
-    /// <summary>Mean grade of the reserve stock per good (0 when empty).</summary>
-    public double[] ReserveGrade { get; } = new double[Goods.All.Count];
+    // strategic reserves are LOCATED state now — Port.StockQty/StockGrade,
+    // per port, per good (time-and-logistics spec §4b); the polity-aggregate
+    // pool died with stage 2
 
     /// <summary>Starting-kit quality from the emergence schedule (slice F):
     /// maturation richness plus the late-emerger contact bonus. Slice G

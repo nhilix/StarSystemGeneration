@@ -87,6 +87,43 @@ public class PlannerTests
             e => e.StartYear > view.WorldYear);
     }
 
+    /// <summary>Stage 2 carried gap (spec §6, P7): yard throughput accrues
+    /// in WORLD-TIME — 25 one-year plans grant exactly the hull slots one
+    /// 25-year plan grants. The old Max(1, tier·rate·span) floor fired a
+    /// unit batch every step at fine tick.</summary>
+    [Fact]
+    public void Plan_HullBatchSlots_AccrueInWorldTime_NotPerStep()
+    {
+        var cfg = new EpochSimConfig();          // YardHullsPerTierPerYear .2
+        var design = new DesignBrief(0, ShipRole.Freight, ShipSize.Medium, 1);
+        var ports = new[] { new PortBrief(0, Tier: 2, YardTiers: 1) };
+        var cap = new CapabilityBrief(1e6,
+            new double[StarGen.Core.Substrate.Goods.All.Count],
+            new CommitmentBrief[0]);
+        var policies = PolityPolicies.Default with
+        {
+            ShipbuildingPriorities =
+                new System.Collections.Generic.Dictionary<int, double>
+                { [0] = 1.0 },
+        };
+        int SlotsAt(int worldYear, int span)
+        {
+            cfg.Sim.YearsPerEpoch = span;
+            var view = new PerceptionView(0, worldYear, new int[0],
+                ownDesigns: new[] { design }, capability: cap,
+                ownPorts: ports);
+            int hulls = 0;
+            foreach (var e in Planner.BuildPlan(view, policies, cfg).Entries)
+                if (e.Kind == PlanEntryKind.HullBatch) hulls += e.Count;
+            return hulls;
+        }
+        int coarse = SlotsAt(1000, 25);          // one generation step
+        int fine = 0;
+        for (int y = 0; y < 25; y++) fine += SlotsAt(1000 + y, 1);
+        Assert.True(coarse > 0, "the yard should win slots at coarse tick");
+        Assert.Equal(coarse, fine);
+    }
+
     [Fact]
     public void Plan_RoundTrips_ByteIdentical()
     {

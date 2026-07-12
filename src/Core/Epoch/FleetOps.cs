@@ -368,13 +368,13 @@ public static class FleetOps
     }
 
     /// <summary>Draw one upkeep good from the home market first, then from
-    /// the polity's strategic reserve — the design's "market/stockpile"
-    /// (fleets doc §Movement and supply): navy logistics run on the
-    /// quartermaster's stores where a frontier port's shelves are bare.
-    /// Market draws are paid from the military treasury at the market
-    /// price and land as home-port wages (navy money is somebody's
-    /// income); reserve draws consume stock procurement already bought.
-    /// Returns the met fraction.</summary>
+    /// the HOME PORT's stockpile — the design's "market/stockpile" (fleets
+    /// doc §Movement and supply), located per spec §4b: navy logistics run
+    /// on the local quartermaster's stores where a frontier port's shelves
+    /// are bare; a rich larder two systems over feeds nobody here. Market
+    /// draws are paid from the military treasury at the market price and
+    /// land as home-port wages (navy money is somebody's income); stock
+    /// draws consume procurement already bought. Returns the met fraction.</summary>
     private static double DrawUpkeep(SimState state, PolityRecord pr,
                                      Market market, int good, double need)
     {
@@ -391,13 +391,8 @@ public static class FleetOps
             MarketEngine.PayWages(state, market.PortId, cost);
         }
         double shortfall = need - drawn;
-        if (shortfall > 0 && pr.ReserveQty[good] > 0)
-        {
-            double fromReserve = Math.Min(shortfall, pr.ReserveQty[good]);
-            pr.ReserveQty[good] -= fromReserve;
-            if (pr.ReserveQty[good] <= 0) pr.ReserveGrade[good] = 0;
-            drawn += fromReserve;
-        }
+        if (shortfall > 0)
+            drawn += state.Ports[market.PortId].DrawStock(good, shortfall);
         return drawn / need;
     }
 

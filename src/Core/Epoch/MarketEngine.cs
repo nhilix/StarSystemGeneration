@@ -231,9 +231,9 @@ public static class MarketEngine
         Deposit(state, scratch, mIx, f.OwnerActorId, (int)pick.Output, qty, grade);
     }
 
-    private static void Deposit(SimState state, MarketStepScratch scratch,
-                                int mIx, int ownerActorId, int good,
-                                double qty, double grade)
+    internal static void Deposit(SimState state, MarketStepScratch scratch,
+                                 int mIx, int ownerActorId, int good,
+                                 double qty, double grade)
     {
         var market = state.Markets[mIx];
         market.Deposit(good, qty, grade);
@@ -428,8 +428,9 @@ public static class MarketEngine
     /// per-year basket registers as demand at its site market for the whole
     /// span, so a build boom raises prices for its duration — no speculative
     /// dial, the projects ARE the demand (spec §4). Unmet stockpile targets
-    /// likewise register at the capital: polity procurement is a market
-    /// participant (market-geography.md).</summary>
+    /// likewise register — per port now (spec §4b): each own port's deficit
+    /// against its share of the target lands at THAT port, so procurement is
+    /// a market participant everywhere it banks.</summary>
     public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
     {
         foreach (var pr in state.Polities)                // actor-id order (P6)
@@ -437,28 +438,54 @@ public static class MarketEngine
             if (!state.Actors[pr.ActorId].Entered) continue;
             var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
                            ?? PolityPolicies.Default).StockpileTargets;
-            if (targets.Count > 0)
-                foreach (var port in state.Ports)         // capital = first own
-                {
-                    if (port.OwnerActorId != pr.ActorId) continue;
-                    for (int g = 0; g < Goods.All.Count; g++)
-                        if (targets.TryGetValue(g, out double target)
-                            && target > pr.ReserveQty[g])
-                            scratch.Demand[port.Id][g] += target - pr.ReserveQty[g];
-                    break;
-                }
+            if (targets.Count == 0) continue;
+            int ownPorts = 0;
+            foreach (var port in state.Ports)
+                if (port.OwnerActorId == pr.ActorId) ownPorts++;
+            if (ownPorts == 0) continue;
+            foreach (var port in state.Ports)             // id order (P6)
+            {
+                if (port.OwnerActorId != pr.ActorId) continue;
+                for (int g = 0; g < Goods.All.Count; g++)
+                    if (targets.TryGetValue(g, out double target)
+                        && target / ownPorts > port.StockQty[g])
+                        scratch.Demand[port.Id][g]
+                            += target / ownPorts - port.StockQty[g];
+            }
         }
 
         // in-flight work IS the construction demand: every project's
         // per-year basket registers at its site market for the span —
-        // a build boom raises alloy prices for its whole duration (P5)
+        // a build boom raises alloy prices for its whole duration (P5).
+        // A gate pair registers half at EACH end (stage 2: each end draws
+        // locally, so each end must pull imports toward itself)
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var p in state.Projects)                 // id order (P6)
         {
-            if (!p.InFlight) continue;
+            // an expedition's basket is cargo already aboard, not demand
+            if (!p.InFlight || p.Kind == ProjectKind.ColonyExpedition)
+                continue;
+            // the pull tapers to the remaining work (stage 2 residue fix):
+            // a project a year from done pulls a year's basket, not the
+            // whole span's
+            double horizon = Math.Min(years,
+                Math.Max(0.0, p.YearsRequired - p.YearsDelivered));
+            if (horizon <= 0) continue;
+            if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+            {
+                var lane = state.Lanes[p.TargetId];
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                    if (p.PerYearBasket[g] > 0)
+                    {
+                        double half = 0.5 * p.PerYearBasket[g] * horizon;
+                        scratch.Demand[lane.PortAId][g] += half;
+                        scratch.Demand[lane.PortBId][g] += half;
+                    }
+                continue;
+            }
             for (int g = 0; g < p.PerYearBasket.Length; g++)
                 if (p.PerYearBasket[g] > 0)
-                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * years;
+                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * horizon;
         }
     }
 
@@ -690,37 +717,31 @@ public static class MarketEngine
         return (shipments + trades, units);
     }
 
-    /// <summary>Internal logistics, D scale: a polity whose port starved last
-    /// step sells provisions reserves into that market (reserves buffer
-    /// famines — economy/markets.md §Stockpiles). Reserves are polity-
-    /// aggregate until wars make them spatial (H).</summary>
+    /// <summary>Internal logistics, located (spec §4b): a port whose people
+    /// starved last step releases ITS OWN provisions stockpile into its own
+    /// market — no polity pool, no teleport; a bare frontier larder is bare
+    /// until a shipment lands.</summary>
     private static int ReleaseReserves(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
         int releases = 0;
-        foreach (var pr in state.Polities)                // actor-id order (P6)
+        int g = (int)GoodId.Provisions;
+        foreach (var port in state.Ports)                 // id order (P6)
         {
-            int g = (int)GoodId.Provisions;
-            if (pr.ReserveQty[g] <= 0) continue;
-            foreach (var port in state.Ports)             // id order (P6)
-            {
-                if (port.OwnerActorId != pr.ActorId) continue;
-                double shortfall = 0;
-                foreach (var seg in state.Segments)
-                    if (seg.PortId == port.Id
-                        && seg.LastSubsistence < eco.ReserveReleaseTrigger)
-                        shortfall += seg.Size * eco.SubsistenceUnitsPerPopPerYear
-                                     * years * (1.0 - seg.LastSubsistence);
-                if (shortfall <= 0) continue;
-                double release = Math.Min(pr.ReserveQty[g], shortfall);
-                double grade = pr.ReserveGrade[g];   // before the drain zeroes it
-                pr.ReserveQty[g] -= release;
-                if (pr.ReserveQty[g] <= 0) pr.ReserveGrade[g] = 0;
-                Deposit(state, scratch, port.Id, pr.ActorId, g, release, grade);
-                releases++;
-                if (pr.ReserveQty[g] <= 0) break;
-            }
+            if (port.StockQty[g] <= 0) continue;
+            double shortfall = 0;
+            foreach (var seg in state.Segments)
+                if (seg.PortId == port.Id
+                    && seg.LastSubsistence < eco.ReserveReleaseTrigger)
+                    shortfall += seg.Size * eco.SubsistenceUnitsPerPopPerYear
+                                 * years * (1.0 - seg.LastSubsistence);
+            if (shortfall <= 0) continue;
+            double grade = port.StockGrade[g];   // before the drain zeroes it
+            double release = port.DrawStock(g, shortfall);
+            Deposit(state, scratch, port.Id, port.OwnerActorId, g, release,
+                    grade);
+            releases++;
         }
         return releases;
     }
@@ -831,7 +852,15 @@ public static class MarketEngine
                 scratch.Demand[src.Id][(int)GoodId.Fuel] += drawn * fuelUnits;
                 double fuelDrawn = mSrc.Draw((int)GoodId.Fuel, drawn * fuelUnits);
                 mSrc.LastCleared[(int)GoodId.Fuel] += fuelDrawn;
-                Deposit(state, scratch, dst.Id, src.OwnerActorId, g, drawn, grade);
+                // the routed goods take transit time (spec §4b): a hop
+                // inside the step lands now (sub-step blur); a longer haul
+                // rides a shipment record and sells on arrival — costs
+                // settled above either way
+                ShipmentOps.DispatchVia(state, src.OwnerActorId,
+                    ShipmentChannel.Freight, src.Id, dst.Id,
+                    new[] { lane.Id },
+                    new[] { ShipmentOps.LaneLegYears(state, lane) },
+                    new[] { (g, drawn, grade) }, scratch);
                 scratch.LaneCapacityUsed[lane.Id] += drawn;
                 capacity -= drawn;
                 shipments++;
@@ -872,8 +901,10 @@ public static class MarketEngine
         }
     }
 
-    /// <summary>Polity procurement: buy toward standing stockpile targets
-    /// from own markets, in actor-id then port-id then good-id order.</summary>
+    /// <summary>Polity procurement, located (spec §4b): each own port buys
+    /// toward ITS share of the standing target from its own market into its
+    /// own stockpile, bounded by built capacity (port tier + depots) —
+    /// actor-id then port-id then good-id order.</summary>
     private static void Procure(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
@@ -882,35 +913,56 @@ public static class MarketEngine
             var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
                            ?? PolityPolicies.Default).StockpileTargets;
             if (targets.Count == 0) continue;
-            for (int g = 0; g < Goods.All.Count; g++)     // good-id order (P6)
+            int ownPorts = 0;
+            foreach (var port in state.Ports)
+                if (port.OwnerActorId == pr.ActorId) ownPorts++;
+            if (ownPorts == 0) continue;
+            foreach (var port in state.Ports)             // id order (P6)
             {
-                if (!targets.TryGetValue(g, out double target)) continue;
-                double deficit = target - pr.ReserveQty[g];
-                if (deficit <= 0) continue;
-                foreach (var port in state.Ports)         // id order (P6)
+                if (port.OwnerActorId != pr.ActorId) continue;
+                double cap = StockCapacityAt(state, port);
+                var market = state.Markets[port.Id];
+                for (int g = 0; g < Goods.All.Count; g++) // good-id order (P6)
                 {
-                    if (port.OwnerActorId != pr.ActorId || deficit <= 0) continue;
-                    var market = state.Markets[port.Id];
+                    if (!targets.TryGetValue(g, out double target)) continue;
+                    double want = Math.Min(target / ownPorts, cap)
+                                  - port.StockQty[g];
+                    if (want <= 0) continue;
                     double price = market.Price[g];
-                    double qty = Math.Min(deficit,
+                    double qty = Math.Min(want,
                                           market.Inventory[g] * eco.ExportShare);
-                    if (price > 0 && pr.Credits < qty * price)
-                        qty = Math.Max(0, pr.Credits / price);
+                    // paid from the reserve treasury (stage 2): the budget
+                    // line exists so procurement never competes with the
+                    // deficit-financed credit balance
+                    if (price > 0 && pr.ReservePoints < qty * price)
+                        qty = Math.Max(0, pr.ReservePoints / price);
                     if (qty <= 0) continue;
                     double grade = market.InventoryGrade[g];
                     double drawn = market.Draw(g, qty);
                     if (drawn <= 0) continue;
                     market.LastCleared[g] += drawn;
-                    pr.Credits -= drawn * price;
+                    pr.ReservePoints -= drawn * price;
                     scratch.PoolByMarket[port.Id] += drawn * price;
-                    double total = pr.ReserveQty[g] + drawn;
-                    pr.ReserveGrade[g] = (pr.ReserveQty[g] * pr.ReserveGrade[g]
-                                          + drawn * grade) / total;
-                    pr.ReserveQty[g] = total;
-                    deficit -= drawn;
+                    port.DepositStock(g, drawn, grade);
                 }
             }
         }
+    }
+
+    /// <summary>Built stockpile capacity per good at a port (spec §4b): the
+    /// port's own tier banks a little; active Depot tiers bank a lot — deep
+    /// larders are constructed, not assumed.</summary>
+    public static double StockCapacityAt(SimState state, Port port)
+    {
+        var eco = state.Config.Economy;
+        double cap = port.Tier * eco.StockCapPerPortTier;
+        foreach (var f in state.Facilities)               // id order (P6)
+            if (f.TypeId == (int)InfraTypeId.Depot
+                && f.OwnerActorId == port.OwnerActorId
+                && IsActive(state, f)
+                && AttachedMarketIndex(state, f) == port.Id)
+                cap += f.Tier * eco.StockCapPerDepotTier;
+        return cap;
     }
 
     private static LegalityLevel LegalityAt(SimState state, int actorId, int good) =>

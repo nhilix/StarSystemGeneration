@@ -15,7 +15,7 @@ namespace StarGen.Core.Epoch;
 /// (perception views, staged events, decisions, the phase trace) are not
 /// state. Controllers reattach on load. Slice D: config/actors/segments at
 /// v2 (knob families, standing policies + credits, identity layers) and the
-/// appended markets layer (markets, cultures, reserves, loans).</summary>
+/// appended markets layer (markets, cultures, located stockpiles, loans).</summary>
 public static class ArtifactSerializer
 {
     private const string Header = "STARGEN-EPOCH|1";
@@ -26,11 +26,12 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 6), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
+        ("actors", 7), ("ports", 2), ("lanes", 3), ("facilities", 2),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 2),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
+        ("shipments", 1),
     };
 
     public static string ToText(SimState state)
@@ -138,7 +139,11 @@ public static class ArtifactSerializer
                 R(p.ExpansionPoints), R(p.DevelopmentPoints),
                 R(p.EntryGradeBonus),
                 // actors v6 (slice t1): trailing income rate + mobilization
-                R(p.LastIncomePerYear), R(p.Mobilization)));
+                R(p.LastIncomePerYear), R(p.Mobilization),
+                // actors v7 (stage 2): the reserve treasury rides along —
+                // Markets spends it before Allocation re-accrues, so a
+                // loaded artifact must resume with the same balance
+                R(p.ReservePoints)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -219,11 +224,13 @@ public static class ArtifactSerializer
                     R(m.Price[g]), R(m.Inventory[g]), R(m.InventoryGrade[g]),
                     R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
                     R(m.BlackBookPrice[g])));
-        foreach (var p in state.Polities)
-            for (int g = 0; g < p.ReserveQty.Length; g++)
-                if (p.ReserveQty[g] != 0)
-                    w.WriteLine(Join("RESERVE", p.ActorId.ToString(Inv),
-                        g.ToString(Inv), R(p.ReserveQty[g]), R(p.ReserveGrade[g])));
+        // markets v2 (stage 2, spec §4b): located stockpiles replace the
+        // RESERVE pool — per port, per good, banked where they physically sit
+        foreach (var p in state.Ports)
+            for (int g = 0; g < p.StockQty.Length; g++)
+                if (p.StockQty[g] != 0)
+                    w.WriteLine(Join("STOCK", p.Id.ToString(Inv),
+                        g.ToString(Inv), R(p.StockQty[g]), R(p.StockGrade[g])));
         foreach (var l in state.Loans)
             w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
                 l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
@@ -432,6 +439,31 @@ public static class ArtifactSerializer
                 p.TargetId.ToString(Inv), p.Count.ToString(Inv),
                 R(p.AccumGrade), R(p.AccumGradeWeight),
                 string.Join(";", basket)));
+        }
+
+        Layer(w, "shipments");
+        // in-flight only (arrivals leave the registry); the counter keeps
+        // shipment identity stable across removals (spec §4b)
+        w.WriteLine(Join("SHIPNEXT", state.NextShipmentId.ToString(Inv)));
+        foreach (var s in state.Shipments)
+        {
+            var legs = new List<string>();
+            if (s.RouteLaneIds.Count == 0)
+                legs.Add("-1:" + R(s.LegYears[0]));
+            else
+                for (int i = 0; i < s.RouteLaneIds.Count; i++)
+                    legs.Add(s.RouteLaneIds[i].ToString(Inv) + ":"
+                             + R(s.LegYears[i]));
+            var cargo = new List<string>();
+            for (int g = 0; g < s.Qty.Length; g++)
+                if (s.Qty[g] != 0)
+                    cargo.Add(g.ToString(Inv) + ":" + R(s.Qty[g]) + ":"
+                              + R(s.Grade[g]));
+            w.WriteLine(Join("SHIP", s.Id.ToString(Inv),
+                s.OwnerActorId.ToString(Inv), ((int)s.Channel).ToString(Inv),
+                s.OriginPortId.ToString(Inv), s.DestPortId.ToString(Inv),
+                s.DepartureYear.ToString(Inv), R(s.YearsInTransit),
+                string.Join(";", legs), string.Join(";", cargo)));
         }
         w.WriteLine("END");
     }
@@ -938,6 +970,7 @@ public static class ArtifactSerializer
                             // actors v6 (slice t1): trailing income rate + mobilization
                             LastIncomePerYear = double.Parse(f[7], Inv),
                             Mobilization = double.Parse(f[8], Inv),
+                            ReservePoints = double.Parse(f[9], Inv),
                         });
                         break;
                     case "PORT":
@@ -1068,12 +1101,12 @@ public static class ArtifactSerializer
                         market.BlackBookPrice[good] = double.Parse(f[8], Inv);
                         break;
                     }
-                    case "RESERVE":
+                    case "STOCK":
                     {
-                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
+                        var port = state!.Ports[int.Parse(f[1], Inv)];
                         int good = int.Parse(f[2], Inv);
-                        pr.ReserveQty[good] = double.Parse(f[3], Inv);
-                        pr.ReserveGrade[good] = double.Parse(f[4], Inv);
+                        port.StockQty[good] = double.Parse(f[3], Inv);
+                        port.StockGrade[good] = double.Parse(f[4], Inv);
                         break;
                     }
                     case "LOAN":
@@ -1374,6 +1407,38 @@ public static class ArtifactSerializer
                                     double.Parse(part.Substring(colon + 1), Inv);
                             }
                         state.Projects.Add(project);
+                        break;
+                    }
+                    case "SHIPNEXT":
+                        state!.NextShipmentId = int.Parse(f[1], Inv);
+                        break;
+                    case "SHIP":
+                    {
+                        var laneIds = new List<int>();
+                        var legYears = new List<double>();
+                        foreach (var part in f[8].Split(';'))
+                        {
+                            int colon = part.IndexOf(':');
+                            int laneId = int.Parse(part.Substring(0, colon), Inv);
+                            if (laneId >= 0) laneIds.Add(laneId);
+                            legYears.Add(
+                                double.Parse(part.Substring(colon + 1), Inv));
+                        }
+                        var shipment = new Shipment(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv),
+                            (ShipmentChannel)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), laneIds, legYears)
+                        { YearsInTransit = double.Parse(f[7], Inv) };
+                        if (f[9].Length > 0)
+                            foreach (var part in f[9].Split(';'))
+                            {
+                                var t = part.Split(':');
+                                int good = int.Parse(t[0], Inv);
+                                shipment.Qty[good] = double.Parse(t[1], Inv);
+                                shipment.Grade[good] = double.Parse(t[2], Inv);
+                            }
+                        state!.Shipments.Add(shipment);
                         break;
                     }
                     case "PULSE":

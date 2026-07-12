@@ -112,8 +112,10 @@ public sealed class PerceptionPhase : ISimPhase
                             && MarketEngine.AttachedMarketIndex(state, f)
                                 == port.Id)
                             yardTiers += f.Tier;
+                    // the stock snapshot makes the brief LOCATED (spec §2,
+                    // stage 2): a copy — the view never aliases live state
                     ownPortBriefs.Add(new PortBrief(port.Id, port.Tier,
-                                                    yardTiers));
+                        yardTiers, (double[])port.StockQty.Clone()));
                 }
                 foreach (var corp in state.Corporations)
                     if (corp.Active && corp.HostPolityId == a.Id)
@@ -248,6 +250,10 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
+        // in-flight freight sails first (spec §4b): this step's arrivals
+        // land on the shelf and in the larders BEFORE supply, demand, and
+        // the Allocation draws that follow — goods a year out are not here
+        ShipmentOps.Advance(state, scratch);
         MarketEngine.SupplyLands(state, scratch);
         CorporationOps.SalvageLands(state, scratch);   // salvors strip fields
         MarketEngine.AssembleDemand(state, scratch);
@@ -337,8 +343,12 @@ public sealed class AllocationPhase : ISimPhase
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
+            // stage 2: the reserve share funds procurement (spec §4b) —
+            // Budget.Reserves stops being a dead line
+            pr.ReservePoints += allocatable * budget.Reserves;
             pr.Credits -= allocatable
-                * (budget.Expansion + budget.Development + budget.Military);
+                * (budget.Expansion + budget.Development + budget.Military
+                   + budget.Reserves);
             // the appeasement line buys factions off — a treasury→faction
             // flow, conserved (P4); without factions the line stays liquid
             pr.Credits -= FactionOps.SpendAppeasement(state, pr,
@@ -351,6 +361,10 @@ public sealed class AllocationPhase : ISimPhase
             // war-economy ramp before the standing plan breaks ground
             // (spec §5)
             SpawnMobilizations(state, pr);
+            // state logistics before the works advance (spec §4b): the
+            // quartermaster raises shipping orders from the polity's own
+            // larders toward every under-covered project site
+            ShipmentOps.RaiseRequisitions(state, pr);
             // the standing plan breaks ground on everything due this step —
             // facilities, port raises, hull batches — as construction
             // projects that Advance feeds over their build years (spec §3)
@@ -359,7 +373,7 @@ public sealed class AllocationPhase : ISimPhase
             FleetOps.ManagePostures(state, pr, ownPorts);
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
-            DecayReserves(state, pr);
+            DecayStockpiles(state, pr, ownPorts);
         }
         // corporations run their portfolios on the same markets (slice G)
         int corporationsActive = CorporationOps.Operate(state);
@@ -449,26 +463,42 @@ public sealed class AllocationPhase : ISimPhase
         }
     }
 
-    /// <summary>Perishability: provisions rot, medicine ages, durables keep —
-    /// reserves are a real cost, not free insurance.</summary>
-    private static void DecayReserves(SimState state, PolityRecord pr)
+    /// <summary>Perishability, located (spec §4b): each port's stockpile
+    /// decays where it sits — provisions rot, medicine ages, durables keep.
+    /// Active Depot tiers at the port cut the rot (the controller contract's
+    /// "stockpile targets → depots/reserves" mechanism).</summary>
+    private static void DecayStockpiles(SimState state, PolityRecord pr,
+                                        List<Port> ownPorts)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
-        for (int g = 0; g < pr.ReserveQty.Length; g++)
+        foreach (var port in ownPorts)                        // id order (P6)
         {
-            if (pr.ReserveQty[g] <= 0) continue;
-            double perish = (Substrate.GoodId)g switch
+            int depotTiers = 0;
+            foreach (var f in state.Facilities)               // id order (P6)
+                if (f.TypeId == (int)Substrate.InfraTypeId.Depot
+                    && f.OwnerActorId == pr.ActorId
+                    && MarketEngine.IsActive(state, f)
+                    && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                    depotTiers += f.Tier;
+            double cut = Math.Pow(eco.DepotDecayFactor, depotTiers);
+            for (int g = 0; g < port.StockQty.Length; g++)
             {
-                Substrate.GoodId.Provisions => 10.0,
-                Substrate.GoodId.Organics => 5.0,
-                Substrate.GoodId.Medicine => 3.0,
-                _ => 1.0,
-            };
-            double keep = Math.Max(0.0,
-                1.0 - eco.StockpileDecayPerYear * perish * years);
-            pr.ReserveQty[g] *= keep;
-            if (pr.ReserveQty[g] <= 0) pr.ReserveGrade[g] = 0;
+                if (port.StockQty[g] <= 0) continue;
+                double perish = (Substrate.GoodId)g switch
+                {
+                    Substrate.GoodId.Provisions => 10.0,
+                    Substrate.GoodId.Organics => 5.0,
+                    Substrate.GoodId.Medicine => 3.0,
+                    _ => 1.0,
+                };
+                // compounded per world-year (P7, review fix 4): a 25-year
+                // step rots exactly what twenty-five 1-year steps rot
+                double keep = Math.Pow(Math.Max(0.0,
+                    1.0 - eco.StockpileDecayPerYear * perish * cut), years);
+                port.StockQty[g] *= keep;
+                if (port.StockQty[g] <= 0) port.StockGrade[g] = 0;
+            }
         }
     }
 
@@ -1010,6 +1040,16 @@ public sealed class ResolutionPhase : ISimPhase
         if (!actor.Entered || actor.Kind != ActorKind.Polity) return false;
         var record = state.PolityOf(act.ActorId);
         if (record.ExpansionPoints < cfg.Expansion.ColonyCost) return false;
+        // world-time founding cadence (stage 2, P7): the controller
+        // commits one founding per DECISION, so a finer clock would found
+        // more often over the same world-years — the truth check holds
+        // fire while the polity's last expedition is younger than the
+        // cadence window (in flight, arrived, or turned back alike)
+        foreach (var p in state.Projects)                 // id order (P6)
+            if (p.Kind == ProjectKind.ColonyExpedition
+                && p.OwnerActorId == act.ActorId
+                && state.WorldYear - p.StartedYear
+                   < cfg.Expansion.FoundingCadenceYears) return false;
         if (!state.Skeleton.TryGetCell(HexGrid.CellOf(act.Target), out var cell)
             || cell.IsVoid) return false;
         foreach (var p in state.Ports)
@@ -1077,23 +1117,34 @@ public sealed class ResolutionPhase : ISimPhase
             record.Credits -= fuelCost;
             MarketEngine.PayWages(state, staging.Id, fuelCost);
         }
-        // the departure basket includes the founding gate PAIR's goods
-        // (time-and-logistics spec §4, "Founding links get subsumed"): a
-        // best-effort draw at the staging market, like the fuel — clamped to
-        // what's there, no hard gate; the colony's founding-link project
-        // then streams no goods (tier-1 sizing: the shipped kit)
-        var gateDef = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
-        foreach (var q in gateDef.BuildCost)
-        {
-            double drawn = stagingMarket.Draw((int)q.Good, 2.0 * q.Quantity);
-            if (drawn > 0) stagingMarket.LastCleared[(int)q.Good] += drawn;
-        }
         // the crossing takes world-time now: the founding body (port,
         // market, colony, founding facilities, the convoy's docking, the
         // chronicle, the encroachment bumps) lands when the expedition
         // arrives (ProjectOps.CompleteExpedition — Task 9)
-        ProjectOps.SpawnExpedition(state, act.ActorId, staging.Id,
-            act.Target, convoy.Id, offLane);
+        var expedition = ProjectOps.SpawnExpedition(state, act.ActorId,
+            staging.Id, act.Target, convoy.Id, offLane);
+        // the departure basket includes the founding gate PAIR's goods
+        // (time-and-logistics spec §4, "Founding links get subsumed"),
+        // sized to the link the crossing actually needs (stage 2:
+        // TierCostFactor at dispatch, mirroring BuildLanes' tier pick): a
+        // best-effort draw at the staging market, like the fuel — clamped
+        // to what's there, no hard gate. The drawn kit RIDES the
+        // expedition as cargo (PerYearBasket doubles as the hold for
+        // travel kinds — they draw nothing en route) and comes home with
+        // a turned-back convoy.
+        var gateDef = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        int linkTier = LaneMath.RequiredGateTier(cfg, offLane,
+            TechOps.AstroRadiusBonus(state, act.ActorId));
+        if (linkTier < 0) linkTier = 3;   // farther than any gate: max kit
+        double kitScale = Substrate.Production.TierCostFactor(linkTier);
+        foreach (var q in gateDef.BuildCost)
+        {
+            double drawn = stagingMarket.Draw((int)q.Good,
+                2.0 * q.Quantity * kitScale);
+            if (drawn <= 0) continue;
+            stagingMarket.LastCleared[(int)q.Good] += drawn;
+            expedition.PerYearBasket[(int)q.Good] = drawn;
+        }
         return true;
     }
 }

@@ -141,7 +141,9 @@ public class FineTickTests
         int coarseHulls = 0, fineHulls = 0;
         foreach (var f in coarse.Fleets) coarseHulls += f.TotalHulls;
         foreach (var f in fine.Fleets) fineHulls += f.TotalHulls;
-        AssertBand("hulls", coarseHulls, fineHulls, 0.6);
+        // tightened from 0.6 (stage 2): the world-time yard-slot clock
+        // removed the fine-tick unit-batch inflation the loose band absorbed
+        AssertBand("hulls", coarseHulls, fineHulls, 0.5);
 
         // prices drift between clearings instead of teleporting: the MEDIAN
         // provisions price stays in the same neighborhood — compared over
@@ -190,18 +192,19 @@ public class FineTickTests
     /// not a step artifact.
     ///
     /// Scope: the built-world project kinds — facilities, port raises, hull
-    /// batches. Expansion/logistics foundings (colony expeditions, gate
-    /// pairs) are deliberately excluded: their COUNT reflects the
-    /// controller's decision cadence (it commits one founding per decision
-    /// step, so a finer clock decides — and founds — more often over the
-    /// same world-time), which the durations spec calls out as expected
-    /// divergence in WHICH projects run. Two known cadence effects still
-    /// pending a world-time normalization (flagged for the located-logistics
-    /// stage): the one-founding-per-step expansion commit, and the hull-batch
-    /// slot floor in Planner (Max(1, tier·rate·span) fires a unit batch every
-    /// step at fine tick). Neither hides the failure this test guards —
-    /// whether the built world commissions AT ALL, and at a comparable
-    /// world-time rate, across tick resolutions.</summary>
+    /// batches — counted in UNITS (hulls for a batch, 1 otherwise): batch
+    /// granularity is cadence-dependent by design (D'Hondt slots mature one
+    /// at a time on a fine clock, in bundles on a coarse one — the stage-2
+    /// world-time slot clock makes the totals telescope), so records are
+    /// not comparable but units are. Expansion/logistics foundings (colony
+    /// expeditions, gate pairs) are deliberately excluded: even with the
+    /// stage-2 founding cadence normalized to world-time
+    /// (Expansion.FoundingCadenceYears in TryFound), WHICH hexes get
+    /// targeted and which expeditions collide still follows the decision
+    /// cadence — expected divergence in WHICH projects run, per the
+    /// durations spec. The exclusion does not hide the failure this test
+    /// guards: whether the built world commissions AT ALL, and at a
+    /// comparable world-time rate, across tick resolutions.</summary>
     [Fact]
     public void FineTick_ProjectCompletions_LandOnWorldYears_NotSteps()
     {
@@ -210,31 +213,30 @@ public class FineTickTests
             k == ProjectKind.FacilityConstruction
             || k == ProjectKind.PortRaise
             || k == ProjectKind.HullBatch;
-        List<(ProjectKind Kind, int Year)> CompletionsAfter(
-            int steps, int yearsPerEpoch)
+        int CompletedUnitsAfter(int steps, int yearsPerEpoch)
         {
             using var reader = new StringReader(artifact);
             var s = ArtifactSerializer.Load(reader);
             int before = s.Projects.Count;
             ContinueFine(s, steps, yearsPerEpoch);
-            var done = new List<(ProjectKind, int)>();
+            int units = 0;
             for (int i = before; i < s.Projects.Count; i++)
-                if (s.Projects[i].Completed && IsBuiltWorld(s.Projects[i].Kind))
-                    done.Add((s.Projects[i].Kind,
-                        s.Projects[i].StartedYear
-                        + (int)System.Math.Ceiling(
-                            s.Projects[i].YearsRequired)));
-            return done;
+            {
+                var p = s.Projects[i];
+                if (!p.Completed || !IsBuiltWorld(p.Kind)) continue;
+                units += p.Kind == ProjectKind.HullBatch
+                    ? System.Math.Max(1, p.Count) : 1;
+            }
+            return units;
         }
-        var coarse = CompletionsAfter(steps: 2, yearsPerEpoch: 25);
-        var fine = CompletionsAfter(steps: 50, yearsPerEpoch: 1);
+        int coarse = CompletedUnitsAfter(steps: 2, yearsPerEpoch: 25);
+        int fine = CompletedUnitsAfter(steps: 50, yearsPerEpoch: 1);
         // both clocks commission built work; the fine clock is never SLOWER
         // in world-time than the coarse by more than one coarse span
-        Assert.NotEmpty(coarse);
-        Assert.NotEmpty(fine);
-        int coarseCount = coarse.Count, fineCount = fine.Count;
-        Assert.InRange(fineCount, (int)(coarseCount * 0.5),
-                       (int)System.Math.Ceiling(coarseCount * 2.0));
+        Assert.True(coarse > 0, "the coarse clock commissioned nothing");
+        Assert.True(fine > 0, "the fine clock commissioned nothing");
+        Assert.InRange(fine, (int)(coarse * 0.5),
+                       (int)System.Math.Ceiling(coarse * 2.0));
     }
 
     private static double MedianProvisionsPrice(SimState state, int portCap)

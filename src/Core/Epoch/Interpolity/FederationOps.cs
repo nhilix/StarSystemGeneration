@@ -382,23 +382,16 @@ public static class FederationOps
         from.DevelopmentPoints = 0;
         into.MilitaryPoints += from.MilitaryPoints;
         from.MilitaryPoints = 0;
+        into.ReservePoints += from.ReservePoints;
+        from.ReservePoints = 0;
         into.HullsBuilt += from.HullsBuilt;
         into.HullsWrecked += from.HullsWrecked;
         into.HullsScrapped += from.HullsScrapped;
         from.HullsBuilt = 0;
         from.HullsWrecked = 0;
         from.HullsScrapped = 0;
-        for (int g = 0; g < from.ReserveQty.Length; g++)
-        {
-            double sum = into.ReserveQty[g] + from.ReserveQty[g];
-            if (sum > 0)
-                into.ReserveGrade[g] =
-                    (into.ReserveGrade[g] * into.ReserveQty[g]
-                     + from.ReserveGrade[g] * from.ReserveQty[g]) / sum;
-            into.ReserveQty[g] = sum;
-            from.ReserveQty[g] = 0;
-            from.ReserveGrade[g] = 0;
-        }
+        // located stockpiles need no merge (spec §4b): stock is banked at
+        // ports, and the ports changed owner above — the goods stay put
         foreach (var corp in state.Corporations)
             if (corp.HostPolityId == fromId) corp.HostPolityId = intoId;
         foreach (var character in state.Characters)

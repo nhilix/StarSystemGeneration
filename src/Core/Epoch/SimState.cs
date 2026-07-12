@@ -85,6 +85,11 @@ public sealed class SimState
     /// here (spec 2026-07-11 time-and-logistics §1) — id order (P6);
     /// completed and cancelled projects stay as history.</summary>
     public List<Project> Projects { get; } = new List<Project>();
+    /// <summary>Goods in transit (spec §4b) — id order (P6). In-flight
+    /// only: arrivals and losses leave the registry (freight is ambient,
+    /// not history); NextShipmentId keeps identity stable across it.</summary>
+    public List<Shipment> Shipments { get; } = new List<Shipment>();
+    public int NextShipmentId { get; set; }
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

@@ -40,7 +40,26 @@ Per port market, fixed deterministic order:
    - **Internal logistics**: corporations and polities move goods within their
      own networks at cost — no market transaction at intermediate ports; markets
      see only net buys and sells at the endpoints. Vertical integration and
-     military supply lines are this mechanism under different flags.
+     military supply lines are this mechanism under different flags. The polity
+     half is the **requisition channel**: every Allocation the quartermaster
+     compares each project site's coverage (larder + shelf + inbound cargo)
+     against its basket over the step plus a lead window, and raises shipping
+     orders from the polity's own port stockpiles toward the shortfall —
+     bypassing price, never time, route, or capacity. Consumption stores
+     (provisions, fuel, ship parts, armaments) keep their target share at the
+     source; construction materials were banked to be shipped.
+   **Routed goods take transit time.** A haul is a `Shipment` record: origin,
+   destination, cargo, and a route over the lane network whose leg years are
+   priced at departure (lane speed = a freight base × the gate-tier transit
+   multiplier; off-lane legs at slow crawl). Dispatch and each Markets step
+   sail the same rule: a closed leg — blockade, quarantine, a dead gate —
+   stalls the freight where it floats (the fortress starves at the pace of its
+   last delivery), a leg hunted by a raiding band rolls piracy for the years
+   sailed under its guns (the loot lands at the band's haven), and arrival
+   puts the cargo on the destination shelf — or, for a requisition, in the
+   destination larder. A transit that fits inside the current step on an open,
+   unhunted-or-lucky route is sub-step blur and delivers within the step.
+   In-transit cargo is conserved, visible state (P1).
    Freight is what drags connected markets together; interdiction is what splits
    price zones.
 4. **Price adjusts locally** — each (market, good) price is persistent state that
@@ -93,12 +112,22 @@ surplus.
 
 ## Stockpiles
 
-Depots and polity strategic reserves hold stocks against policy targets.
-**Provisions reserves buffer sieges and famines**: a besieged domain draws down
-reserves before starving, giving sieges a duration structure — rich prepared
-polities endure, poor ones break fast. Perishability: provisions decay in storage,
-medicine slowly, durables negligibly — reserves are a real cost, not free
-insurance.
+**Stock has an address.** Every unit of every good is on a market shelf, in a
+port's located stockpile, or in transit on a shipment — there is no polity-wide
+pool. Stockpiles live per port, per good, banked by procurement toward the
+standing targets: each own port buys toward its share of the target from its
+own market, paid from the **reserve treasury** (the Budget.Reserves share of
+the income split — procurement never competes with the deficit-financed credit
+balance). Capacity is built, not assumed: the port's tier banks a little,
+active **Depot** tiers bank a lot and cut decay.
+
+**Provisions reserves buffer sieges and famines** — locally: a besieged port
+draws down ITS OWN larder before starving (a rich pool elsewhere feeds nobody
+behind the walls), giving sieges a duration structure — rich prepared ports
+endure, poor ones break fast. Perishability compounds per world-year where the
+stock sits: provisions decay fast, medicine slowly, durables negligibly —
+reserves are a real cost, not free insurance. Ownership is the port's owner:
+conquest, federation, and schism move stock by moving the port.
 
 ## Interdiction strain
 

@@ -130,8 +130,8 @@ public static class ProjectOps
         var lane = new Lane(state.Lanes.Count, a.Id, b.Id, state.WorldYear)
         { GateAId = gateA.Id, GateBId = gateB.Id };
         state.Lanes.Add(lane);
-        // stage-2: the pair draws its whole basket + funder reserves at the A
-        // end; per-end draws (each gate at its own market) are Stage 2
+        // the basket is the PAIR's rate; Feed draws it per end — each gate
+        // at its own market and larder (spec §5, landed in stage 2)
         var p = Spawn(state, ProjectKind.GatePair, ownerActorId, funderActorId,
                       a.Id, a.Hex, years, priority, planOrder);
         double value = 0;
@@ -196,12 +196,21 @@ public static class ProjectOps
             {
                 double span = Math.Min(years, spanEnd - p.StartedYear);
                 if (span <= 0) continue;                      // not yet due
+                double before = p.YearsDelivered;
                 double need = Math.Min(span,
                     p.YearsRequired - p.YearsDelivered);
                 if (need > 0) Feed(state, p, need);
                 if (p.YearsDelivered >= p.YearsRequired - 1e-9)
                 {
-                    Complete(state, p);
+                    // the true delivery year sits inside the span: the
+                    // feeding window's start plus the years the last
+                    // stretch took at its fed pace (stage 2 residue fix)
+                    double windowStart = Math.Max(state.WorldYear,
+                                                  p.StartedYear);
+                    double f = p.LastFedFraction;
+                    int completionYear = (int)Math.Round(windowStart
+                        + (f > 0 ? (p.YearsRequired - before) / f : 0));
+                    Complete(state, p, completionYear);
                     completions++;
                 }
             }
@@ -209,11 +218,13 @@ public static class ProjectOps
         return completions;
     }
 
-    /// <summary>Draw needYears of the basket from the site market, then
-    /// the funder's banked reserves (Stage-1 interim — Stage 2 locates
-    /// them); the met fraction (min across goods AND the wage stream)
-    /// scales progress, consumption, and wages alike: a starved project
-    /// neither hoards goods nor pays idle crews.</summary>
+    /// <summary>Draw needYears of the basket LOCALLY (spec §4b): the site
+    /// market first, then the site port's own stockpile when the funder
+    /// owns it — nothing teleports in; remote goods arrive as shipments
+    /// that land in the local larder before this draw. The met fraction
+    /// (min across goods AND the wage stream) scales progress, consumption,
+    /// and wages alike: a starved project neither hoards goods nor pays
+    /// idle crews.</summary>
     private static void Feed(SimState state, Project p, double needYears)
     {
         // travel kinds carry no basket and pay no wages: they skip the goods
@@ -233,15 +244,27 @@ public static class ProjectOps
             }
             return;
         }
+        // a gate pair draws per end (spec §5): each gate at its own market
+        // and larder, the scarcer end pacing the pair — a half-built
+        // highway opens no lane
+        if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+        {
+            FeedGatePair(state, p, needYears);
+            return;
+        }
         var market = state.Markets[p.PortId];
-        var funderPolity = FunderPolity(state, p.FunderActorId);
+        var site = state.Ports[p.PortId];
+        // the local larder feeds the state's own works: stock belongs to
+        // the port's owner, so a corp building on a host port buys from
+        // the market like anyone else
+        bool ownStock = site.OwnerActorId == p.FunderActorId;
         double fraction = 1.0;
         for (int g = 0; g < p.PerYearBasket.Length; g++)
         {
             double want = p.PerYearBasket[g] * needYears;
             if (want <= 0) continue;
             double have = market.Inventory[g]
-                + (funderPolity != null ? funderPolity.ReserveQty[g] : 0.0);
+                + (ownStock ? site.StockQty[g] : 0.0);
             fraction = Math.Min(fraction, Math.Min(1.0, have / want));
         }
         double wages = p.WagesPerYear * needYears;
@@ -261,20 +284,17 @@ public static class ProjectOps
                 market.LastCleared[g] += drawn;
                 double grade = marketGrade;
                 double shortfall = take - drawn;
-                if (shortfall > 0 && funderPolity != null)
+                if (shortfall > 0 && ownStock)
                 {
-                    double fromReserve = Math.Min(shortfall,
-                        funderPolity.ReserveQty[g]);
                     // blend, don't replace: the market units already drawn
                     // carry their own grade — a shortfall topped up from
-                    // reserves is a quantity-weighted mix of both (F8)
-                    double total = drawn + fromReserve;
+                    // the port's stock is a quantity-weighted mix (F8)
+                    double stockGrade = site.StockGrade[g];
+                    double fromStock = site.DrawStock(g, shortfall);
+                    double total = drawn + fromStock;
                     if (total > 0)
                         grade = (marketGrade * drawn
-                            + funderPolity.ReserveGrade[g] * fromReserve) / total;
-                    funderPolity.ReserveQty[g] -= fromReserve;
-                    if (funderPolity.ReserveQty[g] <= 0)
-                        funderPolity.ReserveGrade[g] = 0;
+                            + stockGrade * fromStock) / total;
                 }
                 if (g == (int)GoodId.ShipComponents && take > 0)
                 {
@@ -294,6 +314,71 @@ public static class ProjectOps
         if (p.Kind == ProjectKind.Mobilization && FunderPolity(state,
                 p.OwnerActorId) is PolityRecord mob)
             mob.Mobilization = Math.Max(mob.Mobilization, p.Progress);
+    }
+
+    /// <summary>Per-end gate-pair feeding (spec §5): the basket is the
+    /// PAIR's per-year rate — each end draws its half at its own market
+    /// plus its own funder-owned larder; the met fraction is the minimum
+    /// across BOTH ends' goods and the wage stream, so the scarcer end
+    /// paces the pair. Shipments cover shortfalls by landing stock at the
+    /// starved end before this draw.</summary>
+    private static void FeedGatePair(SimState state, Project p,
+                                     double needYears)
+    {
+        var lane = state.Lanes[p.TargetId];
+        Span<int> ends = stackalloc int[2] { lane.PortAId, lane.PortBId };
+        double fraction = 1.0;
+        foreach (int end in ends)
+        {
+            var market = state.Markets[end];
+            var port = state.Ports[end];
+            bool ownStock = port.OwnerActorId == p.FunderActorId;
+            for (int g = 0; g < p.PerYearBasket.Length; g++)
+            {
+                double want = 0.5 * p.PerYearBasket[g] * needYears;
+                if (want <= 0) continue;
+                double have = market.Inventory[g]
+                    + (ownStock ? port.StockQty[g] : 0.0);
+                fraction = Math.Min(fraction, Math.Min(1.0, have / want));
+            }
+        }
+        double wages = p.WagesPerYear * needYears;
+        if (wages > 0)
+        {
+            double treasury = TreasuryAvailable(state, p);
+            fraction = Math.Min(fraction, Math.Min(1.0, treasury / wages));
+        }
+        if (fraction > 0)
+        {
+            foreach (int end in ends)
+            {
+                var market = state.Markets[end];
+                var port = state.Ports[end];
+                bool ownStock = port.OwnerActorId == p.FunderActorId;
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                {
+                    double take = 0.5 * p.PerYearBasket[g] * needYears
+                                  * fraction;
+                    if (take <= 0) continue;
+                    double drawn = market.Draw(g, take);
+                    market.LastCleared[g] += drawn;
+                    if (take - drawn > 0 && ownStock)
+                        port.DrawStock(g, take - drawn);
+                }
+            }
+            if (wages > 0)
+            {
+                SpendTreasury(state, p, wages * fraction);
+                // the crews split the stream: half to each end's households
+                MarketEngine.PayWages(state, lane.PortAId,
+                                      0.5 * wages * fraction);
+                MarketEngine.PayWages(state, lane.PortBId,
+                                      0.5 * wages * fraction);
+            }
+        }
+        p.YearsDelivered = Math.Min(p.YearsRequired,
+            p.YearsDelivered + fraction * needYears);
+        p.LastFedFraction = fraction;
     }
 
     /// <summary>The treasury a kind streams wages from: development for
@@ -335,16 +420,21 @@ public static class ProjectOps
     }
 
     /// <summary>The completion payload (spec §1). Kind cases land across
-    /// tasks 5–11; each stages its chronicle event.</summary>
-    public static void Complete(SimState state, Project p)
+    /// tasks 5–11; each stages its chronicle event.
+    /// <paramref name="completionYear"/> is the interpolated delivery year
+    /// inside the span (stage 2) — state stamps carry it; staged events
+    /// still take Chronicle's step year (flagged, not built).</summary>
+    public static void Complete(SimState state, Project p,
+                                int completionYear = int.MinValue)
     {
+        if (completionYear == int.MinValue) completionYear = state.WorldYear;
         p.Completed = true;
         switch (p.Kind)
         {
             case ProjectKind.FacilityConstruction:
             {
                 var f = state.Facilities[p.TargetId];
-                f.CommissionedYear = state.WorldYear;
+                f.CommissionedYear = completionYear;
                 state.Staged.Add(new StagedEvent(
                     ClockStratum.Generational, WorldEventType.FacilityBuilt,
                     new[] { p.OwnerActorId }, f.Hex, Magnitude: f.Tier,
@@ -367,8 +457,8 @@ public static class ProjectOps
             case ProjectKind.GatePair:
             {
                 var lane = state.Lanes[p.TargetId];
-                state.Facilities[lane.GateAId].CommissionedYear = state.WorldYear;
-                state.Facilities[lane.GateBId].CommissionedYear = state.WorldYear;
+                state.Facilities[lane.GateAId].CommissionedYear = completionYear;
+                state.Facilities[lane.GateBId].CommissionedYear = completionYear;
                 state.Staged.Add(new StagedEvent(
                     ClockStratum.Generational, WorldEventType.LaneOpened,
                     new[] { p.OwnerActorId },
@@ -395,7 +485,7 @@ public static class ProjectOps
                 break;
             }
             case ProjectKind.ColonyExpedition:
-                CompleteExpedition(state, p);
+                CompleteExpedition(state, p, completionYear);
                 break;
             case ProjectKind.Mobilization:
             {
@@ -416,7 +506,8 @@ public static class ProjectOps
     /// tension bumps. Failed founding: if the hex gained a port mid-flight,
     /// the convoy simply turns back to its staging port — no port, no event
     /// this slice.</summary>
-    private static void CompleteExpedition(SimState state, Project p)
+    private static void CompleteExpedition(SimState state, Project p,
+                                           int completionYear)
     {
         var cfg = state.Config;
         var record = state.PolityOf(p.OwnerActorId);
@@ -429,6 +520,25 @@ public static class ProjectOps
                 // cost charged at dispatch so the ledger conserves (P4); the
                 // colony segment that would have absorbed it is never born
                 record.ExpansionPoints += cfg.Expansion.ColonyCost;
+                // the founding kit comes home too (stage 2 — goods have a
+                // transit home now): banked in the staging larder, overflow
+                // to the shelf; the draw's grade blend is long gone, so the
+                // system's neutral midpoint carries it
+                var home = state.Ports[p.PortId];
+                var homeMarket = state.Markets[p.PortId];
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                {
+                    if (p.PerYearBasket[g] <= 0) continue;
+                    double room = Math.Max(0,
+                        MarketEngine.StockCapacityAt(state, home)
+                        - home.StockQty[g]);
+                    double banked = Math.Min(room, p.PerYearBasket[g]);
+                    home.DepositStock(g, banked, 0.5);
+                    if (p.PerYearBasket[g] - banked > 0)
+                        homeMarket.Deposit(g, p.PerYearBasket[g] - banked,
+                                           0.5);
+                    p.PerYearBasket[g] = 0;
+                }
                 if (convoy != null)
                 {
                     convoy.Posture = FleetPosture.Reserve;
@@ -447,8 +557,10 @@ public static class ProjectOps
                     record.HullsScrapped++;
                     break;
                 }
+        // the founding stamps carry the interpolated ARRIVAL year (review
+        // fix 7) — the crossing took its years inside the span
         var port = new Port(state.Ports.Count, p.OwnerActorId, p.Hex,
-                            tier: 1, state.WorldYear);
+                            tier: 1, completionYear);
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
         var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
@@ -467,11 +579,11 @@ public static class ProjectOps
         // plus a subsistence farm when that isn't farming
         var founding = FoundingIndustry(state, p.Hex);
         state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)founding, tier: 1, p.Hex, p.OwnerActorId, state.WorldYear));
+            (int)founding, tier: 1, p.Hex, p.OwnerActorId, completionYear));
         if (founding != Substrate.InfraTypeId.AgriComplex)
             state.Facilities.Add(new Facility(state.Facilities.Count,
                 (int)Substrate.InfraTypeId.AgriComplex, tier: 1, p.Hex,
-                p.OwnerActorId, state.WorldYear));
+                p.OwnerActorId, completionYear));
         // the convoy's survivors dock as the colony's first reserve fleet
         if (convoy != null)
         {

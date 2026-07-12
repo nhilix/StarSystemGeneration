@@ -158,9 +158,13 @@ public class WarConductTests
         var (war, _, defender, target) = StageWar(state);
         state.Markets[target.Id].Inventory[
             (int)StarGen.Core.Substrate.GoodId.Provisions] = 0;
-        state.PolityOf(defender).ReserveQty[
-            (int)StarGen.Core.Substrate.GoodId.Provisions] = 0;
+        target.StockQty[(int)StarGen.Core.Substrate.GoodId.Provisions] = 0;
         int bare = WarConduct.SiegeThreshold(state, war, target);
+        // the defender port's OWN stockpile is the siege larder (spec §4b —
+        // a rich polity pool elsewhere feeds nobody behind these walls)
+        target.StockQty[(int)StarGen.Core.Substrate.GoodId.Provisions] = 5e5;
+        int stocked = WarConduct.SiegeThreshold(state, war, target);
+        Assert.True(stocked > bare, "the port's stock must extend the siege");
         // a stocked larder holds out longer
         state.Markets[target.Id].Inventory[
             (int)StarGen.Core.Substrate.GoodId.Provisions] = 1e6;

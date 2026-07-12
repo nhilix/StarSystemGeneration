@@ -11,8 +11,11 @@ namespace StarGen.Core.Epoch;
 public sealed record ConstructionCandidate(
     int TypeId, HexCoordinate Hex, int PortId, double Score);
 
-/// <summary>One own port as the planner sees it (spec §2).</summary>
-public sealed record PortBrief(int PortId, int Tier, int YardTiers);
+/// <summary>One own port as the planner sees it (spec §2). Stock is the
+/// located stockpile snapshot (stage 2): the brief is located, so the
+/// scheduler sees where goods are and prefers sites near supply.</summary>
+public sealed record PortBrief(int PortId, int Tier, int YardTiers,
+                               IReadOnlyList<double>? Stock = null);
 
 /// <summary>One in-flight funding obligation: value drawn per world-year
 /// (goods at founding prices + wages) and naive years to completion.</summary>
@@ -159,7 +162,10 @@ public static class CapabilityOps
         var commitments = new List<CommitmentBrief>();
         foreach (var p in state.Projects)                  // id order (P6)
         {
-            if (!p.InFlight || p.FunderActorId != actorId) continue;
+            // expeditions are paid at the act and their basket is cargo
+            // aboard, not a standing rate — no commitment to report
+            if (!p.InFlight || p.FunderActorId != actorId
+                || p.Kind == ProjectKind.ColonyExpedition) continue;
             double costPerYear = p.WagesPerYear;
             for (int g = 0; g < p.PerYearBasket.Length; g++)
             {
