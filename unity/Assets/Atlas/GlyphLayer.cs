@@ -96,33 +96,53 @@ namespace StarGen.AtlasView
             GetComponent<MeshRenderer>().enabled = _visible && _mesh != null
                 && _mesh.vertexCount > 0;
 
+        // The contrast chip under every glyph (the first smoke's lesson:
+        // an owner-tinted glyph over an owner-tinted port dot is
+        // camouflage). Drawn as the first quad of each pair — triangles
+        // inside one mesh render in index order, so backing precedes
+        // glyph at the same queue and both ride the same LOD tint.
+        private static readonly Color BackingColor =
+            new Color32(9, 11, 17, 195);
+        private const float BackingScale = 1.45f;
+
         /// <summary>Rebuild the billboard mesh from instances (colors
         /// CPU-linearized — the project renders linear, tints are sRGB).</summary>
         protected void Apply(IReadOnlyList<GlyphInstance> instances)
         {
-            var vertices = new Vector3[instances.Count * 4];
-            var corners = new List<Vector4>(instances.Count * 4);
-            var rects = new List<Vector4>(instances.Count * 4);
-            var colors = new Color[instances.Count * 4];
-            var triangles = new int[instances.Count * 6];
+            int quads = instances.Count * 2;
+            var vertices = new Vector3[quads * 4];
+            var corners = new List<Vector4>(quads * 4);
+            var rects = new List<Vector4>(quads * 4);
+            var colors = new Color[quads * 4];
+            var triangles = new int[quads * 6];
+            var backingRect = AtlasGlyphs.UvRect(AtlasGlyph.Backing);
+            var backingColor = BackingColor.linear;   // alpha untouched
             for (int i = 0; i < instances.Count; i++)
             {
                 var g = instances[i];
                 var rect = AtlasGlyphs.UvRect(g.Glyph);
                 var color = ((Color)AtlasGeometry.ToColor32(g.Tint)).linear;
                 color.a = g.Tint.A / 255f;   // alpha is never sRGB-encoded
-                int v = i * 4;
+                Quad(i * 2, g.Center, g.WorldSize * BackingScale,
+                     g.PxSize * BackingScale, backingColor, backingRect);
+                Quad(i * 2 + 1, g.Center, g.WorldSize, g.PxSize, color, rect);
+            }
+
+            void Quad(int q, Vector3 center, float world, float px,
+                      Color color, Vector4 rect)
+            {
+                int v = q * 4;
                 for (int c = 0; c < 4; c++)
                 {
-                    vertices[v + c] = g.Center;
+                    vertices[v + c] = center;
                     colors[v + c] = color;
                     rects.Add(rect);
                 }
-                corners.Add(new Vector4(-0.5f, -0.5f, g.WorldSize, g.PxSize));
-                corners.Add(new Vector4(0.5f, -0.5f, g.WorldSize, g.PxSize));
-                corners.Add(new Vector4(0.5f, 0.5f, g.WorldSize, g.PxSize));
-                corners.Add(new Vector4(-0.5f, 0.5f, g.WorldSize, g.PxSize));
-                int t = i * 6;
+                corners.Add(new Vector4(-0.5f, -0.5f, world, px));
+                corners.Add(new Vector4(0.5f, -0.5f, world, px));
+                corners.Add(new Vector4(0.5f, 0.5f, world, px));
+                corners.Add(new Vector4(-0.5f, 0.5f, world, px));
+                int t = q * 6;
                 triangles[t] = v;
                 triangles[t + 1] = v + 2;
                 triangles[t + 2] = v + 1;

@@ -25,6 +25,12 @@ namespace StarGen.AtlasView
         WorkConvoy = 13,
         PlagueInfected = 14,
         PlagueImmune = 15,
+        /// <summary>The contrast chip: a filled circle rendered dark under
+        /// every glyph so identity marks read against any background —
+        /// including a port dot of the same owner color (the first smoke's
+        /// camouflage lesson). Generated, not sourced: a disc is a
+        /// point-spread function, not an identity.</summary>
+        Backing = 16,
     }
 
     /// <summary>Atlas plumbing: the texture (Resources-loaded once) and
@@ -33,7 +39,7 @@ namespace StarGen.AtlasView
     public static class AtlasGlyphs
     {
         public const int Columns = 4;
-        public const int Rows = 4;
+        public const int Rows = 5;
 
         private static Texture2D _atlas;
 

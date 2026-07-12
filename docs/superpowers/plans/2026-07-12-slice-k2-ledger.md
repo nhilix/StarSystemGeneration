@@ -92,6 +92,20 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
   (panel.Pick); CameraRig drops mouse input over chrome (K1 note closed).
 - PriceFieldLayer bakes at cell resolution (256² texture) — no per-hex
   port scan, so the K1-flagged spatial index stays unneeded (T4 dormant).
+- **First-smoke lessons (own fix wave, pre-review):**
+  - *Camouflage*: fleet glyphs use the same quarter-white owner brighten
+    as port dots — identical color, glyph invisible ON its own port. Fix:
+    a **backing chip** cell (dark filled circle) added to the atlas (now
+    4×5); GlyphLayerBase draws it as the first quad of each pair (in-mesh
+    triangle order), so every identity mark reads against any background.
+  - *Render order*: renderer-bounds transparent sorting drew port dots
+    over same-hex glyphs — glyph materials take explicit renderQueue
+    3100+ (war 3120, plague 3110), news rings 3040.
+  - *News restraint*: 597 lifetime rings drowned the map; the layer now
+    draws only word still spreading (display cap 40y — Core liveness
+    stays PulseMaxYears), additive blend, peak alpha 0.35.
+  - Price glut-blue dominance and warm tension shading verified FAITHFUL
+    against emap (67/125 price glyphs are '_'; tension digits mass 3–8).
 
 ## Carried notes
 
