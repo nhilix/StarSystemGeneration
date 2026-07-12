@@ -106,6 +106,12 @@ mechanism, the **project**.
   world-time), and the Planner's `Max(1, tier·rate·span)` hull-batch slot floor
   fires a unit batch every step at fine tick. Both want a world-time
   normalization in Stage 2; neither hides the failure the test guards.
+- **Dotted domains (user eyeball observation, 2026-07-11)**: the planner era
+  produces more low-tier ports, so polity domain reach reads dotted rather
+  than contiguous — port raises now compete with everything else for rates
+  and take 5 years each. A tuning consideration for Stage 2 (e.g., planner
+  weight on PortRaise vs new facilities, or service-radius perception),
+  not a defect.
 - **Project cancellation stages no chronicle event** (no fitting existing
   `WorldEventType`; inventing one was out of slice scope) — abandoned works
   are P1 residue only via the uncommissioned facility row for now.

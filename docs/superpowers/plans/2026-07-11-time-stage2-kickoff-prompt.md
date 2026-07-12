@@ -146,6 +146,12 @@ controller decision points outside Intent.
 Landed fixes changed history once (golden re-frozen); these are the loose
 threads the fix wave deliberately did NOT chase — pick them up in Stage 2:
 
+- **Dotted domains (user eyeball, merge nod)** — the planner era yields more
+  low-tier ports, so polity reach reads dotted rather than contiguous (port
+  raises now take 5 real years and compete for rates with everything else).
+  Tuning levers to weigh: `Controller.PortRaisePlanScore` / planner category
+  weights (consolidation vs expansion), or the port-raise basket. Judge by
+  the emap eyeball, not a metric.
 - **Founding-link kit is tier-1 sized** — the expedition ships a tier-1 gate
   pair's basket regardless of the link's actual gate tier (no `TierCostFactor`
   applied at dispatch). A long founding link that needs a tier-2/3 gate is
