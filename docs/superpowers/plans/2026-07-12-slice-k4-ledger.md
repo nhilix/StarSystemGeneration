@@ -53,18 +53,21 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
 
 - [x] **T0 — Worktree + baseline**: `slice-k4-timeline` @ 1c158de,
       790/790, gitignored trio copied.
-- [ ] **T1 — TimeMachine, TDD** (`src/Core/Atlas/TimeMachine.cs` w/
-      two-line .meta): owns the base text + live SimState; Step(n)
-      captures a keyframe per epoch (delta vs base); ScrubTo(k) restores
-      byte-identically (Apply → Load); scrub-then-restep reproduces the
-      same keyframes (determinism); SetResolution(years) forks a branch
-      anchored at the current keyframe (one timeline = one (config,
-      tick-path) run); base artifact text never mutates (goldens safe by
-      construction — all in-memory).
-- [ ] **T2 — TimelineQueries, TDD**: strip data typed for the UI — era
-      bands (delegating EraQueries), event-density buckets per
-      generation from the log's generational stratum, keyframe/tick
-      markers from the TimeMachine.
+- [x] **T1 — TimeMachine, TDD** (`src/Core/Atlas/TimeMachine.cs`,
+      7 tests): keyframe per epoch as Diff(base, live); ScrubTo
+      byte-identical (branch resolution wins over the base's ESIM line
+      on rebuild); Step from a scrubbed-back position REPLAYS recorded
+      frames (never re-captures/truncates; cross-machine byte-identity
+      asserted — resume-from-delta re-proven at TimeMachine level);
+      SetResolution mid-run forks a TimelineBranch anchored at the
+      current keyframe (before any step: retunes in place); goldens
+      safe by construction (all in-memory). 797/797.
+- [x] **T2 — TimelineQueries, TDD** (2 tests): EventDensity buckets the
+      generational stream per generation, year 0 → live year, partial
+      last bucket mid-generation (fine ticks); deep-time strata stay
+      off the axis. Era bands stay EraQueries; keyframe marks stay
+      TimeMachine. NOTE: the partial-bucket test passed first run — the
+      behavior was over-built in cycle 1's green; test kept as the pin.
 - [ ] **T3 — SimHost grows the writer role**: wraps TimeMachine
       (StepEpochs / ScrubTo / SetResolution / Play state), run-seed
       in-editor (the Repl seed pattern; artifact-load default stays);
