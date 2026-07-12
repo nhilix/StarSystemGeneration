@@ -122,6 +122,14 @@ Core.Tests never references Inspector.
 - [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
       numbers incl. larder; click site → starvation readout; threads rows
       jump camera; menu scene eyeball folded in)
+  - Eyeball wave 2 (2026-07-12, menu scene): the scanline overlay
+    rendered as a yellow screen-door — on a fresh checkout MainMenu.uss
+    imports BEFORE the builder generates scanline.png, so the compiled
+    stylesheet holds a broken url() and UITK tiles its missing-image
+    placeholder (plus the texture imported as Sprite w/ alpha dilation).
+    Fixed live via the editor bridge (reimport + Default texture type);
+    builder hardened: sets textureType=Default, alphaIsTransparency=false,
+    force-reimports MainMenu.uss after first generating the texture.
   - Eyeball wave 1 (2026-07-12): (1) atlas PanelSettings was
     ConstantPhysicalSize — tiny on big displays; now ScaleWithScreenSize
     @1920x1080, match height (the menu builder already did this) ·
