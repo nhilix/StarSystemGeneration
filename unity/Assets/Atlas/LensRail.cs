@@ -89,6 +89,10 @@ namespace StarGen.AtlasView
             var doc = GetComponent<UIDocument>();
             var uiRoot = doc.rootVisualElement;
             uiRoot.Clear();
+            // The document root stretches over the whole screen and picks
+            // by default — left as-is, panel.Pick would report chrome
+            // EVERYWHERE and the pointer guard would kill map input.
+            uiRoot.pickingMode = PickingMode.Ignore;
 
             _railRoot = new ScrollView(ScrollViewMode.Vertical)
             {

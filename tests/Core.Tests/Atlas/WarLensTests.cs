@@ -63,11 +63,26 @@ public class WarLensTests
         var (model, state) = WithPorts();
         var eye = EyeContext.God(state.WorldYear);
         var slots = DomainLens.PolitySlots(model, eye);
+        // Two port owners, one war between them: the concrete expectation
+        // is every slot true — then retract to peace and expect all false.
+        Assert.Equal(2, slots.Count);
         Declare(state, state.Actors[0].Id, state.Actors[1].Id);
         var flags = WarLens.SlotBelligerence(model, eye, slots);
-        Assert.Equal(slots.Count, flags.Count);
-        for (int i = 0; i < slots.Count; i++)
-            Assert.Equal(WarOps.AtWar(state, slots[i]), flags[i]);
-        Assert.Contains(true, flags);
+        Assert.Equal(new[] { true, true }, flags);
+
+        state.Wars[0].Active = false;
+        var peace = WarLens.SlotBelligerence(model, eye, slots);
+        Assert.Equal(new[] { false, false }, peace);
+    }
+
+    [Fact]
+    public void AHulklessBlockadeStandsNoStation()
+    {
+        var (model, state) = WithPorts();
+        int attacker = state.Actors[1].Id;
+        Declare(state, attacker, state.Actors[0].Id);
+        state.Fleets.Add(new FleetRecord(0, attacker, state.Ports[0].Hex)
+        { Posture = FleetPosture.Blockade, TargetId = 0 });
+        Assert.Empty(WarLens.Stations(model, EyeContext.God(state.WorldYear)));
     }
 }

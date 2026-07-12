@@ -96,7 +96,7 @@ public static class WorksLens
                 s.Id, s.Channel, s.OwnerActorId,
                 HexGrid.Round(from.Q + (to.Q - from.Q) * f,
                               from.R + (to.R - from.R) * f),
-                f, stalled, s.TotalYears - s.YearsInTransit,
+                f, stalled, Math.Max(0.0, s.TotalYears - s.YearsInTransit),
                 stalled ? FreightStalled : FreightMoving);
         }
         return marks;

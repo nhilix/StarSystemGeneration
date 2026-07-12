@@ -57,6 +57,9 @@ namespace StarGen.AtlasView.Tests
             Assert.IsNotNull(AtlasGlyphs.Atlas,
                 "Resources/AtlasGlyphs.png missing or not imported");
             Assert.AreEqual(512, AtlasGlyphs.Atlas.width);
+            // 4×5: a stale 4×4 PNG would pass width and misalign every
+            // row past the first — the height IS the layout contract.
+            Assert.AreEqual(640, AtlasGlyphs.Atlas.height);
         }
 
         [Test]

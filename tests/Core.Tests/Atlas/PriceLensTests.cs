@@ -103,4 +103,18 @@ public class PriceLensTests
         // Same band, same shade — banded like the glyphs, not a smear.
         Assert.Equal(dear, PriceLens.ShadeOf(2.9));
     }
+
+    [Fact]
+    public void BandBoundariesSitExactlyOnTheEmapThresholds()
+    {
+        // Straddle every PriceGlyph edge — a drifted threshold fails here.
+        foreach (double edge in new[] { 0.25, 0.6, 1.5, 3.0, 8.0, 30.0 })
+        {
+            Assert.NotEqual(PriceLens.ShadeOf(edge - 1e-9),
+                            PriceLens.ShadeOf(edge));
+            // The edge itself belongs to the upper band ('<' in emap).
+            Assert.Equal(PriceLens.ShadeOf(edge + 1e-9),
+                         PriceLens.ShadeOf(edge));
+        }
+    }
 }

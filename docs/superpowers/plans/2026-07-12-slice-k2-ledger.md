@@ -40,23 +40,43 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
   - [x] WorksLens (Sites w/ Progress+LastFedFraction, gate pairs both
         ends; Freight lerped by sailed fraction w/ efreight STALLED
         derivation; Convoys = expedition fleets)
-- [ ] **T2 — Unity presentation modules** (thin; StarGen.AtlasView):
-      LaneLayer traffic mode · fleet/POI/works glyphs (the first AUTHORED
-      sprite atlas — game-icons.net CC-BY / Kenney CC0, runtime-tinted) ·
-      price plane shading · war/tension/tech domain accents · plague marks ·
-      news pulses
-- [ ] **T3 — Lens rail** (UI Toolkit, code-built): POLITICAL / LOGISTICS /
-      KNOWLEDGE / NARRATIVE / NATURE groups, toggle chips with swatches,
-      `price ▾ good` chip, pointer events consumed; minimal year readout;
-      **delete AtlasHud**
-- [ ] **T4 — Spatial index if needed** (K1 carry: per-hex OwnersAt is
-      O(hexes×ports); build the index the moment a K2 lens samples per-hex
-      over all ports)
-- [ ] **T5 — AtlasSmoke extended per lens** (the pre-eyeball loop; compare
-      against REPL `emap` per layer)
-- [ ] **T6 — Fresh-eyes whole-branch review** + one fix wave
-- [ ] **T7 — Gates**: `dotnet test` green · golden untouched · determinism
-      untouched · EditMode green · smoke suite renders every lens
+- [x] **T2 — Unity presentation modules** (thin; StarGen.AtlasView):
+      LaneLayer modes (Status/Traffic/QuarantineOnly) · glyph layers on
+      GlyphLayerBase (fleets/POIs/works/plague/war stations; authored
+      game-icons atlas, runtime-tinted, backing chips) · PriceFieldLayer
+      cell-shade bake · DomainFieldLayer accents (Owner/War/Tension/Tech
+      slot retints) · NewsLayer additive ring-fronts · StarGen/AtlasGlyph
+      shader (UV-rect billboards + LOD tint)
+- [x] **T3 — Lens rail** (UI Toolkit, code-built): POLITICAL / LOGISTICS /
+      KNOWLEDGE / NARRATIVE / NATURE groups, swatch chips (accents and
+      lanes/traffic radio-like), `price ▾ good` chip + DropdownField,
+      AtlasPointerGuard consumes pointer over chrome, year readout;
+      **AtlasHud deleted**; SimHost auto-loads in play mode
+- [x] **T4 — Spatial index NOT needed** (price bakes at cell resolution;
+      no K2 lens samples per-hex over all ports — flag rides to K4)
+- [x] **T5 — AtlasSmoke extended per lens** (14 shots incl. one per lens;
+      pre-eyeballed against REPL `emap` — parity verified for price band
+      dominance, tension heat, war belligerence/stations, works marks)
+- [x] **T6 — Fresh-eyes whole-branch review** + one fix wave. Verdict:
+      "MERGE-READY with one play-mode verification required" — hard
+      rules verified holding (Core purity, meta completeness, zero sim
+      mutation/RNG, id-order iteration, boundary clean), all ten parity
+      claims checked line-by-line against EpochMapView/RenderFreight and
+      confirmed exact. 1 plausible-bug + 9 notes; fixed: **rail root
+      pickingMode=Ignore** (the full-screen document root would have made
+      the pointer guard block ALL map input — verify zoom/pan at the
+      eyeball), GlyphLayer.OnZoom null guard, PriceFieldLayer texture
+      HideAndDontSave, WorksLens.RemainingYears clamped ≥0, price band
+      edges pinned exactly (straddling asserts), war belligerence test
+      de-tautologized + hulkless-blockade station case, atlas HEIGHT
+      asserted (the 4×5 layout contract), .gitignore test-results glob.
+      Declined-as-flagged: quarantine clock edge (`>=` on lanes vs `>`
+      on freight stall) is upstream in main (FleetOps vs ShipmentOps) and
+      faithfully ported — carried below for a Core cleanup; runtime
+      texture/mesh HideFlags on K1 layers predate K2.
+- [x] **T7 — Gates**: `dotnet test` 725/725 ×2 (determinism suites in
+      the count) · golden untouched · EditMode 8/8 headless (LodBands +
+      GlyphAtlas) · smoke suite renders every lens
 - [ ] **T8 — USER: atlas eyeball** (every lens on seed 42 next to `emap`)
 - [ ] **T9 — Wrap-up**: merge · HANDOFF · tick K2 in the K roadmap · K3
       kickoff prompt (with the panel notes above) · diagram §8 works row,
@@ -103,7 +123,8 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
     3100+ (war 3120, plague 3110), news rings 3040.
   - *News restraint*: 597 lifetime rings drowned the map; the layer now
     draws only word still spreading (display cap 40y — Core liveness
-    stays PulseMaxYears), additive blend, peak alpha 0.35.
+    stays PulseMaxYears), additive blend, peak alpha 0.35, ring radius
+    cap 10 hexes (unreachable under the 40y cutoff; belt and braces).
   - Price glut-blue dominance and warm tension shading verified FAITHFUL
     against emap (67/125 price glyphs are '_'; tension digits mass 3–8).
 
@@ -116,4 +137,11 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
 - Next free view-only RollChannel is 75 — but 75 was taken by T2 piracy
   (ShipmentLoss); VERIFY the actual next free channel before claiming one.
 - Triple-overlap fill shades by top-two relation — revisit only if the war
-  lens makes it read wrong.
+  lens makes it read wrong (K2 war eyeball pending; smoke read fine).
+- **Carried to a Core cleanup (upstream, pre-K2)**: the quarantine clock's
+  edge is inconsistent in main — lanes/emap read `QuarantinedUntil >=
+  WorldYear`, freight stall (efreight/ShipmentOps) reads `>` — a lane
+  quarantined exactly to WorldYear is Quarantined on the lane lens but
+  not stalled for its freight. K2 ported both faithfully.
+- K1 runtime meshes/textures lack HideAndDontSave in edit mode (leak
+  until scene reload) — cosmetic, sweep opportunistically.

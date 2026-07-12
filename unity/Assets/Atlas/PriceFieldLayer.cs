@@ -86,6 +86,7 @@ namespace StarGen.AtlasView
                 {
                     wrapMode = TextureWrapMode.Clamp,
                     filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
                 };
             }
             var pixels = new Color32[TextureSize * TextureSize];

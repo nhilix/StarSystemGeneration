@@ -517,5 +517,5 @@ unity/test-results.xml
 atlas-smoke*.png
 unity-*-log.txt
 unity-*-results.xml
-unity/test-results-k2.xml
+unity/test-results-*.xml
 unity/*.log

@@ -86,6 +86,7 @@ namespace StarGen.AtlasView
         /// the fade itself is continuous).</summary>
         public void OnZoom(float cameraDistance, float galaxyExtent)
         {
+            if (_material == null) return;   // edit-mode caller ordering
             _material.SetColor("_Tint", new Color(1f, 1f, 1f,
                 LodBands.GlyphFade(cameraDistance, galaxyExtent)));
         }
