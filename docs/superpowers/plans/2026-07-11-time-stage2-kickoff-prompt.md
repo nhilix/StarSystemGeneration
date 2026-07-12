@@ -141,4 +141,32 @@ controller decision points outside Intent.
    mechanism) · **write the contract-economy kickoff prompt** (the flagged next
    pass, informed by what landed) · push only on say-so.
 
+## Carried from the final review (fix-wave residue, Stage 2 to close)
+
+Landed fixes changed history once (golden re-frozen); these are the loose
+threads the fix wave deliberately did NOT chase — pick them up in Stage 2:
+
+- **Founding-link kit is tier-1 sized** — the expedition ships a tier-1 gate
+  pair's basket regardless of the link's actual gate tier (no `TierCostFactor`
+  applied at dispatch). A long founding link that needs a tier-2/3 gate is
+  under-provisioned; the deficit is currently absorbed silently.
+- **Failed expeditions keep the shipped kit as sunk goods** — a convoy that
+  turns back (hex colonized mid-flight) refunds the colony cost but the gate
+  kit drawn at the staging market stays spent. Reconcile when located logistics
+  gives goods a transit home.
+- **Completion events stamp the span-START year** — `Complete` stages events at
+  `state.WorldYear`, i.e. the step's start, not the true (mid-span) delivery
+  year a project with a staggered `StartedYear` actually finishes. Fine tick
+  narrows this; a real fix stamps the interpolated completion year.
+- **Corp standing plans are unwired** — `CapabilityOps.BriefFor` supports corps
+  but `CorporationOps.Operate` still builds mechanically (no Planner/StandingPlan
+  for corporate portfolios). Corps don't stagger or pack against income yet.
+- **`AddConstructionPull` registers full-span demand for near-done projects** —
+  a project one year from completion still pulls its whole per-year basket as
+  market demand; the pull should taper with remaining years.
+- **The FineTick ×2 band absorbs the hull-slot-floor inflation** — the
+  `Planner.cs` `Max(1, …)` slot floor still over-produces hulls at fine tick;
+  the honesty band is loose enough to tolerate it. Tighten the band once Stage 2
+  fixes the floor (persistent fractional-throughput accumulator).
+
 - [ ] Time & Logistics Stage 2 complete

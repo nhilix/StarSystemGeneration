@@ -450,7 +450,7 @@ and the incident freshness window (2 epochs) are structural.
 |---|---|---|---|
 | `War.IncidentRatePerEpoch` | 0.25 | Contested borders spark constantly (chronicle noise, more powder lit). | Quiet frontiers; wars need standing causes. |
 | `War.IncidentTensionBump` | 0.08 | Incidents themselves load the gauge (escalation spirals). | Sparks without heat. |
-| `War.WarTensionFloor` | 0.40 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
+| `War.WarTensionFloor` | 0.35 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
 | `War.WarAppetiteThreshold` | 0.38 | Doves need overwhelming tension; hawks still march. **The war-frequency dial** (seed 42: 7 declarations, 3 settlements, 4 live / 40 epochs). | Everyone fights at the first grievance. |
 | `War.AttackStrengthRatio` | 0.60 | Attackers need near-parity with the coalition (alliances truly deter). | Hopeless wars of principle. |
 | `War.PriceShockMultiple` | 2.0 | Only famine-grade shocks justify seizure wars. | Every price spike is a casus belli. |
@@ -483,7 +483,7 @@ and the incident freshness window (2 epochs) are structural.
 | `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
 
 **Ignition recalibration (slice t1 — the world-time economy).** `WarTensionFloor`
-0.55 → 0.40 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy
+0.55 → 0.35 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy
 (multi-year hull batches, per-year treasury streaming, world-time colony
 expeditions) expands the map more slowly, so contested-overlap tension — the
 war engine — builds later and to a lower ceiling: a seed-42 40-epoch history
