@@ -103,7 +103,35 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
       EditMode 11/11 · scene rebuilt w/ strip · AtlasSmoke renders
       every lens (14 captures; 191 fleets, 106 POIs, 297 projects,
       16 shipments, 597 pulses, 5 plagues — the K3 census).
-- [ ] **T7 — Fresh-eyes whole-branch review** + one fix wave.
+- [x] **T7 — Fresh-eyes whole-branch review** + one fix wave. Verdict:
+      "With fixes — no criticals"; verified mechanically holding: Core
+      purity, guid hygiene across all 273 metas, goldens/non-Atlas Core
+      untouched, one guard/one document, USS var()-only, event
+      subscribe/unsubscribe symmetry, fork-resolution interplay
+      (ScrubTo re-arms branch resolution), OpenPanel identity across
+      refreshes. Fix wave (all landed):
+      1. Drag wedge — PointerCaptureOut/PointerCancel now clear
+         `_dragging` (capture lost without PointerUp would have left
+         the strip on the marker-only path forever).
+      2. RUN SEED stale panels — `Loaded` now closes EVERY open panel
+         (pins included; a new world invalidates every subject) before
+         Open Threads greets.
+      3. Close-on-vanish claim corrected to actual behavior (DECISION):
+         a subject the moment doesn't know renders the panel's missing
+         placeholder — a legible "not yet" beats a vanishing panel;
+         only a view that fails outright closes (now logged, was
+         silently swallowed).
+      4. Era bands clamp to the axis (EraDetector rounds the last era
+         up to a generation boundary; overrun would flex-squeeze bands
+         out of register with the absolute ticks).
+      5. Seed box survives play-tick rebuilds (was wiped every 0.45s).
+      6. Bucket doc contract + RunSeed/LoadArtifact failure-asymmetry
+         comments.
+      Declined-as-noted: branch SwitchBranch UI (root's coarse future
+      unreachable after a fork — spec doesn't require it for K4;
+      backlogged for K5) · unbounded keyframe memory during unattended
+      play (HANDOFF note) · linear nearest-keyframe scan (fine at K4
+      scale).
 - [ ] **T8 — USER: timeline eyeball** — watch 40 epochs animate on the
       domains lens; scrub back to a mid-war year; step fine.
 - [ ] **T9 — Wrap-up**: merge · HANDOFF · tick K4 in the K roadmap ·

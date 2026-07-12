@@ -131,6 +131,9 @@ namespace StarGen.AtlasView
             }
             catch (Exception ex)
             {
+                // deliberate asymmetry with LoadArtifact: a failed run
+                // keeps the loaded world viewable (there, the file IS the
+                // world, so failure leaves nothing to keep)
                 LoadError = ex.Message;
                 return false;
             }

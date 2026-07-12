@@ -4,7 +4,8 @@ using StarGen.Core.Epoch;
 namespace StarGen.Core.Atlas;
 
 /// <summary>One sparkline bucket: generational-stratum events logged in
-/// [StartYear, EndYear).</summary>
+/// [StartYear, EndYear); the last bucket also counts events at exactly
+/// the live year (the moment being watched belongs to the strip).</summary>
 public sealed record DensityBucket(long StartYear, long EndYear, int Count);
 
 /// <summary>K4: the TimelineStrip's data face. Era bands ride EraQueries

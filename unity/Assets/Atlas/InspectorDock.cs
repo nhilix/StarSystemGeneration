@@ -77,14 +77,14 @@ namespace StarGen.AtlasView
             if (selection != null) selection.Selected += OnSelected;
             if (root != null && root.SimHost != null)
             {
-                root.SimHost.Loaded += OpenThreads;
+                root.SimHost.Loaded += OnNewWorld;
                 // K4: a step or scrub is the same world at a new moment —
                 // open unpinned panels re-query; PINNED panels keep their
                 // captured moment (comparison across time)
                 root.SimHost.TimeChanged += RefreshUnpinned;
                 // Open Threads is the atlas's OPENING SCREEN: the world in
                 // motion greets you (spec §Panel catalog)
-                if (root.SimHost.Model != null) OpenThreads();
+                if (root.SimHost.Model != null) OnNewWorld();
             }
         }
 
@@ -93,14 +93,27 @@ namespace StarGen.AtlasView
             if (selection != null) selection.Selected -= OnSelected;
             if (root != null && root.SimHost != null)
             {
-                root.SimHost.Loaded -= OpenThreads;
+                root.SimHost.Loaded -= OnNewWorld;
                 root.SimHost.TimeChanged -= RefreshUnpinned;
             }
         }
 
+        /// <summary>A new world (artifact load / run seed) invalidates
+        /// every open subject, pins included — close them all, then Open
+        /// Threads greets.</summary>
+        private void OnNewWorld()
+        {
+            for (int i = _open.Count - 1; i >= 0; i--)
+                _open[i].Element.RemoveFromHierarchy();
+            _open.Clear();
+            OpenThreads();
+        }
+
         /// <summary>Rebuilds every unpinned open panel against the live
-        /// state. A subject the new moment no longer knows (a fleet not yet
-        /// built, a war not yet declared) closes its panel.</summary>
+        /// state. A subject the new moment doesn't know (a fleet not yet
+        /// built) renders its panel's missing placeholder — a legible
+        /// "not yet" beats a vanishing panel; only a view that fails
+        /// outright closes.</summary>
         private void RefreshUnpinned()
         {
             if (root?.SimHost?.Model == null) return;
@@ -112,7 +125,13 @@ namespace StarGen.AtlasView
                 string title;
                 VisualElement body;
                 try { (title, body) = PanelViews.Build(open.Request, context); }
-                catch (System.Exception) { body = null; title = null; }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning(
+                        $"InspectorDock: {open.Request.Type} refresh failed — {ex}");
+                    body = null;
+                    title = null;
+                }
                 if (body == null)
                 {
                     open.Element.RemoveFromHierarchy();

@@ -122,8 +122,9 @@ namespace StarGen.AtlasView
             spacer.AddToClassList("ssg-spacer");
             bar.Add(spacer);
 
+            // the bar rebuilds every step — a half-typed seed must survive
             _seed = new TextField
-            { value = DockKit.Inv($"{host.State.Config.MasterSeed}") };
+            { value = _seed?.value ?? DockKit.Inv($"{host.State.Config.MasterSeed}") };
             _seed.AddToClassList("ssg-strip__seed");
             bar.Add(_seed);
             var run = new Button(() =>
@@ -165,18 +166,24 @@ namespace StarGen.AtlasView
             long axisEnd = AxisEnd(host);
             if (axisEnd <= 0) return _track;
 
-            // era bands, quiet gaps included (bands abut in year order)
+            // era bands, quiet gaps included (bands abut in year order).
+            // EraDetector rounds the last era up to a generation boundary,
+            // so clamp to the axis — an overrun would flex-squeeze every
+            // band out of register with the absolutely-positioned ticks
             var eras = new VisualElement();
             eras.AddToClassList("ssg-strip__eras");
             long covered = 0;
             foreach (var era in EraQueries.Eras(host.Model, host.Eye))
             {
-                if (era.StartYear > covered)
-                    eras.Add(EraBand(EraKindClass(null),
-                        era.StartYear - covered, axisEnd));
-                eras.Add(EraBand(EraKindClass(era.Kind),
-                    era.EndYear - era.StartYear, axisEnd));
-                covered = era.EndYear;
+                long start = System.Math.Min(era.StartYear, axisEnd);
+                long end = System.Math.Min(era.EndYear, axisEnd);
+                if (start > covered)
+                    eras.Add(EraBand(EraKindClass(null), start - covered,
+                        axisEnd));
+                if (end > start)
+                    eras.Add(EraBand(EraKindClass(era.Kind), end - start,
+                        axisEnd));
+                if (end > covered) covered = end;
             }
             if (covered < axisEnd)
                 eras.Add(EraBand(EraKindClass(null), axisEnd - covered, axisEnd));
@@ -230,6 +237,21 @@ namespace StarGen.AtlasView
             {
                 if (track.HasPointerCapture(e.pointerId))
                     track.ReleasePointer(e.pointerId);
+                _dragging = false;
+                Rebuild();
+            });
+            // capture can end without a PointerUp (touch cancel, or the
+            // track torn out from under a live drag) — a wedged _dragging
+            // would leave the strip on the marker-only path forever
+            track.RegisterCallback<PointerCaptureOutEvent>(e =>
+            {
+                if (!_dragging) return;
+                _dragging = false;
+                Rebuild();
+            });
+            track.RegisterCallback<PointerCancelEvent>(e =>
+            {
+                if (!_dragging) return;
                 _dragging = false;
                 Rebuild();
             });
