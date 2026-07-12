@@ -141,7 +141,9 @@ public class FineTickTests
         int coarseHulls = 0, fineHulls = 0;
         foreach (var f in coarse.Fleets) coarseHulls += f.TotalHulls;
         foreach (var f in fine.Fleets) fineHulls += f.TotalHulls;
-        AssertBand("hulls", coarseHulls, fineHulls, 0.6);
+        // tightened from 0.6 (stage 2): the world-time yard-slot clock
+        // removed the fine-tick unit-batch inflation the loose band absorbed
+        AssertBand("hulls", coarseHulls, fineHulls, 0.5);
 
         // prices drift between clearings instead of teleporting: the MEDIAN
         // provisions price stays in the same neighborhood — compared over
