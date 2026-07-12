@@ -832,7 +832,7 @@ public sealed class Repl
         if (sim.Shipments.Count == 0)
         { Console.WriteLine("no shipments in transit"); return; }
         var severed = Core.Epoch.FleetOps.SeveredLaneIds(sim);
-        Console.WriteLine("  id   chan         route                cargo                            sailed/total   eta");
+        Console.WriteLine("  id     chan         route                 cargo                            sailed/total   eta");
         foreach (var s in sim.Shipments)
         {
             string owner = s.OwnerActorId >= 0 && s.OwnerActorId < sim.Actors.Count
@@ -860,7 +860,7 @@ public sealed class Repl
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
             Console.WriteLine(FormattableString.Invariant(
-                $"  #{s.Id,-4}{s.Channel,-12} {route,-20} {string.Join(", ", cargo),-32} ")
+                $"  #{s.Id,-6} {s.Channel,-12} {route,-21} {string.Join(", ", cargo),-32} ")
                 + FormattableString.Invariant(
                 $"{s.YearsInTransit,5:0.0}/{s.TotalYears,-6:0.0} ")
                 + eta + $"  ({owner})");
