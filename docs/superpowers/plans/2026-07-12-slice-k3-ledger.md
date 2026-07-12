@@ -119,9 +119,9 @@ Core.Tests never references Inspector.
 - [x] **T10 — Gates**: `dotnet test` 790/790 ×3 (determinism suites in
       the count) · golden untouched · EditMode 10/10 post-fix · smoke
       renders every lens post-fix
-- [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
-      numbers incl. larder; click site → starvation readout; threads rows
-      jump camera; menu scene eyeball folded in)
+- [x] **T11 — USER: panels eyeball — ACCEPTED** (2026-07-12, "come
+      together decently"), after four fix waves (below) and the upstream
+      credit-treasury flag (carried notes):
   - Eyeball wave 4 (2026-07-12): LineRenderer was the wrong tool — the
     highlight is now a hexagonal RING MESH in the lattice's own grammar
     (6 trapezoid quads on HexGrid.CornerOffsets, Sprites/Default like
@@ -150,9 +150,9 @@ Core.Tests never references Inspector.
     chrome type up 2px · (3) scroll bars HIDDEN everywhere (wheel
     scrolling stays — ScrollerVisibility.Hidden on rail, dock, panel
     bodies; AtlasChrome.HideScrollers is the one place)
-- [ ] **T12 — Wrap-up**: merge · HANDOFF · tick K3 in roadmap · write K4
-      kickoff (timeline) · republish diagram (§9 Project/Shipment rows +
-      larder/plan additions) · push on say-so
+- [x] **T12 — Wrap-up**: merged · HANDOFF · K3 ticked in roadmap · K4
+      kickoff written · diagram §9 Project/Shipment rows + larder/plan
+      additions, republished · push on say-so
 
 ## Decisions / deviations
 

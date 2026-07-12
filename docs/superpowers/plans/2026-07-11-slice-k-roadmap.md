@@ -96,6 +96,8 @@ K5's wrap-up closes the epoch-sim roadmap itself.
 - [x] K2 — Lens catalog (accepted 2026-07-12 as foundational groundwork;
       carried: per-lens legends → K3 chrome, per-lens readability
       deep-dives → backlog)
-- [ ] K3 — Selection & panels
+- [x] K3 — Selection & panels (accepted 2026-07-12; four eyeball waves:
+      screen-size scaling, hidden scrollers, menu scanline rebind, hex-ring
+      selection; carried: credit-loop equilibrium flag → contract economy)
 - [ ] K4 — Timeline
 - [ ] K5 — System stage & closeout
