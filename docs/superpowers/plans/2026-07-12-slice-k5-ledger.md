@@ -55,8 +55,8 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
 - [x] **T0 — Branch + baseline**: `slice-k5-system` @ 9fb40cc, gitignored
       trio already present (worktree reused from K3), `dotnet test`
       832/832 green at branch.
-- [ ] **T1 — Core SystemQuery, TDD** (`src/Core/Atlas/SystemQuery.cs` +
-      .meta, 12 tests): `SystemQuery.At(model, eye, hex)` → SystemInfo —
+- [x] **T1 — Core SystemQuery, TDD** (`src/Core/Atlas/SystemQuery.cs` +
+      .meta, 13 tests, 845/845): `SystemQuery.At(model, eye, hex)` → SystemInfo —
       the hex-tier system laid out for the stage (stars w/ companion
       slots, orbit rows: slot index/band/body kind/size/name/settlement/
       satellites) + epoch overlays ATTACHED to orbits deterministically
@@ -67,7 +67,7 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       no stars (stage renders a void placard). DECISION: deterministic
       layout angles are a pure hash of (hex, slot index) — view-only, no
       RollChannel consumed.
-- [ ] **T2 — FacilityPanel, TDD** (Core + PanelViews card, 4 tests):
+- [x] **T2 — FacilityPanel, TDD** (Core + PanelViews card, 4 tests):
       facility click opens a compact typed card (type/family/tier/
       condition/active/owner/produces + its market link) — the K3
       Project/Shipment precedent; §9 gains a Facility row at wrap-up.

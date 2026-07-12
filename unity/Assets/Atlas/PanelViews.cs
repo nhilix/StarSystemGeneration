@@ -41,6 +41,7 @@ namespace StarGen.AtlasView
                 case PanelType.Goods: return Goods(ctx, body);
                 case PanelType.Knobs: return Knobs(request, ctx, body);
                 case PanelType.Stats: return Stats(ctx, body);
+                case PanelType.Facility: return Facility(request, ctx, body);
                 default: return (null, null);
             }
         }
@@ -292,6 +293,42 @@ namespace StarGen.AtlasView
                 Kv(body, line.GoodName, Inv($"{line.QtyPerYear:0.##}/y"));
             Kv(body, "wages", Inv($"{card.WagesPerYear:0.#}/y"));
             return (Inv($"PROJECT #{card.Id}"), body);
+        }
+
+        private static (string, VisualElement) Facility(PanelRequest request,
+            PanelContext ctx, VisualElement body)
+        {
+            var card = FacilityPanel.Card(ctx.Model, ctx.Eye, request.Id);
+            if (card == null)
+                return ("FACILITY", Missing(body, "no such facility"));
+            Line(body, Inv($"{card.TypeName} · tier {card.Tier}"));
+            Kv(body, "family", card.Family.ToString().ToLowerInvariant());
+            var owner = Row(body, () => ctx.Open(new PanelRequest(
+                card.OwnerKind == Core.Epoch.ActorKind.Corporation
+                    ? PanelType.Corporations : PanelType.Polity,
+                card.OwnerActorId)));
+            Line(owner, "owner: " + card.OwnerName
+                + Inv($" ({card.OwnerKind.ToString().ToLowerInvariant()})"));
+            Meter(body, "condition", card.Condition,
+                  Inv($"{card.Condition:0.00}"),
+                  card.Condition < 0.35 ? "bad"
+                  : card.Condition < 0.7 ? "warn" : null);
+            if (!card.Commissioned)
+                Kv(body, "status", "under construction", "warn");
+            else Kv(body, "status", card.Active ? "active" : "idle",
+                    card.Active ? "good" : "warn");
+            Kv(body, "built", Inv($"y{card.BuiltYear}"));
+            Sect(body, "produces");
+            if (card.Produces.Count == 0)
+                Line(body, "(capability, not goods)", dim: true);
+            foreach (var name in card.Produces) Line(body, name);
+            if (card.MarketPortId >= 0)
+            {
+                var market = Row(body, () => ctx.Open(new PanelRequest(
+                    PanelType.Market, card.MarketPortId)));
+                Line(market, Inv($"trades at port #{card.MarketPortId}"));
+            }
+            return (Inv($"FACILITY #{card.Id}"), body);
         }
 
         private static (string, VisualElement) Shipment(PanelRequest request,
