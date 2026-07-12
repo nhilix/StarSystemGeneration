@@ -19,6 +19,7 @@ namespace StarGen.AtlasView
         private ScrollView _dock;
         private VisualElement _tooltipLayer;
         private VisualElement _legend;
+        private VisualElement _timeline;
         private bool _built;
 
         public VisualElement TopBar { get { EnsureBuilt(); return _topBar; } }
@@ -27,6 +28,7 @@ namespace StarGen.AtlasView
         public VisualElement TooltipLayer
         { get { EnsureBuilt(); return _tooltipLayer; } }
         public VisualElement Legend { get { EnsureBuilt(); return _legend; } }
+        public VisualElement Timeline { get { EnsureBuilt(); return _timeline; } }
 
         private void OnEnable()
         {
@@ -78,6 +80,9 @@ namespace StarGen.AtlasView
             _legend.AddToClassList("ssg-legend");
             _legend.style.display = DisplayStyle.None;
 
+            _timeline = new VisualElement();
+            _timeline.AddToClassList("ssg-strip");
+
             _tooltipLayer = new VisualElement
             {
                 pickingMode = PickingMode.Ignore,
@@ -90,6 +95,7 @@ namespace StarGen.AtlasView
             // the tooltip always on top
             root.Add(_rail);
             root.Add(_dock);
+            root.Add(_timeline);
             root.Add(_topBar);
             root.Add(_legend);
             root.Add(_tooltipLayer);

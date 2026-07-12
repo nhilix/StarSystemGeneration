@@ -55,8 +55,16 @@ namespace StarGen.AtlasView
         [SerializeField] private AtlasRoot root;
         [SerializeField] private SelectionModel selection;
 
-        private readonly List<(VisualElement Element, bool Pinned)> _open
-            = new();
+        private sealed class OpenPanel
+        {
+            public VisualElement Element;
+            public bool Pinned;
+            public PanelRequest Request;
+            public Label Title;
+            public ScrollView Body;
+        }
+
+        private readonly List<OpenPanel> _open = new();
 
         public void Wire(AtlasRoot atlasRoot, SelectionModel selectionModel)
         {
@@ -70,6 +78,10 @@ namespace StarGen.AtlasView
             if (root != null && root.SimHost != null)
             {
                 root.SimHost.Loaded += OpenThreads;
+                // K4: a step or scrub is the same world at a new moment —
+                // open unpinned panels re-query; PINNED panels keep their
+                // captured moment (comparison across time)
+                root.SimHost.TimeChanged += RefreshUnpinned;
                 // Open Threads is the atlas's OPENING SCREEN: the world in
                 // motion greets you (spec §Panel catalog)
                 if (root.SimHost.Model != null) OpenThreads();
@@ -80,7 +92,37 @@ namespace StarGen.AtlasView
         {
             if (selection != null) selection.Selected -= OnSelected;
             if (root != null && root.SimHost != null)
+            {
                 root.SimHost.Loaded -= OpenThreads;
+                root.SimHost.TimeChanged -= RefreshUnpinned;
+            }
+        }
+
+        /// <summary>Rebuilds every unpinned open panel against the live
+        /// state. A subject the new moment no longer knows (a fleet not yet
+        /// built, a war not yet declared) closes its panel.</summary>
+        private void RefreshUnpinned()
+        {
+            if (root?.SimHost?.Model == null) return;
+            var context = Context();
+            for (int i = _open.Count - 1; i >= 0; i--)
+            {
+                var open = _open[i];
+                if (open.Pinned) continue;
+                string title;
+                VisualElement body;
+                try { (title, body) = PanelViews.Build(open.Request, context); }
+                catch (System.Exception) { body = null; title = null; }
+                if (body == null)
+                {
+                    open.Element.RemoveFromHierarchy();
+                    _open.RemoveAt(i);
+                    continue;
+                }
+                open.Title.text = title;
+                open.Body.Clear();
+                open.Body.Add(body);
+            }
         }
 
         private void OpenThreads() =>
@@ -152,6 +194,8 @@ namespace StarGen.AtlasView
                         _open[i].Element.RemoveFromHierarchy();
                         _open.RemoveAt(i);
                     }
+            // (OpenPanel entries carry their request so a time change can
+            // rebuild them against the new moment)
 
             var context = Context();
             var (title, body) = PanelViews.Build(request, context);
@@ -176,7 +220,7 @@ namespace StarGen.AtlasView
                     if (_open[i].Element == panel)
                     {
                         bool now = !_open[i].Pinned;
-                        _open[i] = (panel, now);
+                        _open[i].Pinned = now;
                         pin.text = now ? "PINNED" : "PIN";
                         pin.EnableInClassList("ssg-panel__btn--pinned", now);
                         panel.EnableInClassList("ssg-panel--pinned", now);
@@ -203,7 +247,14 @@ namespace StarGen.AtlasView
             panel.Add(scroll);
 
             dock.Add(panel);
-            _open.Add((panel, false));
+            _open.Add(new OpenPanel
+            {
+                Element = panel,
+                Pinned = false,
+                Request = request,
+                Title = titleLabel,
+                Body = scroll,
+            });
         }
     }
 }

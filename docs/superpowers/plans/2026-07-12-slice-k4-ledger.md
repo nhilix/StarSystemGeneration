@@ -68,16 +68,32 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
       off the axis. Era bands stay EraQueries; keyframe marks stay
       TimeMachine. NOTE: the partial-bucket test passed first run — the
       behavior was over-built in cycle 1's green; test kept as the pin.
-- [ ] **T3 — SimHost grows the writer role**: wraps TimeMachine
-      (StepEpochs / ScrubTo / SetResolution / Play state), run-seed
-      in-editor (the Repl seed pattern; artifact-load default stays);
-      re-raises `Loaded` after step/scrub; DECIDE + document: dock
-      re-Shows unpinned panels on `Loaded` (pinned keep their snapshot).
-- [ ] **T4 — TimelineStrip UI** (new bottom host in AtlasChrome,
-      `ssg-` classes, var() tokens only): era bands · sparkline ·
-      scrubber + active-tick marker · play/pause + step buttons ·
-      coarse/fine resolution control (fork indicator when branched) ·
-      run-seed box; TopBar readouts shared, not duplicated.
+- [x] **T3 — SimHost grows the writer role**: TimeMachine wrap
+      (StepEpochs / ScrubTo / SetResolution / Playing + PlayStepSeconds
+      clock in Update), RunSeed(seed, radius, epochs) in-editor (the
+      Repl `epoch` pattern; artifact-load default stays). DECISION —
+      **two events, not a re-raised Loaded**: `Loaded` = new world
+      (camera refit + Open Threads greets); `TimeChanged` = same world,
+      new moment (layers ShowAll + zoom restyle, NO camera refit, NO
+      Threads reopen). AtlasRoot/TopBar/LensRail subscribe both; the
+      dock refreshes open UNPINNED panels on TimeChanged (rebuild
+      against the fresh model; subject gone → panel closes); PINNED
+      panels keep their captured moment — comparison across time.
+      DECISION — CRLF trap: a Windows checkout holds the golden as
+      CRLF; SimHost normalizes to LF at the file boundary or every
+      layer reads changed and genesis strata re-record in the deltas.
+- [x] **T4 — TimelineStrip UI** (`unity/Assets/Atlas/TimelineStrip.cs`
+      on the chrome GO; new `Timeline` bottom host in AtlasChrome —
+      same UIDocument, same guard; `ssg-strip*` classes appended to
+      AtlasChrome.uss, var() tokens only; legend lifted to bottom 96px):
+      transport (|< < PLAY/PAUSE > >>) · kf readout · resolution chips
+      (generation/5y/1y; mid-run change forks — FORK chip shows branch)
+      · run-seed box · track = era bands (kind-tinted, quiet gaps
+      filled) + event-density sparkline + keyframe ticks + active
+      marker · press/drag scrubs to nearest keyframe (rebuild deferred
+      while dragging — only the marker moves; full rebuild on release) ·
+      axis y0 / live / end labels. TopBar keeps the year/era readout
+      (shared, not duplicated).
 - [ ] **T5 — EditMode tests where they pay** (strip builds, host wiring,
       no second guard).
 - [ ] **T6 — Gates**: `dotnet test` green ×3 · golden untouched ·

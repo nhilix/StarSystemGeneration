@@ -68,13 +68,21 @@ namespace StarGen.AtlasView
         {
             BuildUi();
             if (root != null && root.SimHost != null)
+            {
                 root.SimHost.Loaded += OnLoaded;
+                // layers rebuild on a time change too — the lens choice
+                // must re-apply over the fresh content
+                root.SimHost.TimeChanged += OnLoaded;
+            }
         }
 
         private void OnDisable()
         {
             if (root != null && root.SimHost != null)
+            {
                 root.SimHost.Loaded -= OnLoaded;
+                root.SimHost.TimeChanged -= OnLoaded;
+            }
         }
 
         private void OnLoaded() => Apply();
