@@ -31,6 +31,13 @@ namespace StarGen.AtlasView
             set => artifactPath = value;
         }
 
+        /// <summary>Play mode loads the default artifact unprompted — the
+        /// rail replaced the HUD's load box; K3's chrome takes this over.</summary>
+        private void Start()
+        {
+            if (Model == null) LoadArtifact();
+        }
+
         public bool LoadArtifact()
         {
             try

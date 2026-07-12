@@ -19,19 +19,27 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
 
 ## Tasks
 
-- [ ] **T1 — Core lens queries, TDD** (each: port the `EpochMapView`/ops
-      derivation with xUnit parity tests; every new file + two-line .meta):
-  - [ ] TrafficLens (`FleetOps.TrafficPerYear` per lane → weight bands)
-  - [ ] FleetLens (posture-differentiated marks at fleet hexes)
-  - [ ] PriceLens (per-good ratio vs founding at nearest servicing port)
-  - [ ] WarLens (belligerent accent + war stations: blockade/expedition)
-  - [ ] TensionLens (owner's hottest live relation per domain)
-  - [ ] TechLens (Astrogation tier per domain)
-  - [ ] PlagueLens (infected burn / immune scarred / quarantined approaches)
-  - [ ] NewsLens (god sees all pulses in transit)
-  - [ ] PoiLens (`PoiCompiler.LiveAt`/`state.Pois` marks by type)
-  - [ ] WorksLens (sites + shipments interpolated on route, STALLED flag,
-        expedition convoys)
+- [x] **T1 — Core lens queries, TDD** (4 commits, 36 parity tests,
+      725/725 full suite; every new file + two-line .meta):
+  - [x] TrafficLens (TrafficPerYear; emap band parity None/Trickle/Light/
+        Steady/Heavy; sqrt weight saturating at 5 trips/yr)
+  - [x] FleetLens (posture + owner tint, hulkless skipped)
+  - [x] PriceLens (nearest-servicing-port ratio, PriceGlyph band parity,
+        NaN wilds; CellShades on the NatureFieldLayer bake pattern —
+        cell-resolution, so NO spatial index needed, T4 stays dormant)
+  - [x] WarLens (Stations = warring Blockade/Expedition fleets,
+        WarStationCells parity; SlotBelligerence parallel to PolitySlots)
+  - [x] TensionLens (hottest live BothLive relation; TensionGlyph ×9
+        digit parity; cold→ember HeatColor)
+  - [x] TechLens (Astrogation SlotTiers; bronze→arc-light TierColor)
+  - [x] PlagueLens (Afflicted burn / ImmuneUntil scar on the state clock;
+        quarantined approaches stay LaneLens's status, re-emphasized)
+  - [x] NewsLens (DeliverPulses liveness parity 0≤age≤PulseMaxYears;
+        age-faded parchment)
+  - [x] PoiLens (live anchors only — !Depleted; typed colors; Dormant)
+  - [x] WorksLens (Sites w/ Progress+LastFedFraction, gate pairs both
+        ends; Freight lerped by sailed fraction w/ efreight STALLED
+        derivation; Convoys = expedition fleets)
 - [ ] **T2 — Unity presentation modules** (thin; StarGen.AtlasView):
       LaneLayer traffic mode · fleet/POI/works glyphs (the first AUTHORED
       sprite atlas — game-icons.net CC-BY / Kenney CC0, runtime-tinted) ·
@@ -56,7 +64,34 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
 
 ## Decisions / deviations
 
-- (running)
+- **Glyph sourcing landed as specced**: 16 game-icons.net SVGs (authors
+  lorc/delapouite/sbed, CC BY 3.0) rasterized white-on-transparent into
+  `unity/Assets/Atlas/Resources/AtlasGlyphs.png` (4×4, 128px cells,
+  Resources-loaded, runtime-tinted); attribution in
+  `unity/Assets/Atlas/GLYPH-CREDITS.md`. Kenney's pack was UI iconography —
+  wrong vocabulary — and was dropped. Build script kept in the session
+  scratchpad only; the PNG is the artifact, the enum order is the contract.
+- **StarGen/AtlasGlyph is a sibling shader**, not an AtlasBillboard edit:
+  per-vertex UV rect (TEXCOORD1) + _Tint for the LOD fade; the
+  K1-validated point-sprite path stays untouched.
+- **Accent lenses are radio-like** (war/tension/tech), as are
+  lanes/traffic: one fill, one stroke mode — they cannot stack by nature.
+  Accents ride DomainFieldLayer.SetAccent (slot-color re-upload only; no
+  shader change). War accent = peaceful polities fade to ash (emap ','
+  parity).
+- **LaneLayer grew modes** Status/Traffic/QuarantineOnly; the plague lens
+  forces QuarantineOnly when the lanes/traffic chips are off (quarantined
+  approaches marked without lighting the whole network).
+- **Works starvation reads as color**: site glyph cools amber→ember by
+  LastFedFraction; stalled freight is loud red and larger.
+- **News rings**: sqrt-age growth (1 + 1.15·√age hexes, cap 14) — the
+  diffusion-front metaphor; presentation-only curve.
+- **SimHost auto-loads in play mode** (Start): the HUD's load box died
+  with AtlasHud; K3's top bar takes over artifact chrome.
+- **Pointer guard**: LensRail installs AtlasPointerGuard.Test
+  (panel.Pick); CameraRig drops mouse input over chrome (K1 note closed).
+- PriceFieldLayer bakes at cell resolution (256² texture) — no per-hex
+  port scan, so the K1-flagged spatial index stays unneeded (T4 dormant).
 
 ## Carried notes
 

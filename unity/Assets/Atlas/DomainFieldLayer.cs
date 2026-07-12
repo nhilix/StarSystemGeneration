@@ -4,6 +4,13 @@ using UnityEngine;
 
 namespace StarGen.AtlasView
 {
+    /// <summary>What the domain field's fills say (K2): Owner is the K1
+    /// political read; War keeps belligerents lit and fades the peaceful
+    /// to grey; Tension shades each domain by its owner's hottest live
+    /// relation; Tech by the owner's Astrogation tier. Borders, unions
+    /// and overlap shades are unchanged — only the fill tint speaks.</summary>
+    public enum DomainAccent { Owner, War, Tension, Tech }
+
     /// <summary>The domains lens as a field: one plane-quad over the disc,
     /// shaded per pixel by the port registry (StarGen/DomainField). Ports
     /// carry their polity slot; polity colors and the pairwise relationship
@@ -59,20 +66,63 @@ namespace StarGen.AtlasView
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
 
+        private AtlasReadModel _model;
+        private EyeContext _eye;
+        private IReadOnlyList<int> _slots;
+        private DomainAccent _accent = DomainAccent.Owner;
+
+        public DomainAccent Accent => _accent;
+
+        /// <summary>Retint the fills for a lens accent — slot colors are
+        /// the only upload that changes; ports, borders and the relation
+        /// texture stand.</summary>
+        public void SetAccent(DomainAccent accent)
+        {
+            _accent = accent;
+            if (_model == null) return;
+            UploadSlotColors();
+        }
+
+        private void UploadSlotColors()
+        {
+            int slotCount = Mathf.Min(_slots.Count, MaxSlots);
+            var belligerent = _accent == DomainAccent.War
+                ? WarLens.SlotBelligerence(_model, _eye, _slots) : null;
+            var heat = _accent == DomainAccent.Tension
+                ? TensionLens.SlotHeat(_model, _eye, _slots) : null;
+            var tiers = _accent == DomainAccent.Tech
+                ? TechLens.SlotTiers(_model, _eye, _slots) : null;
+            for (int i = 0; i < slotCount; i++)
+            {
+                var c = _accent switch
+                {
+                    // Peace fades to ash while the belligerents keep color
+                    // (emap war parity: letters vs ',').
+                    DomainAccent.War => belligerent[i]
+                        ? AtlasPalette.OwnerColor(_slots[i])
+                        : new StarGen.Core.Atlas.Rgba(58, 62, 72),
+                    DomainAccent.Tension => TensionLens.HeatColor(heat[i]),
+                    DomainAccent.Tech => TechLens.TierColor(tiers[i]),
+                    _ => AtlasPalette.OwnerColor(_slots[i]),
+                };
+                _slotColors[i] = new Vector4(c.R / 255f, c.G / 255f,
+                                             c.B / 255f, 1f);
+            }
+            _material.SetVectorArray("_SlotColors", _slotColors);
+        }
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
+            _model = model;
+            _eye = eye;
             BuildQuad(AtlasGeometry.DiscBounds(model));
 
             var slots = DomainLens.PolitySlots(model, eye);
+            _slots = slots;
             int slotCount = Mathf.Min(slots.Count, MaxSlots);
             var slotOf = new Dictionary<int, int>();
-            for (int i = 0; i < slotCount; i++)
-            {
-                slotOf[slots[i]] = i;
-                var own = AtlasPalette.OwnerColor(slots[i]);
-                _slotColors[i] = new Vector4(own.R / 255f, own.G / 255f,
-                                             own.B / 255f, 1f);
-            }
+            for (int i = 0; i < slotCount; i++) slotOf[slots[i]] = i;
+            UploadSlotColors();
 
             var markers = PortLens.Markers(model, eye);
             int count = Mathf.Min(markers.Count, MaxPorts);

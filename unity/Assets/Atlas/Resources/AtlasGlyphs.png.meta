@@ -1,0 +1,897 @@
+fileFormatVersion: 2
+guid: 91c142f4b1a1844478efd164fa487174
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8215403639382718714
+    second: AtlasGlyphs_0
+  - first:
+      213: -4157363416938555244
+    second: AtlasGlyphs_1
+  - first:
+      213: -601011949100571839
+    second: AtlasGlyphs_2
+  - first:
+      213: -6098727971067094690
+    second: AtlasGlyphs_3
+  - first:
+      213: 2453440135061950047
+    second: AtlasGlyphs_4
+  - first:
+      213: 4621336885597255796
+    second: AtlasGlyphs_5
+  - first:
+      213: 8348257860395936703
+    second: AtlasGlyphs_6
+  - first:
+      213: -3916649431517566764
+    second: AtlasGlyphs_7
+  - first:
+      213: 624937399247748251
+    second: AtlasGlyphs_8
+  - first:
+      213: -5577917423220458133
+    second: AtlasGlyphs_9
+  - first:
+      213: -7617865730834532400
+    second: AtlasGlyphs_10
+  - first:
+      213: 5717531249219636297
+    second: AtlasGlyphs_11
+  - first:
+      213: 287722510163938554
+    second: AtlasGlyphs_12
+  - first:
+      213: -429299988294414540
+    second: AtlasGlyphs_13
+  - first:
+      213: 5796829729325927963
+    second: AtlasGlyphs_14
+  - first:
+      213: -7336368657352336030
+    second: AtlasGlyphs_15
+  - first:
+      213: -4898629733853469083
+    second: AtlasGlyphs_16
+  - first:
+      213: 3341698465824027409
+    second: AtlasGlyphs_17
+  - first:
+      213: 1781454106082898079
+    second: AtlasGlyphs_18
+  - first:
+      213: -1722288478557399360
+    second: AtlasGlyphs_19
+  - first:
+      213: 7126085342012841588
+    second: AtlasGlyphs_20
+  - first:
+      213: 6166325111459141654
+    second: AtlasGlyphs_21
+  - first:
+      213: -6353770436557665114
+    second: AtlasGlyphs_22
+  - first:
+      213: -6298872095127091746
+    second: AtlasGlyphs_23
+  - first:
+      213: -3275148843531880926
+    second: AtlasGlyphs_24
+  - first:
+      213: -8031710824523334453
+    second: AtlasGlyphs_25
+  - first:
+      213: 6066181775094980051
+    second: AtlasGlyphs_26
+  - first:
+      213: -2457138598572686184
+    second: AtlasGlyphs_27
+  - first:
+      213: 6543726764462058298
+    second: AtlasGlyphs_28
+  - first:
+      213: -126601744052359253
+    second: AtlasGlyphs_29
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: AtlasGlyphs_0
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 442
+        width: 26
+        height: 45
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af8bbdb351af20270800000000000000
+      internalID: 8215403639382718714
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_1
+      rect:
+        serializedVersion: 2
+        x: 25
+        y: 486
+        width: 20
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4985c2bbff31e46c0800000000000000
+      internalID: -4157363416938555244
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_2
+      rect:
+        serializedVersion: 2
+        x: 146
+        y: 397
+        width: 92
+        height: 103
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 143681c01d6c8a7f0800000000000000
+      internalID: -601011949100571839
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_3
+      rect:
+        serializedVersion: 2
+        x: 268
+        y: 397
+        width: 103
+        height: 102
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e599ec60937fc5ba0800000000000000
+      internalID: -6098727971067094690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_4
+      rect:
+        serializedVersion: 2
+        x: 396
+        y: 396
+        width: 104
+        height: 104
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5ecd00ddce5c0220800000000000000
+      internalID: 2453440135061950047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_5
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 396
+        width: 104
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4783f6d9969422040800000000000000
+      internalID: 4621336885597255796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_6
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 461
+        width: 21
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fbb23460b48fad370800000000000000
+      internalID: 8348257860395936703
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_7
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 448
+        width: 21
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d8e8a4e71445a9c0800000000000000
+      internalID: -3916649431517566764
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_8
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 461
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b9cb409e0493ca800800000000000000
+      internalID: 624937399247748251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_9
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 448
+        width: 22
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6d7b7a18a14792b0800000000000000
+      internalID: -5577917423220458133
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_10
+      rect:
+        serializedVersion: 2
+        x: 87
+        y: 461
+        width: 21
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0d77cfe9a77e74690800000000000000
+      internalID: -7617865730834532400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_11
+      rect:
+        serializedVersion: 2
+        x: 87
+        y: 448
+        width: 21
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 94c8eedd060c85f40800000000000000
+      internalID: 5717531249219636297
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_12
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 267
+        width: 101
+        height: 105
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: afc843c39123ef300800000000000000
+      internalID: 287722510163938554
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_13
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 268
+        width: 103
+        height: 103
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 43fc1a76fe1da0af0800000000000000
+      internalID: -429299988294414540
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_14
+      rect:
+        serializedVersion: 2
+        x: 269
+        y: 270
+        width: 102
+        height: 102
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1e45e70de9727050800000000000000
+      internalID: 5796829729325927963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_15
+      rect:
+        serializedVersion: 2
+        x: 397
+        y: 269
+        width: 103
+        height: 103
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 26d543d639bff2a90800000000000000
+      internalID: -7336368657352336030
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_16
+      rect:
+        serializedVersion: 2
+        x: 13
+        y: 141
+        width: 102
+        height: 103
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5666f7b0632940cb0800000000000000
+      internalID: -4898629733853469083
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_17
+      rect:
+        serializedVersion: 2
+        x: 156
+        y: 143
+        width: 71
+        height: 101
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 113b8e1bc09106e20800000000000000
+      internalID: 3341698465824027409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_18
+      rect:
+        serializedVersion: 2
+        x: 272
+        y: 140
+        width: 97
+        height: 104
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f907bb8221ff8b810800000000000000
+      internalID: 1781454106082898079
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_19
+      rect:
+        serializedVersion: 2
+        x: 397
+        y: 208
+        width: 102
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c696daf0c33918e0800000000000000
+      internalID: -1722288478557399360
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_20
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 176
+        width: 96
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47e1bc9ecd0f4e260800000000000000
+      internalID: 7126085342012841588
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_21
+      rect:
+        serializedVersion: 2
+        x: 418
+        y: 141
+        width: 18
+        height: 53
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 618d71ea400339550800000000000000
+      internalID: 6166325111459141654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_22
+      rect:
+        serializedVersion: 2
+        x: 435
+        y: 140
+        width: 27
+        height: 55
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6ac0a90a37fd2d7a0800000000000000
+      internalID: -6353770436557665114
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_23
+      rect:
+        serializedVersion: 2
+        x: 475
+        y: 151
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed5445cc339e598a0800000000000000
+      internalID: -6298872095127091746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_24
+      rect:
+        serializedVersion: 2
+        x: 476
+        y: 162
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 22630c2ba755c82d0800000000000000
+      internalID: -3275148843531880926
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_25
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 20
+        width: 98
+        height: 89
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bcc70a51f81a98090800000000000000
+      internalID: -8031710824523334453
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_26
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 75
+        width: 40
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3dd1c773f286f2450800000000000000
+      internalID: 6066181775094980051
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_27
+      rect:
+        serializedVersion: 2
+        x: 147
+        y: 11
+        width: 96
+        height: 98
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8948c2c867d76edd0800000000000000
+      internalID: -2457138598572686184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_28
+      rect:
+        serializedVersion: 2
+        x: 269
+        y: 20
+        width: 103
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a3b2af672dcffca50800000000000000
+      internalID: 6543726764462058298
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AtlasGlyphs_29
+      rect:
+        serializedVersion: 2
+        x: 397
+        y: 12
+        width: 103
+        height: 104
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: baf60d172683e3ef0800000000000000
+      internalID: -126601744052359253
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      AtlasGlyphs_0: 8215403639382718714
+      AtlasGlyphs_1: -4157363416938555244
+      AtlasGlyphs_10: -7617865730834532400
+      AtlasGlyphs_11: 5717531249219636297
+      AtlasGlyphs_12: 287722510163938554
+      AtlasGlyphs_13: -429299988294414540
+      AtlasGlyphs_14: 5796829729325927963
+      AtlasGlyphs_15: -7336368657352336030
+      AtlasGlyphs_16: -4898629733853469083
+      AtlasGlyphs_17: 3341698465824027409
+      AtlasGlyphs_18: 1781454106082898079
+      AtlasGlyphs_19: -1722288478557399360
+      AtlasGlyphs_2: -601011949100571839
+      AtlasGlyphs_20: 7126085342012841588
+      AtlasGlyphs_21: 6166325111459141654
+      AtlasGlyphs_22: -6353770436557665114
+      AtlasGlyphs_23: -6298872095127091746
+      AtlasGlyphs_24: -3275148843531880926
+      AtlasGlyphs_25: -8031710824523334453
+      AtlasGlyphs_26: 6066181775094980051
+      AtlasGlyphs_27: -2457138598572686184
+      AtlasGlyphs_28: 6543726764462058298
+      AtlasGlyphs_29: -126601744052359253
+      AtlasGlyphs_3: -6098727971067094690
+      AtlasGlyphs_4: 2453440135061950047
+      AtlasGlyphs_5: 4621336885597255796
+      AtlasGlyphs_6: 8348257860395936703
+      AtlasGlyphs_7: -3916649431517566764
+      AtlasGlyphs_8: 624937399247748251
+      AtlasGlyphs_9: -5577917423220458133
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

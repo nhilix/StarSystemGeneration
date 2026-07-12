@@ -6,9 +6,9 @@ using UnityEngine;
 namespace StarGen.AtlasView.EditorTools
 {
     /// <summary>Headless acceptance shots: build the scene, load the
-    /// default artifact (the seed-42 golden), show every K1 layer, render
-    /// three views — top-down galaxy, tilted 2.5D domains, tilted region
-    /// closeup — to PNGs at the repo root. Batchmode: -executeMethod
+    /// default artifact (the seed-42 golden), render the K1 base views
+    /// plus one shot per K2 lens — the pre-eyeball loop against REPL
+    /// `emap`. PNGs land at the repo root. Batchmode: -executeMethod
     /// StarGen.AtlasView.EditorTools.AtlasSmoke.RunFromCli (graphics ON —
     /// no -nographics — or there is nothing to render with).</summary>
     public static class AtlasSmoke
@@ -28,9 +28,16 @@ namespace StarGen.AtlasView.EditorTools
             var stars = Object.FindAnyObjectByType<StarfieldLayer>();
             var domains = Object.FindAnyObjectByType<DomainFieldLayer>();
             var nature = Object.FindAnyObjectByType<NatureFieldLayer>();
+            var price = Object.FindAnyObjectByType<PriceFieldLayer>();
             var lattice = Object.FindAnyObjectByType<LatticeLayer>();
             var lanes = Object.FindAnyObjectByType<LaneLayer>();
             var ports = Object.FindAnyObjectByType<PortLayer>();
+            var fleets = Object.FindAnyObjectByType<FleetLayer>();
+            var pois = Object.FindAnyObjectByType<PoiLayer>();
+            var works = Object.FindAnyObjectByType<WorksLayer>();
+            var plague = Object.FindAnyObjectByType<PlagueLayer>();
+            var war = Object.FindAnyObjectByType<WarLayer>();
+            var news = Object.FindAnyObjectByType<NewsLayer>();
             var rig = Object.FindAnyObjectByType<CameraRig>();
             var cam = rig.Cam;
 
@@ -38,9 +45,16 @@ namespace StarGen.AtlasView.EditorTools
             stars.EnsureMaterial();
             domains.EnsureMaterial();
             nature.EnsureMaterial();
+            price.EnsureMaterial();
             lattice.EnsureMaterial();
             lanes.EnsureMaterial();
             ports.EnsureMaterial();
+            fleets.EnsureMaterial();
+            pois.EnsureMaterial();
+            works.EnsureMaterial();
+            plague.EnsureMaterial();
+            war.EnsureMaterial();
+            news.EnsureMaterial();
 
             if (!host.LoadArtifact())
             {
@@ -53,54 +67,132 @@ namespace StarGen.AtlasView.EditorTools
             stars.Show(model);
             domains.Show(model, eye);
             nature.Show(model, eye);
+            price.Show(model, eye);
             lattice.Prepare(model);
             lanes.Show(model, eye);
             ports.Show(model, eye);
+            fleets.Show(model, eye);
+            pois.Show(model, eye);
+            works.Show(model, eye);
+            plague.Show(model, eye);
+            war.Show(model, eye);
+            news.Show(model, eye);
+
+            // The K2 lens layers start hidden — each shot opts in.
+            fleets.SetVisible(false);
+            pois.SetVisible(false);
+            works.SetVisible(false);
+            plague.SetVisible(false);
+            war.SetVisible(false);
+            news.SetVisible(false);
+            price.SetVisible(false);
 
             cam.aspect = (float)Width / Height;
             var bounds = AtlasGeometry.DiscBounds(model);
             rig.FitTo(bounds);
             float extent = rig.GalaxyExtent;
             float fit = rig.Distance;
+            var port0 = AtlasGeometry.HexToWorld(host.State.Ports[0].Hex);
 
-            // Shot 1: the whole disc, top-down (the 90° limit).
-            SetAndStyle(rig, lanes, lattice, bounds.center, fit, 90f);
+            void View(Vector3 focus, float distance, float pitch)
+            {
+                rig.SetView(focus, distance, pitch);
+                SetAndStyle(rig, lanes, lattice,
+                            fleets, pois, works, plague, war);
+            }
+
+            // ---- K1 base views ----
+            View(bounds.center, fit, 90f);
             Capture(cam, "atlas-smoke.png");
             Debug.Log($"AtlasSmoke: galaxy top-down — year {host.State.WorldYear}, "
                 + $"{host.State.Ports.Count} ports, {host.State.Lanes.Count} lanes, "
                 + $"band {rig.Band}");
 
-            // Shot 1b: same view with the gas field on — gas + starfield
-            // should read as a naturally rendered galaxy.
             nature.Select(StarGen.Core.Atlas.NatureLayer.Gas);
             Capture(cam, "atlas-smoke-nature.png");
             nature.Select(null);
-            Debug.Log("AtlasSmoke: nature (gas) shot");
 
-            // Shot 2: the settled reach, tilted — the 2.5D domains view.
-            var port0 = AtlasGeometry.HexToWorld(host.State.Ports[0].Hex);
-            SetAndStyle(rig, lanes, lattice, port0, extent * 0.7f, 55f);
+            View(port0, extent * 0.7f, 55f);
             Capture(cam, "atlas-smoke-domains.png");
-            Debug.Log($"AtlasSmoke: tilted domains at band {rig.Band}");
 
-            // Shot 3: region closeup, tilted — lattice resolving.
-            SetAndStyle(rig, lanes, lattice, port0, extent * 0.11f, 60f);
+            View(port0, extent * 0.11f, 60f);
             Capture(cam, "atlas-smoke-region.png");
-            Debug.Log($"AtlasSmoke: region closeup at band {rig.Band}");
+
+            // ---- K2 lens shots: the settled reach, glyphs resolved ----
+            var lensView = port0;
+            float lensDistance = extent * 0.30f;
+
+            View(lensView, lensDistance, 62f);
+
+            lanes.SetMode(LaneMode.Traffic);
+            Capture(cam, "atlas-smoke-traffic.png");
+            lanes.SetMode(LaneMode.Status);
+
+            fleets.SetVisible(true);
+            Capture(cam, "atlas-smoke-fleets.png");
+            fleets.SetVisible(false);
+
+            price.SetVisible(true);
+            Capture(cam, "atlas-smoke-price.png");
+            price.SetVisible(false);
+
+            domains.SetAccent(DomainAccent.War);
+            war.SetVisible(true);
+            Capture(cam, "atlas-smoke-war.png");
+            war.SetVisible(false);
+
+            domains.SetAccent(DomainAccent.Tension);
+            Capture(cam, "atlas-smoke-tension.png");
+
+            domains.SetAccent(DomainAccent.Tech);
+            Capture(cam, "atlas-smoke-tech.png");
+            domains.SetAccent(DomainAccent.Owner);
+
+            plague.SetVisible(true);
+            lanes.SetMode(LaneMode.QuarantineOnly);
+            Capture(cam, "atlas-smoke-plague.png");
+            plague.SetVisible(false);
+            lanes.SetMode(LaneMode.Status);
+
+            news.SetVisible(true);
+            Capture(cam, "atlas-smoke-news.png");
+            news.SetVisible(false);
+
+            pois.SetVisible(true);
+            Capture(cam, "atlas-smoke-pois.png");
+            pois.SetVisible(false);
+
+            works.SetVisible(true);
+            Capture(cam, "atlas-smoke-works.png");
+            works.SetVisible(false);
+
+            Debug.Log($"AtlasSmoke: lens suite rendered — "
+                + $"{host.State.Fleets.Count} fleets, {host.State.Pois.Count} POIs, "
+                + $"{host.State.Projects.Count} projects, "
+                + $"{host.State.Shipments.Count} shipments, "
+                + $"{host.State.Pulses.Count} pulses, "
+                + $"{host.State.Plagues.Count} plagues");
 
             if (exitOnFailure) EditorApplication.Exit(0);
         }
 
         private static void SetAndStyle(CameraRig rig, LaneLayer lanes,
-            LatticeLayer lattice, Vector3 focus, float distance, float pitch)
+            LatticeLayer lattice,
+            FleetLayer fleets, PoiLayer pois, WorksLayer works,
+            PlagueLayer plague, WarLayer war)
         {
-            rig.SetView(focus, distance, pitch);
             // Edit mode: the rig's ZoomChanged fires, but listeners are
             // wired by AtlasRoot.OnEnable which never ran — style by hand.
             lanes.SetExtent(rig.GalaxyExtent);
             lanes.ViewportPx = Height;
             lanes.OnZoom(rig.Distance);
             lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
+            float extent = rig.GalaxyExtent;
+            fleets.OnZoom(rig.Distance, extent);
+            pois.OnZoom(rig.Distance, extent);
+            works.OnZoom(rig.Distance, extent);
+            plague.OnZoom(rig.Distance, extent);
+            war.OnZoom(rig.Distance, extent);
         }
 
         private static void Capture(Camera cam, string fileName)
