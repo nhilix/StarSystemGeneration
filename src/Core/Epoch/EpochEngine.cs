@@ -30,8 +30,15 @@ public sealed class EpochEngine
     public void Step(SimState state)
     {
         foreach (var phase in _phases)
+        {
             state.Trace.Add(new PhaseTraceEntry(state.EpochIndex, phase.Name,
                                                 phase.Run(state)));
+            // the always-on probe: read-only, so it can never perturb —
+            // the per-phase money rows attribute treasury motion
+            state.Health.MoneyRows.Add(MetricsOps.Money(state, phase.Name));
+        }
+        state.Health.Rows.Add(MetricsOps.Snapshot(state));
+        state.Health.PolityRows.AddRange(MetricsOps.PolityRows(state));
         state.EpochIndex++;
         state.WorldYear += state.Config.Sim.YearsPerEpoch;
     }
