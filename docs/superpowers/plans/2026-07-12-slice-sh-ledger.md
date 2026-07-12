@@ -25,24 +25,21 @@ digs deeper. Interacts with `Phases.Borrow`'s 2×-principal lender gate.
 
 ## Tasks
 
-- [ ] S1 — `MetricRow` / `MoneyRow` / `PolityRow` records +
-      `MetricsOps.Snapshot` / `MoneyRow(state, phase)` (TDD; pure, fixed
-      iteration order)
-- [ ] S2 — `MetricRegistry` (KnobRegistry pattern: Family.Name, doc,
-      accessor; name-sorted) + `MetricRegistryTests`
-- [ ] S3 — `SimState.Health` series + `EpochEngine.Step` hooks (money row
-      per phase, full row + polity rows after Chronicle); purity gate:
-      trace/artifact byte-identical to pre-slice
-- [ ] S4 — money mint/sink inventory (code pass) + conservation-residual
-      metric + test at default seed-42 config
-- [ ] S5 — sweep runner: `Program.cs` arg dispatch + `SweepRunner.cs`
-      (experiment JSON, KnobRegistry.Find resolution with unknown-name
-      refusal, CSV writers, manifest.json); determinism test (same
-      experiment → byte-identical CSVs); gitignore `runs/`
-- [ ] S6 — REPL `ehealth` / `ehealth <metric>` / `ehealth save <file>`
-- [ ] S7 — `docs/SIMHEALTH.md` (metric meanings, healthy ranges,
-      mint/sink inventory, pathology entries) + TUNING.md cross-ref
-- [ ] S8 — GATE: full suite green, no golden diffs, REPL surface works
+- [x] S1 — `MetricRow` / `MoneyRow` / `PolityRow` records +
+      `MetricsOps.Snapshot` / `Money(state, phase)` / `PolityRows` (123d474)
+- [x] S2 — `MetricRegistry` + `MetricRegistryTests` (af6b7fb)
+- [x] S3 — `SimState.Health` series + `EpochEngine.Step` hooks; purity
+      witnessed by goldens/determinism staying green (845/845)
+- [x] S4 — mint/sink inventory + conservation residual (7117580):
+      entry endowment is the ONLY mint; ExpeditionPurses + CourierEscrow
+      join the holder classes; residual ZERO across seed-42 defaults
+- [x] S5 — sweep runner (52a4821): MetricCsv in Core (testable), JSON
+      shell in Inspector; smoke sweep byte-identical across reruns
+- [x] S6 — REPL ehealth ×3 verbs (66d022b); 12-epoch probe already shows
+      the spiral: treasuries negative from epoch 1, pools+households hold
+      the supply
+- [x] S7 — SIMHEALTH.md + TUNING.md cross-ref (92db73c)
+- [x] S8 — GATE: 852/852, zero golden diffs, REPL surface exercised
 - [ ] S9 — fresh-eyes whole-branch review subagent + one fix wave
 - [ ] S10 — diagnosis: default-knob ensemble (~8 seeds × 40 epochs) via
       the sweep runner; debt-spiral characterization →
@@ -52,4 +49,12 @@ digs deeper. Interacts with `Phases.Borrow`'s 2×-principal lender gate.
 
 ## Decisions
 
-- (running log — record deviations from spec here, flag to user)
+- S10 diagnosis runs BEFORE the S9 fresh-eyes review (ledger-order
+  deviation): probe gaps the diagnosis exposes should be fixed inside the
+  review's one wave, not after it.
+- Diagnosis ensemble carries three credit-relevant variants beyond
+  baseline (flush-start ×10 initial credits, lean-labor 0.2, cheap-credit
+  0.005/yr) — inputs to the monetary slice's design, no knob changes land
+  this slice.
+- MetricCsv lives in Core (testable, deterministic strings); the
+  Inspector keeps only JSON parsing + file I/O.
