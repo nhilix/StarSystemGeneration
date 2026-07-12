@@ -155,3 +155,14 @@ Core.Tests never references Inspector.
 - Quarantine clock edge (lanes `>=` vs freight stall `>`) is upstream — K3
   ports faithfully wherever it surfaces (ShipmentPanel STALLED uses `>`).
 - Plague lens legitimately empty on seed-42 y1000 — mid-plague year demos it.
+- **FLAGGED UPSTREAM (user, K3 eyeball; for the contract-economy slice)**:
+  every entered polity in the seed-42 golden holds deeply negative Credits
+  (-6k..-278k). Not a K3 display bug (panel shows registry truth; the REPL
+  never surfaced this number). Deficit financing is intentional
+  (AllocationPhase budgets max(Credits, Receipts) — "credit picks up the
+  slack") BUT the credit loop cannot equilibrate: Phases.Borrow needs a
+  lender with Credits >= 2.4x the hole, and once ALL polities are negative
+  no lender exists — insolvency never clears, and host.Credits <= 0 also
+  silently disables the corp-leverage/nationalization thread. The panel
+  now labels negative treasuries "(in deficit — credit-financed)" in warn
+  color.

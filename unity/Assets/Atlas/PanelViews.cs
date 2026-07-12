@@ -146,7 +146,11 @@ namespace StarGen.AtlasView
             }
 
             Sect(body, "treasury");
-            Kv(body, "credits", Inv($"{card.Credits:0}"));
+            // negative is a real state: development is deficit-financed
+            // through downturns (AllocationPhase) — read as debt, not glitch
+            Kv(body, "credits", Inv($"{card.Credits:0}")
+                + (card.Credits < 0 ? "  (in deficit — credit-financed)" : ""),
+               card.Credits < 0 ? "warn" : null);
             Kv(body, "reserve points", Inv($"{card.ReservePoints:0.0}"), "acc");
 
             Sect(body, "tech");
