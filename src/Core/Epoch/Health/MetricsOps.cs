@@ -12,11 +12,13 @@ public sealed record MoneyRow(
     int Epoch, string Phase,
     double PolityCredits, double PolityPools, double CorpCredits,
     double SegmentWealth, double FactionWealth, double OrderEscrow,
+    double CourierEscrow, double ExpeditionPurses,
     double LoanPrincipal)
 {
     /// <summary>The money supply: every holder class summed.</summary>
     public double Supply => PolityCredits + PolityPools + CorpCredits
-        + SegmentWealth + FactionWealth + OrderEscrow;
+        + SegmentWealth + FactionWealth + OrderEscrow
+        + CourierEscrow + ExpeditionPurses;
 }
 
 /// <summary>One epoch's macro snapshot — a pure function of the state at
@@ -27,7 +29,8 @@ public sealed record MetricRow(
     int LivePolities, int NegativeTreasuries,
     double MinPolityCredits, double MedianPolityCredits,
     double MaxPolityCredits,
-    double Population, double MeanSoL);
+    double Population, double MeanSoL,
+    int EndowedEntries, double ConservationResidual);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -59,11 +62,26 @@ public static class MetricsOps
         foreach (var f in state.Factions) faction += f.Wealth;
         double escrow = 0;
         foreach (var o in state.Orders) escrow += o.EscrowCredits;
+        // couriers hold their fee from post to delivery/refund; live-only
+        // registry, but a retired record's escrow is already paid out
+        double courier = 0;
+        foreach (var c in state.Couriers)
+            if (c.Status == CourierStatus.Open
+                || c.Status == CourierStatus.InTransit)
+                courier += c.FeeEscrow;
+        // an expedition carries its founding purse from the act's
+        // expansion-point charge to the settlers' pockets at landfall —
+        // a cancelled expedition's purse is lost with the convoy (a
+        // DESIGNED sink the residual will print; SIMHEALTH.md carries it)
+        double purses = 0;
+        foreach (var p in state.Projects)
+            if (p.Kind == ProjectKind.ColonyExpedition && p.InFlight)
+                purses += state.Config.Expansion.ColonyCost;
         double principal = 0;
         foreach (var l in state.Loans)
             if (!l.Closed) principal += l.Principal;
         return new MoneyRow(state.EpochIndex, phase, polity, pools, corp,
-            segment, faction, escrow, principal);
+            segment, faction, escrow, courier, purses, principal);
     }
 
     /// <summary>The full macro row — one per epoch, after Chronicle.</summary>
@@ -96,10 +114,31 @@ public static class MetricsOps
             pop += s.Size;
             sol += s.SoL * s.Size;
         }
-        return new MetricRow(state.EpochIndex, state.WorldYear,
-            Money(state, "epoch"),
+
+        // conservation (spec §2): the entry endowment is the only mint —
+        // everything else is a move between holder classes, so the supply
+        // delta minus the epoch's endowments must be zero. The previous
+        // row comes from the health series; a fresh series (a loaded
+        // artifact) has no baseline, so its first residual is defined 0.
+        int endowed = 0;
+        foreach (var e in state.Log.Events)
+            if (e.Type == WorldEventType.PolityEmerged) endowed++;
+        var money = Money(state, "epoch");
+        double residual = 0;
+        if (state.Health.Rows.Count > 0)
+        {
+            var prev = state.Health.Rows[state.Health.Rows.Count - 1];
+            double endowment = state.Config.Economy.InitialCreditsPerPolity
+                + state.Config.Expansion.HomeworldSegmentSize
+                  * state.Config.Economy.InitialWealthPerPop;
+            residual = money.Supply - prev.Money.Supply
+                - (endowed - prev.EndowedEntries) * endowment;
+        }
+
+        return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
-            pop, pop <= 0 ? 0.0 : sol / pop);
+            pop, pop <= 0 ? 0.0 : sol / pop,
+            endowed, residual);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

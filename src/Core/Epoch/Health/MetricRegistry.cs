@@ -23,8 +23,17 @@ public static class MetricRegistry
     private static readonly MetricDef[] Table =
     {
         // ---- Money (the holder classes — conserved credit stores) ----
+        M("Money.ConservationResidual",
+          "supply delta minus known mints — nonzero means an unknown leak",
+          r => r.ConservationResidual),
         M("Money.CorpCredits", "corporation treasuries summed",
           r => r.Money.CorpCredits),
+        M("Money.CourierEscrow",
+          "courier fees in flight (post → delivery/refund)",
+          r => r.Money.CourierEscrow),
+        M("Money.ExpeditionPurses",
+          "founding purses aboard in-flight colony expeditions",
+          r => r.Money.ExpeditionPurses),
         M("Money.FactionWealth", "faction war chests summed",
           r => r.Money.FactionWealth),
         M("Money.LoanPrincipal",
@@ -44,6 +53,9 @@ public static class MetricRegistry
           r => r.Money.Supply),
 
         // ---- Polity (the treasury distribution) ----
+        M("Polity.Emerged",
+          "cumulative endowed entries (the PolityEmerged chronicle count)",
+          r => r.EndowedEntries),
         M("Polity.Live", "entered, unretired polities",
           r => r.LivePolities),
         M("Polity.MaxCredits", "richest live polity's treasury",

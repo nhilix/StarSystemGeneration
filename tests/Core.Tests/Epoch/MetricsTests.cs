@@ -37,6 +37,13 @@ public class MetricsTests
             postedYear: state.WorldYear, expiryYear: state.WorldYear + 100));
         state.Loans.Add(new Loan(0, pr.ActorId, pr.ActorId, 250.0,
             0.02, 50, state.WorldYear));
+        state.Couriers.Add(new CourierContract(state.NextCourierId++,
+            pr.ActorId, 0, 0, feeEscrow: 12.0, CourierPriority.Normal,
+            state.WorldYear, state.WorldYear + 100));
+        state.Projects.Add(new Project(state.Projects.Count,
+            ProjectKind.ColonyExpedition, pr.ActorId, pr.ActorId, 0,
+            new StarGen.Core.Model.HexCoordinate(0, 0), yearsRequired: 10,
+            state.WorldYear));
 
         var after = MetricsOps.Money(state, "test");
         Assert.Equal(100.0, after.PolityCredits - before.PolityCredits, 9);
@@ -45,8 +52,12 @@ public class MetricsTests
         Assert.Equal(25.0, after.SegmentWealth - before.SegmentWealth, 9);
         Assert.Equal(15.0, after.FactionWealth - before.FactionWealth, 9);
         Assert.Equal(9.0, after.OrderEscrow - before.OrderEscrow, 9);
+        Assert.Equal(12.0, after.CourierEscrow - before.CourierEscrow, 9);
+        Assert.Equal(state.Config.Expansion.ColonyCost,
+            after.ExpeditionPurses - before.ExpeditionPurses, 9);
         Assert.Equal(250.0, after.LoanPrincipal - before.LoanPrincipal, 9);
-        Assert.Equal(100.0 + 26.0 + 40.0 + 25.0 + 15.0 + 9.0,
+        Assert.Equal(100.0 + 26.0 + 40.0 + 25.0 + 15.0 + 9.0 + 12.0
+            + state.Config.Expansion.ColonyCost,
             after.Supply - before.Supply, 9);
         Assert.Equal("test", after.Phase);
         Assert.Equal(state.EpochIndex, after.Epoch);
