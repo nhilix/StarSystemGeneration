@@ -19,6 +19,8 @@ namespace StarGen.AtlasView
         private VisualElement _track;
         private VisualElement _marker;
         private TextField _seed;
+        private TextField _radius;
+        private TextField _epochs;
         /// <summary>While a scrub-drag is live the strip must not rebuild
         /// (that would destroy the captured track mid-drag) — only the
         /// marker moves; the full rebuild lands on pointer-up.</summary>
@@ -122,21 +124,41 @@ namespace StarGen.AtlasView
             spacer.AddToClassList("ssg-spacer");
             bar.Add(spacer);
 
-            // the bar rebuilds every step — a half-typed seed must survive
-            _seed = new TextField
-            { value = _seed?.value ?? DockKit.Inv($"{host.State.Config.MasterSeed}") };
-            _seed.AddToClassList("ssg-strip__seed");
-            bar.Add(_seed);
+            // the run-seed cluster: seed · radius · epochs. The bar
+            // rebuilds every step — half-typed values must survive
+            _seed = SeedField(bar, "SEED", _seed?.value
+                ?? DockKit.Inv($"{host.State.Config.MasterSeed}"), narrow: false);
+            _radius = SeedField(bar, "R", _radius?.value ?? DockKit.Inv(
+                $"{host.State.Skeleton.Config.GalaxyRadiusCells}"), narrow: true);
+            _epochs = SeedField(bar, "EP", _epochs?.value
+                ?? DockKit.Inv($"{host.State.Config.Sim.EpochCount}"), narrow: true);
             var run = new Button(() =>
             {
-                if (ulong.TryParse(_seed.value.Trim(), out var seed))
-                    host.RunSeed(seed);
+                if (!ulong.TryParse(_seed.value.Trim(), out var seed)) return;
+                int radius = int.TryParse(_radius.value.Trim(), out var r)
+                    && r > 0 ? r : 21;
+                int epochs = int.TryParse(_epochs.value.Trim(), out var n)
+                    && n > 0 ? n : 40;
+                host.RunSeed(seed, radius, epochs);
             }) { text = "RUN SEED" };
             run.AddToClassList("ssg-btn");
             run.AddToClassList("ssg-btn--accent");
             bar.Add(run);
 
             return bar;
+        }
+
+        private static TextField SeedField(VisualElement bar, string label,
+                                           string value, bool narrow)
+        {
+            var tag = new Label(label);
+            tag.AddToClassList("ssg-strip__lbl");
+            bar.Add(tag);
+            var field = new TextField { value = value };
+            field.AddToClassList("ssg-strip__seed");
+            if (narrow) field.AddToClassList("ssg-strip__seed--num");
+            bar.Add(field);
+            return field;
         }
 
         private static IEnumerable<int> Ticks(int generation)

@@ -50,6 +50,9 @@ namespace StarGen.AtlasView
 
         private bool _playing;
         private float _nextStepAt;
+        /// <summary>Epoch index play pauses at (−1 = unbounded) — run-seed
+        /// plays from genesis to here so every keyframe gets captured.</summary>
+        private int _playUntilEpoch = -1;
 
         public bool Playing
         {
@@ -71,6 +74,14 @@ namespace StarGen.AtlasView
         {
             if (!_playing || Machine == null) return;
             if (Time.unscaledTime < _nextStepAt) return;
+            if (_playUntilEpoch >= 0
+                && Machine.Current.EpochIndex >= _playUntilEpoch)
+            {
+                _playUntilEpoch = -1;
+                Playing = false;
+                TimeChanged?.Invoke();   // the strip's PLAY button resets
+                return;
+            }
             _nextStepAt = Time.unscaledTime + playStepSeconds;
             StepEpochs(1);
         }
@@ -93,6 +104,7 @@ namespace StarGen.AtlasView
                 // changed and genesis strata re-record
                 Machine = new TimeMachine(
                     File.ReadAllText(path).Replace("\r\n", "\n"));
+                _playUntilEpoch = -1;
                 Playing = false;
                 Sync();
                 LoadError = null;
@@ -109,10 +121,11 @@ namespace StarGen.AtlasView
             }
         }
 
-        /// <summary>Runs the epoch sim from a seed in-editor (the REPL's
-        /// `epoch` pattern) and makes the finished run the timeline's base
-        /// artifact — keyframes then record against it like any load.</summary>
-        public bool RunSeed(ulong seed, int radiusCells = 21, int epochs = 0)
+        /// <summary>Seeds a fresh galaxy in-editor and makes the UNSTEPPED
+        /// genesis world (y0, epoch 0) the timeline's base, then plays
+        /// through to <paramref name="epochs"/> — every keyframe captured,
+        /// the map evolving from the start (the eyeball-wave-1 ask).</summary>
+        public bool RunSeed(ulong seed, int radiusCells = 21, int epochs = 40)
         {
             try
             {
@@ -121,12 +134,12 @@ namespace StarGen.AtlasView
                 var skeleton = SkeletonBuilder.Build(new GalaxyConfig
                 { MasterSeed = seed, GalaxyRadiusCells = radiusCells });
                 var state = EpochGenesis.Seed(skeleton, config);
-                new EpochEngine().Run(state);
                 Machine = new TimeMachine(ArtifactSerializer.ToText(state));
-                Playing = false;
                 Sync();
                 LoadError = null;
                 Loaded?.Invoke();
+                _playUntilEpoch = epochs > 0 ? epochs : -1;
+                Playing = true;
                 return true;
             }
             catch (Exception ex)

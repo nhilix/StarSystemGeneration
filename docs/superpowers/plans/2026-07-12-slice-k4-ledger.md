@@ -134,6 +134,18 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
       scale).
 - [ ] **T8 — USER: timeline eyeball** — watch 40 epochs animate on the
       domains lens; scrub back to a mid-war year; step fine.
+  - Eyeball wave 1 (2026-07-12): (1) legend overlapped the strip's
+    transport buttons — legend bottom 96→122px (strip is ~105px tall) ·
+    (2) RUN SEED gains radius + epochs fields (R/EP, values persist
+    across play-tick rebuilds) · (3) run-seed SEMANTICS: the base is now
+    the UNSTEPPED genesis world (y0, epoch 0) and the host auto-plays to
+    the target epoch (`_playUntilEpoch`), capturing every keyframe — you
+    watch the map evolve from the start; Core pin
+    `AGenesisBase_StepsAndScrubsByteIdentically` proves the y0 artifact
+    round-trips (800 dotnet tests). LoadArtifact clears the play target.
+    NOTE: editor held the project + MCP bridge approval revoked on the
+    fresh worktree — compile verified by the user's editor refresh, not
+    batch.
 - [ ] **T9 — Wrap-up**: merge · HANDOFF · tick K4 in the K roadmap ·
       write the K5 kickoff prompt · republish the living diagram if the
       time model taught us anything · push on say-so.

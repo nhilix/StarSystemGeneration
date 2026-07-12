@@ -349,7 +349,7 @@
 .ssg-legend {
     position: absolute;
     left: 246px;
-    bottom: 96px; /* clears the K4 timeline strip */
+    bottom: 122px; /* clears the K4 timeline strip (eyeball wave 1) */
     background-color: var(--ssg-panel);
     border-width: 1px;
     border-color: var(--ssg-line2);
@@ -430,7 +430,14 @@
 }
 .ssg-strip__seed {
     width: 80px;
-    margin-left: 10px;
+    margin-left: 2px;
+}
+.ssg-strip__seed--num { width: 46px; }
+.ssg-strip__lbl {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-left: 8px;
 }
 .ssg-strip__seed .unity-text-field__input {
     background-color: var(--ssg-ground);

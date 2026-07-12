@@ -171,4 +171,24 @@ public class TimeMachineTests
         Assert.Equal(1, machine.Keyframes[5].YearsPerEpoch);
         Assert.Equal(tipYear + 1, machine.Current.WorldYear);
     }
+
+    [Fact]
+    public void AGenesisBase_StepsAndScrubsByteIdentically()
+    {
+        // the run-seed flow: the base is the seeded world at y0, epoch 0,
+        // UNSTEPPED — playing from genesis captures the whole evolution
+        var state = EpochTestKit.Seeded(42).State;
+        string baseText = ArtifactSerializer.ToText(state);
+        var machine = new TimeMachine(baseText);
+
+        Assert.Equal(0, machine.Current.EpochIndex);
+        Assert.Equal(0, machine.Current.WorldYear);
+
+        machine.Step(2);
+        string tipText = ArtifactSerializer.ToText(machine.Current);
+        machine.ScrubTo(0);
+        Assert.Equal(baseText, ArtifactSerializer.ToText(machine.Current));
+        machine.ScrubTo(2);
+        Assert.Equal(tipText, ArtifactSerializer.ToText(machine.Current));
+    }
 }
