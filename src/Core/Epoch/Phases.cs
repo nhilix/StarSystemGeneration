@@ -347,6 +347,10 @@ public sealed class AllocationPhase : ISimPhase
             // ladder progress; the spend recycles as lab wages (slice G)
             pr.Credits -= TechOps.Research(state, pr, policies.Research,
                 allocatable * budget.Research);
+            // a belligerent raises (or a peaceful polity stands down) its
+            // war-economy ramp before the standing plan breaks ground
+            // (spec §5)
+            SpawnMobilizations(state, pr);
             // the standing plan breaks ground on everything due this step —
             // facilities, port raises, hull batches — as construction
             // projects that Advance feeds over their build years (spec §3)
@@ -691,6 +695,43 @@ public sealed class AllocationPhase : ISimPhase
             value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good)
                      * Substrate.Production.TierCostFactor(tier);
         return value;
+    }
+
+    /// <summary>A belligerent raises a Mobilization project at its capital
+    /// (spec §5): readiness ramps over years while consuming war materiel;
+    /// fronts fight at CURRENT readiness — early battles use the standing
+    /// force. At peace the ramp decays and in-flight mobilizations cancel.</summary>
+    private static void SpawnMobilizations(SimState state, PolityRecord pr)
+    {
+        var cfg = state.Config;
+        int years = cfg.Sim.YearsPerEpoch;
+        bool atWar = WarOps.AtWar(state, pr.ActorId);
+        if (!atWar)
+        {
+            foreach (var p in state.Projects)             // id order (P6)
+                if (p.InFlight && p.Kind == ProjectKind.Mobilization
+                    && p.OwnerActorId == pr.ActorId)
+                    ProjectOps.Cancel(state, p);
+            pr.Mobilization = Math.Max(0.0, pr.Mobilization
+                - cfg.War.DemobilizationPerYear * years);
+            return;
+        }
+        if (pr.Mobilization >= 1.0) return;
+        foreach (var p in state.Projects)
+            if (p.InFlight && p.Kind == ProjectKind.Mobilization
+                && p.OwnerActorId == pr.ActorId) return;  // already raising
+        int capital = -1;
+        foreach (var port in state.Ports)                 // id order (P6)
+            if (port.OwnerActorId == pr.ActorId) { capital = port.Id; break; }
+        if (capital < 0) return;
+        var proj = ProjectOps.Spawn(state, ProjectKind.Mobilization,
+            pr.ActorId, pr.ActorId, capital, state.Ports[capital].Hex,
+            cfg.War.MobilizationYears * (1.0 - pr.Mobilization),
+            ProjectPriority.War, 0);
+        proj.PerYearBasket[(int)Substrate.GoodId.Armaments] =
+            cfg.War.MobilizationArmamentsPerYear;
+        proj.PerYearBasket[(int)Substrate.GoodId.Fuel] =
+            cfg.War.MobilizationFuelPerYear;
     }
 
     /// <summary>Break ground on the standing plan (spec §3, Move 2): each due

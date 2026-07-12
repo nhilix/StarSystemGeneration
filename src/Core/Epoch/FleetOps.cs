@@ -521,6 +521,11 @@ public static class FleetOps
             var v = Vectors(state, fleet);
             strength += (v.Strike + v.Sustained) * fleet.Readiness;
         }
+        // the war economy multiplies the standing force: a fed mobilization
+        // ramp reaches the full MobilizationFactor surge (spec §5)
+        if (state.Actors[actorId].Kind == ActorKind.Polity)
+            strength *= 1.0 + (state.Config.War.MobilizationFactor - 1.0)
+                        * state.PolityOf(actorId).Mobilization;
         return strength;
     }
 }

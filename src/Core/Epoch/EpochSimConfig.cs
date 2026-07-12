@@ -232,6 +232,18 @@ public sealed class WarKnobs
     /// fuel stockpile targets — the mobilization surge that diverts an
     /// economy to the front (fabricators boom, households ration).</summary>
     public double MobilizationFactor { get; set; } = 3.0;
+    /// <summary>World-years a belligerent's Mobilization project takes to
+    /// ramp its war economy from 0 to full readiness (spec §5).</summary>
+    public double MobilizationYears { get; set; } = 3.0;
+    /// <summary>Armaments a Mobilization project draws per world-year —
+    /// the ramp's war-materiel basket.</summary>
+    public double MobilizationArmamentsPerYear { get; set; } = 3.0;
+    /// <summary>Fuel a Mobilization project draws per world-year — the
+    /// ramp's war-materiel basket.</summary>
+    public double MobilizationFuelPerYear { get; set; } = 4.0;
+    /// <summary>Mobilization readiness lost per world-year at peace — the
+    /// standing force stands down once the fighting stops (spec §5).</summary>
+    public double DemobilizationPerYear { get; set; } = 0.15;
     /// <summary>Budget share shifted from development and expansion into
     /// the military line while at war — guns before butter.</summary>
     public double WarBudgetMilitaryShift { get; set; } = 0.20;

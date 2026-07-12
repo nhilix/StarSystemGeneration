@@ -478,6 +478,9 @@ and the incident freshness window (2 epochs) are structural.
 | `War.VictoryLegitimacy` / `DefeatLegitimacy` | 0.08 / 0.12 | War outcomes make and break governments (defeat → graduation risk). | Thrones indifferent to the front. |
 | `War.AnnihilationHatred` | 0.75 | Only saturated hatred with stacked claims turns total (wars of annihilation rare). | Every grudge is a war of extermination. |
 | `War.MobilizationFactor` | 3.0 | Wartime economies pivot hard to the front (fabricators boom, stockpiles corner markets). | War is fought from peacetime stocks. |
+| `War.MobilizationYears` | 3.0 | The war-economy surge takes longer to build (early battles fight at a lower ramp). | Mobilization is nearly instant; fronts fight at full strength from day one. |
+| `War.MobilizationArmamentsPerYear` / `MobilizationFuelPerYear` | 3.0 / 4.0 | Raising readiness draws harder on the war-materiel markets (mobilization competes with the front's own upkeep). | The ramp is cheap; mobilizing costs nothing real. |
+| `War.DemobilizationPerYear` | 0.15 | Standing forces stand down faster once the fighting stops. | Peacetime mobilization lingers for generations. |
 | `War.WarBudgetMilitaryShift` | 0.20 | Guns before butter: development and expansion starve at war. | The exchequer ignores the front. |
 | `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
 

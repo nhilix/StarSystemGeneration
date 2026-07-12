@@ -229,6 +229,55 @@ public class ProjectOpsTests
         Assert.True(PortAt(state, target));            // arrived → founded
     }
 
+    /// <summary>A fed Mobilization project completes and readiness reaches
+    /// full — Task 4's completion path already ratchets pr.Mobilization to
+    /// 1.0, so this assertion is expected to hold even before Task 10's own
+    /// code lands; kept alongside the decay-path test below (spec §5).</summary>
+    [Fact]
+    public void Mobilization_RampsWithFeed_AndReachesFullReadiness()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int port = OwnPort(state, pr.ActorId);
+        var p = ProjectOps.Spawn(state, ProjectKind.Mobilization,
+            pr.ActorId, pr.ActorId, port, state.Ports[port].Hex,
+            yearsRequired: 3.0, ProjectPriority.War, 0);
+        p.PerYearBasket[(int)GoodId.Armaments] = 1.0;
+        state.Markets[port].Inventory[(int)GoodId.Armaments] += 100;
+        pr.MilitaryPoints += 100;
+        ProjectOps.AdvanceAll(state);
+        Assert.True(p.Completed);
+        Assert.Equal(1.0, pr.Mobilization, 6);
+    }
+
+    /// <summary>The decay path Task 10 actually adds: AllocationPhase's
+    /// per-polity SpawnMobilizations call demobilizes a peaceful polity's
+    /// standing war economy by DemobilizationPerYear per world-year — at
+    /// this knob's default (0.15/yr over a 25-year epoch) a full epoch
+    /// always demobilizes fully, floored at zero (spec §5).</summary>
+    [Fact]
+    public void Mobilization_DecaysAtPeace_ByDemobilizationRate()
+    {
+        var state = EpochTestKit.Seeded().State;
+        var actor = state.Actors[0];
+        actor.Entered = true;
+        var port = new Port(0, actor.Id, actor.Seat, tier: 2, foundedYear: 0);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        int species = state.PolityOf(actor.Id).SpeciesId;
+        state.Segments.Add(new PopulationSegment(0, 0, species, species, 3.0));
+        var pr = state.PolityOf(actor.Id);
+        pr.Credits = 100;
+        pr.Mobilization = 1.0;
+        Assert.False(WarOps.AtWar(state, actor.Id));       // peaceful (guard)
+        int years = state.Config.Sim.YearsPerEpoch;
+        double expected = Math.Max(0.0,
+            1.0 - state.Config.War.DemobilizationPerYear * years);
+        new AllocationPhase().Run(state);
+        Assert.Equal(expected, pr.Mobilization, 6);
+    }
+
     private static bool PortAt(SimState state,
                                StarGen.Core.Model.HexCoordinate target)
     {
