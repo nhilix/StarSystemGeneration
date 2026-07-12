@@ -7,11 +7,33 @@ groundbreaking and ruin.
 
 ## Construction
 
-Facilities are built by polity or corporate investment, executed in the Allocation
-phase from standing policies: costed in real goods (Alloys, Machinery, Composites),
-taking real time, financed from wealth or credit. Siting follows the catalog rules;
-the chosen hex is anchored at groundbreaking (P1 — the construction site exists
-before the facility does).
+Every piece of in-flight work — a facility rising, a port raising a tier, a gate
+pair, a hull batch, a colony expedition, a mobilization — is a **project**: a
+record of work that consumes goods and wages over world-years and completes on a
+world-year, never within a step. A polity or corporation schedules projects in its
+standing plan; Allocation breaks ground on a scheduled project when its start year
+arrives, anchoring the site (P1 — the construction site exists before the facility
+does, from the moment ground breaks) and validating against truth (site free,
+treasury covers the administered value, slots open).
+
+A project carries a **rate contract**, not a lump: its catalog `BuildCost` spread
+across its `ConstructionYears` as a per-year basket of real goods (Alloys,
+Machinery, Composites) plus a wage stream to the site's labor. Each Allocation the
+project draws that basket from its **local** market and stockpile. It advances by
+the fraction its scarcest input meets — a project fed 60% of its basket delivers
+0.6 of a year's progress — so a starved work does not hoard, and its completion
+year simply slides. Draws are **priority-ordered** against shared local inventory:
+the war front and the flagship yard drink before the luxury starport, and the
+starvation cascade falls out with no extra rule. A conserved-goods invariant holds
+across the run — per-year basket × years-required equals the lump the work would
+have cost as a single charge.
+
+Completion fires the payload — the facility commissions and begins producing, the
+port tier increments, the lane opens, hulls enter reserve, the colony founds — and
+stages a chronicle event at its world-year. A project cancelled or abandoned
+mid-work leaves its sunk goods sunk and its site an abandoned-works ruin (below).
+Capture transfers a project at its current progress, like the facility it would
+have become; the conqueror's next plan keeps or cancels it.
 
 ## Condition
 

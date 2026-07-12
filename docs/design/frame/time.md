@@ -24,6 +24,18 @@ An epoch integrates 25 years of each rate; the live game integrates the same rat
 at fine ticks. Nothing is expressed "per epoch" internally — the epoch is an
 integration step, not a unit.
 
+## Durations are world-time state, not step counts
+
+Anything that takes time is a duration held in world-years, never a per-step or
+per-generation completion. An action decided in Intent — break ground on a
+fortress, raise a port, mobilize, send a colony expedition — spawns a **project**
+that consumes its inputs over world-years and completes in a specific world-year Y,
+whatever the step size that carries it there. A 25-year epoch integrates the whole
+duration in one step; a 1-year tick integrates one year of it and the completion
+lands at the same Y. Nothing "finishes within the tick," and there are no
+per-generation rate caps — the clock resolution samples the same world-time
+durations, so coarse and fine play tell the same history (P7).
+
 ## Generational vs. play: sampling differs, rules do not
 
 | | Genesis (coarse) | Play (fine) |

@@ -1,159 +1,132 @@
-# Session Handoff — 2026-07-11 (Lane economics on `lane-economics`; K1 merged)
+# Session Handoff — 2026-07-11 (Time & logistics Stage 1 on `slice-t1-project-ledger`)
 
-State: branch `lane-economics` complete and green (626/626; hex-tier
-untouched; golden re-frozen at branch end — the red window closed),
-**awaiting the user's REPL eyeball + merge decision**. `main` still at
-`27fefe7` (K1 merged, not pushed). ProjectSettings churn uncommitted.
+State: branch `slice-t1-project-ledger` complete and green (**649/0**, twice
+for determinism; hex-tier untouched; goldens re-frozen at branch end — the
+red window closed), **awaiting the user's REPL eyeball + merge decision**.
+`main` at `dd8457f` (the Stage-1 plan commit). ProjectSettings churn
+uncommitted.
 
-## Lane economics (this session, spec → plan → implementation)
+## Time & logistics Stage 1 — the project ledger (spec → plan → implementation)
 
-Spec `docs/superpowers/specs/2026-07-11-lane-economics-design.md`, plan
-`docs/superpowers/plans/2026-07-11-lane-economics.md`. Lanes are now
-linked **Gate facility pairs** (InfraTypeId.Gate = 15, Support family,
-zero upkeep — sealed once linked): reach/capacity/speed from gate tier
-(8/16/28 hexes), per-port gate-slot budgets cap lane degree, builders
-pass a detour(1.8×)+congestion(world-year saturation clock) anti-web
-rule via the new `LaneNetwork` (deterministic Dijkstra), crossing fees
-resolve at the destination-side gate (`LaneFees`: own=free, corp=toll,
-foreign polity=customs — replaced both old tariff sites), freight-line
-corps bridge non-hostile borders owning both gates, piracy prices lane
-length, and construction runs one lane per polity per generation in
-world-time (P7). Lanes layer v3 (gate ids + SaturatedYears). Deleted:
-`Expansion.LaneCost`, `Infrastructure.InterPortRange*`. Design docs
-amended in-branch: space-and-travel §Lanes (rewritten), infrastructure
-table (+Gate row), corporations (freight-line acts), markets (tariff
-collection point). Seed-42 baseline before: mean lane degree 9.0 over
-10 ports (all-pairs web); after: ~90 lanes / 89 ports, 2 isolated, all
-live, hub degree pinned at slot caps. **Founding links** (user
-directive): an isolated port's first lane is the colonization chain's
-last step — built before any densification, no stock-on-hand gate
-(the ColonizeResolve convention: the expedition ships the equipment;
-BuildGate still consumes what the pair holds). **No rate limiters**
-(user directive): one-per-generation caps were added mid-branch to
-chase FineTick P7 and removed — durations belong in world-time state,
-not step caps (see next-up). REPL: new `elanes`; `emap lanes` marks
-dead lanes `~`. Two spec deviations flagged: gates pair-build by a
-single funder (half-built = a destroyed far gate, no cross-actor
-escrow), and no emergence gate-seeding. FineTick's provisions band now
-compares the MEDIAN over shared ports (sparse networks let one
-ceiling-priced port swing a mean 3× on connectivity luck); tests
-guarding formation-time or single-actor premises against end-state
-histories got the honest guards (schism-born far pairs, conquered
-homeworlds, pre-existing vassals).
+Spec `docs/superpowers/specs/2026-07-11-time-and-logistics-design.md`
+(§§1–6 = Stage 1; §4b located logistics = Stage 2), plan
+`docs/superpowers/plans/2026-07-11-time-stage1-project-ledger.md`, ledger
+`.superpowers/sdd/progress.md` (per-task, with the carried reds and flags).
 
-## What this session did
+The epoch→fine-tick move had broken every "completes within the generational
+tick" hand-wave; the governing principle is **things take time, not ticks** —
+durations are world-time state, never per-step or per-generation rate caps.
+Stage 1 makes that real for every kind of in-flight work through one
+mechanism, the **project**.
 
-**First: Slice K planning.** Row K (Unity atlas rebuild) was decomposed
-into five sub-slices K1–K5 (walking skeleton, then widen), each a full
-slice session — governing plan
-`docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`. The PoC atlas
-died in K1's first commit (aggressive greenfield, user-confirmed).
-
-**Then: Slice K1 (skeleton instrument), merged.** Ledger:
-`docs/superpowers/plans/2026-07-11-slice-k1-ledger.md` — read it before
-touching the atlas; it records four user eyeball passes and the
-decisions they forced.
-
-- **Read model** (`src/Core/Atlas`, plain C#, 42 xUnit tests, every
-  file with `.meta`): EyeContext (God live; Controller a reserved
-  seam), AtlasReadModel, NatureLens (9 rasters→colors),
-  NatureFieldSampler (nebular fields), DomainLens (union territory,
-  PolitySlots, OverlapShade: war>tension>warmth>neutral), LaneLens
-  (open/quarantined/severed — distinct even though SeveredLaneIds folds
-  both), PortLens (+service radius), StarfieldLens (two-population,
-  filament-clumped), LensStack, AtlasPalette. Territory derives from
-  the port registry at query time — a test pins query-time derivation.
-- **Presentation** (`unity/Assets/Atlas`, namespace StarGen.AtlasView,
-  draw+input only): **2.5D perspective camera** (focus+distance+pitch,
-  damped, dolly-to-cursor, top-down = the 90° limit — spec amended
-  in-branch, "The camera") over one continuous plane; per-pixel
-  **domain field shader** (per-polity max = union regions, fwidth
-  border outlines from EVERY polity's zero edge, Venn overlaps shaded
-  by the relation matrix); two-population starfield billboards; nature
-  rasters baked to bilinear data textures; lattice as faint GPU-line
-  outlines fading in at Region; screen-constant lanes/ports; LodBands
-  (bands gate what resolves; styling is continuous). AtlasHud is
-  provisional IMGUI — K2 replaces it with the UI Toolkit rail.
-- **The eyeball-rejection lesson** (memory + ledger): the first pass
-  reproduced the PoC's filled-hex-board grammar and was rejected;
-  the design artifact's draw code is the visual spec — dark space +
-  starfield + computed fields + authored glyphs. Salvage technique,
-  never aesthetics.
-- **Rendering conventions that will bite** (also in the K2 kickoff):
-  the project renders LINEAR — shaders compose in sRGB and
-  SRGBToLinear once on output; billboard sizing uses explicit globals
-  `_AtlasFocalY`/`_AtlasViewportPx` (built-in `_ScreenParams`/P are
-  unreliable in batch RT renders — sizes silently ride pixel caps);
-  material floats go in `CBUFFER_START(UnityPerMaterial)` and are set
-  explicitly from C#.
-- **Dark-wilds are value-poor, never blank** (user design
-  clarification): IsVoid is only the traversability judgment;
-  CosmicResidue writes real fields for every cell and the atlas
-  renders them (dim, no base lift); the lattice draws every hex in the
-  disc. Economic exclusion (PortDomains/expansion) untouched. **The
-  atlas deliberately diverges from the REPL's blank-glyph voids going
-  forward** (user-confirmed convention).
-- **Registries**: NO new layers, NO sim changes. `RollChannel` gains
-  **AtlasNebula = 74 (VIEW-ONLY — the sim never rolls here); next
-  free: 75**.
-- **Acceptance tooling**: AtlasSmoke (menu: StarGen > Atlas Smoke
-  Shots; batch: `-executeMethod
-  StarGen.AtlasView.EditorTools.AtlasSmoke.RunFromCli`, graphics ON)
-  renders 4 PNGs at the repo root from the seed-42 golden — the
-  pre-eyeball loop. EditMode headless: `-batchmode -nographics
-  -runTests -testPlatform EditMode`. Unity 6000.5.2f1 at the standard
-  Hub path. A batch run needs the editor CLOSED (project lock).
-- Fresh-eyes review: 1 plausible + 6 notes, one fix wave, all
-  addressed; the large 2.5D rework afterward was user-steered through
-  four eyeball iterations. Eyeball accepted 2026-07-11.
+- **The record** (`src/Core/Epoch/Project.cs`): `ProjectKind`,
+  `ProjectPriority`, `Project` (PerYearBasket / WagesPerYear / YearsRequired /
+  YearsDelivered / LastFedFraction / StartedYear), held in `SimState.Projects`.
+- **ProjectOps** (`src/Core/Epoch/ProjectOps.cs`): Spawn/SpawnAt,
+  SpawnFacilityConstruction, SpawnGatePair (a founding link is goods-free per
+  spec §4 — the expedition ships the kit, best-effort drawn at the staging
+  market at departure), SpawnExpedition, SpawnHullBatch; **AdvanceAll**
+  (priority-ordered starvation — fed fraction = min across goods AND the wage
+  stream; progress += f × span); **Complete** (commissions facilities via
+  `Facility.CommissionedYear`, raises port tiers, opens lanes, commissions
+  hulls at accumulated component grade, founds colonies on arrival incl. the
+  failed-founding ColonyCost refund); Cancel.
+- **Capability brief** (`src/Core/Epoch/CapabilityOps.cs`):
+  `ConstructionCandidatesFor` (top-3 per-port perceived candidates — the old
+  `CanAfford` stock gate is deleted); `BriefFor` → `CapabilityBrief` (trailing
+  IncomePerYear, GenerationPerYear estimate, CommitmentBriefs);
+  `PortBrief(PortId, Tier, YardTiers)`.
+- **Standing plan** (`Plan.cs` + `Planner.cs`): `StandingPlan` of
+  `PlanEntry(Kind: Facility/PortRaise/HullBatch, Priority, StartYear absolute,
+  …)`; fixed GenerationYears horizon; packs entry cost/yr against perceived
+  IncomePerYear; D'Hondt hull batches; temperament-weighted scores;
+  `PolityPolicies.Plan`; `GenesisController` emits it; serialized as PLANE
+  lines (actors **v6**).
+- **AllocationPhase**: SpawnMobilizations (war ramp,
+  `PolityRecord.Mobilization`, peace decay) → Groundbreak (truth checks, spawns
+  due entries) → BuildLanes (pass 1 founding links goods-free; pass 2
+  densification streams honestly) → … → `ProjectOps.AdvanceAll`. **Deleted**:
+  the greedy BuildFacilities / RaisePorts / BuildFleets loops,
+  GatePairGoodsPresent, BuildGate.
+- **Port raises cost real goods**: an Alloys/Machinery/Refined-Exotics basket
+  × tier over `Expansion.PortUpgradeYears` (5) — knobs in TUNING.md
+  (`Expansion.PortUpgrade*`).
+- **MarketEngine**: `IsActive = CommissionedYear ≥ 0`; `AddConstructionPull`
+  sums in-flight project baskets (the dead pull knobs are gone);
+  `FleetOps.WarStrength` scales by `1 + (MobilizationFactor − 1) × Mobilization`.
+- **Colony expeditions** travel at `Fleet.ExpeditionHexesPerYear` (6); the
+  convoy hex interpolates en route; arrival founds (or fails gracefully,
+  refunding ColonyCost).
+- **Conquest**: `WarConduct.TransferPort` transfers in-flight projects with a
+  captured port (ColonyExpedition excluded).
+- **Serializer**: actors **v6** (POLITY + LastIncomePerYear + Mobilization,
+  PLANE lines), facilities **v2** (CommissionedYear), corporations **v3**,
+  trailing **projects layer v1**.
+- **REPL**: `eprojects [actorId|all]`, `eplan <actorId>` (ETA under current
+  starvation).
+- **Tuning wave**: `WarTensionFloor` 0.55→0.40, `WarAppetiteThreshold`
+  0.60→0.38 (the slowed economy lowered the tension ceiling). Wars on seed 42:
+  **7 declared / 3 settled / 4 live**.
+- **FineTick P7 honesty test** pins built-world completions
+  (facilities/ports/hull-batches) coarse-vs-fine within an honest band;
+  expansion/logistics foundings are deliberately excluded (decision-cadence
+  divergence, per spec).
+- **Design tree amended** to the project model (this session's docs commit):
+  `frame/simulation-flow.md` (Perception capability brief + Allocation plan
+  execution), `frame/controller-contract.md` (standing plan on polity/corp
+  policies), `economy/assets-and-investment.md` (§Construction → project
+  model), `substrate/infrastructure.md` (ConstructionYears load-bearing +
+  port-upgrade basket), `frame/time.md` (durations-as-world-time-state),
+  `economy/markets.md` (construction pull), `fleets/ships-and-fleets.md` (hull
+  batches, expedition travel time), `interpolity/war.md` (mobilization ramp).
 
 ## Deliberately deferred / flagged
 
-- Per-hex domain sampling is O(hexes×ports) — build a spatial index
-  before K4 animates epochs (K2 kickoff carries it).
-- Triple-overlap fill shades by the top-two relation only (borders all
-  draw); revisit if the K2 war lens makes it read wrong.
-- Field shader folds polities past 32 slots into the last slot —
-  seed-scale is ~13; raise MaxSlots or move to StructuredBuffers if
-  galaxies grow.
-- HUD input isn't gated (IMGUI is provisional); the K2 UI Toolkit rail
-  must consume pointer events.
-- Authored sprite vocabulary (fleet postures, POI types) sourced from
-  game-icons.net (CC-BY) / Kenney (CC0), runtime-tinted — starts in K2.
+- **Stage 2 — located logistics** is the whole §4b of the spec, deliberately
+  out of Stage 1: per-port stockpiles replacing the global
+  `PolityRecord.ReserveQty/Grade` pool, `Shipment` records + transit years over
+  `LaneNetwork`, `MoveFreight` transit conversion, the requisition channel,
+  per-end gate draws, the located capability brief. Kickoff prompt:
+  `docs/superpowers/plans/2026-07-11-time-stage2-kickoff-prompt.md` (complete
+  scope + the hand-off interfaces + the flagged gaps below).
+- **Two fine-tick invariance gaps** (flagged in the FineTick honesty test body,
+  `tests/Core.Tests/Epoch/FineTickTests.cs`): the controller commits one
+  founding per decision step (a finer clock founds more often over the same
+  world-time), and the Planner's `Max(1, tier·rate·span)` hull-batch slot floor
+  fires a unit batch every step at fine tick. Both want a world-time
+  normalization in Stage 2; neither hides the failure the test guards.
+- **White-peace project-ownership revert gap**: a white-peace settlement
+  reverts ports/facilities but NOT in-flight projects — consider routing the
+  revert through `WarConduct.TransferPort`.
+- **Future passes flagged in the spec** (not designed yet): the contract
+  economy (buy/sell contracts fulfilled by freight-line actors — located stock
+  + shipments + transit are its substrate), front supply lines (interdictable
+  convoys to the front), and program-style plan entries (the entry schema
+  already reserves the kind discriminator).
 
 ## Next up
 
-0. **Durations design pass (user-mandated, not yet scheduled).** The
-   epoch→fine-tick move broke the "completes within the generational
-   tick" wave galaxy-wide: construction, convoy travel, shipyard
-   queues, manufacturing, freight delivery, war mobilization all
-   complete instantly today. The user's principle: **things take
-   time, not ticks** — durations are world-time state (an action
-   decided in Intent/Allocation completes in year Y), never per-step
-   or per-generation rate caps. `InfraDef.ConstructionYears` already
-   exists on every facility and is ignored. This wants a brainstorm →
-   spec → slice of its own; it also subsumes the lane-branch interim
-   compromises (founding links' no-goods-gate exception, instant gate
-   raising) and is what makes FineTick P7 honesty automatic.
-1. **Slice K2 (Lens catalog)** — fresh session, point it at
-   `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`
-   (complete: what K1 left ready, per-lens scope, conventions,
-   boundary).
-2. Then K3 (selection & panels), K4 (timeline — may parallel K3 in a
+0. **REPL eyeball + merge decision for THIS branch** (the taste gate): run the
+   sim on seed 42, `eprojects all` / `eplan <polity>`; the throttle test —
+   quarantine a lane feeding a construction site and watch the ETA slide.
+   Merge `slice-t1-project-ledger` to main locally on the nod; push only when
+   the user says so.
+1. **Time & logistics Stage 2 (located logistics)** — fresh session, point it
+   at `docs/superpowers/plans/2026-07-11-time-stage2-kickoff-prompt.md`.
+2. **Slice K2 (Lens catalog)** — fresh session, point it at
+   `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`.
+3. Then K3 (selection & panels), K4 (timeline — may parallel K3 in a
    worktree), K5 (system stage & roadmap close). Governing plan:
-   `2026-07-11-slice-k-roadmap.md`.
-3. **User read-through of the design specs** — still outstanding.
+   `docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`.
+4. **User read-through of the design specs** — still outstanding.
 
 ## Carried process conventions (unchanged unless noted)
 
 Lighter protocol per /CLAUDE.md (scope nod · eyeball · merge decision;
-kickoff-prompt chaining); hex-tier suite never breaks; ProjectSettings
-stays uncommitted; bash printf for REPL piping; parallel slices never
-share a checkout — take a `git worktree` each; every new `src/Core`
-file gets a two-line `.meta` with a fresh guid; every calibration
-constant in a knob registry + TUNING.md (atlas visual constants are
-code-level, not knobs — presentation, not sim). NEW this slice: the
-atlas eyeball loop is smoke-shot-first (render, inspect, THEN hand the
-gate); the design artifact's draw code is the visual spec; atlas
-diverges from REPL rendering conventions by design. Golden regen
+kickoff-prompt chaining); hex-tier suite never breaks; ProjectSettings stays
+uncommitted; bash printf for REPL piping; parallel slices never share a
+checkout — take a `git worktree` each; every new `src/Core` file gets a
+two-line `.meta` with a fresh guid; every calibration constant in a knob
+registry + TUNING.md. The design is the spec — a deviation amends the affected
+`docs/design/` doc in the same branch (this slice amended eight). Golden regen
 one-liner and older conventions: `git show 27fefe7~1:docs/HANDOFF.md`.

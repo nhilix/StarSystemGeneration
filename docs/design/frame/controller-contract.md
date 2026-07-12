@@ -13,6 +13,7 @@ list.
 | Policy | Consumed by |
 |---|---|
 | budget weights: development · military · research (per tech domain) · expansion · appeasement · reserves | Allocation |
+| standing plan: a prioritized schedule of projects (sited facility, port raise, gate pair, hull batch, mobilization) with target start years, packed against perceived free capability | Allocation → groundbreaking |
 | tax rate, tariff schedule (per polity/good) | Markets |
 | law code: legality per good (legal/restricted/prohibited) | Markets, patrol enforcement |
 | charter openness | corporate founding |
@@ -32,9 +33,10 @@ offer/demand · quarantine (self-imposed lane closure) · post procurement contr
 
 ## Corporation
 
-**Policies**: investment allocation (facilities, fleet, depots) · route bids ·
-dividend rate · lobby targets · risk appetite (legality margin — how far into
-black books it operates).
+**Policies**: investment allocation (facilities, fleet, depots) · standing plan
+(a scheduled portfolio of investment projects packed against perceived free
+capability) · route bids · dividend rate · lobby targets · risk appetite
+(legality margin — how far into black books it operates).
 
 **Acts**: charter application · major acquisition or abandonment · headquarters
 relocation · post procurement contract.
