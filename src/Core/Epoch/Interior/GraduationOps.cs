@@ -197,6 +197,8 @@ public static class GraduationOps
         old.DevelopmentPoints -= young.DevelopmentPoints;
         young.MilitaryPoints = old.MilitaryPoints * share;
         old.MilitaryPoints -= young.MilitaryPoints;
+        young.ReservePoints = old.ReservePoints * share;
+        old.ReservePoints -= young.ReservePoints;
         // located stockpiles need no split (spec §4b): the seceding ports
         // change owner below and carry their own banked stock with them
 

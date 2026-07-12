@@ -382,6 +382,8 @@ public static class FederationOps
         from.DevelopmentPoints = 0;
         into.MilitaryPoints += from.MilitaryPoints;
         from.MilitaryPoints = 0;
+        into.ReservePoints += from.ReservePoints;
+        from.ReservePoints = 0;
         into.HullsBuilt += from.HullsBuilt;
         into.HullsWrecked += from.HullsWrecked;
         into.HullsScrapped += from.HullsScrapped;

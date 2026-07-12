@@ -26,7 +26,7 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 6), ("ports", 2), ("lanes", 3), ("facilities", 2),
+        ("actors", 7), ("ports", 2), ("lanes", 3), ("facilities", 2),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 2),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
@@ -139,7 +139,11 @@ public static class ArtifactSerializer
                 R(p.ExpansionPoints), R(p.DevelopmentPoints),
                 R(p.EntryGradeBonus),
                 // actors v6 (slice t1): trailing income rate + mobilization
-                R(p.LastIncomePerYear), R(p.Mobilization)));
+                R(p.LastIncomePerYear), R(p.Mobilization),
+                // actors v7 (stage 2): the reserve treasury rides along —
+                // Markets spends it before Allocation re-accrues, so a
+                // loaded artifact must resume with the same balance
+                R(p.ReservePoints)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -966,6 +970,7 @@ public static class ArtifactSerializer
                             // actors v6 (slice t1): trailing income rate + mobilization
                             LastIncomePerYear = double.Parse(f[7], Inv),
                             Mobilization = double.Parse(f[8], Inv),
+                            ReservePoints = double.Parse(f[9], Inv),
                         });
                         break;
                     case "PORT":

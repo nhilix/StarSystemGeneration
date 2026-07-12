@@ -341,8 +341,12 @@ public sealed class AllocationPhase : ISimPhase
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
+            // stage 2: the reserve share funds procurement (spec §4b) —
+            // Budget.Reserves stops being a dead line
+            pr.ReservePoints += allocatable * budget.Reserves;
             pr.Credits -= allocatable
-                * (budget.Expansion + budget.Development + budget.Military);
+                * (budget.Expansion + budget.Development + budget.Military
+                   + budget.Reserves);
             // the appeasement line buys factions off — a treasury→faction
             // flow, conserved (P4); without factions the line stays liquid
             pr.Credits -= FactionOps.SpendAppeasement(state, pr,
@@ -355,6 +359,10 @@ public sealed class AllocationPhase : ISimPhase
             // war-economy ramp before the standing plan breaks ground
             // (spec §5)
             SpawnMobilizations(state, pr);
+            // state logistics before the works advance (spec §4b): the
+            // quartermaster raises shipping orders from the polity's own
+            // larders toward every under-covered project site
+            ShipmentOps.RaiseRequisitions(state, pr);
             // the standing plan breaks ground on everything due this step —
             // facilities, port raises, hull batches — as construction
             // projects that Advance feeds over their build years (spec §3)

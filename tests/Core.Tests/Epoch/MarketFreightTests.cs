@@ -196,13 +196,17 @@ public class MarketFreightTests
             { [(int)GoodId.Provisions] = 20.0 },
         };
         var pr = state.PolityOf(pa.OwnerActorId);
-        double creditsBefore = pr.Credits;
+        // stage 2: procurement spends the RESERVE treasury (Budget.Reserves
+        // finally does its job) — a drained credit balance no longer
+        // silences the quartermaster
+        pr.Credits = 0;
+        pr.ReservePoints = 100;
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.MoveFreight(state, scratch);
 
         Assert.True(pa.StockQty[(int)GoodId.Provisions] > 0);
-        Assert.True(pr.Credits < creditsBefore, "procurement is bought, not taken");
+        Assert.True(pr.ReservePoints < 100, "procurement is bought, not taken");
         Assert.True(mA.Inventory[(int)GoodId.Provisions] < 500);
         Assert.Equal(0.6, pa.StockGrade[(int)GoodId.Provisions]);
     }
@@ -213,6 +217,7 @@ public class MarketFreightTests
     public void Procurement_StopsAtThePortsStockCapacity()
     {
         var (state, pa, _) = TwoPortFixture();
+        state.PolityOf(pa.OwnerActorId).ReservePoints = 100;
         state.Config.Economy.StockCapPerPortTier = 3.0;   // tier 2 → cap 6
         var mA = state.Markets[0];
         mA.Deposit((int)GoodId.Provisions, 500, 0.6);

@@ -85,7 +85,7 @@ public class GraduationTests
                             * eco.InitialWealthPerPop;
         foreach (var p in state.Polities)
             held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
-                    + p.MilitaryPoints;
+                    + p.MilitaryPoints + p.ReservePoints;
         foreach (var seg in state.Segments) held += seg.Wealth;
         foreach (var f in state.Factions) held += f.Wealth;
         foreach (var c in state.Corporations) held += c.Credits;

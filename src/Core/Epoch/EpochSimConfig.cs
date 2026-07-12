@@ -679,6 +679,10 @@ public sealed class EconomyKnobs
     /// <summary>Freight speed off the lane network — the slow crawl (spec
     /// §4b): supply that leaves the highways pays for it in years.</summary>
     public double OffLaneFreightHexesPerYear { get; set; } = 2.0;
+    /// <summary>How many world-years beyond the step a requisition covers
+    /// (spec §4b): the quartermaster provisions ahead of the lead time, so
+    /// remote sites are pre-positioned rather than fed hand to mouth.</summary>
+    public double RequisitionLeadYears { get; set; } = 5.0;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

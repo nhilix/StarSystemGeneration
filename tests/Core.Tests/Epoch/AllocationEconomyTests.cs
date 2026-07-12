@@ -44,6 +44,9 @@ public class AllocationEconomyTests
 
         var budget = PolityPolicies.Default.Budget;
         Assert.Equal(100 * budget.Expansion, pr.ExpansionPoints, 6);
+        // stage 2: the reserve share accrues too — Budget.Reserves was a
+        // dead line until located stockpiles gave it a treasury to fill
+        Assert.Equal(100 * budget.Reserves, pr.ReservePoints, 6);
         // development share accrued, then possibly spent on lanes/tiers/builds —
         // total credits + treasuries never exceed the original 100
         Assert.True(pr.Credits + pr.ExpansionPoints + pr.DevelopmentPoints

@@ -169,6 +169,150 @@ public static class ShipmentOps
         }
     }
 
+    /// <summary>The requisition channel (spec §4b): for every in-flight
+    /// project this polity funds, in (priority, plan order, id) order,
+    /// compare the site's coverage — larder + shelf + inbound requisitions
+    /// — against the basket over the step plus the lead window, and raise
+    /// shipping orders from the polity's OTHER ports' stockpiles toward
+    /// the shortfall. Bypasses price (no credits move — the state hauling
+    /// its own goods); never bypasses time (Dispatch prices the route),
+    /// route, or capacity (an order is capped at what the route's weakest
+    /// lane carries over the window). Returns orders raised.</summary>
+    public static int RaiseRequisitions(SimState state, PolityRecord pr)
+    {
+        int span = state.Config.Sim.YearsPerEpoch;
+        double window = span + state.Config.Economy.RequisitionLeadYears;
+        int raised = 0;
+        var mine = new List<Project>();
+        foreach (var p in state.Projects)                 // id order (P6)
+            if (p.InFlight && p.FunderActorId == pr.ActorId
+                && p.Kind != ProjectKind.ColonyExpedition) mine.Add(p);
+        if (mine.Count == 0) return 0;
+        mine.Sort((x, y) =>
+        {
+            int c = x.Priority.CompareTo(y.Priority);
+            if (c != 0) return c;
+            c = x.PlanOrder.CompareTo(y.PlanOrder);
+            return c != 0 ? c : x.Id.CompareTo(y.Id);
+        });
+        var want = new double[Substrate.Goods.All.Count];
+        foreach (var p in mine)
+        {
+            double cover = Math.Min(p.YearsRequired - p.YearsDelivered,
+                                    window);
+            if (cover <= 0) continue;
+            // a gate pair provisions both ends, half the basket each
+            bool pair = p.Kind == ProjectKind.GatePair && p.TargetId >= 0;
+            Span<int> ends = pair
+                ? stackalloc int[2] { state.Lanes[p.TargetId].PortAId,
+                                      state.Lanes[p.TargetId].PortBId }
+                : stackalloc int[1] { p.PortId };
+            double share = pair ? 0.5 : 1.0;
+            foreach (int end in ends)
+            {
+                var site = state.Ports[end];
+                var market = state.Markets[end];
+                bool any = false;
+                for (int g = 0; g < want.Length; g++)
+                {
+                    want[g] = 0;
+                    if (p.PerYearBasket[g] <= 0) continue;
+                    double need = share * p.PerYearBasket[g] * cover
+                        - site.StockQty[g] - market.Inventory[g]
+                        - Inbound(state, pr.ActorId, end, g);
+                    if (need > 1e-6) { want[g] = need; any = true; }
+                }
+                if (!any) continue;
+                raised += OrderFromOwnPorts(state, pr, end, want);
+            }
+        }
+        return raised;
+    }
+
+    /// <summary>Fill the site's want from own ports' stock, port-id order
+    /// (P6; nearest-first sourcing is the contract economy's refinement).
+    /// A source keeps its share of the standing stockpile target — those
+    /// stores exist for fleets, sieges, and famines; requisitions move
+    /// only the excess above policy.</summary>
+    private static int OrderFromOwnPorts(SimState state, PolityRecord pr,
+                                         int sitePortId, double[] want)
+    {
+        var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
+                       ?? PolityPolicies.Default).StockpileTargets;
+        int ownPorts = 0;
+        foreach (var port in state.Ports)
+            if (port.OwnerActorId == pr.ActorId) ownPorts++;
+        int raised = 0;
+        var basket = new List<(int Good, double Qty, double Grade)>();
+        foreach (var src in state.Ports)                  // id order (P6)
+        {
+            if (src.OwnerActorId != pr.ActorId || src.Id == sitePortId)
+                continue;
+            basket.Clear();
+            var (laneIds, legYears) = PlanRoute(state, src.Id, sitePortId);
+            // capacity honesty: the order can't exceed what the route's
+            // weakest lane carries over the provisioning window
+            double window = state.Config.Sim.YearsPerEpoch
+                            + state.Config.Economy.RequisitionLeadYears;
+            double cap = double.MaxValue;
+            foreach (var laneId in laneIds)
+                cap = Math.Min(cap,
+                    LaneMath.Capacity(state, state.Lanes[laneId]) * window);
+            foreach (var g in OrderedGoods(want))
+            {
+                if (cap <= 1e-9) break;
+                // consumption buffers stay home (fleets, sieges, famines);
+                // construction materials were banked to be shipped — the
+                // two purposes the controller's target comment names
+                double keep = IsConsumptionStore(g)
+                    && targets.TryGetValue(g, out double target)
+                    ? target / Math.Max(1, ownPorts) : 0.0;
+                double spare = src.StockQty[g] - keep;
+                double qty = Math.Min(Math.Min(want[g], spare), cap);
+                if (qty <= 1e-9) continue;
+                double grade = src.StockGrade[g];
+                basket.Add((g, src.DrawStock(g, qty), grade));
+                want[g] -= qty;
+                cap -= qty;
+            }
+            if (basket.Count == 0) continue;
+            DispatchVia(state, pr.ActorId, ShipmentChannel.Requisition,
+                src.Id, sitePortId, laneIds, legYears, basket);
+            raised++;
+        }
+        return raised;
+    }
+
+    /// <summary>Stock held against consumption — the quartermaster's fleet
+    /// stores and the famine/siege larder — as opposed to construction
+    /// materials banked for the works. Requisitions never strip these
+    /// below the port's target share (draining them wrecked every navy).</summary>
+    private static bool IsConsumptionStore(int good) =>
+        good == (int)Substrate.GoodId.Provisions
+        || good == (int)Substrate.GoodId.Fuel
+        || good == (int)Substrate.GoodId.ShipComponents
+        || good == (int)Substrate.GoodId.Armaments;
+
+    private static IEnumerable<int> OrderedGoods(double[] want)
+    {
+        for (int g = 0; g < want.Length; g++)
+            if (want[g] > 1e-9) yield return g;
+    }
+
+    /// <summary>Requisition cargo already sailing toward the port for this
+    /// owner — counted so replans don't double-order.</summary>
+    public static double Inbound(SimState state, int ownerActorId,
+                                 int destPortId, int good)
+    {
+        double sum = 0;
+        foreach (var s in state.Shipments)                // id order (P6)
+            if (s.Channel == ShipmentChannel.Requisition
+                && s.OwnerActorId == ownerActorId
+                && s.DestPortId == destPortId)
+                sum += s.Qty[good];
+        return sum;
+    }
+
     /// <summary>Index of the leg the shipment is currently sailing.</summary>
     public static int CurrentLeg(Shipment s)
     {

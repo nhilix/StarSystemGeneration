@@ -456,11 +456,25 @@ public static class MarketEngine
 
         // in-flight work IS the construction demand: every project's
         // per-year basket registers at its site market for the span —
-        // a build boom raises alloy prices for its whole duration (P5)
+        // a build boom raises alloy prices for its whole duration (P5).
+        // A gate pair registers half at EACH end (stage 2: each end draws
+        // locally, so each end must pull imports toward itself)
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var p in state.Projects)                 // id order (P6)
         {
             if (!p.InFlight) continue;
+            if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+            {
+                var lane = state.Lanes[p.TargetId];
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                    if (p.PerYearBasket[g] > 0)
+                    {
+                        double half = 0.5 * p.PerYearBasket[g] * years;
+                        scratch.Demand[lane.PortAId][g] += half;
+                        scratch.Demand[lane.PortBId][g] += half;
+                    }
+                continue;
+            }
             for (int g = 0; g < p.PerYearBasket.Length; g++)
                 if (p.PerYearBasket[g] > 0)
                     scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * years;
@@ -909,14 +923,17 @@ public static class MarketEngine
                     double price = market.Price[g];
                     double qty = Math.Min(want,
                                           market.Inventory[g] * eco.ExportShare);
-                    if (price > 0 && pr.Credits < qty * price)
-                        qty = Math.Max(0, pr.Credits / price);
+                    // paid from the reserve treasury (stage 2): the budget
+                    // line exists so procurement never competes with the
+                    // deficit-financed credit balance
+                    if (price > 0 && pr.ReservePoints < qty * price)
+                        qty = Math.Max(0, pr.ReservePoints / price);
                     if (qty <= 0) continue;
                     double grade = market.InventoryGrade[g];
                     double drawn = market.Draw(g, qty);
                     if (drawn <= 0) continue;
                     market.LastCleared[g] += drawn;
-                    pr.Credits -= drawn * price;
+                    pr.ReservePoints -= drawn * price;
                     scratch.PoolByMarket[port.Id] += drawn * price;
                     port.DepositStock(g, drawn, grade);
                 }

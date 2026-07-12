@@ -28,6 +28,10 @@ public sealed class PolityRecord : ICreditLedger
     /// <summary>Accrued military budget; yard hull production consumes it
     /// (slice E — the Budget.Military share stops idling in Credits).</summary>
     public double MilitaryPoints { get; set; }
+    /// <summary>Accrued reserve budget (stage 2 — Budget.Reserves finally
+    /// funds something): polity procurement buys located stock with it, so
+    /// the quartermaster no longer competes with a drained credit balance.</summary>
+    public double ReservePoints { get; set; }
     /// <summary>Hulls ever laid down (yards + genesis starter fleets) — the
     /// conservation ledger: Built == active + Wrecked + Scrapped, always (P4).</summary>
     public int HullsBuilt { get; set; }
