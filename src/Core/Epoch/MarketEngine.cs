@@ -424,15 +424,14 @@ public static class MarketEngine
         }
     }
 
-    /// <summary>Development pulls its own materials: an under-capacity port
-    /// of a polity with a development budget registers demand for the
-    /// construction basket, so the price rises and freight hauls it in —
-    /// industry demand per the design's demand model, sized to one facility
-    /// per epoch. Unmet stockpile targets likewise register at the capital:
-    /// polity procurement is a market participant (market-geography.md).</summary>
+    /// <summary>Construction pulls real materials: every in-flight project's
+    /// per-year basket registers as demand at its site market for the whole
+    /// span, so a build boom raises prices for its duration — no speculative
+    /// dial, the projects ARE the demand (spec §4). Unmet stockpile targets
+    /// likewise register at the capital: polity procurement is a market
+    /// participant (market-geography.md).</summary>
     public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
     {
-        var infra = state.Config.Infrastructure;
         foreach (var pr in state.Polities)                // actor-id order (P6)
         {
             if (!state.Actors[pr.ActorId].Entered) continue;
@@ -448,23 +447,18 @@ public static class MarketEngine
                             scratch.Demand[port.Id][g] += target - pr.ReserveQty[g];
                     break;
                 }
-            if (pr.DevelopmentPoints < infra.ConstructionDevGate) continue;
-            foreach (var port in state.Ports)             // id order (P6)
-            {
-                if (port.OwnerActorId != pr.ActorId) continue;
-                int cap = port.Tier * infra.FacilitiesPerPortTier;
-                int attached = 0;
-                foreach (var f in state.Facilities)
-                    if (f.OwnerActorId == pr.ActorId
-                        && AttachedMarketIndex(state, f) == port.Id) attached++;
-                if (attached >= cap) continue;
-                scratch.Demand[port.Id][(int)GoodId.Alloys]
-                    += infra.ConstructionPullAlloys;
-                scratch.Demand[port.Id][(int)GoodId.Machinery]
-                    += infra.ConstructionPullMachinery;
-                scratch.Demand[port.Id][(int)GoodId.Composites]
-                    += infra.ConstructionPullComposites;
-            }
+        }
+
+        // in-flight work IS the construction demand: every project's
+        // per-year basket registers at its site market for the span —
+        // a build boom raises alloy prices for its whole duration (P5)
+        int years = state.Config.Sim.YearsPerEpoch;
+        foreach (var p in state.Projects)                 // id order (P6)
+        {
+            if (!p.InFlight) continue;
+            for (int g = 0; g < p.PerYearBasket.Length; g++)
+                if (p.PerYearBasket[g] > 0)
+                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * years;
         }
     }
 

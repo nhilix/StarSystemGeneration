@@ -805,16 +805,6 @@ public sealed class InfrastructureKnobs
     /// <summary>Facilities a port's domain supports per port tier — the
     /// construction cap (development concentrates before it sprawls).</summary>
     public int FacilitiesPerPortTier { get; set; } = 5;
-    /// <summary>Development treasury below which construction-material pull
-    /// stays quiet (no point hauling alloys nobody can spend).</summary>
-    public double ConstructionDevGate { get; set; } = 25.0;
-    /// <summary>Construction-basket demand registered per under-capacity
-    /// port per epoch: alloys.</summary>
-    public double ConstructionPullAlloys { get; set; } = 12.0;
-    /// <summary>Construction-basket demand: machinery.</summary>
-    public double ConstructionPullMachinery { get; set; } = 8.0;
-    /// <summary>Construction-basket demand: composites.</summary>
-    public double ConstructionPullComposites { get; set; } = 6.0;
     /// <summary>Minimum siting score × price signal before anything gets
     /// built — don't build junk.</summary>
     public double ConstructionScoreFloor { get; set; } = 0.12;

@@ -38,4 +38,22 @@ public class CapabilityTests
         Assert.NotNull(view.Capability);
         Assert.NotEmpty(view.OwnPorts);
     }
+
+    [Fact]
+    public void ConstructionPull_ReadsInFlightProjects()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        ProjectOpsTests.RunHistory(state);
+        int actor = ProjectOpsTests.FirstEnteredPolity(state);
+        int port = ProjectOpsTests.OwnPort(state, actor);
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise, actor, actor,
+            port, state.Ports[port].Hex, 5.0, ProjectPriority.Core, 0);
+        p.TargetId = port;
+        p.PerYearBasket[(int)GoodId.Machinery] = 2.0;
+        var scratch = new MarketStepScratch(state);
+        MarketEngine.AddConstructionPull(state, scratch);
+        int years = state.Config.Sim.YearsPerEpoch;
+        Assert.True(scratch.Demand[port][(int)GoodId.Machinery]
+                    >= 2.0 * years);
+    }
 }
