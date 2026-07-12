@@ -33,7 +33,7 @@ public sealed class Repl
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
                     Console.WriteLine("estep [n] [years] — step the loaded sim n more epochs (default 1); years overrides the");
                     Console.WriteLine("   integration step (fine tick: estep 25 1 plays a generation year by year)");
-                    Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech|war|tension] — political / lane / traffic / price / tech / war maps");
+                    Console.WriteLine("emap [domains|lanes|traffic|trade|price [good]|tech|war|tension] — political / lane / traffic / spread / price / tech / war maps");
                     Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
                     Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
                     Console.WriteLine("tech — per-polity domain tiers + progress · corps — the corporation registry");
@@ -48,6 +48,8 @@ public sealed class Repl
                     Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
+                    Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
+                    Console.WriteLine("econtracts [actorId] — open/in-transit courier contracts: route, cargo, fee, fulfiller");
                     Console.WriteLine("emap works — construction sites and freight on the move (the in-flight world)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
@@ -282,6 +284,35 @@ public sealed class Repl
                     RenderFreight(_sim);
                     break;
                 case "efreight":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "econtracts" when _sim != null:
+                {
+                    int poster = -1;
+                    if (parts.Length >= 2) int.TryParse(parts[1], out poster);
+                    RenderContracts(_sim, poster);
+                    break;
+                }
+                case "econtracts":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "ebook" when _sim != null && parts.Length >= 2
+                        && int.TryParse(parts[1], out var bookPort):
+                {
+                    Core.Substrate.GoodId? bookGood = null;
+                    if (parts.Length >= 3)
+                    {
+                        if (!TryParseGood(parts[2], out var bg))
+                        { Console.WriteLine($"unknown good '{parts[2]}' — see `goods`"); break; }
+                        bookGood = bg;
+                    }
+                    RenderBook(_sim, bookPort, bookGood);
+                    break;
+                }
+                case "ebook" when _sim != null:
+                    Console.WriteLine("usage: ebook <portId> [good]");
+                    break;
+                case "ebook":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "eprojects" when _sim != null:
@@ -859,13 +890,100 @@ public sealed class Repl
             string eta = stalled ? "STALLED"
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
+            // purpose (slice CE): courier cargo (war convoys called out)
+            // vs a trader's spread run vs the state hauling its own
+            Core.Epoch.CourierContract? rider = null;
+            foreach (var c in sim.Couriers)
+                if (c.Status == Core.Epoch.CourierStatus.InTransit
+                    && c.ShipmentId == s.Id)
+                { rider = c; break; }
+            string purpose = rider != null
+                ? rider.Priority == Core.Epoch.CourierPriority.War
+                    ? "war convoy" : "courier"
+                : s.Channel == Core.Epoch.ShipmentChannel.Freight
+                    ? "spread run" : "state haul";
             Console.WriteLine(FormattableString.Invariant(
-                $"  #{s.Id,-6} {s.Channel,-12} {route,-21} {string.Join(", ", cargo),-32} ")
+                $"  #{s.Id,-6} {purpose,-11} {route,-21} {string.Join(", ", cargo),-32} ")
                 + FormattableString.Invariant(
                 $"{s.YearsInTransit,5:0.0}/{s.TotalYears,-6:0.0} ")
                 + eta + $"  ({owner})");
         }
     }
+
+    /// <summary>`econtracts` (slice CE): the courier job board — open and
+    /// in-transit contracts with route, cargo, fee, and fulfiller.</summary>
+    private static void RenderContracts(Core.Epoch.SimState sim, int poster)
+    {
+        bool any = false;
+        Console.WriteLine("  id     prio    route          cargo                        fee      status");
+        foreach (var c in sim.Couriers)
+        {
+            if (poster >= 0 && c.PosterActorId != poster) continue;
+            any = true;
+            var cargo = new System.Collections.Generic.List<string>();
+            for (int g = 0; g < c.Qty.Length && cargo.Count < 3; g++)
+                if (c.Qty[g] > 0)
+                    cargo.Add(FormattableString.Invariant(
+                        $"{c.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            string status = c.Status == Core.Epoch.CourierStatus.Open
+                ? "OPEN"
+                : $"in transit ({OwnerName(sim, c.FulfillerActorId)})";
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{c.Id,-6} {c.Priority,-7} #{c.OriginPortId}->#{c.DestPortId,-8} ")
+                + FormattableString.Invariant(
+                $"{string.Join(", ", cargo),-28} {c.FeeEscrow,7:0.0}  ")
+                + status + $"  ({OwnerName(sim, c.PosterActorId)})");
+        }
+        if (!any) Console.WriteLine("  (no open contracts)");
+    }
+
+    /// <summary>`ebook` (slice CE): one port's order book — resting asks
+    /// and bids per good with owners, plus the reference price the
+    /// downstream valuations read. The market IS the book now.</summary>
+    private static void RenderBook(Core.Epoch.SimState sim, int portId,
+                                   Core.Substrate.GoodId? only)
+    {
+        if (portId < 0 || portId >= sim.Ports.Count)
+        { Console.WriteLine($"no port #{portId} (0..{sim.Ports.Count - 1})"); return; }
+        var market = sim.Markets[portId];
+        Console.WriteLine(FormattableString.Invariant(
+            $"book at port #{portId} — {sim.Actors[sim.Ports[portId].OwnerActorId].Name}'s domain"));
+        bool any = false;
+        for (int g = 0; g < Core.Substrate.Goods.All.Count; g++)
+        {
+            if (only.HasValue && g != (int)only.Value) continue;
+            var asks = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
+            var bids = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
+            foreach (var o in sim.Orders)
+            {
+                if (o.PortId != portId || o.Good != g || o.QtyRemaining <= 0)
+                    continue;
+                (o.Side == Core.Epoch.OrderSide.Sell ? asks : bids).Add(o);
+            }
+            if (asks.Count == 0 && bids.Count == 0 && !only.HasValue) continue;
+            any = true;
+            asks.Sort((x, y) => x.LimitPrice != y.LimitPrice
+                ? x.LimitPrice.CompareTo(y.LimitPrice) : x.Id.CompareTo(y.Id));
+            bids.Sort((x, y) => x.LimitPrice != y.LimitPrice
+                ? y.LimitPrice.CompareTo(x.LimitPrice) : x.Id.CompareTo(y.Id));
+            Console.WriteLine(FormattableString.Invariant(
+                $"  {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name,-16} ref {market.Price[g]:0.00}"));
+            foreach (var o in asks)
+                Console.WriteLine(FormattableString.Invariant(
+                    $"    ask {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + $"grade {o.Grade:0.00}  ({OwnerName(sim, o.OwnerActorId)})");
+            foreach (var o in bids)
+                Console.WriteLine(FormattableString.Invariant(
+                    $"    bid {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + FormattableString.Invariant(
+                    $"escrow {o.EscrowCredits:0.0}  ({OwnerName(sim, o.OwnerActorId)})"));
+        }
+        if (!any) Console.WriteLine("  (bare book — no resting orders)");
+    }
+
+    private static string OwnerName(Core.Epoch.SimState sim, int actorId) =>
+        actorId >= 0 && actorId < sim.Actors.Count
+            ? sim.Actors[actorId].Name : "—";
 
     private static bool TryParseGood(string text, out Core.Substrate.GoodId good)
     {

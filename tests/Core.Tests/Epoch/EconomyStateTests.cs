@@ -19,8 +19,6 @@ public class EconomyStateTests
         Assert.Equal(3, m.PortId);
         int n = Goods.All.Count;
         Assert.Equal(n, m.Price.Length);
-        Assert.Equal(n, m.Inventory.Length);
-        Assert.Equal(n, m.InventoryGrade.Length);
         Assert.Equal(n, m.LastCleared.Length);
         Assert.Equal(n, m.BlackBookDemand.Length);
         Assert.Equal(n, m.BlackBookPrice.Length);

@@ -20,8 +20,9 @@ public sealed class Shipment
     public int Id { get; }
     /// <summary>Whose goods these are: the exporting polity for freight
     /// (paid as the destination's supplier on arrival), the requisitioning
-    /// polity for state logistics.</summary>
-    public int OwnerActorId { get; }
+    /// polity for state logistics. Settable: the estates pass — a dead
+    /// corp's cargo afloat passes to its successor (slice CE).</summary>
+    public int OwnerActorId { get; set; }
     public ShipmentChannel Channel { get; }
     public int OriginPortId { get; }
     public int DestPortId { get; }

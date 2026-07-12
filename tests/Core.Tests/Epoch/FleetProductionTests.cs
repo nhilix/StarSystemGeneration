@@ -56,16 +56,16 @@ public class FleetProductionTests
     public void HullBatches_CompleteAndCommission_PriorityWeightedCounts()
     {
         var (state, pr, port) = Entered();
-        var market = state.Markets[port.Id];
-        market.Deposit((int)GoodId.ShipComponents, 600, 0.55);
-        market.Deposit((int)GoodId.Armaments, 300, 0.5);
+        // yard feedstock lives in the site larder now (the shelf is gone)
+        port.DepositStock((int)GoodId.ShipComponents, 600, 0.55);
+        port.DepositStock((int)GoodId.Armaments, 300, 0.5);
         pr.MilitaryPoints = 5000;
         var freight = DesignRegistry.Current(state, pr.ActorId,
             ShipRole.Freight, ShipSize.Medium)!;
         var escort = DesignRegistry.Current(state, pr.ActorId,
             ShipRole.Escort, ShipSize.Light);
 
-        double componentsBefore = market.Inventory[(int)GoodId.ShipComponents];
+        double componentsBefore = port.StockQty[(int)GoodId.ShipComponents];
         double treasuryBefore = pr.MilitaryPoints;
         int builtBefore = pr.HullsBuilt;
         int escortHullsBefore = 0;
@@ -86,7 +86,7 @@ public class FleetProductionTests
 
         int expectedBuilt = builtBefore + 4 + (escortBatch != null ? 2 : 0);
         Assert.Equal(expectedBuilt, pr.HullsBuilt);
-        Assert.True(market.Inventory[(int)GoodId.ShipComponents] < componentsBefore);
+        Assert.True(port.StockQty[(int)GoodId.ShipComponents] < componentsBefore);
         Assert.True(pr.MilitaryPoints < treasuryBefore);
 
         // hulls joined the home reserve; freight out-built the escorts 2:1
@@ -113,23 +113,22 @@ public class FleetProductionTests
     public void HullBatch_StarvesOnShortStock_AndZeroTreasuryHaltsProgress()
     {
         var (state, pr, port) = Entered();
-        var market = state.Markets[port.Id];
         double perHull = DesignMath.ComponentsPerHull(state.Config.Fleet,
                                                        ShipSize.Medium);
         var freight = DesignRegistry.Current(state, pr.ActorId,
             ShipRole.Freight, ShipSize.Medium)!;
         // stock for exactly one hull of a two-hull batch
-        market.Deposit((int)GoodId.ShipComponents, perHull, 0.5);
+        port.DepositStock((int)GoodId.ShipComponents, perHull, 0.5);
         pr.MilitaryPoints = 10_000;
         var p = ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id,
             freight, count: 2, ProjectPriority.Growth, 0);
         ProjectOps.AdvanceAll(state);
         Assert.False(p.Completed);
         Assert.Equal(0.5, p.YearsDelivered / p.YearsRequired, 3);
-        Assert.Equal(0.0, market.Inventory[(int)GoodId.ShipComponents], 6);
+        Assert.Equal(0.0, port.StockQty[(int)GoodId.ShipComponents], 6);
 
         // fully stocked but broke: wages can't be paid, so nothing draws
-        market.Deposit((int)GoodId.ShipComponents, perHull * 2, 0.5);
+        port.DepositStock((int)GoodId.ShipComponents, perHull * 2, 0.5);
         pr.MilitaryPoints = 0;
         double deliveredBefore = p.YearsDelivered;
         ProjectOps.AdvanceAll(state);

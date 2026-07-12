@@ -389,7 +389,7 @@ public static class WarConduct
     {
         var knobs = state.Config.War;
         double provisions =
-            state.Markets[port.Id].Inventory[(int)GoodId.Provisions]
+            BookOps.AskQty(state, port.Id, (int)GoodId.Provisions)
             + port.StockQty[(int)GoodId.Provisions];
         double population = 0;
         foreach (var s in state.Segments)

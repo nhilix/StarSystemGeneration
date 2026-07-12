@@ -6,10 +6,10 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Epoch;
 
-/// <summary>Slice D task 2 — supply lands: facilities sell terrain-graded
-/// output into their attached port market (economy/markets.md §1); processing
-/// consumes market inventory through C's recipes; construction lag and
-/// condition gate output; homeworld entry seeds the starter industry.</summary>
+/// <summary>Supply lands on the BOOK (contract-economy spec §2): facilities
+/// post terrain-graded output as their owner's sell orders; processing
+/// lifts input asks through C's recipes, paying the sellers; construction
+/// lag and condition gate output; homeworld entry seeds starter industry.</summary>
 public class MarketSupplyTests
 {
     /// <summary>A minimal entered polity with one port+market+segment at its
@@ -50,10 +50,9 @@ public class MarketSupplyTests
 
         MarketEngine.SupplyLands(state, scratch);
 
-        var m = state.Markets[0];
-        Assert.True(m.Inventory[(int)GoodId.Ore] > 0);
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Ore) > 0);
         // raw grade roots in terrain richness: 0.15 + 0.7×richness, richness ≤ 1
-        Assert.InRange(m.InventoryGrade[(int)GoodId.Ore], 0.15, 0.85);
+        Assert.InRange(BookOps.AskGrade(state, 0, (int)GoodId.Ore), 0.15, 0.85);
     }
 
     [Fact]
@@ -61,18 +60,19 @@ public class MarketSupplyTests
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Refinery, port.Hex, port.OwnerActorId);
-        var m = state.Markets[0];
-        m.Deposit((int)GoodId.Ore, 1000.0, 0.6);
-        m.Deposit((int)GoodId.Volatiles, 1000.0, 0.6);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Ore, 1000.0, 0.6,
+            ownerActorId: 1);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Volatiles, 1000.0, 0.6,
+            ownerActorId: 1);
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
-        Assert.True(m.Inventory[(int)GoodId.Alloys] > 0);
-        Assert.True(m.Inventory[(int)GoodId.Ore] < 1000.0);        // consumed
-        Assert.True(m.InventoryGrade[(int)GoodId.Alloys] > 0);
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Alloys) > 0);
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Ore) < 1000.0);
+        Assert.True(BookOps.AskGrade(state, 0, (int)GoodId.Alloys) > 0);
         // grade capped by the owner's Industrial ceiling (slice G)
-        Assert.True(m.InventoryGrade[(int)GoodId.Alloys]
+        Assert.True(BookOps.AskGrade(state, 0, (int)GoodId.Alloys)
                     <= Tech.Ceiling(state, port.OwnerActorId,
                                     TechDomain.Industrial));
     }
@@ -86,27 +86,30 @@ public class MarketSupplyTests
 
         MarketEngine.SupplyLands(state, scratch);
 
-        Assert.Equal(0.0, state.Markets[0].Inventory[(int)GoodId.Machinery]);
+        Assert.Equal(0.0, BookOps.AskQty(state, 0, (int)GoodId.Machinery), 6);
     }
 
     [Fact]
-    public void InputPurchases_MoveOwnerCreditsIntoTheMarketPool()
+    public void InputPurchases_PayTheInputSellers()
     {
         var (state, port) = Fixture();
         Built(state, InfraTypeId.Refinery, port.Hex, port.OwnerActorId);
-        var m = state.Markets[0];
-        m.Deposit((int)GoodId.Ore, 1000.0, 0.6);
-        m.Deposit((int)GoodId.Volatiles, 1000.0, 0.6);
-        double creditsBefore = state.PolityOf(port.OwnerActorId).Credits;
+        EpochTestKit.Stock(state, 0, (int)GoodId.Ore, 1000.0, 0.6,
+            ownerActorId: 1);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Volatiles, 1000.0, 0.6,
+            ownerActorId: 1);
+        double buyerBefore = state.PolityOf(port.OwnerActorId).Credits;
+        double sellerBefore = state.LedgerOf(1).Credits;
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);
 
-        // input purchases land in the pool intact; wages wait for realized
-        // revenue at distribution — conserved (P4)
-        double spent = creditsBefore - state.PolityOf(port.OwnerActorId).Credits;
+        // input purchases pay the SELLERS at their asks (net of tax and
+        // the labor share) — no anonymous pool (P4)
+        double spent = buyerBefore - state.PolityOf(port.OwnerActorId).Credits;
         Assert.True(spent > 0);
-        Assert.Equal(spent, scratch.PoolByMarket[0], 10);
+        Assert.True(state.LedgerOf(1).Credits > sellerBefore,
+            "the feedstock seller booked real revenue");
     }
 
     [Fact]
@@ -121,7 +124,7 @@ public class MarketSupplyTests
 
         MarketEngine.SupplyLands(state, scratch);
 
-        Assert.Equal(0.0, state.Markets[0].Inventory[(int)GoodId.Ore]);
+        Assert.Equal(0.0, BookOps.AskQty(state, 0, (int)GoodId.Ore), 6);
     }
 
     [Fact]
@@ -137,8 +140,8 @@ public class MarketSupplyTests
         var sb = new MarketStepScratch(b);
         MarketEngine.SupplyLands(b, sb);
 
-        Assert.Equal(a.Markets[0].Inventory[(int)GoodId.Ore] * 0.5,
-                     b.Markets[0].Inventory[(int)GoodId.Ore], 10);
+        Assert.Equal(BookOps.AskQty(a, 0, (int)GoodId.Ore) * 0.5,
+                     BookOps.AskQty(b, 0, (int)GoodId.Ore), 10);
     }
 
     [Fact]

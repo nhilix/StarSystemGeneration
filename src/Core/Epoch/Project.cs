@@ -50,6 +50,14 @@ public sealed class Project
     /// <summary>Credits streamed to the site's households per world-year,
     /// drawn from the funder's treasury (construction employment).</summary>
     public double WagesPerYear { get; set; }
+    /// <summary>The works' laydown yard (contract-economy spec §2): goods
+    /// the project's posted bids bought, delivered and awaiting the build.
+    /// Feed consumes from here (plus the funder's site larder) — the market
+    /// shelf is gone. Grade rides alongside, quantity-weighted.</summary>
+    public double[] DeliveredQty { get; } =
+        new double[Substrate.Goods.All.Count];
+    public double[] DeliveredGrade { get; } =
+        new double[Substrate.Goods.All.Count];
     public double YearsRequired { get; }
     public double YearsDelivered { get; set; }
     /// <summary>Scheduled groundbreaking world-year — may sit mid-span of
@@ -60,6 +68,11 @@ public sealed class Project
     /// <summary>Fraction of the year-scaled basket met last Advance —
     /// the REPL's starvation readout.</summary>
     public double LastFedFraction { get; set; } = 1.0;
+    /// <summary>Consecutive world-years essentially unfed — the abandon
+    /// clock (spec §3: "the next replan cancels hopeless work"; slice CE
+    /// implements it — a starving batch must not blockade its yard slot
+    /// forever). Any real feeding resets it.</summary>
+    public double StarvedYears { get; set; }
 
     // Completion payload, sparse by kind:
     /// <summary>FacilityConstruction/GatePair: InfraTypeId. HullBatch:

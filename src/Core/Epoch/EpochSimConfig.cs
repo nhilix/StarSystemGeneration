@@ -238,6 +238,17 @@ public sealed class WarKnobs
     /// <summary>Armaments a Mobilization project draws per world-year —
     /// the ramp's war-materiel basket.</summary>
     public double MobilizationArmamentsPerYear { get; set; } = 3.0;
+    /// <summary>Hexes from a war-stationed enemy fleet within which a
+    /// lane leg counts CONTESTED for its foes' shipments (front supply
+    /// lines, slice CE).</summary>
+    public int InterdictionReachHexes { get; set; } = 4;
+    /// <summary>Seizure probability per world-year sailed on a contested
+    /// leg — the piracy pattern, channel 76.</summary>
+    public double InterdictionLossPerContestedYear { get; set; } = 0.12;
+    /// <summary>Each friendly war-stationed warship hull near the leg
+    /// damps the seizure odds by 1/(1 + this × hulls) — escorts are the
+    /// counter, deterministic (no second roll).</summary>
+    public double EscortDampPerHull { get; set; } = 0.15;
     /// <summary>Fuel a Mobilization project draws per world-year — the
     /// ramp's war-materiel basket.</summary>
     public double MobilizationFuelPerYear { get; set; } = 4.0;
@@ -716,6 +727,39 @@ public sealed class EconomyKnobs
     /// <summary>Shape of the drift: price moves by (demand/supply)^exponent,
     /// then rate-clamped.</summary>
     public double PriceDriftExponent { get; set; } = 0.5;
+    /// <summary>Sell orders quote at reference price × this markup — 1.0
+    /// anchors quotes to the market; discovery lives in the reference's
+    /// imbalance drift (contract economy).</summary>
+    public double AskMarkupOnPost { get; set; } = 1.0;
+    /// <summary>Standing orders expire after this many world-years unless
+    /// refreshed — buys refund, sells escheat to the port's stockpile.
+    /// Kept WELL above the coarse step span: an expiry inside ~2 steps
+    /// quantizes to wildly different world-years across tick resolutions
+    /// (P7), since sweeps only run at step boundaries.</summary>
+    public double OrderExpiryYears { get; set; } = 100.0;
+    /// <summary>Subsistence bids quote reference × this — hunger crosses
+    /// fresh asks first (band priority through price, not code order).</summary>
+    public double SubsistenceBidPremium { get; set; } = 1.2;
+    /// <summary>Standard-of-living bids quote reference × this.</summary>
+    public double SoLBidRatio { get; set; } = 1.0;
+    /// <summary>Luxury bids quote reference × this — elastic want that
+    /// only clears in glut times, when decayed asks fall to meet it.</summary>
+    public double LuxuryBidRatio { get; set; } = 0.9;
+    /// <summary>Project-basket bids quote reference × this — the works
+    /// outbid comfort, not survival.</summary>
+    public double ProjectBidPremium { get; set; } = 1.1;
+    /// <summary>The planner treats accumulated treasuries as spendable over
+    /// this many world-years (contract economy: receipts are lean real
+    /// cash flow; savings exist to be spent at build pace).</summary>
+    public double PlanSavingsDrawdownYears { get; set; } = 5.0;
+    /// <summary>A project essentially unfed for this many consecutive
+    /// world-years is abandoned at the next Advance (spec §3: hopeless
+    /// work gets cancelled — it must not blockade slots forever).</summary>
+    public double ProjectAbandonYears { get; set; } = 30.0;
+    /// <summary>Courier fee per unit of cargo per hex of straight-line
+    /// distance — what the state's hauling costs now that a fulfiller is
+    /// paid (contract economy).</summary>
+    public double CourierFeePerUnitPerHex { get; set; } = 0.02;
     /// <summary>Absolute price floor — gluts bottom out, never reach zero.</summary>
     public double PriceFloor { get; set; } = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes
@@ -982,8 +1026,12 @@ public sealed class FleetKnobs
 public sealed class ControllerKnobs
 {
     /// <summary>No expeditions while realm mean subsistence sits below this —
-    /// consolidation before expansion.</summary>
-    public double RealmHungerGate { get; set; } = 0.8;
+    /// consolidation before expansion. Recalibrated 0.8 → 0.7 for the
+    /// contract economy (slice CE): bands PAY for food now, so the realm
+    /// subsistence equilibrium sits structurally leaner — the old gate held
+    /// half the galaxy's colonization hostage to frontier hunger it could
+    /// only fix by colonizing.</summary>
+    public double RealmHungerGate { get; set; } = 0.7;
     /// <summary>Provisions reserve target per owned port — famine and siege
     /// buffering by standing policy (economy/markets.md §Stockpiles).</summary>
     public double ProvisionsReservePerPort { get; set; } = 3.0;
@@ -1021,6 +1069,10 @@ public sealed class ControllerKnobs
     /// <summary>Base score of a port-raise plan entry, divided by the port's
     /// current tier — the standing bias toward deepening young ports first.</summary>
     public double PortRaisePlanScore { get; set; } = 0.5;
+    /// <summary>Colony-batch score multiplier when expansion points sit
+    /// ready with no colony hull in reserve — stranded settlers outrank
+    /// routine shipbuilding (slice CE).</summary>
+    public double ColonyNeedBoost { get; set; } = 6.0;
     /// <summary>How hard the scheduler leans toward supplied sites (stage 2,
     /// spec §4b "Planner consequence"): entry scores scale by
     /// 1 − w + w·coverage, coverage = the site larder's share of the whole

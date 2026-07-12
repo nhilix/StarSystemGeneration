@@ -33,14 +33,20 @@ public class EconomyArtifactTests
             for (int g = 0; g < Goods.All.Count; g++)
             {
                 Assert.Equal(built.Markets[m].Price[g], loaded.Markets[m].Price[g]);
-                Assert.Equal(built.Markets[m].Inventory[g], loaded.Markets[m].Inventory[g]);
-                Assert.Equal(built.Markets[m].InventoryGrade[g],
-                             loaded.Markets[m].InventoryGrade[g]);
                 Assert.Equal(built.Markets[m].LastCleared[g],
                              loaded.Markets[m].LastCleared[g]);
                 Assert.Equal(built.Markets[m].BlackBookDemand[g],
                              loaded.Markets[m].BlackBookDemand[g]);
             }
+        // the shelf lives on the orders layer now: the book round-trips
+        Assert.Equal(built.Orders.Count, loaded.Orders.Count);
+        for (int i = 0; i < built.Orders.Count; i++)
+        {
+            Assert.Equal(built.Orders[i].QtyRemaining,
+                         loaded.Orders[i].QtyRemaining);
+            Assert.Equal(built.Orders[i].LimitPrice,
+                         loaded.Orders[i].LimitPrice);
+        }
     }
 
     [Fact]

@@ -263,3 +263,36 @@ once, REPL eyeball, merge decision. Three user checkpoints only: scope nod
   couriers.
 - `interpolity/war.md` — front supply lines, interdiction, escorts.
 - `frame/perception-and-news.md` — perceived books at news speed.
+
+## Implementation amendments (recorded at slice end)
+
+All amendments above landed; deviations discovered in implementation, each
+flagged in the affected design doc:
+
+- **§2 quote decay → reference-anchored reprice.** Per-owner ask decay
+  destabilized tick honesty; all resting sells re-anchor to the reference
+  each step and discovery lives in the rate-clamped imbalance drift
+  (pre-match snapshot, generation-normalized). Revisit if sellers ever
+  need to compete on price within one book.
+- **§2 relay bids KEPT past B2.** Spread runs are single-lane; hop-by-hop
+  diffusion still needs the funded re-export staging until multi-hop actor
+  runs over perceived books land (the next slice's designed home).
+- **§3 planner capacity = income + savings drawdown** (treasuries ÷ a
+  drawdown horizon) — income-only packing deadlocked rich low-income
+  realms. A hull-less realm with expansion points boosts colony batches.
+- **§3 courier allocation ranks (priority, id)**, not fee-over-distance;
+  acceptance charges real posted lift so War priority takes the hulls.
+  The fee prices the poster's cost only — revisit when carriers compete.
+- **§3 corp plans cover facilities only**; route commitments and hull
+  purchases stay opportunistic in Operate.
+- **Port raises: Refined Exotics enter at tier 2+** (basket × (tier − 1))
+  — the flat term starved every tier-1 raise behind one anemic chain
+  (substrate/infrastructure.md).
+- **§4 gate pairs feed from one merged laydown yard** (per-end pacing
+  approximated); **projects carry an abandon clock** (§3's "replan cancels
+  hopeless work", ProjectAbandoned event 211); **CargoSeized event 409**
+  chronicles interdiction.
+- **Consumption signal**: lift-only consumers register want for the drift
+  (without it the industrial loop dies silently) — an addition, not a
+  removal; trialled real industrial resting bids DESTABILIZED the economy
+  and were reverted.

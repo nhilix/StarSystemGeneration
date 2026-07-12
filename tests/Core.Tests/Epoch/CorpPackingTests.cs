@@ -4,14 +4,16 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Epoch;
 
-/// <summary>Stage 2 carried residue: corporations pack their builds
-/// against income like polities do — a fat balance sheet no longer breaks
-/// ground on the whole portfolio at once; the portfolio staggers as the
-/// trailing income rate carries each next build.</summary>
+/// <summary>Slice CE (C11): corporations run a STANDING PLAN — Perception
+/// offers the investment pick, the CorporateController packs it against
+/// income + horizon-spread savings, and Operate executes the due entries
+/// mechanically (Move 1). A fat balance sheet staggers through scheduled
+/// builds instead of breaking ground on the whole portfolio at once; a
+/// broke corp with no income plans nothing.</summary>
 public class CorpPackingTests
 {
     [Fact]
-    public void CorpBuilds_PackAgainstIncome_NotJustCredits()
+    public void CorpBuilds_FollowTheStandingPlan()
     {
         var state = EpochTestKit.Seeded().State;
         var host = state.Actors[0];
@@ -20,7 +22,8 @@ public class CorpPackingTests
         state.Ports.Add(port);
         state.Markets.Add(new Market(0, state.Config.Economy));
         var actor = new Actor(state.Actors.Count, ActorKind.Corporation,
-            "Hollow Combine", host.Seat, 0, new CorporateController())
+            "Hollow Combine", host.Seat, 0,
+            new CorporateController(state.Config))
         { Entered = true };
         state.Actors.Add(actor);
         var corp = new Corporation(0, actor.Id, "Hollow Combine",
@@ -37,14 +40,33 @@ public class CorpPackingTests
             return n;
         }
 
-        CorporationOps.Operate(state);
-        Assert.Equal(1, Funded());     // the founding build bootstraps
+        // the Move-1 cycle: perceive → decide (the plan) → execute
+        void Cycle()
+        {
+            new PerceptionPhase().Run(state);
+            actor.Policies = actor.Controller
+                .Decide(actor.Perception!).Policies;
+            CorporationOps.Operate(state);
+        }
 
+        // no plan yet (Operate before any Intent): nothing breaks ground
         CorporationOps.Operate(state);
-        Assert.Equal(1, Funded());     // no income yet: the second waits
+        Assert.Equal(0, Funded());
 
-        corp.LastIncomePerYear = 1e6;  // a booming book carries more work
-        CorporationOps.Operate(state);
+        // the plan schedules the founding build; savings carry it
+        Cycle();
+        Assert.Equal(1, Funded());
+
+        // the war chest staggers the NEXT build through the schedule —
+        // one plan entry per pick, never the whole portfolio at once
+        Cycle();
         Assert.Equal(2, Funded());
+
+        // a broke corp with no income packs nothing new
+        corp.Credits = 0;
+        corp.LastIncomePerYear = 0;
+        int before = Funded();
+        Cycle();
+        Assert.Equal(before, Funded());
     }
 }

@@ -195,7 +195,8 @@ public static class CorporationOps
     }
 
     /// <summary>Would a hauler on this lane actually clear the freight-niche
-    /// margin? Mirrors MarketEngine.Arbitrage's per-unit economics.</summary>
+    /// margin? Mirrors the spread run's per-unit economics
+    /// (MarketEngine.MoveFreight — the old engine Arbitrage is deleted).</summary>
     private static bool LaneCarriesProfit(SimState state, Lane lane,
                                           double margin) =>
         PairCarriesProfit(state, lane.PortAId, lane.PortBId, margin);
@@ -216,7 +217,7 @@ public static class CorporationOps
                              <= state.Markets[portBId].Price[g]
                 ? (portA, portB) : (portB, portA);
             var mSrc = state.Markets[src.Id];
-            if (mSrc.Inventory[g] <= 0) continue;
+            if (BookOps.AskQty(state, src.Id, g) <= 0) continue;
             double pSrc = mSrc.Price[g];
             double pDst = state.Markets[dst.Id].Price[g];
             double freight = eco.FreightCostPerUnitPerHex * dist;
@@ -346,7 +347,7 @@ public static class CorporationOps
         string name = CorpName(state, actorId, niche);
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
             state.Ports[homePort].Hex, state.EpochIndex,
-            new CorporateController())
+            new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId, name,
             outlaw ? -1 : pr.ActorId, niche, homePort, state.WorldYear)
@@ -393,7 +394,7 @@ public static class CorporationOps
         var lane = state.Lanes[laneId];
         var haven = state.Ports[lane.PortAId].Hex;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
-            haven, state.EpochIndex, new CorporateController())
+            haven, state.EpochIndex, new CorporateController(state.Config))
         { Entered = true });
         var band = new Corporation(state.Corporations.Count, actorId, name,
             -1, CorporateNiche.Raiding, lane.PortAId, state.WorldYear)
@@ -561,7 +562,6 @@ public static class CorporationOps
             if (!MarketEngine.IsActive(state, f)) continue;
             int mIx = MarketEngine.AttachedMarketIndex(state, f);
             if (mIx < 0) continue;
-            var market = state.Markets[mIx];
             var def = Infrastructure.Get((InfraTypeId)f.TypeId);
             double scale = Production.TierCostFactor(f.Tier) * years;
             double met = 1.0;
@@ -569,8 +569,11 @@ public static class CorporationOps
             {
                 double need = q.Quantity * scale;
                 if (need <= 0) continue;
-                double drawn = market.Draw((int)q.Good, need);
-                market.LastCleared[(int)q.Good] += drawn;
+                // upkeep is bought off the book on working capital now —
+                // the sellers are real and get paid at their asks
+                var (drawn, _, cost) = BookOps.LiftAsks(state, mIx,
+                    (int)q.Good, need, budget: double.MaxValue);
+                corp.Credits -= cost;
                 met = Math.Min(met, drawn / need);
             }
             double target = Math.Max(0.05, met);
@@ -584,7 +587,7 @@ public static class CorporationOps
     /// its terrain, fabrication chases the widest price-over-founding gap.
     /// Shared by the demand pull and the investment step, so the goods the
     /// price signal hauls in are the goods that get built with.</summary>
-    private static InfraTypeId PlannedFacility(SimState state, Corporation corp)
+    internal static InfraTypeId PlannedFacility(SimState state, Corporation corp)
     {
         var port = state.Ports[corp.HomePortId];
         if (corp.Niche == CorporateNiche.Extraction)
@@ -618,46 +621,12 @@ public static class CorporationOps
 
     /// <summary>True while a builder corp still wants and can fund another
     /// facility — the same gate the demand pull and the investment use.</summary>
-    private static bool WantsFacility(SimState state, Corporation corp)
+    internal static bool WantsFacility(SimState state, Corporation corp)
     {
         int owned = 0;
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) owned++;
         return owned < state.Config.Corporate.MaxFacilities;
-    }
-
-    /// <summary>Corporate demand registers at the home market each Markets
-    /// phase (the slice-E lesson, again: without a price signal nothing
-    /// hauls the goods in, and every founding starves at an empty market —
-    /// 42 of 47 corp deaths were exactly this stillbirth). Builders pull
-    /// their planned build basket; freight lines pull hull components.</summary>
-    public static void AddCorporateDemand(SimState state, MarketStepScratch scratch)
-    {
-        foreach (var corp in state.Corporations)              // id order (P6)
-        {
-            if (!corp.Active) continue;
-            int home = corp.HomePortId;
-            switch (corp.Niche)
-            {
-                case CorporateNiche.Extraction:
-                case CorporateNiche.Fabrication:
-                    if (!WantsFacility(state, corp)) break;
-                    var def = Infrastructure.Get(PlannedFacility(state, corp));
-                    foreach (var q in def.BuildCost)
-                        scratch.Demand[home][(int)q.Good] += q.Quantity;
-                    break;
-                case CorporateNiche.Freight:
-                    if (corp.Credits <= 0) break;
-                    scratch.Demand[home][(int)GoodId.ShipComponents]
-                        += state.Config.Corporate.FreightPullComponents;
-                    // gate ambitions pull the build basket in too, so the
-                    // border markets can actually supply the founding
-                    foreach (var q in Infrastructure.Get(InfraTypeId.Gate)
-                                 .BuildCost)
-                        scratch.Demand[home][(int)q.Good] += q.Quantity;
-                    break;
-            }
-        }
     }
 
     /// <summary>Salvage supply lands with everyone else's (Markets phase,
@@ -719,49 +688,43 @@ public static class CorporationOps
         return working;
     }
 
-    /// <summary>Deposit recovered goods and register the supply so buyers'
-    /// payments flow to the salvor at distribution (MarketEngine.Deposit's
-    /// pattern — unsold salvage earns nothing).</summary>
+    /// <summary>Recovered goods go up for sale as the salvor's own asks
+    /// (contract economy) — unsold salvage earns nothing, visibly.</summary>
     private static void DepositSalvage(SimState state, MarketStepScratch scratch,
         int mIx, int ownerActorId, GoodId good, double qty, double grade)
     {
         if (qty <= 0) return;
-        var market = state.Markets[mIx];
-        market.Deposit((int)good, qty, grade);
-        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId,
-                                              qty * market.Price[(int)good]));
+        BookOps.PostSupply(state, mIx, ownerActorId, (int)good, qty, grade);
     }
 
-    /// <summary>Conglomerates and combines build where their niche points:
-    /// the build basket is drawn from the home market and paid at founding
-    /// prices from corporate credits (construction wages recycle, P4).</summary>
+    /// <summary>Execute the corp's STANDING PLAN (contract-economy spec §3,
+    /// C11 — the one-build-at-a-time special case retired): each due
+    /// Facility entry breaks ground after truth checks — site still wanted,
+    /// the war chest still covers the founding value. The scheduler already
+    /// packed the rates; Operate just executes (Move 1).</summary>
     private static void InvestFacilities(SimState state, Corporation corp,
                                          CorporationPolicies policies)
     {
-        if (!WantsFacility(state, corp)) return;
-        var port = state.Ports[corp.HomePortId];
-        var type = PlannedFacility(state, corp);
-        var build = Infrastructure.Get(type);
-        double value = 0;
-        foreach (var q in build.BuildCost)
-            value += q.Quantity * Market.InitialPrice(state.Config.Economy, q.Good);
-        if (corp.Credits * policies.Investment.Facilities < value) return;
-        // stage 2 (carried residue): corps pack against income like
-        // polities — the new build's rate (goods + wages per year) must
-        // fit beside every rate already committed under the trailing
-        // income, floored at one build so a young corp's founding
-        // investment never deadlocks. A boom staggers, never floods.
-        double years = Math.Max(1.0, build.ConstructionYears);
-        double ratePerYear = 2.0 * value / years;      // goods + wages
-        var brief = CapabilityOps.BriefFor(state, corp.ActorId);
-        if (brief.CommittedCostPerYear + ratePerYear
-            > Math.Max(brief.IncomePerYear, ratePerYear)) return;
-        // the build is a construction project now: the facility row exists
-        // uncommissioned, its basket and wages stream from corp credits over
-        // the build years (Task 9 — no upfront debit, no instant commission)
-        ProjectOps.SpawnFacilityConstruction(state, corp.ActorId, corp.ActorId,
-            new ConstructionCandidate((int)type, port.Hex, port.Id, 0.0),
-            ProjectPriority.Growth, 0);
+        int spanEnd = state.WorldYear + state.Config.Sim.YearsPerEpoch;
+        for (int ix = 0; ix < policies.Plan.Entries.Count; ix++)
+        {
+            var entry = policies.Plan.Entries[ix];
+            if (entry.Kind != PlanEntryKind.Facility
+                || entry.StartYear >= spanEnd) continue;
+            if (!WantsFacility(state, corp)) return;
+            var build = Infrastructure.Get((InfraTypeId)entry.TypeId);
+            double value = 0;
+            foreach (var q in build.BuildCost)
+                value += q.Quantity
+                         * Market.InitialPrice(state.Config.Economy, q.Good);
+            if (corp.Credits * policies.Investment.Facilities < value)
+                continue;
+            ProjectOps.SpawnFacilityConstruction(state, corp.ActorId,
+                corp.ActorId,
+                new ConstructionCandidate(entry.TypeId, entry.Hex,
+                                          entry.PortId, 0.0),
+                ProjectPriority.Growth, ix);
+        }
     }
 
     /// <summary>The freight line's founding act (lane-economics spec §4):
@@ -855,8 +818,9 @@ public static class CorporationOps
             if (port.OwnerActorId != hostId) continue;
             var m = state.Markets[port.Id];
             if (market == null
-                || m.Inventory[(int)GoodId.ShipComponents]
-                   > market.Inventory[(int)GoodId.ShipComponents])
+                || BookOps.AskQty(state, port.Id, (int)GoodId.ShipComponents)
+                   > BookOps.AskQty(state, market.PortId,
+                                    (int)GoodId.ShipComponents))
                 market = m;
         }
         if (market == null) return;
@@ -870,7 +834,8 @@ public static class CorporationOps
         double budget = Math.Max(0, corp.Credits) * policies.Investment.Fleet;
         int affordable = (int)Math.Min(
             budget / Math.Max(1e-9, perHull * price),
-            market.Inventory[(int)GoodId.ShipComponents] / Math.Max(1e-9, perHull));
+            BookOps.AskQty(state, market.PortId, (int)GoodId.ShipComponents)
+                / Math.Max(1e-9, perHull));
         if (affordable <= 0) return;
 
         // the best own-home lane gradient carries the new hulls
@@ -891,14 +856,16 @@ public static class CorporationOps
         }
         if (bestLane < 0) return;
 
-        double components = market.Draw((int)GoodId.ShipComponents,
-                                        affordable * perHull);
+        var (components, componentGrade, cost) = BookOps.LiftAsks(state,
+            market.PortId, (int)GoodId.ShipComponents, affordable * perHull,
+            budget);
         int hulls = (int)(components / perHull);
-        if (hulls <= 0) return;
-        market.LastCleared[(int)GoodId.ShipComponents] += components;
-        double cost = components * price;
         corp.Credits -= cost;
-        MarketEngine.PayWages(state, market.PortId, cost);   // the yard's crews
+        double spare = components - hulls * perHull;
+        if (spare > 1e-9)   // the sub-hull remainder goes back up for sale
+            BookOps.PostSupply(state, market.PortId, corp.ActorId,
+                (int)GoodId.ShipComponents, spare, componentGrade);
+        if (hulls <= 0) return;
 
         FleetRecord? fleet = null;
         foreach (var f in state.Fleets)
@@ -915,7 +882,7 @@ public static class CorporationOps
             };
             state.Fleets.Add(fleet);
         }
-        fleet.AddHulls(design.Id, hulls, market.InventoryGrade[(int)GoodId.ShipComponents]);
+        fleet.AddHulls(design.Id, hulls, componentGrade);
         corp.HullsBuilt += hulls;
     }
 
@@ -988,20 +955,38 @@ public static class CorporationOps
                                   Market market, int good, double need)
     {
         if (need <= 0) return 1.0;
-        double price = Math.Max(1e-9, market.Price[good]);
-        double affordable = Math.Max(0.0, corp.Credits) / price;
-        double drawn = market.Draw(good, Math.Min(need, affordable));
-        if (drawn > 0)
-        {
-            market.LastCleared[good] += drawn;
-            double cost = drawn * price;
-            corp.Credits -= cost;
-            MarketEngine.PayWages(state, market.PortId, cost);
-        }
+        var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
+            need, budget: Math.Max(0.0, corp.Credits));
+        corp.Credits -= cost;
         return drawn / need;
     }
 
     // ---- deaths and seizure ----
+
+    /// <summary>The estates pass shared by dissolution and nationalization
+    /// (slice CE review wave): resting buys refund their escrow into the
+    /// corp's settling books; resting sells, in-flight shipments, and
+    /// courier-fulfiller roles pass to the successor — nothing keeps
+    /// earning into a ledger nobody owns. Id order throughout (P6).</summary>
+    private static void SweepEstate(SimState state, Corporation corp,
+                                    int successorActorId)
+    {
+        for (int i = state.Orders.Count - 1; i >= 0; i--)
+        {
+            var o = state.Orders[i];
+            if (o.OwnerActorId != corp.ActorId) continue;
+            if (o.Side == OrderSide.Buy)
+                corp.Credits += OrderOps.CancelBuy(state, o);
+            else
+                o.OwnerActorId = successorActorId;
+        }
+        foreach (var s in state.Shipments)                    // id order (P6)
+            if (s.OwnerActorId == corp.ActorId)
+                s.OwnerActorId = successorActorId;
+        foreach (var c in state.Couriers)                     // id order (P6)
+            if (c.FulfillerActorId == corp.ActorId)
+                c.FulfillerActorId = successorActorId;
+    }
 
     /// <summary>Dissolution with residue (corporations.md §Death): assets
     /// abandon to whoever hosts them, hulls scrap, remaining credits settle
@@ -1017,6 +1002,10 @@ public static class CorporationOps
         foreach (var p in state.Projects)                     // id order (P6)
             if (p.InFlight && p.FunderActorId == corp.ActorId)
                 ProjectOps.Cancel(state, p);
+        // the estate on the books and afloat abandons to the home port's
+        // sovereign (a dead corp must not keep earning through the book,
+        // a delivery, or a courier fee — slice CE review wave)
+        SweepEstate(state, corp, state.Ports[corp.HomePortId].OwnerActorId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId)
             {
@@ -1085,6 +1074,9 @@ public static class CorporationOps
         var pr = state.PolityOf(polityId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) f.OwnerActorId = polityId;
+        // the open book, cargo afloat, and signed hauling jobs seize with
+        // the rest of the assets (slice CE review wave)
+        SweepEstate(state, corp, polityId);
         // seized work continues under the state: owner AND funder pass to the
         // polity so AdvanceAll keeps feeding it (no corp mobilizations) (F2)
         foreach (var p in state.Projects)                     // id order (P6)

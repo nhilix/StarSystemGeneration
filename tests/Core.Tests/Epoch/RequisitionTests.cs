@@ -5,16 +5,18 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Epoch;
 
-/// <summary>Stage 2 (spec §4b, the requisition channel): when the plan
-/// schedules work, Allocation raises shipping orders from the polity's own
-/// located stockpiles toward the site — bypassing price (the state moving
-/// its own goods), never bypassing time, route, or capacity. A remote site
+/// <summary>The requisition channel as POSTED COURIER CONTRACTS (contract
+/// economy, spec §3): when the plan schedules work, Allocation posts
+/// couriers from the polity's own located stockpiles toward the site —
+/// bypassing price (the state moving its own goods), never time, route, or
+/// capacity — and the hauling costs a fee paid to whoever's hulls take the
+/// job (the poster's own marine self-fulfills at cost). A remote site still
 /// starves at the pace of its last delivery.</summary>
 public class RequisitionTests
 {
     /// <summary>One polity, a stocked home port and a bare frontier port
     /// 10 hexes down a live tier-2 lane; slow freight so transit is 5y
-    /// against a 1y step.</summary>
+    /// against a 1y step; the polity's own freighters posted on the lane.</summary>
     private static (SimState State, Port Home, Port Frontier) Fixture()
     {
         var state = EpochTestKit.Seeded().State;
@@ -29,6 +31,7 @@ public class RequisitionTests
         state.Markets.Add(new Market(0, state.Config.Economy));
         state.Markets.Add(new Market(1, state.Config.Economy));
         EpochTestKit.AddLane(state, 0, 1);
+        EpochTestKit.PostFreight(state, actor.Id, laneId: 0, hulls: 4);
         int species = state.PolityOf(actor.Id).SpeciesId;
         state.Segments.Add(new PopulationSegment(0, 0, species, species, 3.0));
         state.PolityOf(actor.Id).Credits = 1000;
@@ -51,28 +54,35 @@ public class RequisitionTests
     }
 
     [Fact]
-    public void Requisitions_ShipStockTowardTheStarvingSite()
+    public void Requisitions_PostCouriers_TowardTheStarvingSite()
     {
         var (state, home, frontier) = Fixture();
         home.DepositStock((int)GoodId.Alloys, 100, 0.6);
         var p = RemoteProject(state, frontier);
+        var pr = state.PolityOf(home.OwnerActorId);
 
-        int raised = ShipmentOps.RaiseRequisitions(state,
-            state.PolityOf(home.OwnerActorId));
+        int raised = ShipmentOps.RaiseRequisitions(state, pr);
 
-        Assert.True(raised > 0, "the shortfall should raise a shipping order");
+        Assert.True(raised > 0, "the shortfall should post a courier");
+        var c = Assert.Single(state.Couriers);
+        Assert.Equal(home.Id, c.OriginPortId);
+        Assert.Equal(frontier.Id, c.DestPortId);
+        Assert.True(c.Qty[(int)GoodId.Alloys] > 0);
+        Assert.True(home.StockQty[(int)GoodId.Alloys] < 100,
+            "the cargo escrows out of the source larder at post");
+        // no PRICE was paid — the state ships its own goods — but the
+        // hauling fee is escrowed on the contract (conserved)
+        Assert.Equal(1000.0, pr.Credits + c.FeeEscrow, 6);
+        Assert.True(c.FeeEscrow > 0, "state hauling costs freight fees now");
+
+        // the job board: the polity's own marine takes it at cost
+        Assert.Equal(1, CourierOps.AcceptOpen(state));
+        Assert.Equal(pr.ActorId, c.FulfillerActorId);
         var s = Assert.Single(state.Shipments);
         Assert.Equal(ShipmentChannel.Requisition, s.Channel);
-        Assert.Equal(home.Id, s.OriginPortId);
-        Assert.Equal(frontier.Id, s.DestPortId);
-        Assert.True(s.Qty[(int)GoodId.Alloys] > 0);
-        Assert.True(home.StockQty[(int)GoodId.Alloys] < 100,
-            "the order draws the source larder at departure");
-        // no price was paid: the state moved its own goods
-        Assert.Equal(1000.0, state.PolityOf(home.OwnerActorId).Credits, 6);
-        // and a second raise does not double-order what is already sailing
-        Assert.Equal(0, ShipmentOps.RaiseRequisitions(state,
-            state.PolityOf(home.OwnerActorId)));
+
+        // a second raise does not double-order what is already sailing
+        Assert.Equal(0, ShipmentOps.RaiseRequisitions(state, pr));
         _ = p;
     }
 
@@ -92,14 +102,14 @@ public class RequisitionTests
             state.PolityOf(home.OwnerActorId));
 
         Assert.Equal(0, raised);
-        Assert.Empty(state.Shipments);
+        Assert.Empty(state.Couriers);
         _ = p;
     }
 
-    /// <summary>The phase wiring: Allocation raises the standing orders
-    /// mechanically, every step, before it advances the works.</summary>
+    /// <summary>The phase wiring: Allocation posts the standing orders and
+    /// clears the job board mechanically, every step.</summary>
     [Fact]
-    public void AllocationPhase_RaisesTheRequisitions()
+    public void AllocationPhase_RaisesAndAcceptsTheRequisitions()
     {
         var (state, home, frontier) = Fixture();
         home.DepositStock((int)GoodId.Alloys, 100, 0.6);
@@ -125,6 +135,7 @@ public class RequisitionTests
 
         // the order sails; until anything lands, the site starves
         ShipmentOps.RaiseRequisitions(state, pr);
+        CourierOps.AcceptOpen(state);
         for (int i = 0; i < 4; i++)
         {
             ProjectOps.AdvanceAll(state);
@@ -139,6 +150,7 @@ public class RequisitionTests
         // now sever the supply line mid-flight of the next order: the site
         // lives off what its larder still holds, then starves
         ShipmentOps.RaiseRequisitions(state, pr);
+        CourierOps.AcceptOpen(state);
         state.Lanes[0].QuarantinedUntil = 100000;
         for (int i = 0; i < 8; i++)
         {

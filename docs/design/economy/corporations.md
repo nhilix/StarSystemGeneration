@@ -34,11 +34,18 @@ pirate-lord notables the chronicle names.
 
 ## The corporate controller
 
-**Policies**: investment allocation, route bids, dividend rate, lobby targets.
-**Acts**: charter applications in new polities, major acquisitions, asset
-abandonment. The AI maximizes long-run profit filtered through founding character —
-cartels weigh enforcement risk, freight lines value lane security, conglomerates
-chase deposits. A player at corporate scope answers the same question (P2).
+**Policies**: a **standing plan** — the same plan/packing machinery the
+polity planner uses: the corp perceives its capability (income, savings,
+facility count) and its home-port opportunities, and packs facility
+entries against income plus a savings drawdown; Allocation executes due
+entries with truth checks. Plus dividend rate and lobby targets. **Acts**:
+charter applications in new polities, major acquisitions, asset
+abandonment. The AI maximizes long-run profit filtered through founding
+character — cartels weigh enforcement risk, freight lines value lane
+security, conglomerates chase deposits. A player at corporate scope
+answers the same question (P2). *Scoped, flagged: plans cover facilities;
+route commitments and gate pairs stay opportunistic in Operate, and hull
+purchases stay immediate buys off the book.*
 
 ## Portfolio and operations
 
@@ -48,13 +55,20 @@ reinvestment versus dividends (policy). **Dividends flow to host-polity elites**
 becoming faction wealth — corporate influence is internal politics, not a bolted-on
 lobbying mini-game.
 
-**Internal logistics**: a corporation moves goods within its own network at cost —
-its ore travels from its mine through intermediate ports to its refinery with no
-market transaction en route; markets see only its net buys and sells at the
-endpoints. Vertical integration is how a conglomerate owns a whole
-ore→alloys→components chain across several domains, capturing every stage's
-margin internally — and why nationalizing one facility can sever a chain that
-spans three polities.
+**Speculation is the business**: a freight corp's posted fleets run the
+spread on their lanes with the corp's OWN free capital — lift cheap asks,
+sail, post as its asks at the dear end, book the margin when they sell
+(profit walks the goods, P5). Upkeep, recipe inputs, and fleet purchases
+lift asks off the local book like any buyer.
+
+**Internal logistics**: a corporation moves goods within its own network
+on courier contracts — its ore travels from its mine to its refinery as
+escrowed cargo, self-fulfilled at cost when its own hulls are deepest on
+the route; markets see only its buys and sells at the endpoints. Vertical
+integration is how a conglomerate owns a whole ore→alloys→components
+chain across several domains, capturing every stage's margin internally —
+and why nationalizing one facility can sever a chain that spans three
+polities.
 
 ## Influence
 
@@ -75,7 +89,14 @@ option is an event with fallout.
   lifts and margins evaporate (a cartel legalized out of existence).
 
 Dead corporations leave residue: abandoned facilities, unemployed populations,
-orphaned routes, and a complete chronicle arc.
+orphaned routes, and a complete chronicle arc. **The estates pass settles
+everything** (P4): resting buy orders refund into the settling books;
+resting sells, cargo afloat, and signed courier-hauling jobs pass to the
+successor (the home port's sovereign at dissolution, the state at
+nationalization); in-flight projects cancel as residue (dissolution) or
+continue under the state (nationalization); surplus credits settle on the
+home port's populations, debt onto the sovereign administering the
+collapse — nothing keeps earning into a ledger nobody owns.
 
 ## P1 evidence
 

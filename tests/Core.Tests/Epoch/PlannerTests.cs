@@ -53,8 +53,11 @@ public class PlannerTests
                      s + (int)System.Math.Ceiling(duration)); y++)
             {
                 timeline[y] += costPerYear;
+                // the cap is income plus the horizon-spread savings —
+                // treasuries exist to be spent (contract economy)
                 Assert.True(timeline[y]
-                    <= view.Capability.IncomePerYear + 1e-6,
+                    <= view.Capability.IncomePerYear
+                       + view.Capability.SavingsPerYear + 1e-6,
                     $"year {y} over-committed");
             }
         }
@@ -97,7 +100,7 @@ public class PlannerTests
         var cfg = new EpochSimConfig();          // YardHullsPerTierPerYear .2
         var design = new DesignBrief(0, ShipRole.Freight, ShipSize.Medium, 1);
         var ports = new[] { new PortBrief(0, Tier: 2, YardTiers: 1) };
-        var cap = new CapabilityBrief(1e6,
+        var cap = new CapabilityBrief(1e6, 0.0,
             new double[StarGen.Core.Substrate.Goods.All.Count],
             new CommitmentBrief[0]);
         var policies = PolityPolicies.Default with

@@ -6,9 +6,9 @@ using static System.FormattableString;
 namespace StarGen.Inspector;
 
 /// <summary>The `market` REPL dump: one port market's per-good state
-/// (price / inventory / grade / cleared / black book), the households that
-/// trade there, and the facilities that supply it — the market-geography
-/// design made inspectable.</summary>
+/// (reference price / ask depth / grade / cleared / black book — the ask
+/// column is the live sell orders, contract economy), the households that
+/// trade there, and the facilities that supply it.</summary>
 public static class MarketView
 {
     public static string Render(SimState state, int portId)
@@ -23,19 +23,21 @@ public static class MarketView
             + Invariant($"({port.Hex.Q},{port.Hex.R}), {owner.Name}'s domain, ")
             + Invariant($"founded y{port.FoundedYear}"));
 
-        sb.AppendLine("  good              price     inv  grade        cleared  black book");
+        sb.AppendLine("  good              price    asks  grade        cleared  black book");
         for (int g = 0; g < Goods.All.Count; g++)
         {
             var def = Goods.All[g];
-            string grade = market.Inventory[g] > 0
-                ? Grades.BandOf(market.InventoryGrade[g]).ToString().ToLowerInvariant()
-                  + Invariant($" {market.InventoryGrade[g]:0.00}")
+            double askQty = BookOps.AskQty(state, portId, g);
+            double askGrade = BookOps.AskGrade(state, portId, g);
+            string grade = askQty > 0
+                ? Grades.BandOf(askGrade).ToString().ToLowerInvariant()
+                  + Invariant($" {askGrade:0.00}")
                 : "-";
             string black = market.BlackBookDemand[g] > 0
                 ? Invariant($"{market.BlackBookDemand[g]:0.#} @ {market.BlackBookPrice[g]:0.00}")
                 : "-";
             sb.AppendLine(Invariant($"  {def.Name,-16} {market.Price[g],6:0.00} ")
-                + Invariant($"{market.Inventory[g],7:0.#}  {grade,-11} ")
+                + Invariant($"{askQty,7:0.#}  {grade,-11} ")
                 + Invariant($"{market.LastCleared[g],7:0.#}  {black}"));
         }
 

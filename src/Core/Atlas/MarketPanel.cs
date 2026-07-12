@@ -6,10 +6,11 @@ using StarGen.Core.Substrate;
 
 namespace StarGen.Core.Atlas;
 
-/// <summary>One good's market row: everything `market` prints (price /
-/// inventory / grade / cleared / black book) plus the located larder (T2)
-/// — the port's strategic stock, its grade, and the effective per-year
-/// decay it rots at where it sits.</summary>
+/// <summary>One good's market row: everything `market` prints (reference
+/// price / resting ask depth + grade / cleared / black book) plus the
+/// located larder (T2) — the port's strategic stock, its grade, and the
+/// effective per-year decay it rots at where it sits. Inventory is the
+/// book's ask depth since slice CE retired the anonymous shelf.</summary>
 public sealed record MarketGoodRow(
     GoodId Good, string GoodName, double Price, double Inventory,
     GradeBand GradeBand, double Grade, double LastCleared,
@@ -59,10 +60,12 @@ public static class MarketPanel
         for (int g = 0; g < Goods.All.Count; g++)
         {
             var id = (GoodId)g;
+            double askQty = BookOps.AskQty(state, portId, g);
+            double askGrade = BookOps.AskGrade(state, portId, g);
             goods.Add(new MarketGoodRow(id, Substrate.Goods.Get(id).Name,
-                market.Price[g], market.Inventory[g],
-                Grades.BandOf(market.InventoryGrade[g]),
-                market.InventoryGrade[g], market.LastCleared[g],
+                market.Price[g], askQty,
+                Grades.BandOf(askGrade),
+                askGrade, market.LastCleared[g],
                 market.BlackBookDemand[g], market.BlackBookPrice[g],
                 port.StockQty[g], port.StockGrade[g],
                 eco.StockpileDecayPerYear

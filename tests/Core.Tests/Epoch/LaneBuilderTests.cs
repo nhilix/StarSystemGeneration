@@ -55,10 +55,20 @@ public class LaneBuilderTests
         foreach (var lane in state.Lanes)
         { linked.Add(lane.PortAId); linked.Add(lane.PortBId); }
         int isolated = 0;
+        var detail = new System.Text.StringBuilder();
+        // a port founded within the last epoch is the comment's named
+        // exception — its founding link is next step's work, not a gap
+        int settled = state.WorldYear - state.Config.Sim.YearsPerEpoch;
         foreach (var p in state.Ports)
-            if (!linked.Contains(p.Id)) isolated++;
+            if (!linked.Contains(p.Id) && p.FoundedYear <= settled)
+            {
+                isolated++;
+                detail.Append($" #{p.Id}(founded {p.FoundedYear}, "
+                    + $"owner {p.OwnerActorId}, tier {p.Tier})");
+            }
         Assert.True(isolated <= state.Ports.Count / 10,
-            $"{isolated} of {state.Ports.Count} ports sit off the network");
+            $"{isolated} of {state.Ports.Count} settled ports sit off the "
+            + $"network:{detail} (worldYear {state.WorldYear})");
     }
 
     [Fact]

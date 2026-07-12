@@ -23,7 +23,11 @@ public static class Planner
         if (view.Capability == null) return StandingPlan.Empty;
         int H = cfg.Sim.GenerationYears;
         if (H <= 0) return StandingPlan.Empty;
-        double capacity = view.Capability.IncomePerYear;
+        // income plus the horizon-spread savings: treasuries exist to be
+        // spent — packing against trailing income alone deadlocks a rich
+        // polity whose receipts are lean real cash flow (contract economy)
+        double capacity = view.Capability.IncomePerYear
+                          + view.Capability.SavingsPerYear;
 
         // committed-cost timeline: each in-flight commitment fills the years
         // to its naive completion (spec §3 step 2)
@@ -110,10 +114,20 @@ public static class Planner
             {
                 if (!granted.TryGetValue(d.DesignId, out int count) || count <= 0)
                     continue;
+                double score = hullBase * warFactor
+                               * bestClaimOf[d.DesignId];
+                // stranded settlers outrank routine shipbuilding: a polity
+                // holding a colony's worth of expansion points with no
+                // colony hull in reserve NEEDS the convoy first (slice CE —
+                // the book economy packs fuller plans, and low-weighted
+                // colony batches otherwise slide past the horizon forever)
+                if (d.Role == ShipRole.Colony
+                    && view.ColonyHullsAvailable == 0
+                    && view.ExpansionPoints >= cfg.Expansion.ColonyCost)
+                    score *= cfg.Controller.ColonyNeedBoost;
                 desired.Add((new PlanEntry(PlanEntryKind.HullBatch,
                     hullPriority, 0, d.DesignId, port.PortId,
-                    new HexCoordinate(0, 0), count),
-                    hullBase * warFactor * bestClaimOf[d.DesignId]));
+                    new HexCoordinate(0, 0), count), score));
             }
         }
 
@@ -156,6 +170,53 @@ public static class Planner
             plan.Add(entry with { StartYear = view.WorldYear + placed });
         }
 
+        return plan.Count == 0 ? StandingPlan.Empty : new StandingPlan(plan);
+    }
+
+    /// <summary>The corp's standing plan (contract-economy spec §3, C11):
+    /// perceived investment candidates greedily packed against income +
+    /// savings, exactly the polity scheduler's discipline at portfolio
+    /// scope. Candidates come from the corp's perception (its home-port
+    /// facility pick today; depots and route commitments join later).</summary>
+    public static StandingPlan BuildCorpPlan(PerceptionView view,
+                                             EpochSimConfig cfg)
+    {
+        if (view.Capability == null
+            || view.ConstructionCandidates.Count == 0)
+            return StandingPlan.Empty;
+        int H = cfg.Sim.GenerationYears;
+        if (H <= 0) return StandingPlan.Empty;
+        double capacity = view.Capability.IncomePerYear
+                          + view.Capability.SavingsPerYear;
+        var timeline = new double[H];
+        foreach (var c in view.Capability.Commitments)
+        {
+            int end = Math.Min(H, (int)Math.Ceiling(c.YearsRemaining));
+            for (int y = 0; y < end; y++) timeline[y] += c.CostPerYear;
+        }
+        var plan = new List<PlanEntry>();
+        foreach (var cand in view.ConstructionCandidates) // score order
+        {
+            if (plan.Count >= cfg.Controller.MaxPlanEntries) break;
+            var entry = new PlanEntry(PlanEntryKind.Facility,
+                ProjectPriority.Growth, 0, cand.TypeId, cand.PortId,
+                cand.Hex, 1);
+            var (costPerYear, duration) = CostOf(entry, view, cfg);
+            int span = Math.Max(1, (int)Math.Ceiling(duration));
+            int placed = -1;
+            for (int s = 0; s + span <= H && placed < 0; s++)
+            {
+                bool fits = true;
+                for (int y = s; y < s + span; y++)
+                    if (timeline[y] + costPerYear > capacity + 1e-9)
+                    { fits = false; break; }
+                if (fits) placed = s;
+            }
+            if (placed < 0) continue;
+            for (int y = placed; y < placed + span; y++)
+                timeline[y] += costPerYear;
+            plan.Add(entry with { StartYear = view.WorldYear + placed });
+        }
         return plan.Count == 0 ? StandingPlan.Empty : new StandingPlan(plan);
     }
 

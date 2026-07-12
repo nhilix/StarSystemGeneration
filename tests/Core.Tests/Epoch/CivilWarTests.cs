@@ -11,8 +11,11 @@ namespace StarGen.Core.Tests.Epoch;
 /// submission settlements merge the loser back whole.</summary>
 public class CivilWarTests
 {
-    private static SimState Run(int epochs = 24)
+    private static SimState Run(int epochs = 32)
     {
+        // 32 epochs (was 24): the contract economy's works BUY their goods,
+        // so early build-out is slower and the 4-port polity these tests
+        // stage against arrives a few generations later (slice CE)
         var state = EpochTestKit.Seeded(42, 12).State;
         state.Config.Sim.EpochCount = epochs;
         new EpochEngine().Run(state);

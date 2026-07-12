@@ -26,15 +26,21 @@ public sealed record CommitmentBrief(double CostPerYear, double YearsRemaining);
 public sealed class CapabilityBrief
 {
     public double IncomePerYear { get; }               // trailing (P3)
+    /// <summary>Accumulated investment treasuries spread over the planning
+    /// horizon — savings exist to be spent (contract economy: receipts are
+    /// lean REAL cash flow now, and a planner packing against income alone
+    /// deadlocks on top of an idle war chest).</summary>
+    public double SavingsPerYear { get; }
     public IReadOnlyList<double> GenerationPerYear { get; }  // per good
     public IReadOnlyList<CommitmentBrief> Commitments { get; }
     public double CommittedCostPerYear { get; }        // Σ commitments now
 
-    public CapabilityBrief(double incomePerYear,
+    public CapabilityBrief(double incomePerYear, double savingsPerYear,
         IReadOnlyList<double> generationPerYear,
         IReadOnlyList<CommitmentBrief> commitments)
     {
         IncomePerYear = incomePerYear;
+        SavingsPerYear = savingsPerYear;
         GenerationPerYear = generationPerYear;
         Commitments = commitments;
         double sum = 0;
@@ -144,6 +150,13 @@ public static class CapabilityOps
         double incomePerYear = corp != null
             ? corp.LastIncomePerYear
             : state.PolityOf(actorId).LastIncomePerYear;
+        double drawdown = Math.Max(1.0,
+            state.Config.Economy.PlanSavingsDrawdownYears);
+        double savingsPerYear = (corp != null
+            ? Math.Max(0.0, corp.Credits)
+            : Math.Max(0.0, state.PolityOf(actorId).DevelopmentPoints)
+              + Math.Max(0.0, state.PolityOf(actorId).MilitaryPoints))
+            / drawdown;
 
         var generation = new double[Substrate.Goods.All.Count];
         foreach (var f in state.Facilities)                // id order (P6)
@@ -178,7 +191,8 @@ public static class CapabilityOps
                 p.YearsRequired - p.YearsDelivered));
         }
 
-        return new CapabilityBrief(incomePerYear, generation, commitments);
+        return new CapabilityBrief(incomePerYear, savingsPerYear, generation,
+                                   commitments);
     }
 
     /// <summary>Insert into the per-port top-3 list, keeping it ranked by

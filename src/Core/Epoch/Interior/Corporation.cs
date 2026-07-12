@@ -87,7 +87,15 @@ public sealed class Corporation : ICreditLedger
 public sealed class CorporateController : IController
 {
     private static readonly IReadOnlyList<Act> NoActs = new Act[0];
+    private readonly EpochSimConfig _config;
 
+    public CorporateController(EpochSimConfig config) { _config = config; }
+
+    /// <summary>The corp's standing plan (contract-economy spec §3, C11):
+    /// its perceived investment candidates packed against income + savings
+    /// — the same scheduler discipline polities run, at portfolio scope.
+    /// Operate executes the due entries mechanically (Move 1).</summary>
     public ControllerDecision Decide(PerceptionView perceived) =>
-        new ControllerDecision(CorporationPolicies.Default, NoActs);
+        new ControllerDecision(CorporationPolicies.Default with
+        { Plan = Planner.BuildCorpPlan(perceived, _config) }, NoActs);
 }

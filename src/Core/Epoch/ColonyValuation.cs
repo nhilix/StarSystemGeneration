@@ -56,6 +56,16 @@ public static class ColonyValuation
             foreach (var p in ownPorts)
                 if (HexGrid.CellOf(p.Hex).Equals(cell.Coord)) { ownCell = true; break; }
             if (ownCell) continue;
+            // a rival convoy already under way is PUBLIC residue (P1/P3 —
+            // en-route expeditions are visible, interceptable state): racing
+            // it wastes the expedition on a turn-back (T2 carried flag,
+            // closed in slice CE)
+            bool contested = false;
+            foreach (var p in state.Projects)             // id order (P6)
+                if (p.InFlight && p.Kind == ProjectKind.ColonyExpedition
+                    && p.Hex.Equals(hex))
+                { contested = true; break; }
+            if (contested) continue;
 
             double score = cell.MeanDensity + 0.3 * cell.Metallicity;
             foreach (var a in cell.Anchors)

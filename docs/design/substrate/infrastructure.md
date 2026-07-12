@@ -36,10 +36,15 @@ project draws `buildCost ÷ constructionYears` as its per-year basket and takes 
 full construction time to commission ([../economy/assets-and-investment.md](../economy/assets-and-investment.md)).
 
 **Raising a port a tier is itself construction**: a multi-year project drawing a
-per-year basket (Alloys, Machinery, Refined Exotics, scaling with the target tier)
-over the port-upgrade span — an exotics-poor realm stalls its nexuses for want of
-the exotics chain, exactly as any construction stalls for want of its scarcest
-input. The per-tier basket and span are knobs (`Expansion.PortUpgrade*` in
+per-year basket over the port-upgrade span, scaling with the target tier —
+Alloys and Machinery always; **Refined Exotics enter at tier 2 and above**
+(the basket's exotics term scales with target tier − 1). A frontier
+outpost raises to a working port on industrial goods alone; the nexus
+tiers demand the exotics chain, and an exotics-poor realm stalls its
+nexuses for want of it, exactly as any construction stalls for want of its
+scarcest input. (Amended in slice CE: the flat exotics term starved EVERY
+tier-1 raise galaxy-wide behind one anemic luxury chain.) The per-tier
+basket and span are knobs (`Expansion.PortUpgrade*` in
 [../TUNING.md](../TUNING.md)).
 
 ## Production

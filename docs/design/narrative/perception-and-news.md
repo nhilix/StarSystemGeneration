@@ -22,11 +22,16 @@ news-carrying player are fast-path exceptions.
   delay from the subject's space — freshness is per relationship, carried
   by the same lanes the freight rides. Self-facts always read fresh.
 - **Cached headline facts** — known wars and treaties ride the snapshots.
-  Prices at trading partners are *not* yet perception-gated: freight
-  clears on true prices as Markets-phase resolution (Move 2); the
-  perceived-price arbitrage this section once promised is a filed gap
-  (slice J acceptance) for the live game, where it is the trader player's
-  edge.
+  Prices at trading partners are *not* yet perception-gated: spread runs
+  and the courier board clear on true books as Markets/Allocation-phase
+  resolution; the perceived-book arbitrage this section once promised is a
+  filed gap (slice J acceptance, carried through the contract economy) for
+  the live game, where it is the trader player's edge — and the designed
+  home of multi-hop actor runs.
+- **Corporate perception** — a corporation perceives its own capability
+  (income, savings, holdings) and its home port's investment
+  opportunities through the same phase; its standing plan packs against
+  that brief, not against truth.
 
 The Intent phase reads truth *through the snapshots*: stale pairs serve old
 values. One mechanism, every consumer: wars overrun their rational end

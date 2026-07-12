@@ -95,6 +95,10 @@ public class GraduationTests
         foreach (var p in state.Projects)
             if (p.InFlight && p.Kind == ProjectKind.ColonyExpedition)
                 held += state.Config.Expansion.ColonyCost;
+        // escrow is held credits too (slice CE): open order escrow and
+        // courier fees in flight
+        foreach (var o in state.Orders) held += o.EscrowCredits;
+        foreach (var c in state.Couriers) held += c.FeeEscrow;
         Assert.Equal(minted, held, System.Math.Abs(minted) * 1e-9);
     }
 

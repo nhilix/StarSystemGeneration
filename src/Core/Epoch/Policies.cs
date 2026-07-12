@@ -81,7 +81,9 @@ public sealed record InvestmentAllocation(double Facilities, double Fleet, doubl
 /// <summary>Corporation standing policies per frame/controller-contract.md.
 /// Route-bid and lobby keys are registry ids landing in Slices D/G.
 /// RiskAppetite is the legality margin — how far into black books it
-/// operates.</summary>
+/// operates. The Plan is the corp's scheduled investment portfolio
+/// (contract-economy spec §3, C11) — packed against income + savings like
+/// a polity's, executed mechanically by Operate.</summary>
 public sealed record CorporationPolicies(
     InvestmentAllocation Investment,
     IReadOnlyDictionary<int, double> RouteBids,
@@ -89,6 +91,8 @@ public sealed record CorporationPolicies(
     IReadOnlyList<int> LobbyTargets,
     double RiskAppetite) : PolicySet
 {
+    public StandingPlan Plan { get; init; } = StandingPlan.Empty;
+
     public static CorporationPolicies Default { get; } = new CorporationPolicies(
         Investment: new InvestmentAllocation(Facilities: 0.5, Fleet: 0.4, Depots: 0.1),
         RouteBids: new Dictionary<int, double>(),

@@ -6,27 +6,24 @@ using StarGen.Core.Substrate;
 
 namespace StarGen.Core.Epoch;
 
-/// <summary>One supplier's deposit this step — the attribution the revenue
-/// pool is distributed against at clearing.</summary>
-public sealed record SupplyRecord(int MarketIndex, int OwnerActorId, double Value);
-
-/// <summary>One buyer's banded want at one market — assembled by demand,
-/// consumed by clearing in band-priority order.</summary>
+/// <summary>One buyer's banded want at one market — recorded when the
+/// port posts its aggregate band bids, consumed to apportion the fills
+/// (and the refunds) back to the contributing segments.</summary>
 public sealed record DemandRecord(
     int MarketIndex, int SegmentId, PopulationBand Band, int Good, double Quantity);
 
-/// <summary>Step-transient market bookkeeping — never state, never serialized
-/// (P6: transients are not state). Buyers pay into the per-market pool;
-/// clearing distributes it to this step's suppliers.</summary>
+/// <summary>One aggregate band bid the port posted on its segments'
+/// behalf — matching routes its fills to consumption and its unfilled
+/// escrow back to the segments (contract-economy spec §2).</summary>
+public sealed record BandBid(MarketOrder Order, int MarketIndex,
+                             PopulationBand Band, double PostedQty);
+
+/// <summary>Step-transient market bookkeeping — never state, never
+/// serialized (P6: transients are not state). Holds the famine arithmetic,
+/// the lane-capacity budget, and the routing maps that tie this step's
+/// posted buy orders back to their posters.</summary>
 public sealed class MarketStepScratch
 {
-    /// <summary>Credits paid in by buyers this step, per market index.</summary>
-    public double[] PoolByMarket { get; }
-    /// <summary>Deposit attribution, in facility id order.</summary>
-    public List<SupplyRecord> Supplies { get; } = new List<SupplyRecord>();
-    /// <summary>Aggregate legal demand per market per good — the price signal
-    /// and the freight gradient input.</summary>
-    public double[][] Demand { get; }
     /// <summary>Banded population demand, in market → segment → band order.</summary>
     public List<DemandRecord> DemandRecords { get; } = new List<DemandRecord>();
     /// <summary>Subsistence units needed / cleared per segment id — the
@@ -45,13 +42,30 @@ public sealed class MarketStepScratch
     /// <summary>Lanes closed this step: debug cuts + blockade postures,
     /// derived once from fleet state.</summary>
     public HashSet<int> Severed { get; }
+    /// <summary>This step's posted buys, by poster kind — matching routes
+    /// fills through these, the end-of-step sweep routes the refunds.</summary>
+    public List<BandBid> BandBids { get; } = new List<BandBid>();
+    public List<(MarketOrder Order, Project Project)> ProjectBids { get; }
+        = new List<(MarketOrder, Project)>();
+    public List<(MarketOrder Order, PolityRecord Polity, Port Port)>
+        ProcureBids { get; }
+        = new List<(MarketOrder, PolityRecord, Port)>();
+    /// <summary>Relay (entrepôt) bids — B1 bridge machinery: fills go
+    /// straight back on sale at the hub, refunds to the sovereign.</summary>
+    public List<(MarketOrder Order, int PortId)> RelayBids { get; }
+        = new List<(MarketOrder, int)>();
+    /// <summary>Consumption that lifts asks directly (recipe inputs,
+    /// upkeep, fleet supply, research feedstock) is invisible to the book —
+    /// this is its PRICE SIGNAL, per market per good, fed to the reference
+    /// drift only (never to the bridge's absorption, which reads real
+    /// bids). The old demand-assembly formulas live on here.</summary>
+    public double[][] SignalDemand { get; }
 
     public MarketStepScratch(SimState state)
     {
-        PoolByMarket = new double[state.Markets.Count];
-        Demand = new double[state.Markets.Count][];
-        for (int i = 0; i < Demand.Length; i++)
-            Demand[i] = new double[Goods.All.Count];
+        SignalDemand = new double[state.Markets.Count][];
+        for (int i = 0; i < SignalDemand.Length; i++)
+            SignalDemand[i] = new double[Goods.All.Count];
         SubsistenceNeed = new double[state.Segments.Count];
         SubsistenceCleared = new double[state.Segments.Count];
         SoLNeed = new double[state.Segments.Count];
@@ -144,9 +158,8 @@ public static class MarketEngine
                 Potentials.EmbodimentAffinity(embodiment, fields),
                 automationCompute: 0.0, def.LaborRequired);
 
-            double machineryGrade = market.Inventory[(int)GoodId.Machinery] > 0
-                ? market.InventoryGrade[(int)GoodId.Machinery]
-                : DefaultMachineryGrade;
+            double machineryGrade = BookOps.AskGrade(state, mIx,
+                (int)GoodId.Machinery);
             double share = 1.0 / def.Produces.Count;
 
             foreach (var good in def.Produces)            // catalog order
@@ -164,10 +177,10 @@ public static class MarketEngine
 
                 var recipes = Goods.Get(good).Recipes;
                 if (recipes.Count == 0)
-                    Deposit(state, scratch, mIx, f.OwnerActorId, (int)good,
-                            capacity, Potentials.RawGrade(terrain));
+                    BookOps.PostSupply(state, mIx, f.OwnerActorId, (int)good,
+                                       capacity, Potentials.RawGrade(terrain));
                 else
-                    RunRecipe(state, scratch, mIx, f, recipes, capacity);
+                    RunRecipe(state, mIx, f, recipes, capacity);
             }
         }
     }
@@ -175,10 +188,10 @@ public static class MarketEngine
     /// <summary>Convert inputs to output through the best recipe the owner's
     /// Industrial tier allows (slice G: per-polity tech, the stub retired):
     /// advanced variants first (higher grade base), falling back by
-    /// producible quantity. Inputs are drawn from the market at its mean
-    /// grades and paid for from the owner's credits.</summary>
-    private static void RunRecipe(SimState state, MarketStepScratch scratch,
-                                  int mIx, Facility f,
+    /// producible quantity. Inputs are lifted off the local asks, cheapest
+    /// first, paid from the owner's working capital — the sellers are real
+    /// now, and they are paid at their quotes.</summary>
+    private static void RunRecipe(SimState state, int mIx, Facility f,
                                   IReadOnlyList<Recipe> recipes, double capacity)
     {
         var market = state.Markets[mIx];
@@ -191,7 +204,7 @@ public static class MarketEngine
             double byInputs = capacity;
             foreach (var q in r.Inputs)
                 byInputs = Math.Min(byInputs,
-                    market.Inventory[(int)q.Good] / q.Quantity);
+                    BookOps.AskQty(state, mIx, (int)q.Good) / q.Quantity);
             // quantity × grade base: an advanced variant wins on quality only
             // while its inputs allow real volume — a drop of the good stuff
             // never beats a vat of the standard issue
@@ -201,9 +214,9 @@ public static class MarketEngine
         }
         if (pick == null || pickQty <= 0) return;
 
-        // inputs are bought at market prices on working capital: the owner's
-        // ledger may dip within the step — sales revenue lands at
-        // distribution, and insolvency is Allocation's credit problem
+        // inputs are bought on working capital: the owner's ledger may dip
+        // within the step — sales land as its own sell orders' fills, and
+        // insolvency is Allocation's credit problem
         var owner = state.LedgerOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
@@ -217,28 +230,17 @@ public static class MarketEngine
         double gradeSum = 0, weightSum = 0;
         foreach (var q in pick.Inputs)
         {
-            gradeSum += market.InventoryGrade[(int)q.Good] * q.Quantity;
+            var (_, grade0, cost0) = BookOps.LiftAsks(state, mIx,
+                (int)q.Good, qty * q.Quantity, budget: double.MaxValue);
+            owner.Credits -= cost0;
+            gradeSum += grade0 * q.Quantity;
             weightSum += q.Quantity;
-            double drawn = market.Draw((int)q.Good, qty * q.Quantity);
-            market.LastCleared[(int)q.Good] += drawn;
         }
-        double cost = qty * costPerUnit;
-        owner.Credits -= cost;
-        scratch.PoolByMarket[mIx] += cost;
 
         double meanInputGrade = weightSum > 0 ? gradeSum / weightSum : 0.5;
         double grade = Grades.Output(pick, meanInputGrade, f.Tier, techTier);
-        Deposit(state, scratch, mIx, f.OwnerActorId, (int)pick.Output, qty, grade);
-    }
-
-    internal static void Deposit(SimState state, MarketStepScratch scratch,
-                                 int mIx, int ownerActorId, int good,
-                                 double qty, double grade)
-    {
-        var market = state.Markets[mIx];
-        market.Deposit(good, qty, grade);
-        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId,
-                                              qty * market.Price[good]));
+        BookOps.PostSupply(state, mIx, f.OwnerActorId, (int)pick.Output,
+                           qty, grade);
     }
 
     /// <summary>Labor share to the staffing segments, pro-rata by size —
@@ -270,16 +272,22 @@ public static class MarketEngine
     // Step 2 — demand assembles
     // ------------------------------------------------------------------
 
-    /// <summary>Population demand per band: C's normalized profiles × the
-    /// config's absolute per-capita rates × segment size, embodiment-
-    /// modulated, price-elastic, with the organic baseline offsetting
-    /// provisions (self-supply — unserviced systems are poor, not starving).
-    /// Prohibition converts demand into the black book instead of deleting
-    /// it.</summary>
-    public static void AssembleDemand(SimState state, MarketStepScratch scratch)
+    /// <summary>The port posts its bands' bids (contract-economy spec §2):
+    /// C's normalized profiles × the config's absolute per-capita rates ×
+    /// segment size, embodiment-modulated, price-elastic against the
+    /// reference price, with the organic baseline offsetting provisions
+    /// (self-supply — unserviced systems are poor, not starving). One
+    /// aggregate buy order per (port, good, band), escrowed from segment
+    /// wealth pro-rata; the DemandRecords remember whose want it was, so
+    /// fills and refunds apportion back. Bands express priority through
+    /// PRICE: subsistence bids over fresh asks, comfort at reference,
+    /// luxury only into gluts. Prohibition converts demand into the black
+    /// book instead of deleting it.</summary>
+    public static void PostBandBids(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
+        var want = new double[Goods.All.Count];           // per band, reused
         for (int mIx = 0; mIx < state.Markets.Count; mIx++)
         {
             var market = state.Markets[mIx];
@@ -290,22 +298,27 @@ public static class MarketEngine
                        ?? PolityPolicies.Default).LawCode;
             double biosphere = Potentials.Biosphere(FieldsAt(state, port.Hex));
 
-            foreach (var seg in state.Segments)           // id order (P6)
+            foreach (var band in Bands)
             {
-                if (seg.PortId != port.Id || seg.Size <= 0) continue;
-                var embodiment = EmbodimentOf(state, seg.SpeciesId);
-                // demand is want backed by ability to pay: the price signal
-                // reads income-backed demand, so poverty reads as glut, not
-                // as a frozen high price
-                double budget = Math.Max(0.0, seg.Wealth);
-                // self-supply is embodiment-relative like the need it offsets:
-                // a lithic farms as little as it eats
-                double baseline =
-                    Production.OrganicBaseline(seg.Size, biosphere) * years
-                    * DemandProfiles.SubsistenceScale(embodiment);
-
-                foreach (var band in Bands)
+                double bidRatio = band switch
                 {
+                    PopulationBand.Subsistence => eco.SubsistenceBidPremium,
+                    PopulationBand.StandardOfLiving => eco.SoLBidRatio,
+                    _ => eco.LuxuryBidRatio,
+                };
+                Array.Clear(want, 0, want.Length);
+                foreach (var seg in state.Segments)       // id order (P6)
+                {
+                    if (seg.PortId != port.Id || seg.Size <= 0) continue;
+                    var embodiment = EmbodimentOf(state, seg.SpeciesId);
+                    // demand is want backed by ability to pay: poverty
+                    // reads as glut, not as a frozen high price
+                    double budget = Math.Max(0.0, seg.Wealth);
+                    // self-supply is embodiment-relative like the need it
+                    // offsets: a lithic farms as little as it eats
+                    double baseline =
+                        Production.OrganicBaseline(seg.Size, biosphere) * years
+                        * DemandProfiles.SubsistenceScale(embodiment);
                     double rate = band switch
                     {
                         PopulationBand.Subsistence =>
@@ -334,9 +347,9 @@ public static class MarketEngine
                         if (qty <= 0) continue;
 
                         qty *= ElasticFactor(eco, market, (int)good, band);
-                        double price = market.Price[(int)good];
-                        if (price > 0 && qty * price > budget)
-                            qty = budget / price;         // poverty caps the want
+                        double bid = market.Price[(int)good] * bidRatio;
+                        if (bid > 0 && qty * bid > budget)
+                            qty = budget / bid;           // poverty caps the want
                         if (qty <= 0) continue;
                         double black = law.TryGetValue((int)good, out var level)
                             ? level switch
@@ -353,13 +366,26 @@ public static class MarketEngine
                         }
                         double legal = qty - black;
                         if (legal <= 0) continue;
-                        // only the legal basket spends the budget: black-book
-                        // wants go unserved until smuggling exists (H)
-                        budget -= legal * price;
-                        scratch.Demand[mIx][(int)good] += legal;
+                        // the escrow leaves the segment NOW; unfilled bids
+                        // refund at the step's end (black-book wants go
+                        // unserved until smuggling exists, H). The budget
+                        // is one purse across the profile's goods — each
+                        // escrow shrinks what the next good may cap to
+                        seg.Wealth -= legal * bid;
+                        budget = Math.Max(0.0, budget - legal * bid);
+                        want[(int)good] += legal;
                         scratch.DemandRecords.Add(new DemandRecord(
                             mIx, seg.Id, band, (int)good, legal));
                     }
+                }
+                for (int g = 0; g < want.Length; g++)
+                {
+                    if (want[g] <= 0) continue;
+                    double bid = market.Price[g] * bidRatio;
+                    var order = OrderOps.PostBuy(state, port.OwnerActorId,
+                        mIx, g, want[g], bid, state.WorldYear);
+                    scratch.BandBids.Add(new BandBid(order, mIx, band,
+                                                     want[g]));
                 }
             }
         }
@@ -382,60 +408,68 @@ public static class MarketEngine
         return Math.Min(eco.ElasticCeiling, Math.Max(eco.ElasticFloor, factor));
     }
 
-    /// <summary>Industry inputs are demand (commodities.md demand model #2):
-    /// every active facility's recipe inputs at potential output plus its
-    /// upkeep draw register at its market, so the price signal keeps the
-    /// chain's feedstocks produced — without this, machinery reads as
-    /// wanted-by-nobody, floors, and the whole industrial base rots.</summary>
-    public static void AddIndustrialDemand(SimState state, MarketStepScratch scratch)
+    /// <summary>Every in-flight project posts its basket as REAL escrowed
+    /// bids at its site (contract-economy spec §2) — the construction pull
+    /// is literal now: a build boom is resting bids that raise prints and
+    /// attract freight, and the goods are PAID FOR from the funder's
+    /// treasury. A gate pair posts half at each end. Fills land in the
+    /// project's laydown yard (DeliveredQty) for Feed; unfilled escrow
+    /// refunds to the treasury at the step's end.</summary>
+    public static void PostProjectBids(SimState state, MarketStepScratch scratch)
     {
+        var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
-        foreach (var f in state.Facilities)               // id order (P6)
+        foreach (var p in state.Projects)                 // id order (P6)
         {
-            if (!IsActive(state, f)) continue;
-            int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
-            int mIx = AttachedMarketIndex(state, f);
-            if (mIx < 0) continue;
-            var def = Infrastructure.Get((InfraTypeId)f.TypeId);
-            var market = state.Markets[mIx];
-            double share = def.Produces.Count > 0 ? 1.0 / def.Produces.Count : 0;
-            foreach (var good in def.Produces)
+            // an expedition's basket is cargo already aboard, not demand
+            if (!p.InFlight || p.Kind == ProjectKind.ColonyExpedition)
+                continue;
+            // the pull tapers to the remaining work: a project a year from
+            // done bids for a year's basket, not the whole span's
+            double horizon = Math.Min(years,
+                Math.Max(0.0, p.YearsRequired - p.YearsDelivered));
+            if (horizon <= 0) continue;
+            bool pair = p.Kind == ProjectKind.GatePair && p.TargetId >= 0;
+            Span<int> ends = pair
+                ? stackalloc int[2] { state.Lanes[p.TargetId].PortAId,
+                                      state.Lanes[p.TargetId].PortBId }
+                : stackalloc int[1] { p.PortId };
+            double share = pair ? 0.5 : 1.0;
+            foreach (int end in ends)
             {
-                // planned, not maximal: the same price throttle production
-                // runs under, so input demand tracks what will really be made
-                double utilization = Math.Min(1.0,
-                    Math.Max(state.Config.Economy.MinUtilization,
-                        market.Price[(int)good]
-                        / Market.InitialPrice(state.Config.Economy, good)));
-                double potential = def.BaseOutputPerYear
-                                   * Production.TierOutputFactor(f.Tier)
-                                   * share * years * utilization * f.Condition;
-                foreach (var r in Goods.Get(good).Recipes)
+                var market = state.Markets[end];
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
                 {
-                    if (r.MinTechTier > techTier) continue;
-                    foreach (var q in r.Inputs)
-                        scratch.Demand[mIx][(int)q.Good] += q.Quantity * potential;
-                    break;                                // first viable variant
+                    if (p.PerYearBasket[g] <= 0) continue;
+                    double want = share * (p.PerYearBasket[g] * horizon
+                                           - p.DeliveredQty[g]);
+                    if (want <= 1e-9) continue;
+                    double bid = Math.Max(eco.PriceFloor,
+                        market.Price[g] * eco.ProjectBidPremium);
+                    // the treasury escrows the bid — goods cost money now
+                    double affordable = ProjectOps.TreasuryAvailable(state, p);
+                    double qty = Math.Min(want, affordable / bid);
+                    if (qty <= 1e-9) continue;
+                    ProjectOps.SpendTreasury(state, p, qty * bid);
+                    var order = OrderOps.PostBuy(state, p.FunderActorId,
+                        end, g, qty, bid, state.WorldYear);
+                    scratch.ProjectBids.Add((order, p));
                 }
             }
-            double upkeepScale = Production.TierCostFactor(f.Tier) * years;
-            foreach (var q in def.UpkeepPerYear)
-                scratch.Demand[mIx][(int)q.Good] += q.Quantity * upkeepScale;
         }
     }
 
-    /// <summary>Construction pulls real materials: every in-flight project's
-    /// per-year basket registers as demand at its site market for the whole
-    /// span, so a build boom raises prices for its duration — no speculative
-    /// dial, the projects ARE the demand (spec §4). Unmet stockpile targets
-    /// likewise register — per port now (spec §4b): each own port's deficit
-    /// against its share of the target lands at THAT port, so procurement is
-    /// a market participant everywhere it banks.</summary>
-    public static void AddConstructionPull(SimState state, MarketStepScratch scratch)
+    /// <summary>Polity procurement posts bids (contract-economy spec §2):
+    /// each own port bids toward ITS share of the standing target at the
+    /// reference price, escrowed from the reserve treasury, bounded by
+    /// built capacity. Fills bank into the port's stockpile; unfilled
+    /// escrow refunds at the step's end.</summary>
+    public static void PostProcurementBids(SimState state,
+                                           MarketStepScratch scratch)
     {
+        var eco = state.Config.Economy;
         foreach (var pr in state.Polities)                // actor-id order (P6)
         {
-            if (!state.Actors[pr.ActorId].Entered) continue;
             var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
                            ?? PolityPolicies.Default).StockpileTargets;
             if (targets.Count == 0) continue;
@@ -446,100 +480,24 @@ public static class MarketEngine
             foreach (var port in state.Ports)             // id order (P6)
             {
                 if (port.OwnerActorId != pr.ActorId) continue;
-                for (int g = 0; g < Goods.All.Count; g++)
-                    if (targets.TryGetValue(g, out double target)
-                        && target / ownPorts > port.StockQty[g])
-                        scratch.Demand[port.Id][g]
-                            += target / ownPorts - port.StockQty[g];
+                double cap = StockCapacityAt(state, port);
+                var market = state.Markets[port.Id];
+                for (int g = 0; g < Goods.All.Count; g++) // good-id order (P6)
+                {
+                    if (!targets.TryGetValue(g, out double target)) continue;
+                    double want = Math.Min(target / ownPorts, cap)
+                                  - port.StockQty[g];
+                    if (want <= 0) continue;
+                    double bid = Math.Max(eco.PriceFloor, market.Price[g]);
+                    double qty = Math.Min(want,
+                        Math.Max(0, pr.ReservePoints) / bid);
+                    if (qty <= 1e-9) continue;
+                    pr.ReservePoints -= qty * bid;
+                    var order = OrderOps.PostBuy(state, pr.ActorId, port.Id,
+                        g, qty, bid, state.WorldYear);
+                    scratch.ProcureBids.Add((order, pr, port));
+                }
             }
-        }
-
-        // in-flight work IS the construction demand: every project's
-        // per-year basket registers at its site market for the span —
-        // a build boom raises alloy prices for its whole duration (P5).
-        // A gate pair registers half at EACH end (stage 2: each end draws
-        // locally, so each end must pull imports toward itself)
-        int years = state.Config.Sim.YearsPerEpoch;
-        foreach (var p in state.Projects)                 // id order (P6)
-        {
-            // an expedition's basket is cargo already aboard, not demand
-            if (!p.InFlight || p.Kind == ProjectKind.ColonyExpedition)
-                continue;
-            // the pull tapers to the remaining work (stage 2 residue fix):
-            // a project a year from done pulls a year's basket, not the
-            // whole span's
-            double horizon = Math.Min(years,
-                Math.Max(0.0, p.YearsRequired - p.YearsDelivered));
-            if (horizon <= 0) continue;
-            if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
-            {
-                var lane = state.Lanes[p.TargetId];
-                for (int g = 0; g < p.PerYearBasket.Length; g++)
-                    if (p.PerYearBasket[g] > 0)
-                    {
-                        double half = 0.5 * p.PerYearBasket[g] * horizon;
-                        scratch.Demand[lane.PortAId][g] += half;
-                        scratch.Demand[lane.PortBId][g] += half;
-                    }
-                continue;
-            }
-            for (int g = 0; g < p.PerYearBasket.Length; g++)
-                if (p.PerYearBasket[g] > 0)
-                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * horizon;
-        }
-    }
-
-    /// <summary>Military-construction demand (the MilitaryConstruction
-    /// use-case D left wired but unused): a polity whose military treasury
-    /// could pay for hulls registers Ship Components demand at its yard
-    /// port — the capital until a yard exists. Without this pull the
-    /// components price floors, no shipyard ever out-scores a mine, and the
-    /// navy never gets built (the E bootstrap loop: demand → price signal →
-    /// yard sites → components flow → hulls lay down).</summary>
-    public static void AddMilitaryDemand(SimState state, MarketStepScratch scratch)
-    {
-        var fleet = state.Config.Fleet;
-        double hullValue = DesignMath.ComponentsPerHull(fleet, ShipSize.Medium)
-            * Market.InitialPrice(state.Config.Economy, GoodId.ShipComponents);
-        foreach (var pr in state.Polities)                // actor-id order (P6)
-        {
-            if (!state.Actors[pr.ActorId].Entered) continue;
-            if (pr.MilitaryPoints < hullValue) continue;  // can't pay, don't pull
-            int at = YardPortOf(state, pr.ActorId);
-            if (at < 0) continue;
-            // mobilization (slice H): a belligerent's yards pull hard —
-            // components AND armaments — the fabricator boom of wartime
-            double surge = WarOps.AtWar(state, pr.ActorId)
-                ? state.Config.War.MobilizationFactor : 1.0;
-            scratch.Demand[at][(int)GoodId.ShipComponents]
-                += fleet.MilitaryPullComponents * surge;
-            if (surge > 1.0)
-                scratch.Demand[at][(int)GoodId.Armaments]
-                    += fleet.MilitaryPullComponents * (surge - 1.0);
-        }
-    }
-
-    /// <summary>A funded research line pulls its feedstocks (slice G,
-    /// technology.md): exotics and compute demand registers at the capital,
-    /// so the price signal sites the labs and cores research bottlenecks on.</summary>
-    public static void AddResearchDemand(SimState state, MarketStepScratch scratch)
-    {
-        var tech = state.Config.Tech;
-        foreach (var pr in state.Polities)                // actor-id order (P6)
-        {
-            var actor = state.Actors[pr.ActorId];
-            if (!actor.Entered) continue;
-            var budget = (actor.Policies as PolityPolicies
-                          ?? PolityPolicies.Default).Budget;
-            if (budget.Research <= 0) continue;
-            int capital = -1;
-            foreach (var port in state.Ports)             // id order (P6)
-                if (port.OwnerActorId == pr.ActorId) { capital = port.Id; break; }
-            if (capital < 0) continue;
-            scratch.Demand[capital][(int)GoodId.RefinedExotics]
-                += tech.ResearchPullExotics;
-            scratch.Demand[capital][(int)GoodId.Compute]
-                += tech.ResearchPullCompute;
         }
     }
 
@@ -563,19 +521,148 @@ public static class MarketEngine
         return capital;
     }
 
-    /// <summary>Re-export demand (economy/markets.md §2): bids from
-    /// arbitrageurs who see outbound gradients bid up a hub's price even with
-    /// zero local consumption — without this term goods refuse to enter
-    /// markets that don't personally want them; with it, entrepôts emerge.
-    /// A pure price signal: nothing is bought here.</summary>
-    public static void AddReExportDemand(SimState state, MarketStepScratch scratch)
+    /// <summary>The consumption SIGNAL (contract-economy carry-over of the
+    /// old demand assembly): consumers who lift asks directly — recipe
+    /// inputs at planned utilization, facility upkeep, fleet upkeep and
+    /// wartime rations, naval procurement, research feedstock — register
+    /// their per-step want here so the reference drift can price scarcity
+    /// BEFORE the lift happens. Signal only: no escrow, no absorption —
+    /// the bridge still moves goods against real resting bids, and the
+    /// relay bids walk them down the price gradients this signal builds.</summary>
+    public static void AddConsumptionSignal(SimState state,
+                                            MarketStepScratch scratch)
+    {
+        int years = state.Config.Sim.YearsPerEpoch;
+        // industry: recipe inputs at the same price-throttled volume
+        // production will attempt, plus catalog upkeep
+        foreach (var f in state.Facilities)               // id order (P6)
+        {
+            if (!IsActive(state, f)) continue;
+            int techTier = Tech.Tier(state, f.OwnerActorId, TechDomain.Industrial);
+            int mIx = AttachedMarketIndex(state, f);
+            if (mIx < 0) continue;
+            var def = Infrastructure.Get((InfraTypeId)f.TypeId);
+            var market = state.Markets[mIx];
+            double share = def.Produces.Count > 0 ? 1.0 / def.Produces.Count : 0;
+            foreach (var good in def.Produces)
+            {
+                double utilization = Math.Min(1.0,
+                    Math.Max(state.Config.Economy.MinUtilization,
+                        market.Price[(int)good]
+                        / Market.InitialPrice(state.Config.Economy, good)));
+                double potential = def.BaseOutputPerYear
+                                   * Production.TierOutputFactor(f.Tier)
+                                   * share * years * utilization * f.Condition;
+                foreach (var r in Goods.Get(good).Recipes)
+                {
+                    if (r.MinTechTier > techTier) continue;
+                    foreach (var q in r.Inputs)
+                        scratch.SignalDemand[mIx][(int)q.Good]
+                            += q.Quantity * potential;
+                    break;                                // first viable variant
+                }
+            }
+            double upkeepScale = Production.TierCostFactor(f.Tier) * years;
+            foreach (var q in def.UpkeepPerYear)
+                scratch.SignalDemand[mIx][(int)q.Good]
+                    += q.Quantity * upkeepScale;
+        }
+
+        // fleets: upkeep and wartime rations at the home port
+        var fleetKnobs = state.Config.Fleet;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.TotalHulls == 0) continue;
+            // the signal points where the DRAW happens: a war-stationed
+            // force victuals at its forward depot (spec §4), so that is
+            // the reference price its burn should spike — not the home
+            // port a sector behind the line (review wave, finding 10)
+            int at = fleet.Posture is FleetPosture.Blockade
+                         or FleetPosture.Expedition
+                ? FleetOps.NearestOwnedPortId(state, fleet.OwnerActorId,
+                                              fleet.Hex)
+                : fleet.HomePortId;
+            if (at < 0 || at >= state.Markets.Count) continue;
+            double posture = fleet.Posture == FleetPosture.Reserve
+                ? fleetKnobs.ReserveUpkeepFactor : 1.0;
+            bool atWar = WarOps.AtWar(state, fleet.OwnerActorId);
+            foreach (var g in fleet.Hulls)                // design-id order
+            {
+                var design = state.Designs[g.DesignId];
+                var sheet = DesignRegistry.SheetOf(state, design);
+                double draw = sheet[ShipStat.Upkeep] * g.Count
+                              * fleetKnobs.UpkeepUnitsPerPointPerYear * years
+                              * posture;
+                scratch.SignalDemand[at][(int)GoodId.Fuel]
+                    += draw * fleetKnobs.UpkeepFuelShare;
+                int rest = ShipCatalog.IsWarship(design.Role)
+                    ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
+                scratch.SignalDemand[at][rest]
+                    += draw * (1 - fleetKnobs.UpkeepFuelShare);
+                if (atWar && ShipCatalog.IsWarship(design.Role))
+                    scratch.SignalDemand[at][(int)GoodId.Provisions]
+                        += g.Count * posture * years
+                           * state.Config.War.RationsPerHullPerYear;
+            }
+        }
+
+        // naval procurement and research feedstock at their landing ports
+        double hullValue = DesignMath.ComponentsPerHull(fleetKnobs,
+                ShipSize.Medium)
+            * Market.InitialPrice(state.Config.Economy, GoodId.ShipComponents);
+        var tech = state.Config.Tech;
+        foreach (var pr in state.Polities)                // actor-id order (P6)
+        {
+            var actor = state.Actors[pr.ActorId];
+            if (!actor.Entered) continue;
+            if (pr.MilitaryPoints >= hullValue)
+            {
+                int at = YardPortOf(state, pr.ActorId);
+                if (at >= 0)
+                {
+                    double surge = WarOps.AtWar(state, pr.ActorId)
+                        ? state.Config.War.MobilizationFactor : 1.0;
+                    scratch.SignalDemand[at][(int)GoodId.ShipComponents]
+                        += fleetKnobs.MilitaryPullComponents * surge;
+                    if (surge > 1.0)
+                        scratch.SignalDemand[at][(int)GoodId.Armaments]
+                            += fleetKnobs.MilitaryPullComponents * (surge - 1.0);
+                }
+            }
+            var budget = (actor.Policies as PolityPolicies
+                          ?? PolityPolicies.Default).Budget;
+            if (budget.Research > 0)
+            {
+                int capital = -1;
+                foreach (var port in state.Ports)         // id order (P6)
+                    if (port.OwnerActorId == pr.ActorId)
+                    { capital = port.Id; break; }
+                if (capital >= 0)
+                {
+                    scratch.SignalDemand[capital][(int)GoodId.RefinedExotics]
+                        += tech.ResearchPullExotics;
+                    scratch.SignalDemand[capital][(int)GoodId.Compute]
+                        += tech.ResearchPullCompute;
+                }
+            }
+        }
+    }
+
+    /// <summary>Relay bids — funded re-export staging, KEPT past B2 (a
+    /// flagged deviation: spread runs are single-lane, so hop-by-hop
+    /// diffusion still needs the cheap end's sovereign staging goods until
+    /// multi-hop actor runs land — the C18 carried flag). Wherever a live,
+    /// hulled lane shows a price gradient, the cheap end's sovereign bids
+    /// at its own reference price; the fills go straight back on sale at
+    /// the hub (RouteFill), so the NEXT step's spread run carries them a
+    /// hop onward. Without this, goods refuse to cross more than one hop
+    /// and every frontier project starves; with it, entrepôts emerge.</summary>
+    public static void PostRelayBids(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;
         foreach (var lane in state.Lanes)                 // id order (P6)
         {
             if (scratch.Severed.Contains(lane.Id)) continue;
-            // hubs pull only what posted hulls could actually carry out —
-            // no fleet, no re-export bid (the design's capacity interface)
             double laneFlow = scratch.LaneFleetCapacity[lane.Id]
                               * eco.ReExportWeight;
             if (laneFlow <= 0) continue;
@@ -585,143 +672,175 @@ public static class MarketEngine
             {
                 double pa = mA.Price[g], pb = mB.Price[g];
                 if (pa <= 0 || pb <= 0 || pa == pb) continue;
-                // demand lands at the cheap end, scaled by the gradient
-                if (pb > pa)
-                    scratch.Demand[lane.PortAId][g] += laneFlow * (pb - pa) / pb;
-                else
-                    scratch.Demand[lane.PortBId][g] += laneFlow * (pa - pb) / pa;
+                int hub = pb > pa ? lane.PortAId : lane.PortBId;
+                double qty = laneFlow * Math.Abs(pb - pa) / Math.Max(pa, pb);
+                var owner = state.PolityOf(state.Ports[hub].OwnerActorId);
+                double bid = Math.Max(eco.PriceFloor,
+                                      state.Markets[hub].Price[g]);
+                qty = Math.Min(qty, Math.Max(0.0, owner.Credits) / bid);
+                if (qty <= 1e-9) continue;
+                owner.Credits -= qty * bid;               // real escrow
+                var order = OrderOps.PostBuy(state, owner.ActorId, hub, g,
+                    qty, bid, state.WorldYear);
+                scratch.RelayBids.Add((order, hub));
             }
         }
     }
 
     // ------------------------------------------------------------------
-    // Step 3 — price adjusts
+    // Freight moves (the B1 bridge)
     // ------------------------------------------------------------------
 
-    /// <summary>Each (market, good) price drifts toward clearing: excess
-    /// demand pushes up, glut pushes down, rate-limited per world-year —
-    /// markets never perfectly clear; persistent gradients ARE the trade
-    /// opportunities. Lane-connected markets are additionally disciplined by
-    /// import parity: nobody pays ceiling prices for what a neighbor sells
-    /// at glut plus transport — a blockade (severed lane) removes the
-    /// alternative and with it the cap, which is exactly the spike.</summary>
-    public static void AdjustPrices(SimState state, MarketStepScratch scratch)
-    {
-        var eco = state.Config.Economy;
-        double cap = Math.Exp(eco.PriceDriftMaxPerYear
-                              * state.Config.Sim.YearsPerEpoch);
-        const double eps = 1e-9;
-        // parity reads pre-drift prices so lane order cannot matter (P6)
-        var snapshot = new double[state.Markets.Count][];
-        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
-            snapshot[mIx] = (double[])state.Markets[mIx].Price.Clone();
-
-        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
-        {
-            var market = state.Markets[mIx];
-            for (int g = 0; g < market.Price.Length; g++)
-            {
-                // the pressure signal compares a FLOW to a STOCK, calibrated
-                // at generation scale: a fine step's smaller demand must not
-                // read as glut, so demand normalizes to a generation's worth
-                // (P7 certification, slice J)
-                double demand = scratch.Demand[mIx][g]
-                                / state.Config.Sim.StepFraction;
-                double supply = market.Inventory[g];
-                if (demand <= eps && supply <= eps) continue;   // dormant good
-                double factor = Math.Pow((demand + eps) / (supply + eps),
-                                         eco.PriceDriftExponent);
-                factor = Math.Min(cap, Math.Max(1.0 / cap, factor));
-                double ceiling = Market.InitialPrice(eco, (GoodId)g)
-                                 * eco.MaxPriceMultiple;
-                market.Price[g] = Math.Min(ceiling,
-                    Math.Max(eco.PriceFloor, market.Price[g] * factor));
-            }
-        }
-
-        foreach (var lane in state.Lanes)                 // id order (P6)
-        {
-            // parity discipline needs a lane goods can actually cross:
-            // severed or hull-less lanes cap nothing — an unserved market
-            // spikes exactly like a blockaded one (visible naval shortage)
-            if (scratch.Severed.Contains(lane.Id)
-                || scratch.LaneFleetCapacity[lane.Id] <= 0) continue;
-            ApplyImportParity(state, snapshot, lane, lane.PortAId, lane.PortBId);
-            ApplyImportParity(state, snapshot, lane, lane.PortBId, lane.PortAId);
-        }
-    }
-
-    /// <summary>Cap the destination's price at what importing from this
-    /// neighbor would cost: source price + freight + fuel + tariff +
-    /// friction, grossed up by the exporter's realized margin (tax and labor
-    /// share) plus headroom so the trade still pays.</summary>
-    private static void ApplyImportParity(SimState state, double[][] snapshot,
-                                          Lane lane, int srcId, int dstId)
-    {
-        var eco = state.Config.Economy;
-        var src = state.Ports[srcId];
-        var dst = state.Ports[dstId];
-        int dist = HexGrid.Distance(src.Hex, dst.Hex);
-        double freight = eco.FreightCostPerUnitPerHex * dist;
-        double fuel = eco.FuelPerUnitPerHex * dist
-                      * snapshot[srcId][(int)GoodId.Fuel];
-        var dstPolicies = state.Actors[dst.OwnerActorId].Policies
-                          as PolityPolicies ?? PolityPolicies.Default;
-        double margin = (1.0 - dstPolicies.TaxRate) * (1.0 - eco.LaborShare);
-        if (margin <= 0) return;
-        var dstMarket = state.Markets[dstId];
-        for (int g = 0; g < dstMarket.Price.Length; g++)
-        {
-            // no supply to import against, no parity
-            if (state.Markets[srcId].Inventory[g] <= 0) continue;
-            var srcLevel = LegalityAt(state, src.OwnerActorId, g);
-            var dstLevel = LegalityAt(state, dst.OwnerActorId, g);
-            if (srcLevel == LegalityLevel.Prohibited
-                || dstLevel == LegalityLevel.Prohibited) continue;
-            // parity prices the same crossing fee freight will pay at the
-            // dst-side gate (lane-economics spec §4)
-            double tariff = LaneFees.CrossingFeePerUnit(state, lane, dstId, g,
-                snapshot[dstId][g], src.OwnerActorId, out _);
-            double friction = srcLevel == LegalityLevel.Restricted
-                              || dstLevel == LegalityLevel.Restricted
-                ? eco.RestrictedFriction * snapshot[dstId][g] : 0;
-            double parity = (snapshot[srcId][g] + freight + fuel + tariff + friction)
-                            / margin * eco.ParityHeadroom;
-            if (parity < dstMarket.Price[g])
-                dstMarket.Price[g] = Math.Max(eco.PriceFloor, parity);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Step 4 — freight moves
-    // ------------------------------------------------------------------
-
-    /// <summary>Step 4 — freight (economy/markets.md §4), three generators in
-    /// deterministic order, all within lane capacity (the fleet-capacity stub
-    /// E replaces): reserve release to starving ports (internal logistics —
-    /// markets see only the endpoint), lane arbitrage on price gaps net of
-    /// freight + fuel + tariffs with legality at both ends, and polity
-    /// procurement toward stockpile targets. Freight clears on TRUE prices
-    /// by standing choice — it is Markets-phase resolution, not a controller
-    /// decision (Move 2); the design's perceived-price arbitrage and escrowed
-    /// contract objects are filed gaps (slice J acceptance). Returns the
-    /// shipment count and the units moved for the phase note — counts alone
-    /// mislead once capacity is real (one full hold reads like a fifth of
-    /// five drip runs).</summary>
+    /// <summary>SPREAD RUNS (contract-economy spec §3 — the B1 bridge and
+    /// its phantom "exporting polity merchants" are dead): each POSTED
+    /// freight fleet's owner — corporation or merchant marine — works its
+    /// own lane, buying the cheaper end's asks WITH ITS OWN CAPITAL and
+    /// shipping toward the dearer end's resting bids, plus the speculative
+    /// run when the far reference clears delivered cost (no reservation —
+    /// cargo sells into whatever book exists on arrival, and a dead spread
+    /// is the owner's loss). Both lane ends are one hop from the fleet's
+    /// station: prices read fresh (P3 — multi-hop runs on perceived books
+    /// are the flagged next pass). Freight fees died with the phantom:
+    /// the hauler IS the trader. Returns shipments and units.</summary>
     public static (int Shipments, double Units) MoveFreight(
         SimState state, MarketStepScratch scratch)
     {
-        int shipments = ReleaseReserves(state, scratch);
-        var (trades, units) = Arbitrage(state, scratch);
-        Procure(state, scratch);
-        return (shipments + trades, units);
+        int releases = ReleaseReserves(state);
+        var eco = state.Config.Economy;
+        int shipments = 0;
+        double units = 0;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.Posture != FleetPosture.Posted
+                || fleet.TargetId < 0 || fleet.TotalHulls == 0) continue;
+            var lane = state.Lanes[fleet.TargetId];
+            if (scratch.Severed.Contains(lane.Id)
+                || !LaneMath.IsLive(state, lane)) continue;
+            var portA = state.Ports[lane.PortAId];
+            var portB = state.Ports[lane.PortBId];
+            int dist = HexGrid.Distance(portA.Hex, portB.Hex);
+            double speed = LaneMath.TransitSpeed(state, lane);
+            int years = state.Config.Sim.YearsPerEpoch;
+            // this fleet's own lift for the step
+            double capacity = 0;
+            foreach (var g0 in fleet.Hulls)               // design-id order
+                capacity += FleetMath.PostedCapacityPerEpoch(
+                    state.Config.Fleet,
+                    DesignRegistry.SheetOf(state, state.Designs[g0.DesignId]),
+                    g0.Count, speed, dist, years) * fleet.Readiness;
+            var trader = state.LedgerOf(fleet.OwnerActorId);
+
+            for (int g = 0; g < Goods.All.Count && capacity > 1e-9; g++)
+            {
+                double askA = BookOps.BestAsk(state, lane.PortAId, g);
+                double askB = BookOps.BestAsk(state, lane.PortBId, g);
+                if (askA == double.MaxValue && askB == double.MaxValue)
+                    continue;
+                var (src, dst) = askA <= askB ? (portA, portB)
+                                              : (portB, portA);
+                double pSrc = Math.Min(askA, askB);
+                var mDst = state.Markets[dst.Id];
+
+                var srcLevel = LegalityAt(state, src.OwnerActorId, g);
+                var dstLevel = LegalityAt(state, dst.OwnerActorId, g);
+                if (srcLevel == LegalityLevel.Prohibited
+                    || dstLevel == LegalityLevel.Prohibited) continue;
+
+                double fuelUnits = eco.FuelPerUnitPerHex * dist;
+                double fuel = fuelUnits
+                    * state.Markets[src.Id].Price[(int)GoodId.Fuel];
+                // the dst-side gate's owner prices the crossing: corp toll,
+                // customs at a foreign polity gate, free through your own
+                // (lane-economics spec §4)
+                double tariff = LaneFees.CrossingFeePerUnit(state, lane,
+                    dst.Id, g, mDst.Price[g], fleet.OwnerActorId, out int feeTo);
+                double friction = srcLevel == LegalityLevel.Restricted
+                                  || dstLevel == LegalityLevel.Restricted
+                    ? eco.RestrictedFriction * mDst.Price[g] : 0;
+                double costPerUnit = pSrc + fuel + tariff + friction;
+                // the trader's realized take is the post-tax owner share
+                // of the destination sale — only bids above break-even count
+                double dstTax = (state.Actors[dst.OwnerActorId].Policies
+                    as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+                double bidFloor = costPerUnit
+                    / Math.Max(1e-9, (1.0 - dstTax) * (1.0 - eco.LaborShare));
+                double absorption = BookOps.BidDepthAbove(state, dst.Id, g,
+                                                          bidFloor);
+                // the speculative run: when the dear end's reference clears
+                // delivered cost, cargo sails at the trader's risk — the
+                // unsold surplus is what disciplines a cut-off price
+                double dstRef = mDst.Price[g] * Math.Max(1e-9,
+                    (1.0 - dstTax) * (1.0 - eco.LaborShare));
+                double spec = dstRef > costPerUnit
+                    ? capacity * eco.ReExportWeight
+                      * (dstRef - costPerUnit) / dstRef
+                    : 0.0;
+                double qty = Math.Min(Math.Max(absorption, spec),
+                    Math.Min(capacity,
+                        BookOps.AskQty(state, src.Id, g) * eco.ExportShare));
+                // a CORP trader fronts the whole run — goods, fuel, tolls —
+                // from its own free capital (review wave: an unbounded
+                // front dipped corps thousands negative into same-step
+                // bankrupt-dissolution). The sovereign marine is different
+                // plumbing, not different virtue: by MoveFreight the
+                // treasury sits escrowed in the state's own procurement
+                // and relay bids and refunds at this step's clear, so its
+                // ledger reads empty mid-step — the state hauls on that
+                // credit line and Allocation owns its solvency
+                double budget = state.CorporationOf(fleet.OwnerActorId) != null
+                    ? Math.Max(0.0, trader.Credits) : double.MaxValue;
+                qty = Math.Min(qty, budget / Math.Max(1e-9, costPerUnit));
+                if (qty <= 1e-9) continue;
+
+                var (drawn, grade, cost) = BookOps.LiftAsks(state, src.Id,
+                    g, qty, budget);
+                if (drawn <= 0) continue;
+                trader.Credits -= cost;
+                if (tariff > 0 && feeTo >= 0)
+                {
+                    trader.Credits -= drawn * tariff;
+                    var collector = state.LedgerOf(feeTo);
+                    collector.Credits += drawn * tariff;
+                    collector.Receipts += drawn * tariff;
+                }
+                if (friction > 0)
+                {
+                    // friction burns as fees at the destination port
+                    trader.Credits -= drawn * friction;
+                    var dstOwner = state.PolityOf(dst.OwnerActorId);
+                    dstOwner.Credits += drawn * friction;
+                    dstOwner.Receipts += drawn * friction;
+                }
+                // movement is never free: the fuel burn is bought off the
+                // source book at real asks — a fuel-dry port's crawl shows
+                // in its fuel prints
+                var (_, _, fuelCost) = BookOps.LiftAsks(state, src.Id,
+                    (int)GoodId.Fuel, drawn * fuelUnits,
+                    budget: double.MaxValue);
+                trader.Credits -= fuelCost;
+                // transit time (spec §4b): a hop inside the step posts the
+                // cargo at the destination now (sub-step blur, sells into
+                // whatever book exists); a longer haul rides a shipment —
+                // the TRADER owns the cargo and the arrival asks
+                ShipmentOps.DispatchVia(state, fleet.OwnerActorId,
+                    ShipmentChannel.Freight, src.Id, dst.Id,
+                    new[] { lane.Id },
+                    new[] { ShipmentOps.LaneLegYears(state, lane) },
+                    new[] { (g, drawn, grade) }, scratch);
+                scratch.LaneCapacityUsed[lane.Id] += drawn;
+                capacity -= drawn;
+                shipments++;
+                units += drawn;
+            }
+        }
+        return (shipments + releases, units);
     }
 
     /// <summary>Internal logistics, located (spec §4b): a port whose people
-    /// starved last step releases ITS OWN provisions stockpile into its own
-    /// market — no polity pool, no teleport; a bare frontier larder is bare
-    /// until a shipment lands.</summary>
-    private static int ReleaseReserves(SimState state, MarketStepScratch scratch)
+    /// starved last step releases ITS OWN provisions stockpile onto its own
+    /// book as the sovereign's sell order — no polity pool, no teleport; a
+    /// bare frontier larder is bare until a shipment lands.</summary>
+    private static int ReleaseReserves(SimState state)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
@@ -739,214 +858,11 @@ public static class MarketEngine
             if (shortfall <= 0) continue;
             double grade = port.StockGrade[g];   // before the drain zeroes it
             double release = port.DrawStock(g, shortfall);
-            Deposit(state, scratch, port.Id, port.OwnerActorId, g, release,
-                    grade);
+            BookOps.PostSupply(state, port.Id, port.OwnerActorId, g,
+                               release, grade);
             releases++;
         }
         return releases;
-    }
-
-    /// <summary>Arbitrage freight: shipments move cheap → dear along lanes
-    /// wherever the gap clears freight + fuel + tariff costs, within the
-    /// lane's shared capacity. The exporting polity's merchants front the
-    /// purchase and are paid as the destination's suppliers; every cost is a
-    /// conserved ledger move (fees into the source pool, tariffs to the
-    /// destination polity).</summary>
-    private static (int Trades, double Units) Arbitrage(
-        SimState state, MarketStepScratch scratch)
-    {
-        var eco = state.Config.Economy;
-        int shipments = 0;
-        double units = 0;
-        foreach (var lane in state.Lanes)                 // id order (P6)
-        {
-            if (scratch.Severed.Contains(lane.Id)) continue;
-            var portA = state.Ports[lane.PortAId];
-            var portB = state.Ports[lane.PortBId];
-            // the posted-posture capacity: what this lane's hulls can lift
-            // this epoch (a lane without freighters arbitrages nothing)
-            double capacity = scratch.LaneFleetCapacity[lane.Id]
-                              - scratch.LaneCapacityUsed[lane.Id];
-            if (capacity <= 0) continue;
-            int dist = HexGrid.Distance(portA.Hex, portB.Hex);
-
-            for (int g = 0; g < Goods.All.Count && capacity > 0; g++)
-            {
-                var (src, dst) = state.Markets[lane.PortAId].Price[g]
-                                 <= state.Markets[lane.PortBId].Price[g]
-                    ? (portA, portB) : (portB, portA);
-                var mSrc = state.Markets[src.Id];
-                var mDst = state.Markets[dst.Id];
-                double pSrc = mSrc.Price[g], pDst = mDst.Price[g];
-                if (mSrc.Inventory[g] <= 0 || pDst <= pSrc) continue;
-
-                var srcLevel = LegalityAt(state, src.OwnerActorId, g);
-                var dstLevel = LegalityAt(state, dst.OwnerActorId, g);
-                if (srcLevel == LegalityLevel.Prohibited
-                    || dstLevel == LegalityLevel.Prohibited) continue;
-
-                double freight = eco.FreightCostPerUnitPerHex * dist;
-                double fuelUnits = eco.FuelPerUnitPerHex * dist;
-                double fuel = fuelUnits * mSrc.Price[(int)GoodId.Fuel];
-                // the dst-side gate's owner prices the crossing: corp toll,
-                // customs at a foreign polity gate, free through your own
-                // (lane-economics spec §4)
-                double tariff = LaneFees.CrossingFeePerUnit(state, lane,
-                    dst.Id, g, pDst, src.OwnerActorId, out int feeTo);
-                double friction = srcLevel == LegalityLevel.Restricted
-                                  || dstLevel == LegalityLevel.Restricted
-                    ? eco.RestrictedFriction * pDst : 0;
-                double costPerUnit = pSrc + freight + fuel + tariff + friction;
-                // the exporter's realized take is the post-tax owner share of
-                // the destination sale, not the sticker price — gate on that
-                double dstTax = (state.Actors[dst.OwnerActorId].Policies
-                    as PolityPolicies ?? PolityPolicies.Default).TaxRate;
-                double expectedNet = pDst * (1.0 - dstTax)
-                                     * (1.0 - eco.LaborShare);
-                if (expectedNet <= costPerUnit) continue; // no profit, no hull
-
-                var exporter = state.PolityOf(src.OwnerActorId);
-                // ship what the destination will absorb beyond its stock —
-                // assembled demand includes the re-export term, so hubs pull
-                double absorption = Math.Max(0.0,
-                    scratch.Demand[dst.Id][g] - mDst.Inventory[g]);
-                double qty = Math.Min(absorption,
-                    Math.Min(mSrc.Inventory[g] * eco.ExportShare, capacity));
-                if (qty <= 0) continue;
-                // merchants trade on working capital, like producers
-                // (slice D's RunRecipe convention): the ledger may dip
-                // within the step — the sale's payout lands at distribution,
-                // the trade is margin-gated above, and insolvency is
-                // Allocation's credit problem. Clamping to a deficit-financed
-                // treasury killed every shipment in the galaxy.
-
-                double grade = mSrc.InventoryGrade[g];
-                double drawn = mSrc.Draw(g, qty);
-                if (drawn <= 0) continue;
-                mSrc.LastCleared[g] += drawn;
-                exporter.Credits -= drawn * (pSrc + freight + fuel);
-                scratch.PoolByMarket[src.Id] += drawn * (pSrc + fuel);
-                // the freight fee pays whoever posted the hulls — freight
-                // lines (and merchant marines) book real revenue (slice G;
-                // corporations.md: unserved *profitable* lanes)
-                PayHaulers(state, lane, drawn * freight);
-                if (tariff > 0 && feeTo >= 0)
-                {
-                    exporter.Credits -= drawn * tariff;
-                    var collector = state.LedgerOf(feeTo);
-                    collector.Credits += drawn * tariff;
-                    collector.Receipts += drawn * tariff;
-                }
-                if (friction > 0)
-                {
-                    // friction burns as fees at the destination port
-                    exporter.Credits -= drawn * friction;
-                    var dstOwner = state.PolityOf(dst.OwnerActorId);
-                    dstOwner.Credits += drawn * friction;
-                    dstOwner.Receipts += drawn * friction;
-                }
-                // movement is never free: traffic pulls on the fuel market —
-                // and burns it physically now that hulls exist (the slice-D
-                // deferral); a fuel-dry port still ships at monetized cost,
-                // its fuel price carrying the scarcity
-                scratch.Demand[src.Id][(int)GoodId.Fuel] += drawn * fuelUnits;
-                double fuelDrawn = mSrc.Draw((int)GoodId.Fuel, drawn * fuelUnits);
-                mSrc.LastCleared[(int)GoodId.Fuel] += fuelDrawn;
-                // the routed goods take transit time (spec §4b): a hop
-                // inside the step lands now (sub-step blur); a longer haul
-                // rides a shipment record and sells on arrival — costs
-                // settled above either way
-                ShipmentOps.DispatchVia(state, src.OwnerActorId,
-                    ShipmentChannel.Freight, src.Id, dst.Id,
-                    new[] { lane.Id },
-                    new[] { ShipmentOps.LaneLegYears(state, lane) },
-                    new[] { (g, drawn, grade) }, scratch);
-                scratch.LaneCapacityUsed[lane.Id] += drawn;
-                capacity -= drawn;
-                shipments++;
-                units += drawn;
-            }
-        }
-        return (shipments, units);
-    }
-
-    /// <summary>The freight fee splits across the lane's posted fleets by
-    /// hull count — a conserved exporter→hauler flow (P4). The lane always
-    /// has haulers when freight moved (capacity IS their hulls).</summary>
-    private static void PayHaulers(SimState state, Lane lane, double fee)
-    {
-        if (fee <= 0) return;
-        int hulls = 0;
-        foreach (var fleet in state.Fleets)
-            if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
-                hulls += fleet.TotalHulls;
-        if (hulls <= 0)
-        {
-            // shouldn't happen (capacity implies hulls), but a fee must
-            // land somewhere: the source port's sovereign takes it
-            var fallback = state.LedgerOf(
-                state.Ports[lane.PortAId].OwnerActorId);
-            fallback.Credits += fee;
-            fallback.Receipts += fee;
-            return;
-        }
-        foreach (var fleet in state.Fleets)                   // id order (P6)
-        {
-            if (fleet.Posture != FleetPosture.Posted
-                || fleet.TargetId != lane.Id || fleet.TotalHulls == 0) continue;
-            var owner = state.LedgerOf(fleet.OwnerActorId);
-            double share = fee * fleet.TotalHulls / hulls;
-            owner.Credits += share;
-            owner.Receipts += share;
-        }
-    }
-
-    /// <summary>Polity procurement, located (spec §4b): each own port buys
-    /// toward ITS share of the standing target from its own market into its
-    /// own stockpile, bounded by built capacity (port tier + depots) —
-    /// actor-id then port-id then good-id order.</summary>
-    private static void Procure(SimState state, MarketStepScratch scratch)
-    {
-        var eco = state.Config.Economy;
-        foreach (var pr in state.Polities)                // actor-id order (P6)
-        {
-            var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
-                           ?? PolityPolicies.Default).StockpileTargets;
-            if (targets.Count == 0) continue;
-            int ownPorts = 0;
-            foreach (var port in state.Ports)
-                if (port.OwnerActorId == pr.ActorId) ownPorts++;
-            if (ownPorts == 0) continue;
-            foreach (var port in state.Ports)             // id order (P6)
-            {
-                if (port.OwnerActorId != pr.ActorId) continue;
-                double cap = StockCapacityAt(state, port);
-                var market = state.Markets[port.Id];
-                for (int g = 0; g < Goods.All.Count; g++) // good-id order (P6)
-                {
-                    if (!targets.TryGetValue(g, out double target)) continue;
-                    double want = Math.Min(target / ownPorts, cap)
-                                  - port.StockQty[g];
-                    if (want <= 0) continue;
-                    double price = market.Price[g];
-                    double qty = Math.Min(want,
-                                          market.Inventory[g] * eco.ExportShare);
-                    // paid from the reserve treasury (stage 2): the budget
-                    // line exists so procurement never competes with the
-                    // deficit-financed credit balance
-                    if (price > 0 && pr.ReservePoints < qty * price)
-                        qty = Math.Max(0, pr.ReservePoints / price);
-                    if (qty <= 0) continue;
-                    double grade = market.InventoryGrade[g];
-                    double drawn = market.Draw(g, qty);
-                    if (drawn <= 0) continue;
-                    market.LastCleared[g] += drawn;
-                    pr.ReservePoints -= drawn * price;
-                    scratch.PoolByMarket[port.Id] += drawn * price;
-                    port.DepositStock(g, drawn, grade);
-                }
-            }
-        }
     }
 
     /// <summary>Built stockpile capacity per good at a port (spec §4b): the
@@ -992,59 +908,64 @@ public static class MarketEngine
             ? level : LegalityLevel.Legal;
 
     // ------------------------------------------------------------------
-    // Step 5 — clearing and consequences
+    // Matching, fill routing, and consequences
     // ------------------------------------------------------------------
 
-    /// <summary>Consumption satisfies band priority per good; buyers pay the
-    /// (adjusted) price from their wealth into the market pool. Unmet
-    /// subsistence chronicles a famine; the SoL scalar drifts toward the
-    /// standard-of-living band's cleared fraction. Returns the famine count
-    /// (the phase note reports it).</summary>
-    public static int Clear(SimState state, MarketStepScratch scratch)
+    /// <summary>Cross every port's book (port-id order, P6), route the
+    /// fills to their posters — band fills are consumed and apportioned
+    /// back to segments pro-rata, project fills land in the laydown yard,
+    /// procurement fills bank into the port stockpile — then cancel the
+    /// step's remaining posted buys, refunding escrow where it came from
+    /// (segments / funder treasury / reserve treasury). Famine and SoL
+    /// consequences derive from FILL fractions (spec §2 step 5). Returns
+    /// the famine count for the phase note.</summary>
+    public static int MatchAndClear(SimState state, MarketStepScratch scratch)
     {
+        // the reference price drifts on the BOOK'S imbalance — the old
+        // rate-limited, tick-honest drift (P7), fed by the step's posted
+        // bids PLUS the consumption signal (a flow, generation-normalized)
+        // against the resting asks (a stock), snapshotted BEFORE matching
+        // so tick granularity cannot skew it: a blockade's hungry bids ARE
+        // the spike, a glut's resting asks ARE the crash.
+        DriftReferencePrices(state, scratch);
+
+        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        {
+            var fills = OrderOps.MatchPort(state, mIx);
+            foreach (var fill in fills)
+                RouteFill(state, scratch, fill);
+        }
+
+        // the step's posted buys retire: unfilled escrow goes home
+        foreach (var bb in scratch.BandBids)
+        {
+            double refund = OrderOps.CancelBuy(state, bb.Order);
+            if (refund <= 0) continue;
+            RefundSegments(state, scratch, bb, refund);
+        }
+        foreach (var (order, project) in scratch.ProjectBids)
+        {
+            double refund = OrderOps.CancelBuy(state, order);
+            if (refund > 0) ProjectOps.RefundTreasury(state, project, refund);
+        }
+        foreach (var (order, pr, _) in scratch.ProcureBids)
+        {
+            double refund = OrderOps.CancelBuy(state, order);
+            if (refund > 0) pr.ReservePoints += refund;
+        }
+        foreach (var (order, _) in scratch.RelayBids)
+        {
+            double refund = OrderOps.CancelBuy(state, order);
+            if (refund > 0)
+                state.LedgerOf(order.OwnerActorId).Credits += refund;
+        }
+
+        // consequences: famine arithmetic and the SoL drift
         var pop = state.Config.Population;
         int years = state.Config.Sim.YearsPerEpoch;
         int famines = 0;
-        for (int mIx = 0; mIx < state.Markets.Count; mIx++)
+        foreach (var port in state.Ports)                 // id order (P6)
         {
-            var market = state.Markets[mIx];
-            var port = state.Ports[market.PortId];
-            foreach (var band in Bands)                   // priority order
-            {
-                // totals for this band at this market, against live inventory
-                for (int g = 0; g < market.Price.Length; g++)
-                {
-                    double total = 0;
-                    foreach (var r in scratch.DemandRecords)
-                        if (r.MarketIndex == mIx && r.Band == band && r.Good == g)
-                            total += r.Quantity;
-                    if (total <= 0) continue;
-                    double fraction = Math.Min(1.0, market.Inventory[g] / total);
-                    if (fraction <= 0) continue;
-                    foreach (var r in scratch.DemandRecords)
-                    {
-                        if (r.MarketIndex != mIx || r.Band != band || r.Good != g)
-                            continue;
-                        var seg = state.Segments[r.SegmentId];
-                        double take = r.Quantity * fraction;
-                        double price = market.Price[g];
-                        if (price > 0 && take * price > seg.Wealth)
-                            take = seg.Wealth / price;     // poverty caps the basket
-                        double drawn = market.Draw(g, take);
-                        if (drawn <= 0) continue;
-                        double cost = drawn * price;
-                        seg.Wealth -= cost;
-                        scratch.PoolByMarket[mIx] += cost;
-                        market.LastCleared[g] += drawn;
-                        if (band == PopulationBand.Subsistence)
-                            scratch.SubsistenceCleared[r.SegmentId] += drawn;
-                        else if (band == PopulationBand.StandardOfLiving)
-                            scratch.SoLCleared[r.SegmentId] += drawn;
-                    }
-                }
-            }
-
-            // consequences: famine arithmetic and the SoL drift
             double portNeed = 0, portCleared = 0;
             foreach (var seg in state.Segments)
             {
@@ -1076,51 +997,134 @@ public static class MarketEngine
         return famines;
     }
 
-    // ------------------------------------------------------------------
-    // Revenue distribution
-    // ------------------------------------------------------------------
-
-    /// <summary>The pool of buyer payments per market: transaction tax to the
-    /// port's polity, the rest to this step's suppliers pro-rata by supplied
-    /// value (capped at that value — unsold goods earn nothing), each payout
-    /// split labor-share to the staffing segments and remainder to the owner;
-    /// surplus from carried-inventory sales accrues to the port owner. Every
-    /// credit is a conserved ledger move (P4).</summary>
-    public static void DistributePools(SimState state, MarketStepScratch scratch)
+    /// <summary>The reference price per (port, good) drifts on the book as
+    /// posted: bid quantity (flow, normalized to a generation's worth —
+    /// P7) over resting ask quantity (stock), through the same
+    /// exponent/rate-clamp/floor/ceiling the old price drift used.
+    /// Dormant goods (no book either side) hold their price.</summary>
+    private static void DriftReferencePrices(SimState state,
+                                             MarketStepScratch scratch)
     {
-        double laborShare = state.Config.Economy.LaborShare;
+        var eco = state.Config.Economy;
+        double cap = Math.Exp(eco.PriceDriftMaxPerYear
+                              * state.Config.Sim.YearsPerEpoch);
+        const double eps = 1e-9;
+        int n = Goods.All.Count;
+        var unfilledBids = new double[state.Markets.Count * n];
+        var unsoldAsks = new double[state.Markets.Count * n];
+        foreach (var o in state.Orders)                   // id order (P6)
+        {
+            if (o.QtyRemaining <= 0) continue;
+            if (o.Side == OrderSide.Buy)
+                unfilledBids[o.PortId * n + o.Good] += o.QtyRemaining;
+            else
+                unsoldAsks[o.PortId * n + o.Good] += o.QtyRemaining;
+        }
         for (int mIx = 0; mIx < state.Markets.Count; mIx++)
         {
-            double pool = scratch.PoolByMarket[mIx];
-            if (pool <= 0) continue;
-            var port = state.Ports[state.Markets[mIx].PortId];
-            var portOwner = state.PolityOf(port.OwnerActorId);
-            double taxRate = (state.Actors[port.OwnerActorId].Policies
-                              as PolityPolicies ?? PolityPolicies.Default).TaxRate;
-            double tax = pool * taxRate;
-            portOwner.Credits += tax;
-            portOwner.Receipts += tax;
-            double net = pool - tax;
-
-            double totalSupplied = 0;
-            foreach (var s in scratch.Supplies)
-                if (s.MarketIndex == mIx) totalSupplied += s.Value;
-            if (totalSupplied > 0)
+            var market = state.Markets[mIx];
+            for (int g = 0; g < n; g++)
             {
-                double payRatio = Math.Min(1.0, net / totalSupplied);
-                foreach (var s in scratch.Supplies)
-                {
-                    if (s.MarketIndex != mIx) continue;
-                    double payout = s.Value * payRatio;
-                    PayWages(state, port.Id, payout * laborShare);
-                    var supplier = state.LedgerOf(s.OwnerActorId);
-                    supplier.Credits += payout * (1.0 - laborShare);
-                    supplier.Receipts += payout * (1.0 - laborShare);
-                }
-                net -= Math.Min(net, totalSupplied);
+                double demand = (unfilledBids[mIx * n + g]
+                                 + scratch.SignalDemand[mIx][g])
+                                / state.Config.Sim.StepFraction;
+                double supply = unsoldAsks[mIx * n + g];
+                if (demand <= eps && supply <= eps) continue;   // dormant
+                double factor = Math.Pow((demand + eps) / (supply + eps),
+                                         eco.PriceDriftExponent);
+                factor = Math.Min(cap, Math.Max(1.0 / cap, factor));
+                double ceiling = Market.InitialPrice(eco, (GoodId)g)
+                                 * eco.MaxPriceMultiple;
+                market.Price[g] = Math.Min(ceiling,
+                    Math.Max(eco.PriceFloor, market.Price[g] * factor));
             }
-            portOwner.Credits += net;   // carried-inventory sales
-            portOwner.Receipts += net;
+        }
+    }
+
+    /// <summary>Send one fill's goods to their poster: band fills are
+    /// consumed (apportioned to the contributing segments' famine/SoL
+    /// arithmetic pro-rata), project fills land in the laydown yard,
+    /// procurement fills bank into the port's stockpile.</summary>
+    private static void RouteFill(SimState state, MarketStepScratch scratch,
+                                  OrderFill fill)
+    {
+        foreach (var bb in scratch.BandBids)
+            if (ReferenceEquals(bb.Order, fill.Buy))
+            {
+                ApportionBandFill(state, scratch, bb, fill.Good, fill.Qty);
+                return;                                   // consumed
+            }
+        foreach (var (order, project) in scratch.ProjectBids)
+            if (ReferenceEquals(order, fill.Buy))
+            {
+                double total = project.DeliveredQty[fill.Good] + fill.Qty;
+                project.DeliveredGrade[fill.Good] =
+                    (project.DeliveredQty[fill.Good]
+                         * project.DeliveredGrade[fill.Good]
+                     + fill.Qty * fill.Grade) / total;
+                project.DeliveredQty[fill.Good] = total;
+                return;
+            }
+        foreach (var (order, _, port) in scratch.ProcureBids)
+            if (ReferenceEquals(order, fill.Buy))
+            {
+                port.DepositStock(fill.Good, fill.Qty, fill.Grade);
+                return;
+            }
+        foreach (var (order, portId) in scratch.RelayBids)
+            if (ReferenceEquals(order, fill.Buy))
+            {
+                // staged for export: straight back on sale at the hub —
+                // the next step's bridge carries it a hop onward
+                BookOps.PostSupply(state, portId, order.OwnerActorId,
+                    fill.Good, fill.Qty, fill.Grade);
+                return;
+            }
+        // an untracked buy (none in B1): the goods bank at the buyer's port
+        state.Ports[fill.Buy.PortId]
+            .DepositStock(fill.Good, fill.Qty, fill.Grade);
+    }
+
+    /// <summary>Credit one band order's filled quantity back to the
+    /// segments whose want it aggregated, pro-rata by contribution.</summary>
+    private static void ApportionBandFill(SimState state,
+        MarketStepScratch scratch, BandBid bb, int good, double qty)
+    {
+        if (bb.PostedQty <= 0) return;
+        foreach (var r in scratch.DemandRecords)
+        {
+            if (r.MarketIndex != bb.MarketIndex || r.Band != bb.Band
+                || r.Good != good) continue;
+            double share = qty * r.Quantity / bb.PostedQty;
+            if (bb.Band == PopulationBand.Subsistence)
+                scratch.SubsistenceCleared[r.SegmentId] += share;
+            else if (bb.Band == PopulationBand.StandardOfLiving)
+                scratch.SoLCleared[r.SegmentId] += share;
+        }
+    }
+
+    /// <summary>Return one band order's unfilled escrow to the segments
+    /// that funded it, pro-rata by their escrow contribution.</summary>
+    private static void RefundSegments(SimState state,
+        MarketStepScratch scratch, BandBid bb, double refund)
+    {
+        double totalQty = 0;
+        foreach (var r in scratch.DemandRecords)
+            if (r.MarketIndex == bb.MarketIndex && r.Band == bb.Band
+                && r.Good == bb.Order.Good)
+                totalQty += r.Quantity;
+        if (totalQty <= 0)
+        {
+            // no contributors on record: the port's people at large get it
+            PayWages(state, state.Markets[bb.MarketIndex].PortId, refund);
+            return;
+        }
+        foreach (var r in scratch.DemandRecords)
+        {
+            if (r.MarketIndex != bb.MarketIndex || r.Band != bb.Band
+                || r.Good != bb.Order.Good) continue;
+            state.Segments[r.SegmentId].Wealth
+                += refund * r.Quantity / totalQty;
         }
     }
 

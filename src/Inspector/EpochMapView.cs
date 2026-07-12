@@ -34,6 +34,7 @@ public static class EpochMapView
         var laneCells = layer == "lanes" ? LaneCells(state, live: true) : null;
         var deadLaneCells = layer == "lanes" ? LaneCells(state, live: false) : null;
         var traffic = layer == "traffic" ? TrafficCells(state) : null;
+        var trade = layer == "trade" ? TradeCells(state) : null;
         var warCells = layer == "war" ? WarStationCells(state) : null;
         var workCells = layer == "works" ? WorkCells(state) : null;
         var freightCells = layer == "works" ? FreightCells(state) : null;
@@ -59,6 +60,13 @@ public static class EpochMapView
                 glyph = portCells.Contains(cell.Coord) ? '*'
                     : traffic!.TryGetValue(cell.Coord, out double trips)
                         ? TrafficGlyph(trips) : '.';
+            else if (layer == "trade")
+                // spread intensity (contract-economy spec §5): the steepest
+                // reference gradient across the goods a lane connects — the
+                // margin spread runs are chasing right now
+                glyph = portCells.Contains(cell.Coord) ? '*'
+                    : trade!.TryGetValue(cell.Coord, out double spread)
+                        ? TradeGlyph(spread) : '.';
             else if (layer == "war")
             {
                 // borders flaring: belligerent domains keep their letter,
@@ -148,6 +156,9 @@ public static class EpochMapView
             "traffic" => "posted trips/year: *=port · ,=lane no hulls · "
                          + "- <0.5 · = <2 · + <5 · # 5+ · .=wilds "
                          + "(news rides this — busy lanes carry it fast)",
+            "trade" => "steepest price gradient per lane: *=port · ,=flat "
+                       + "· - <25% · = <50% · + <100% · # 100%+ · .=wilds "
+                       + "(the margins spread runs chase)",
             "price" => $"{Substrate.Goods.Get(good).Name} vs founding price: "
                        + "_ glut · - cheap · = par · + dear · * scarce · # spike "
                        + "· ! famine-grade · .=wilds",
@@ -343,6 +354,55 @@ public static class EpochMapView
         }
         return cells;
     }
+
+    /// <summary>The trade lens's data: each live lane's steepest relative
+    /// reference-price gradient across all goods, painted along its hex
+    /// line (max where strokes cross).</summary>
+    private static Dictionary<HexCoordinate, double> TradeCells(SimState state)
+    {
+        var cells = new Dictionary<HexCoordinate, double>();
+        foreach (var lane in state.Lanes)
+        {
+            if (!LaneMath.IsLive(state, lane)) continue;
+            var mA = state.Markets[lane.PortAId];
+            var mB = state.Markets[lane.PortBId];
+            double spread = 0;
+            for (int g = 0; g < mA.Price.Length; g++)
+            {
+                double lo = System.Math.Min(mA.Price[g], mB.Price[g]);
+                double hi = System.Math.Max(mA.Price[g], mB.Price[g]);
+                if (lo <= 1e-9) continue;
+                // only gradients a trader can ACT on: the cheap end must
+                // have resting asks to lift — a price gap over an empty
+                // book is scarcity, not margin
+                int cheap = mA.Price[g] <= mB.Price[g]
+                    ? lane.PortAId : lane.PortBId;
+                if (BookOps.AskQty(state, cheap, g) <= 1e-9) continue;
+                spread = System.Math.Max(spread, hi / lo - 1.0);
+            }
+            var a = state.Ports[lane.PortAId].Hex;
+            var b = state.Ports[lane.PortBId].Hex;
+            int n = HexGrid.Distance(a, b);
+            for (int i = 0; i <= n; i++)
+            {
+                double t = n == 0 ? 0.0 : (double)i / n;
+                var cell = HexGrid.CellOf(HexGrid.Round(
+                    a.Q + (b.Q - a.Q) * t, a.R + (b.R - a.R) * t));
+                cells.TryGetValue(cell, out double held);
+                cells[cell] = System.Math.Max(held, spread);
+            }
+        }
+        return cells;
+    }
+
+    private static char TradeGlyph(double spread) => spread switch
+    {
+        < 0.05 => ',',
+        < 0.25 => '-',
+        < 0.50 => '=',
+        < 1.00 => '+',
+        _ => '#',
+    };
 
     /// <summary>Cells crossed by each lane's hex line (cube lerp + round) —
     /// live and dead lanes render as separate strokes (a downed gate is a

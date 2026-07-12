@@ -38,10 +38,11 @@ public class TechTests
         while (!state.Actors.Any(a => a.Entered)) engine.Step(state);
         var pr = state.Polities.First(p => state.Actors[p.ActorId].Entered);
         var port = state.Ports.First(p => p.OwnerActorId == pr.ActorId);
-        var market = state.Markets[port.Id];
-        // stock the shelves and fund the line
-        market.Inventory[(int)StarGen.Core.Substrate.GoodId.RefinedExotics] = 100;
-        market.Inventory[(int)StarGen.Core.Substrate.GoodId.Compute] = 100;
+        // stock the book and fund the line
+        EpochTestKit.Stock(state, port.Id,
+            (int)StarGen.Core.Substrate.GoodId.RefinedExotics, 100, 0.5);
+        EpochTestKit.Stock(state, port.Id,
+            (int)StarGen.Core.Substrate.GoodId.Compute, 100, 0.5);
         int tierBefore = pr.TechTier[(int)TechDomain.Industrial];
         double progressBefore = pr.TechProgress[(int)TechDomain.Industrial];
         double spent = TechOps.Research(state, pr,
