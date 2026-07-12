@@ -50,6 +50,7 @@ public sealed class Repl
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
                     Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
                     Console.WriteLine("econtracts [actorId] — open/in-transit courier contracts: route, cargo, fee, fulfiller");
+                    Console.WriteLine("ehealth [metric|save <base>] — macro health: latest snapshot + debt roster, one metric's trend, or CSV export");
                     Console.WriteLine("emap works — construction sites and freight on the move (the in-flight world)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
@@ -294,6 +295,29 @@ public sealed class Repl
                     break;
                 }
                 case "econtracts":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "ehealth" when _sim != null && parts.Length >= 3
+                        && parts[1] == "save":
+                {
+                    var health = _sim.Health;
+                    System.IO.File.WriteAllText(parts[2] + ".csv",
+                        Core.Epoch.MetricCsv.RenderMetrics(health));
+                    System.IO.File.WriteAllText(parts[2] + ".polities.csv",
+                        Core.Epoch.MetricCsv.RenderPolities(health));
+                    System.IO.File.WriteAllText(parts[2] + ".phases.csv",
+                        Core.Epoch.MetricCsv.RenderPhases(health));
+                    Console.WriteLine($"health series → {parts[2]}.csv / "
+                        + $"{parts[2]}.polities.csv / {parts[2]}.phases.csv");
+                    break;
+                }
+                case "ehealth" when _sim != null && parts.Length >= 2:
+                    Console.WriteLine(HealthView.RenderTrend(_sim, parts[1]));
+                    break;
+                case "ehealth" when _sim != null:
+                    Console.WriteLine(HealthView.Render(_sim));
+                    break;
+                case "ehealth":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "ebook" when _sim != null && parts.Length >= 2
