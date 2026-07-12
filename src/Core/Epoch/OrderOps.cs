@@ -71,16 +71,15 @@ public static class OrderOps
     /// priority. Each fill settles its consequences: transaction tax on the
     /// proceeds to the port's sovereign, the labor share of the seller's net
     /// to the local segments (household income is earned from realized
-    /// revenue), the rest stays with the seller. Returns the fills for the
-    /// caller to route the goods. Pure ordered math — no rolls.</summary>
+    /// revenue), the rest stays with the seller. The reference price
+    /// (Market.Price — the readout every downstream valuation keeps
+    /// reading) updates to the step's volume-weighted prints, falling back
+    /// to the best surviving ask. Returns the fills for the caller to route
+    /// the goods. Pure ordered math — no rolls.</summary>
     public static List<OrderFill> MatchPort(SimState state, int portId)
     {
         var fills = new List<OrderFill>();
-        var port = state.Ports[portId];
-        double taxRate = (state.Actors[port.OwnerActorId].Policies
-            as PolityPolicies ?? PolityPolicies.Default).TaxRate;
-        var sovereign = state.PolityOf(port.OwnerActorId);
-        double laborShare = state.Config.Economy.LaborShare;
+        var market = state.Markets[portId];
 
         var buys = new List<MarketOrder>();
         var sells = new List<MarketOrder>();
@@ -97,6 +96,7 @@ public static class OrderOps
 
         for (int good = 0; good < Substrate.Goods.All.Count; good++)
         {
+            double printedQty = 0, printedValue = 0;
             int bi = 0, si = 0;
             while (true)
             {
@@ -108,22 +108,49 @@ public static class OrderOps
                 var buy = buys[bi];
                 var sell = sells[si];
                 if (buy.LimitPrice < sell.LimitPrice) break;
-                var seller = state.LedgerOf(sell.OwnerActorId);
+                int sellerId = sell.OwnerActorId;
                 var (qty, grade, paid) = Fill(state, buy, sell);
                 if (qty <= 0) break;
-                // the fill's consequences: tax on the proceeds, wages from
-                // the net — the seller's realized take is what remains
-                double tax = paid * taxRate;
-                double wages = (paid - tax) * laborShare;
-                seller.Credits -= tax + wages;
-                seller.Receipts -= tax + wages;
-                sovereign.Credits += tax;
-                sovereign.Receipts += tax;
-                MarketEngine.PayWages(state, portId, wages);
+                SettleSale(state, portId, sellerId, paid);
+                market.LastCleared[good] += qty;
+                printedQty += qty;
+                printedValue += paid;
                 fills.Add(new OrderFill(buy, good, qty, grade));
+            }
+            if (printedQty > 0)
+                market.Price[good] = printedValue / printedQty;
+            else
+            {
+                // no prints: the best surviving ask is the reference — a
+                // glutted seller's decaying quote drags the readout down
+                for (int i = 0; i < sells.Count; i++)
+                    if (sells[i].Good == good && sells[i].QtyRemaining > 0)
+                    { market.Price[good] = sells[i].LimitPrice; break; }
             }
         }
         return fills;
+    }
+
+    /// <summary>A sale's consequences, shared by matching and ask-lifting:
+    /// the seller has already been paid in full — tax on the proceeds moves
+    /// to the port's sovereign and the labor share of the net pays the local
+    /// segments; the seller's realized take is what remains.</summary>
+    internal static void SettleSale(SimState state, int portId,
+                                    int sellerActorId, double paid)
+    {
+        if (paid <= 0) return;
+        var port = state.Ports[portId];
+        double taxRate = (state.Actors[port.OwnerActorId].Policies
+            as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+        var sovereign = state.PolityOf(port.OwnerActorId);
+        double tax = paid * taxRate;
+        double wages = (paid - tax) * state.Config.Economy.LaborShare;
+        var seller = state.LedgerOf(sellerActorId);
+        seller.Credits -= tax + wages;
+        seller.Receipts -= tax + wages;
+        sovereign.Credits += tax;
+        sovereign.Receipts += tax;
+        MarketEngine.PayWages(state, portId, wages);
     }
 
     /// <summary>Release a sell order's remaining goods to the caller and

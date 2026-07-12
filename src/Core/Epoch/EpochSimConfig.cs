@@ -716,6 +716,15 @@ public sealed class EconomyKnobs
     /// <summary>Shape of the drift: price moves by (demand/supply)^exponent,
     /// then rate-clamped.</summary>
     public double PriceDriftExponent { get; set; } = 0.5;
+    /// <summary>A fresh sell order quotes at reference price × this markup —
+    /// sellers open a little above the last print (contract economy).</summary>
+    public double AskMarkupOnPost { get; set; } = 1.05;
+    /// <summary>Unsold asks cut their quote by this fraction per world-year:
+    /// the glut half of the old price drift, moved into sellers' hands.</summary>
+    public double AskDecayPerYear { get; set; } = 0.04;
+    /// <summary>Standing orders expire after this many world-years unless
+    /// refreshed — refunds return where the escrow came from.</summary>
+    public double OrderExpiryYears { get; set; } = 30.0;
     /// <summary>Absolute price floor — gluts bottom out, never reach zero.</summary>
     public double PriceFloor { get; set; } = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes

@@ -19,8 +19,9 @@ public sealed class MarketOrder
     public int OwnerActorId { get; }
     public int PortId { get; }
     public int Good { get; }
-    /// <summary>Ask for sells, bid for buys — per unit.</summary>
-    public double LimitPrice { get; }
+    /// <summary>Ask for sells, bid for buys — per unit. Settable: sellers
+    /// decay unsold quotes (the glut half of the old price drift).</summary>
+    public double LimitPrice { get; set; }
     public double QtyRemaining { get; set; }
     /// <summary>The held goods' grade (sells; 0 for buys).</summary>
     public double Grade { get; set; }
