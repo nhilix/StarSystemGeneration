@@ -33,7 +33,7 @@ public sealed class Repl
                     Console.WriteLine("epoch <seed> [epochs] [radiusCells] — run the seven-phase frame, print the phase/event trace");
                     Console.WriteLine("estep [n] [years] — step the loaded sim n more epochs (default 1); years overrides the");
                     Console.WriteLine("   integration step (fine tick: estep 25 1 plays a generation year by year)");
-                    Console.WriteLine("emap [domains|lanes|traffic|price [good]|tech|war|tension] — political / lane / traffic / price / tech / war maps");
+                    Console.WriteLine("emap [domains|lanes|traffic|trade|price [good]|tech|war|tension] — political / lane / traffic / spread / price / tech / war maps");
                     Console.WriteLine("polity [id] — the interior panel: form, legitimacy, reign, factions, tech, charters");
                     Console.WriteLine("characters [polityId] — the sparse living roster · bio <charId> — a life from the log (P8)");
                     Console.WriteLine("tech — per-polity domain tiers + progress · corps — the corporation registry");
@@ -890,13 +890,16 @@ public sealed class Repl
             string eta = stalled ? "STALLED"
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
-            // purpose (slice CE): courier cargo vs a trader's spread run
-            bool isCourier = false;
+            // purpose (slice CE): courier cargo (war convoys called out)
+            // vs a trader's spread run vs the state hauling its own
+            Core.Epoch.CourierContract? rider = null;
             foreach (var c in sim.Couriers)
                 if (c.Status == Core.Epoch.CourierStatus.InTransit
                     && c.ShipmentId == s.Id)
-                { isCourier = true; break; }
-            string purpose = isCourier ? "courier"
+                { rider = c; break; }
+            string purpose = rider != null
+                ? rider.Priority == Core.Epoch.CourierPriority.War
+                    ? "war convoy" : "courier"
                 : s.Channel == Core.Epoch.ShipmentChannel.Freight
                     ? "spread run" : "state haul";
             Console.WriteLine(FormattableString.Invariant(

@@ -105,9 +105,17 @@ shape how demand bends under price.
 | `Economy.PriceDriftExponent` | 0.5 | Sharper response to a given demand/supply ratio. | Gentler, more damped drift. |
 | `Economy.PriceFloor` | 0.01 | Gluts stay worth something. | Deeper glut basements. |
 | `Economy.MaxPriceMultiple` | 100 | Taller famine/blockade spikes — and more paper wealth minted through wages during them. | Muted crises; less legible price map. |
-| `Economy.ReExportWeight` | 0.5 | Hubs bid harder for through-traffic: stronger entrepôts, more speculative freight. | Goods only move to final consumers. |
-| `Economy.ParityHeadroom` | 1.15 | Connected prices float higher above import break-even (lazier discipline, fatter trade margins). | Tighter parity: connected markets nearly uniform; blockades stand out more. |
+| `Economy.ReExportWeight` | 0.5 | Hubs bid harder for through-traffic (relay bids) and traders speculate bigger cargos: stronger entrepôts. | Goods only move to final consumers. |
 | `Economy.BlackMarketMarkup` | 2.5 | Juicier prohibition margins (smuggling, when H arms it, pays more). | Prohibition barely distorts. |
+| `Economy.AskMarkupOnPost` | 1.0 | Fresh supply quotes above reference: sticky shelf prices, slower clears. | Below 1: producers undercut the reference — gluts clear faster, margins thinner. |
+| `Economy.OrderExpiryYears` | 100 | Stale books linger longer before buys refund / sells escheat to the port. | Faster cleanup — but keep it WELL above the coarse step span or tick honesty (P7) breaks. |
+| `Economy.SubsistenceBidPremium` | 1.2 | Hunger outbids everything harder (famine only under true scarcity). | Subsistence competes at par; industry can outbid dinner. |
+| `Economy.SoLBidRatio` | 1.0 | Comfort spending crosses fresh asks at reference. | SoL waits for gluts; slower growth/legitimacy feedback. |
+| `Economy.LuxuryBidRatio` | 0.9 | Luxury bids closer to par — elites fed sooner. | Luxuries only clear into deep gluts. |
+| `Economy.ProjectBidPremium` | 1.1 | Construction outbids consumption harder for materials. | Sites queue behind households; slower build-out. |
+
+*`Economy.ParityHeadroom` is inert since slice CE: import parity died with
+the shelf — the order book prices imports through delivered cost.*
 
 ## Economy — production, income, freight, credit, lifecycle
 
@@ -131,6 +139,8 @@ shape how demand bends under price.
 | `Economy.StockCapPerPortTier` | 100 | (Raise) ports bank deep larders without depots. | Tiny caps: reserve policy impossible without depots everywhere. |
 | `Economy.StockCapPerDepotTier` | 400 | (Raise) one depot holds a war economy's stores. | Depot storage stops mattering next to the port's own floor. |
 | `Economy.WarWearinessPerYear` | 0.003 | (Inert until H.) | — |
+| `Economy.CourierFeePerUnitPerHex` | 0.02 | State hauling costs real freight rates: fees drain treasuries, self-fulfillment pays back more. | Near-free requisitions (against the contract economy's grain). |
+| `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*
@@ -366,7 +376,7 @@ player, P2) replace the AI and bring their own numbers.
 
 | Knob | Default | Raise it | Lower it |
 |---|---|---|---|
-| `Controller.RealmHungerGate` | 0.8 | Cautious expansion: consolidate until well-fed. | Expand while starving (pre-fix behavior — colonial graveyards). |
+| `Controller.RealmHungerGate` | 0.7 | Cautious expansion: consolidate until well-fed. | Expand while starving (colonial graveyards). Dropped 0.8→0.7 in slice CE: the book economy's honest famine prints gated too hard. |
 | `Controller.ProvisionsReservePerPort` | 3 | Deep granaries: famine relief and (H) siege endurance. | Hand-to-mouth realms. |
 | `Controller.AlloysReservePerPort` | 3 | Bigger state construction banks — faster industrialization. | Construction starved by its own markets again. |
 | `Controller.MachineryReservePerPort` | 1.5 | (as above, machinery) | — |
@@ -390,6 +400,13 @@ player, P2) replace the AI and bring their own numbers.
 |---|---|---|---|
 | `Controller.MaxPlanEntries` | 16 | Longer standing schedules — a realm queues more concurrent works (packing still caps spend by income). | Short horizons; only the top-scoring few projects get scheduled. |
 | `Controller.PortRaisePlanScore` | 0.5 | Port raises out-compete new facilities for the income rate — realms deepen hubs over spreading industry. | Facilities crowd port raises out of the plan; ports stay shallow. |
+
+### Controller additions (slice CE — the contract economy)
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Controller.PlanSavingsDrawdownYears` | 5 | Slower treasury drawdown backs the plan — leaner packing, deeper reserves. | Realms spend their savings into works faster (boom-bust plans). |
+| `Controller.ColonyNeedBoost` | 6.0 | A realm sitting on expansion points with no colony hull screams for one — yards drop everything. | Colony hulls compete at par and expansion stalls behind freight (the pre-fix famine). |
 
 ## Tech — ladder costs, research, diffusion (slice G)
 
@@ -484,6 +501,9 @@ and the incident freshness window (2 epochs) are structural.
 | `War.DemobilizationPerYear` | 0.15 | Standing forces stand down faster once the fighting stops. | Peacetime mobilization lingers for generations. |
 | `War.WarBudgetMilitaryShift` | 0.20 | Guns before butter: development and expansion starve at war. | The exchequer ignores the front. |
 | `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
+| `War.InterdictionReachHexes` | 4 | War-stationed squadrons contest lanes farther out — wider denial zones around every front (slice CE). | Interdiction only at the gate's doorstep; convoys route past fleets untouched. |
+| `War.InterdictionLossPerContestedYear` | 0.12 | Contested legs bleed convoys fast: cut supply lines decide wars in epochs. | Interdiction is harassment; fronts supply through enemy fleets. |
+| `War.EscortDampPerHull` | 0.15 | A few escorts near-neutralize seizure (convoy doctrine pays). | Escorts are decoration; only mass decides the lane. |
 
 **Ignition recalibration (slice t1 — the world-time economy).** `WarTensionFloor`
 0.55 → 0.35 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy
