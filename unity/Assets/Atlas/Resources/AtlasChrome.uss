@@ -1,0 +1,393 @@
+/* Atlas chrome — CASSETTE structure (K3 unified UI layer). Colors come
+   ONLY from palette var()s (Assets/UI/Themes/SSGPalette-*.uss via the
+   PanelSettings theme); no raw hex here. Visual spec:
+   docs/superpowers/specs/2026-07-12-ui-language-design.md + the UI
+   Language Lab artifact §3 (top bar, rail, dock, tooltip, threads). */
+
+/* ---- top bar: a CRT header strip across the screen ---- */
+
+.ssg-topbar {
+    position: absolute;
+    left: 0; top: 0; right: 0;
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--ssg-panel2);
+    border-bottom-width: 2px;
+    border-bottom-color: var(--ssg-line2);
+    padding: 6px 12px;
+}
+.ssg-topbar__eye {
+    color: var(--ssg-ground);
+    background-color: var(--ssg-acc);
+    font-size: 11px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    padding: 2px 8px;
+    margin-right: 12px;
+}
+.ssg-topbar__clock {
+    color: var(--ssg-ink1);
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+.ssg-topbar__era {
+    color: var(--ssg-acc);
+    font-size: 12px;
+    letter-spacing: 1px;
+    margin-left: 8px;
+}
+.ssg-topbar__stamp {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-left: 14px;
+}
+.ssg-spacer { flex-grow: 1; }
+
+.ssg-topbar__search {
+    width: 220px;
+    margin-left: 10px;
+}
+.ssg-topbar__search .unity-text-field__input {
+    background-color: var(--ssg-ground);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    border-radius: 0;
+    color: var(--ssg-acc);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    transition-property: border-color;
+    transition-duration: 100ms;
+}
+.ssg-topbar__search .unity-text-field__input:focus {
+    border-color: var(--ssg-acc);
+}
+
+/* ---- shared button idiom: bordered row, full-inversion hover ---- */
+
+.ssg-btn {
+    background-color: var(--ssg-panel);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    border-radius: 0;
+    color: var(--ssg-ink2);
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    margin: 0;
+    transition-property: background-color, color, border-color;
+    transition-duration: 100ms;
+}
+.ssg-btn:hover {
+    background-color: var(--ssg-acc);
+    border-color: var(--ssg-acc);
+    color: var(--ssg-ground);
+}
+.ssg-btn--accent {
+    color: var(--ssg-acc);
+    border-color: var(--ssg-acc-dim);
+}
+.ssg-btn--accent:hover { color: var(--ssg-ground); }
+
+/* ---- left rail: the lens stack ---- */
+
+.ssg-rail {
+    position: absolute;
+    left: 0;
+    top: 32px;
+    bottom: 0;
+    width: 200px;
+    background-color: var(--ssg-panel);
+    border-right-width: 2px;
+    border-right-color: var(--ssg-line2);
+    padding: 8px 10px;
+}
+.ssg-rail__group {
+    color: var(--ssg-ink3);
+    font-size: 9px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    margin-top: 10px;
+    margin-bottom: 4px;
+}
+
+.ssg-chip {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    background-color: var(--ssg-panel);
+    border-width: 1px;
+    border-color: var(--ssg-line1);
+    border-radius: 0;
+    color: var(--ssg-ink2);
+    font-size: 11px;
+    height: 22px;
+    margin: 0 0 3px 0;
+    padding: 0 6px;
+    transition-property: background-color, color, border-color;
+    transition-duration: 100ms;
+}
+.ssg-chip:hover {
+    background-color: var(--ssg-acc);
+    border-color: var(--ssg-acc);
+}
+.ssg-chip--on {
+    border-color: var(--ssg-acc-dim);
+    background-color: var(--ssg-panel2);
+}
+.ssg-chip__swatch {
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+}
+.ssg-chip__label {
+    color: var(--ssg-ink2);
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition-property: color;
+    transition-duration: 100ms;
+}
+.ssg-chip--on .ssg-chip__label { color: var(--ssg-ink1); }
+.ssg-chip:hover .ssg-chip__label { color: var(--ssg-ground); }
+
+.ssg-rail__good {
+    margin-left: 18px;
+    margin-bottom: 4px;
+}
+.ssg-rail__good .unity-base-popup-field__input {
+    background-color: var(--ssg-ground);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    border-radius: 0;
+    color: var(--ssg-ink2);
+    font-size: 10px;
+    padding: 1px 4px;
+    min-height: 18px;
+}
+
+/* ---- right dock: pinnable inspector panels ---- */
+
+.ssg-dock {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    bottom: 8px;
+    width: 340px;
+    padding: 8px;
+}
+.ssg-panel {
+    background-color: var(--ssg-panel);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    margin-bottom: 8px;
+    max-height: 46%;
+}
+.ssg-panel--pinned {
+    border-left-width: 2px;
+    border-left-color: var(--ssg-acc);
+}
+.ssg-panel__head {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--ssg-panel2);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--ssg-line2);
+    padding: 4px 8px;
+}
+.ssg-panel__title {
+    color: var(--ssg-ink1);
+    font-size: 11px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+}
+.ssg-panel__btn {
+    background-color: var(--ssg-panel2);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    border-radius: 0;
+    color: var(--ssg-ink3);
+    font-size: 10px;
+    padding: 0 5px;
+    margin-left: 6px;
+    transition-property: background-color, color;
+    transition-duration: 100ms;
+}
+.ssg-panel__btn:hover {
+    background-color: var(--ssg-acc);
+    color: var(--ssg-ground);
+}
+.ssg-panel__btn--pinned {
+    color: var(--ssg-acc);
+    border-color: var(--ssg-acc-dim);
+}
+.ssg-panel__body {
+    padding: 6px 8px;
+}
+
+/* panel content primitives */
+.ssg-sect {
+    color: var(--ssg-ink3);
+    font-size: 9px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    margin-top: 8px;
+    margin-bottom: 3px;
+}
+.ssg-kv {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 1px;
+}
+.ssg-kv__k {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+}
+.ssg-kv__v {
+    color: var(--ssg-ink1);
+    font-size: 11px;
+}
+.ssg-kv__v--acc { color: var(--ssg-acc); }
+.ssg-kv__v--warn { color: var(--ssg-warn); }
+.ssg-kv__v--bad { color: var(--ssg-bad); }
+.ssg-kv__v--good { color: var(--ssg-good); }
+
+.ssg-line {
+    color: var(--ssg-ink2);
+    font-size: 11px;
+    white-space: normal;
+    margin-bottom: 1px;
+}
+.ssg-line--dim { color: var(--ssg-ink3); }
+
+/* clickable table row — block-cursor inversion on hover */
+.ssg-row {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--ssg-panel);
+    border-width: 0;
+    border-radius: 0;
+    padding: 2px 4px;
+    margin: 0;
+    transition-property: background-color;
+    transition-duration: 80ms;
+}
+.ssg-row:hover { background-color: var(--ssg-acc); }
+.ssg-row:hover .ssg-line { color: var(--ssg-ground); }
+.ssg-row:hover .ssg-line--dim { color: var(--ssg-ground); }
+.ssg-row:hover .ssg-tag { color: var(--ssg-ground); border-color: var(--ssg-ground); }
+
+.ssg-tag {
+    color: var(--ssg-ink3);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 0 4px;
+    margin-right: 6px;
+}
+.ssg-tag--bad { color: var(--ssg-bad); border-color: var(--ssg-bad); }
+.ssg-tag--warn { color: var(--ssg-warn); border-color: var(--ssg-warn); }
+.ssg-tag--good { color: var(--ssg-good); border-color: var(--ssg-good); }
+
+/* meter bar (legitimacy, exhaustion, progress…) */
+.ssg-meter {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+.ssg-meter__label {
+    color: var(--ssg-ink3);
+    font-size: 10px;
+    width: 84px;
+}
+.ssg-meter__track {
+    flex-grow: 1;
+    height: 6px;
+    background-color: var(--ssg-line1);
+}
+.ssg-meter__fill {
+    height: 6px;
+    background-color: var(--ssg-acc);
+}
+.ssg-meter__fill--warn { background-color: var(--ssg-warn); }
+.ssg-meter__fill--bad { background-color: var(--ssg-bad); }
+.ssg-meter__value {
+    color: var(--ssg-ink2);
+    font-size: 10px;
+    margin-left: 6px;
+    width: 34px;
+    -unity-text-align: middle-right;
+}
+
+/* ---- hover tooltip ---- */
+
+.ssg-tip {
+    position: absolute;
+    background-color: var(--ssg-panel2);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    padding: 5px 8px;
+    max-width: 260px;
+}
+.ssg-tip__title {
+    color: var(--ssg-acc);
+    font-size: 11px;
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+    margin-bottom: 2px;
+}
+.ssg-tip__line {
+    color: var(--ssg-ink2);
+    font-size: 10px;
+    white-space: normal;
+}
+.ssg-tip__line--dim { color: var(--ssg-ink3); }
+
+/* ---- per-lens legend (bottom-left, above the rail's end) ---- */
+
+.ssg-legend {
+    position: absolute;
+    left: 208px;
+    bottom: 8px;
+    background-color: var(--ssg-panel);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    padding: 6px 8px;
+    max-width: 300px;
+}
+.ssg-legend__title {
+    color: var(--ssg-ink3);
+    font-size: 9px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+.ssg-legend__row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+.ssg-legend__swatch {
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+}
+.ssg-legend__swatch--stroke { height: 3px; }
+.ssg-legend__swatch--ring {
+    height: 10px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 2px;
+    border-radius: 5px;
+}
+.ssg-legend__glyph {
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+.ssg-legend__label {
+    color: var(--ssg-ink2);
+    font-size: 10px;
+    white-space: normal;
+    flex-shrink: 1;
+}

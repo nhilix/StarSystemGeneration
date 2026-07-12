@@ -63,11 +63,15 @@ Core.Tests never references Inspector.
   - [x] LegendQuery (rail-key → entries; lens color constants publicized
         as the single source; GlyphKey = AtlasGlyph enum member names —
         Unity side must Enum.TryParse-verify at T7)
-- [ ] **T2 — Unified UI chrome foundation**: read
-      `.claude/skills/translating-css-to-uss/SKILL.md` FIRST; atlas chrome
-      USS (structure, `ssg-` classes, var() tokens only);
-      `Assets/Atlas/PanelSettings.asset` theme → `SSG-Ice.tss`; LensRail
-      re-skinned (inline style constants → USS where practical)
+- [x] **T2 — Unified UI chrome foundation** (USS skill read first):
+      `Assets/Atlas/Resources/AtlasChrome.uss` — the whole K3 chrome
+      vocabulary (topbar/rail/chips/dock panels/kv/meters/rows/tags/
+      tooltip/legend), `ssg-` BEM classes, var() tokens only ·
+      `AtlasChrome.cs` owns the UIDocument + hosts + THE pointer guard ·
+      PanelSettings themeUss → SSG-Ice.tss (guid swap) · LensRail rebuilt
+      onto classes (year readout retired, ActiveLegendKey/LensChanged
+      exposed for T7) · scene setup builds one AtlasChrome GO ·
+      EditMode 8/8, zero compile errors
 - [ ] **T3 — SelectionModel + picking + hover tooltip** (plane
       intersection → `HexGrid.WorldToHex`/`CellOf`, no colliders; tooltip:
       system summary, owner, port tier, live POI)
@@ -94,7 +98,16 @@ Core.Tests never references Inspector.
 
 ## Decisions / deviations
 
-(recorded as they happen)
+- **Worktree trap (RESOLVED, keep for K4/K5)**: `unity/Packages/
+  manifest.json`, `packages-lock.json`, and `src/Core/csc.rsp` are
+  GITIGNORED — a fresh worktree lacks them and Unity regenerates a bare
+  manifest (no com.stargen.core, no InputSystem, C#9 errors). Copy all
+  three from the main checkout before any Unity batch run.
+- Legend architecture: rail keys → LegendQuery entries; glyph rows carry
+  AtlasGlyph member names as GlyphKey strings (Unity Enum.TryParse — an
+  EditMode drift test rides T7).
+- RegistryQueries.Stats = registry counts (the drawer's stats face), an
+  atlas-appropriate reading of the REPL's hex-tier `stats`.
 
 ## Carried notes (from K2)
 

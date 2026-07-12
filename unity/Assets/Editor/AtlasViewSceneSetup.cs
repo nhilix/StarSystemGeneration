@@ -64,14 +64,15 @@ namespace StarGen.AtlasView.EditorTools
             root.Wire(host, stars, domains, nature, lattice, lanes, ports,
                       rig, fleets, pois, works, plague, war, news, price);
 
-            var railGo = new GameObject("LensRail");
-            var doc = railGo.AddComponent<UIDocument>();
+            var chromeGo = new GameObject("AtlasChrome");
+            var doc = chromeGo.AddComponent<UIDocument>();
             doc.panelSettings =
                 AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
             if (doc.panelSettings == null)
                 Debug.LogWarning(
                     $"AtlasViewSceneSetup: no PanelSettings at {PanelSettingsPath}");
-            var rail = railGo.AddComponent<LensRail>();
+            chromeGo.AddComponent<AtlasChrome>();
+            var rail = chromeGo.AddComponent<LensRail>();
             rail.Wire(root);
 
             EditorSceneManager.MarkSceneDirty(scene);
