@@ -71,13 +71,31 @@ T2-added `emap works` layer — construction sites + freight in transit).
 5. K1 runtime meshes/textures lack HideAndDontSave in edit mode —
    cosmetic leak, sweep opportunistically.
 
+## UI language & entry scene (merged 2026-07-12, session "ui-toolkit")
+
+The game's UI visual language is decided and its foundation is on main:
+**cassette-futurism structure × Ice palette**, scanlines on world
+surfaces only, color theme as a future Settings preset. Spec:
+`docs/superpowers/specs/2026-07-12-ui-language-design.md`; living visual
+refs: UI Language Lab artifact (atlas chrome mocked in the language) +
+main-menu mock. Landed: `.claude/skills/translating-css-to-uss/` (read
+before writing any USS), `unity/Assets/UI/Themes/` (Ice + Phosphor
+`.tss`), and the main-menu entry scene (`unity/Assets/UI/MainMenu`,
+menu `SSG → UI → Create Main Menu Scene`, stub actions). **The menu's
+in-editor eyeball is pending — folded into K3's first play-mode
+eyeball.** The K3 kickoff was amended with a "unified UI layer" section:
+K3 chrome ships in this language and re-skins the K2 rail to it.
+
 ## Next up
 
-1. **Slice K3 (Selection & panels)** — fresh session, point it at
+1. **Slice K3 (Selection & panels + the unified UI layer)** — fresh
+   session, point it at
    `docs/superpowers/plans/2026-07-12-slice-k3-kickoff-prompt.md`
    (includes the T1/T2 panel additions: located larder in Market,
    ReservePoints + standing plan in Polity, NEW Project/Shipment
-   inspectors, corp panel = funded projects only; plus the legend item).
+   inspectors, corp panel = funded projects only; plus the legend item;
+   amended with the UI language section — cassette × ice chrome, K2
+   rail re-skin, menu-scene eyeball).
 2. **Contract economy** — still queued:
    `docs/superpowers/plans/2026-07-11-contract-economy-kickoff-prompt.md`
    (design pass first; independent of K3 — parallel sessions take

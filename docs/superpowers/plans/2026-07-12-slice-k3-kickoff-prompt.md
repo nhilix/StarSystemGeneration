@@ -26,9 +26,12 @@ opening screen**, the registry drawer, and the top bar.
    `docs/superpowers/plans/2026-07-12-slice-k2-ledger.md` (glyph atlas
    contract, render-queue layering, accent machinery, rail wiring, the
    camouflage/backing-chip lesson).
-5. `docs/superpowers/plans/2026-07-11-slice-k-kickoff-prompt.md` — the
+5. **The UI language spec** (NEW, merged 2026-07-12):
+   `docs/superpowers/specs/2026-07-12-ui-language-design.md` — the visual
+   language every K3 surface renders in (see "The UI language" below).
+6. `docs/superpowers/plans/2026-07-11-slice-k-kickoff-prompt.md` — the
    whole-K inherited context and boundary.
-6. `docs/HANDOFF.md` — current state.
+7. `docs/HANDOFF.md` — current state.
 
 ## What K2 left ready (build on this, don't reinvent)
 
@@ -56,8 +59,48 @@ opening screen**, the registry drawer, and the top bar.
   play mode — smoke captures via cam.Render() do NOT include UI; K3
   should solve panel capture or gate panels on the in-editor eyeball).
 
+## The UI language (decided 2026-07-12 — dresses every K3 surface)
+
+A parallel session ("ui-toolkit") settled the game's UI visual language
+and merged its foundation alongside this kickoff:
+
+- **The decision**: cassette-futurism structure × Ice palette — chunky
+  CRT bezels and strips, function-key idioms, full-inversion hovers,
+  block cursors, mono type, ice accent `#86D7FF`, amber strictly
+  semantic (warnings/quit). Scanlines over **world surfaces only** (map
+  viewport, menu starfield), never over dense panel chrome. Spec above;
+  visual references (living artifacts): the **UI Language Lab**
+  https://claude.ai/code/artifact/00bcd5f0-9c52-4819-af1c-0531c7da2eb0
+  — its §3 atlas frame mocks exactly the chrome K3 builds (top bar,
+  rail, dock, tooltip, threads panel) — and the main-menu mock
+  https://claude.ai/code/artifact/7f2aab49-7856-4dd1-9a26-ef92c2a402a3.
+- **The architecture**: structure and palette are separate stylesheets.
+  Component USS consumes `var()` tokens ONLY — zero raw hex outside
+  `unity/Assets/UI/Themes/SSGPalette-*.uss` (Ice default, Phosphor
+  proof, behind `SSG-*.tss` themes). Color theme becomes a Settings
+  preset in a later slice; fully-custom colors are deferred (USS vars
+  aren't writable from C#). Keep everything theme-swap-clean.
+- **K3 direction — the unified UI layer**: build the dock, top bar,
+  tooltip, and legend in this language from day one, and **update the
+  K2 rail to it**: swap `Assets/Atlas/PanelSettings.asset`'s theme to
+  `Assets/UI/Themes/SSG-Ice.tss` and restyle the code-built LensRail
+  with `ssg-` token classes (migrate inline style constants into USS
+  where practical). One language across entry scene and atlas.
+- **Tooling**: read `.claude/skills/translating-css-to-uss/SKILL.md`
+  BEFORE writing any USS (constraint budget, HTML→UXML map, BEM `ssg-`
+  conventions). The frontend-design plugin is installed for new mock
+  work; `unity/Assets/UI/MainMenu/MainMenu.uss` is the reference
+  implementation of the language in USS.
+- **Also landed**: the main-menu entry scene
+  (`unity/Assets/UI/MainMenu`, editor menu `SSG → UI → Create Main Menu
+  Scene`; F1–F4 stubbed — NEW GALAXY hands its seed to the atlas flow
+  in a later slice). Its in-editor eyeball is still pending — fold it
+  into K3's first play-mode eyeball.
+
 ## Scope (K3)
 
+- **Unified UI layer** — every K3 surface in the decided language; the
+  K2 rail re-skinned to it (see "The UI language" above).
 - **SelectionModel** + hover hex tooltip (what's here: system summary,
   owner, port tier, live POI).
 - **InspectorDock** (right side, pinnable panels for comparison).
