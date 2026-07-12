@@ -1,0 +1,23 @@
+/* SSG palette: ICE (default) — colors only, consumed via var() by structure
+   stylesheets. Palette presets swap the .tss on PanelSettings; see
+   docs/superpowers/specs/2026-07-12-ui-language-design.md */
+:root {
+    --ssg-shell: #04070D;
+    --ssg-ground: #060A12;
+    --ssg-panel: #0A1120;
+    --ssg-panel2: #0E1728;
+    --ssg-line1: #1C2A40;
+    --ssg-line2: #22304A;
+    --ssg-ink1: #E6EEFA;
+    --ssg-ink2: #9FB2CA;
+    --ssg-ink3: #5A6F8C;
+    --ssg-acc: #86D7FF;
+    --ssg-acc-dim: #35507A;
+    --ssg-warn: #FFB000;
+    --ssg-good: #7DDBA0;
+    --ssg-bad: #FF7A6B;
+    --ssg-quit-line: #4A3F22;
+    --ssg-quit-ink: #D99A1E;
+    --ssg-quit-fkey: #8A6412;
+    --ssg-title-bloom: 0 0 12px rgba(134, 215, 255, 0.5);
+}

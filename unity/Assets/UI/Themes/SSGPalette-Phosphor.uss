@@ -1,0 +1,23 @@
+/* SSG palette: PHOSPHOR — the Nostromo-green preset. Same token names as
+   Ice; proves the palette swap. Never the default (green ink competes with
+   data hues); a Settings option. */
+:root {
+    --ssg-shell: #020A05;
+    --ssg-ground: #04130A;
+    --ssg-panel: #071B0F;
+    --ssg-panel2: #10271A;
+    --ssg-line1: #1C4A2C;
+    --ssg-line2: #2A4A32;
+    --ssg-ink1: #8FFFB1;
+    --ssg-ink2: #5FCE85;
+    --ssg-ink3: #2E8A4D;
+    --ssg-acc: #46FF7E;
+    --ssg-acc-dim: #1C4A2C;
+    --ssg-warn: #FFB000;
+    --ssg-good: #8FFFB1;
+    --ssg-bad: #FF9D4D;
+    --ssg-quit-line: #4A3A10;
+    --ssg-quit-ink: #D99A1E;
+    --ssg-quit-fkey: #8A6412;
+    --ssg-title-bloom: 0 0 12px rgba(70, 255, 126, 0.55);
+}
