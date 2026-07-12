@@ -46,7 +46,7 @@ public class SalvageTests
         int actorId = state.Actors.Count;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
             "Test Salvors", state.Ports[homePort].Hex, 0,
-            new CorporateController())
+            new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId,
             "Test Salvors", hostId, CorporateNiche.Salvage, homePort, 0)

@@ -103,7 +103,7 @@ public class CorpGateLaneTests
 
         int actorId = state.Actors.Count;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
-            "Test Line", pa.Hex, state.EpochIndex, new CorporateController())
+            "Test Line", pa.Hex, state.EpochIndex, new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId,
             "Test Line", a0.Id, CorporateNiche.Freight, pa.Id,

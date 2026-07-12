@@ -678,14 +678,17 @@ public static class MarketEngine
     // Freight moves (the B1 bridge)
     // ------------------------------------------------------------------
 
-    /// <summary>Freight over the book — THE B1 BRIDGE, marked to die when
-    /// corps take over fulfillment in B2 (contract-economy spec §2 step 4):
-    /// per lane, lift the cheaper end's asks against the dearer end's REAL
-    /// resting bids (net of freight + fuel + tariff + friction, legality at
-    /// both ends), within posted capacity. Settlement follows the spread-run
-    /// rule — no reservation: a sub-step transit posts its cargo at the
-    /// destination before matching; a longer haul sells into whatever book
-    /// exists on arrival. Returns shipments and units for the phase note.</summary>
+    /// <summary>SPREAD RUNS (contract-economy spec §3 — the B1 bridge and
+    /// its phantom "exporting polity merchants" are dead): each POSTED
+    /// freight fleet's owner — corporation or merchant marine — works its
+    /// own lane, buying the cheaper end's asks WITH ITS OWN CAPITAL and
+    /// shipping toward the dearer end's resting bids, plus the speculative
+    /// run when the far reference clears delivered cost (no reservation —
+    /// cargo sells into whatever book exists on arrival, and a dead spread
+    /// is the owner's loss). Both lane ends are one hop from the fleet's
+    /// station: prices read fresh (P3 — multi-hop runs on perceived books
+    /// are the flagged next pass). Freight fees died with the phantom:
+    /// the hauler IS the trader. Returns shipments and units.</summary>
     public static (int Shipments, double Units) MoveFreight(
         SimState state, MarketStepScratch scratch)
     {
@@ -693,19 +696,28 @@ public static class MarketEngine
         var eco = state.Config.Economy;
         int shipments = 0;
         double units = 0;
-        foreach (var lane in state.Lanes)                 // id order (P6)
+        foreach (var fleet in state.Fleets)               // id order (P6)
         {
-            if (scratch.Severed.Contains(lane.Id)) continue;
+            if (fleet.Posture != FleetPosture.Posted
+                || fleet.TargetId < 0 || fleet.TotalHulls == 0) continue;
+            var lane = state.Lanes[fleet.TargetId];
+            if (scratch.Severed.Contains(lane.Id)
+                || !LaneMath.IsLive(state, lane)) continue;
             var portA = state.Ports[lane.PortAId];
             var portB = state.Ports[lane.PortBId];
-            // the posted-posture capacity: what this lane's hulls can lift
-            // this epoch (a lane without freighters moves nothing)
-            double capacity = scratch.LaneFleetCapacity[lane.Id]
-                              - scratch.LaneCapacityUsed[lane.Id];
-            if (capacity <= 0) continue;
             int dist = HexGrid.Distance(portA.Hex, portB.Hex);
+            double speed = LaneMath.TransitSpeed(state, lane);
+            int years = state.Config.Sim.YearsPerEpoch;
+            // this fleet's own lift for the step
+            double capacity = 0;
+            foreach (var g0 in fleet.Hulls)               // design-id order
+                capacity += FleetMath.PostedCapacityPerEpoch(
+                    state.Config.Fleet,
+                    DesignRegistry.SheetOf(state, state.Designs[g0.DesignId]),
+                    g0.Count, speed, dist, years) * fleet.Readiness;
+            var trader = state.LedgerOf(fleet.OwnerActorId);
 
-            for (int g = 0; g < Goods.All.Count && capacity > 0; g++)
+            for (int g = 0; g < Goods.All.Count && capacity > 1e-9; g++)
             {
                 double askA = BookOps.BestAsk(state, lane.PortAId, g);
                 double askB = BookOps.BestAsk(state, lane.PortBId, g);
@@ -721,7 +733,6 @@ public static class MarketEngine
                 if (srcLevel == LegalityLevel.Prohibited
                     || dstLevel == LegalityLevel.Prohibited) continue;
 
-                double freight = eco.FreightCostPerUnitPerHex * dist;
                 double fuelUnits = eco.FuelPerUnitPerHex * dist;
                 double fuel = fuelUnits
                     * state.Markets[src.Id].Price[(int)GoodId.Fuel];
@@ -729,29 +740,26 @@ public static class MarketEngine
                 // customs at a foreign polity gate, free through your own
                 // (lane-economics spec §4)
                 double tariff = LaneFees.CrossingFeePerUnit(state, lane,
-                    dst.Id, g, mDst.Price[g], src.OwnerActorId, out int feeTo);
+                    dst.Id, g, mDst.Price[g], fleet.OwnerActorId, out int feeTo);
                 double friction = srcLevel == LegalityLevel.Restricted
                                   || dstLevel == LegalityLevel.Restricted
                     ? eco.RestrictedFriction * mDst.Price[g] : 0;
-                double costPerUnit = pSrc + freight + fuel + tariff + friction;
-                // the exporter's realized take is the post-tax owner share
+                double costPerUnit = pSrc + fuel + tariff + friction;
+                // the trader's realized take is the post-tax owner share
                 // of the destination sale — only bids above break-even count
                 double dstTax = (state.Actors[dst.OwnerActorId].Policies
                     as PolityPolicies ?? PolityPolicies.Default).TaxRate;
                 double bidFloor = costPerUnit
                     / Math.Max(1e-9, (1.0 - dstTax) * (1.0 - eco.LaborShare));
-                // absorption is REAL now: the resting bids a haul could
-                // profitably fill — no phantom demand signal
                 double absorption = BookOps.BidDepthAbove(state, dst.Id, g,
                                                           bidFloor);
-                // plus the SPECULATIVE run (no reservation): when the dear
-                // end's reference clears the delivered cost, cargo sails at
-                // the exporter's risk and sells into whatever book exists —
-                // the unsold surplus is what disciplines a cut-off price
+                // the speculative run: when the dear end's reference clears
+                // delivered cost, cargo sails at the trader's risk — the
+                // unsold surplus is what disciplines a cut-off price
                 double dstRef = mDst.Price[g] * Math.Max(1e-9,
                     (1.0 - dstTax) * (1.0 - eco.LaborShare));
                 double spec = dstRef > costPerUnit
-                    ? scratch.LaneFleetCapacity[lane.Id] * eco.ReExportWeight
+                    ? capacity * eco.ReExportWeight
                       * (dstRef - costPerUnit) / dstRef
                     : 0.0;
                 double qty = Math.Min(Math.Max(absorption, spec),
@@ -759,19 +767,15 @@ public static class MarketEngine
                         BookOps.AskQty(state, src.Id, g) * eco.ExportShare));
                 if (qty <= 1e-9) continue;
 
-                // merchants trade on working capital: the ledger may dip
-                // within the step; insolvency is Allocation's credit problem
-                var exporter = state.PolityOf(src.OwnerActorId);
+                // traders run on working capital: the ledger may dip within
+                // the step; insolvency is Allocation's credit problem
                 var (drawn, grade, cost) = BookOps.LiftAsks(state, src.Id,
                     g, qty, budget: double.MaxValue);
                 if (drawn <= 0) continue;
-                exporter.Credits -= cost + drawn * freight;
-                // the freight fee pays whoever posted the hulls — freight
-                // lines (and merchant marines) book real revenue
-                PayHaulers(state, lane, drawn * freight);
+                trader.Credits -= cost;
                 if (tariff > 0 && feeTo >= 0)
                 {
-                    exporter.Credits -= drawn * tariff;
+                    trader.Credits -= drawn * tariff;
                     var collector = state.LedgerOf(feeTo);
                     collector.Credits += drawn * tariff;
                     collector.Receipts += drawn * tariff;
@@ -779,7 +783,7 @@ public static class MarketEngine
                 if (friction > 0)
                 {
                     // friction burns as fees at the destination port
-                    exporter.Credits -= drawn * friction;
+                    trader.Credits -= drawn * friction;
                     var dstOwner = state.PolityOf(dst.OwnerActorId);
                     dstOwner.Credits += drawn * friction;
                     dstOwner.Receipts += drawn * friction;
@@ -790,11 +794,12 @@ public static class MarketEngine
                 var (_, _, fuelCost) = BookOps.LiftAsks(state, src.Id,
                     (int)GoodId.Fuel, drawn * fuelUnits,
                     budget: double.MaxValue);
-                exporter.Credits -= fuelCost;
+                trader.Credits -= fuelCost;
                 // transit time (spec §4b): a hop inside the step posts the
                 // cargo at the destination now (sub-step blur, sells into
-                // whatever book exists); a longer haul rides a shipment
-                ShipmentOps.DispatchVia(state, src.OwnerActorId,
+                // whatever book exists); a longer haul rides a shipment —
+                // the TRADER owns the cargo and the arrival asks
+                ShipmentOps.DispatchVia(state, fleet.OwnerActorId,
                     ShipmentChannel.Freight, src.Id, dst.Id,
                     new[] { lane.Id },
                     new[] { ShipmentOps.LaneLegYears(state, lane) },
@@ -835,37 +840,6 @@ public static class MarketEngine
             releases++;
         }
         return releases;
-    }
-
-    /// <summary>The freight fee splits across the lane's posted fleets by
-    /// hull count — a conserved exporter→hauler flow (P4). The lane always
-    /// has haulers when freight moved (capacity IS their hulls).</summary>
-    private static void PayHaulers(SimState state, Lane lane, double fee)
-    {
-        if (fee <= 0) return;
-        int hulls = 0;
-        foreach (var fleet in state.Fleets)
-            if (fleet.Posture == FleetPosture.Posted && fleet.TargetId == lane.Id)
-                hulls += fleet.TotalHulls;
-        if (hulls <= 0)
-        {
-            // shouldn't happen (capacity implies hulls), but a fee must
-            // land somewhere: the source port's sovereign takes it
-            var fallback = state.LedgerOf(
-                state.Ports[lane.PortAId].OwnerActorId);
-            fallback.Credits += fee;
-            fallback.Receipts += fee;
-            return;
-        }
-        foreach (var fleet in state.Fleets)                   // id order (P6)
-        {
-            if (fleet.Posture != FleetPosture.Posted
-                || fleet.TargetId != lane.Id || fleet.TotalHulls == 0) continue;
-            var owner = state.LedgerOf(fleet.OwnerActorId);
-            double share = fee * fleet.TotalHulls / hulls;
-            owner.Credits += share;
-            owner.Receipts += share;
-        }
     }
 
     /// <summary>Built stockpile capacity per good at a port (spec §4b): the

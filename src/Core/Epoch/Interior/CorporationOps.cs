@@ -346,7 +346,7 @@ public static class CorporationOps
         string name = CorpName(state, actorId, niche);
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
             state.Ports[homePort].Hex, state.EpochIndex,
-            new CorporateController())
+            new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId, name,
             outlaw ? -1 : pr.ActorId, niche, homePort, state.WorldYear)
@@ -393,7 +393,7 @@ public static class CorporationOps
         var lane = state.Lanes[laneId];
         var haven = state.Ports[lane.PortAId].Hex;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
-            haven, state.EpochIndex, new CorporateController())
+            haven, state.EpochIndex, new CorporateController(state.Config))
         { Entered = true });
         var band = new Corporation(state.Corporations.Count, actorId, name,
             -1, CorporateNiche.Raiding, lane.PortAId, state.WorldYear)
@@ -586,7 +586,7 @@ public static class CorporationOps
     /// its terrain, fabrication chases the widest price-over-founding gap.
     /// Shared by the demand pull and the investment step, so the goods the
     /// price signal hauls in are the goods that get built with.</summary>
-    private static InfraTypeId PlannedFacility(SimState state, Corporation corp)
+    internal static InfraTypeId PlannedFacility(SimState state, Corporation corp)
     {
         var port = state.Ports[corp.HomePortId];
         if (corp.Niche == CorporateNiche.Extraction)
@@ -620,7 +620,7 @@ public static class CorporationOps
 
     /// <summary>True while a builder corp still wants and can fund another
     /// facility — the same gate the demand pull and the investment use.</summary>
-    private static bool WantsFacility(SimState state, Corporation corp)
+    internal static bool WantsFacility(SimState state, Corporation corp)
     {
         int owned = 0;
         foreach (var f in state.Facilities)
@@ -696,36 +696,34 @@ public static class CorporationOps
         BookOps.PostSupply(state, mIx, ownerActorId, (int)good, qty, grade);
     }
 
-    /// <summary>Conglomerates and combines build where their niche points:
-    /// the build basket is drawn from the home market and paid at founding
-    /// prices from corporate credits (construction wages recycle, P4).</summary>
+    /// <summary>Execute the corp's STANDING PLAN (contract-economy spec §3,
+    /// C11 — the one-build-at-a-time special case retired): each due
+    /// Facility entry breaks ground after truth checks — site still wanted,
+    /// the war chest still covers the founding value. The scheduler already
+    /// packed the rates; Operate just executes (Move 1).</summary>
     private static void InvestFacilities(SimState state, Corporation corp,
                                          CorporationPolicies policies)
     {
-        if (!WantsFacility(state, corp)) return;
-        var port = state.Ports[corp.HomePortId];
-        var type = PlannedFacility(state, corp);
-        var build = Infrastructure.Get(type);
-        double value = 0;
-        foreach (var q in build.BuildCost)
-            value += q.Quantity * Market.InitialPrice(state.Config.Economy, q.Good);
-        if (corp.Credits * policies.Investment.Facilities < value) return;
-        // stage 2 (carried residue): corps pack against income like
-        // polities — the new build's rate (goods + wages per year) must
-        // fit beside every rate already committed under the trailing
-        // income, floored at one build so a young corp's founding
-        // investment never deadlocks. A boom staggers, never floods.
-        double years = Math.Max(1.0, build.ConstructionYears);
-        double ratePerYear = 2.0 * value / years;      // goods + wages
-        var brief = CapabilityOps.BriefFor(state, corp.ActorId);
-        if (brief.CommittedCostPerYear + ratePerYear
-            > Math.Max(brief.IncomePerYear, ratePerYear)) return;
-        // the build is a construction project now: the facility row exists
-        // uncommissioned, its basket and wages stream from corp credits over
-        // the build years (Task 9 — no upfront debit, no instant commission)
-        ProjectOps.SpawnFacilityConstruction(state, corp.ActorId, corp.ActorId,
-            new ConstructionCandidate((int)type, port.Hex, port.Id, 0.0),
-            ProjectPriority.Growth, 0);
+        int spanEnd = state.WorldYear + state.Config.Sim.YearsPerEpoch;
+        for (int ix = 0; ix < policies.Plan.Entries.Count; ix++)
+        {
+            var entry = policies.Plan.Entries[ix];
+            if (entry.Kind != PlanEntryKind.Facility
+                || entry.StartYear >= spanEnd) continue;
+            if (!WantsFacility(state, corp)) return;
+            var build = Infrastructure.Get((InfraTypeId)entry.TypeId);
+            double value = 0;
+            foreach (var q in build.BuildCost)
+                value += q.Quantity
+                         * Market.InitialPrice(state.Config.Economy, q.Good);
+            if (corp.Credits * policies.Investment.Facilities < value)
+                continue;
+            ProjectOps.SpawnFacilityConstruction(state, corp.ActorId,
+                corp.ActorId,
+                new ConstructionCandidate(entry.TypeId, entry.Hex,
+                                          entry.PortId, 0.0),
+                ProjectPriority.Growth, ix);
+        }
     }
 
     /// <summary>The freight line's founding act (lane-economics spec §4):

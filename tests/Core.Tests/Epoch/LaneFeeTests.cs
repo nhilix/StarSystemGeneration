@@ -100,7 +100,7 @@ public class LaneFeeTests
         int actorId = state.Actors.Count;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
             "Test Line", state.Ports[0].Hex, state.EpochIndex,
-            new CorporateController())
+            new CorporateController(state.Config))
         { Entered = true });
         state.Corporations.Add(new Corporation(state.Corporations.Count,
             actorId, "Test Line", state.Ports[0].OwnerActorId,

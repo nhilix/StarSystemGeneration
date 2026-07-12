@@ -147,6 +147,27 @@ public sealed class PerceptionPhase : ISimPhase
                         wb.ObjectivesTaken, war.Objectives.Count));
                 }
             }
+            // corps perceive at their scope (contract-economy spec §3,
+            // C11): the capability brief plus their home-port investment
+            // pick — the standing plan packs against exactly this view
+            if (a.Kind == ActorKind.Corporation
+                && state.CorporationOf(a.Id) is { Active: true } corpRec)
+            {
+                capability = CapabilityOps.BriefFor(state, a.Id);
+                ownCredits = corpRec.Credits;
+                if ((corpRec.Niche is CorporateNiche.Extraction
+                        or CorporateNiche.Fabrication)
+                    && CorporationOps.WantsFacility(state, corpRec))
+                {
+                    var pick = CorporationOps.PlannedFacility(state, corpRec);
+                    var home = state.Ports[corpRec.HomePortId];
+                    constructionCandidates = new List<ConstructionCandidate>
+                    {
+                        new ConstructionCandidate((int)pick, home.Hex,
+                                                  home.Id, 1.0),
+                    };
+                }
+            }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
                                               expansion, candidates, selfSpecies,
                                               ownPorts, realmSubsistence, designs,

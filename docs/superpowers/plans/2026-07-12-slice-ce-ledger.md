@@ -111,12 +111,22 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
 
 ### B2 — actors close the spreads
 
-- [ ] **C7 — perceived books.** Perception brief: best bid/ask/depth per
-  good per port in range, news-delayed freshness (P3).
-- [ ] **C8 — spread runs.** Freight corps evaluate posted network against
-  perceived books, buy with own credits, haul, sell into arrival book (no
-  reservation — stale-book loss posts sells); DELETE bridge + `PayHaulers`.
-  Tests: margin booked; stale-book loss; engine routes nothing.
+- [x] **C7 — perceived books: DECIDED, deferred with multi-hop.** Spread
+  runs are LANE-LOCAL (below): both ends are one hop from the fleet's
+  station, so prices read FRESH — exactly markets.md's "fresh at one hop"
+  (P3-clean without belief-book snapshots). Perceived books with
+  news-delayed freshness become necessary only with multi-hop runs —
+  "bounded multi-hop expeditions emerge" is the design's own emergent
+  future; CARRIED as a flagged pass with the relay-bid retirement.
+- [x] **C8 — spread runs.** COMPLETE. THE BRIDGE AND ITS PHANTOM ARE DEAD:
+  `MoveFreight` iterates POSTED freight fleets (corp AND merchant-marine —
+  any posted hull's owner trades); each buys the cheap end's asks WITH ITS
+  OWN CAPITAL, pays fuel/tariffs/friction, ships toward resting bids +
+  the speculative reference-spread run (no reservation — arrival posts
+  the TRADER's asks; a dead spread is the trader's loss). `PayHaulers`
+  deleted — the hauler IS the trader. DEVIATION FLAGGED: relay bids stay
+  (the funded entrepôt staging) until multi-hop runs land — the spec said
+  they die in B2, but killing them re-breaks hop diffusion.
 - [x] **C9 — courier contracts.** COMPLETE. `CourierContract` (cargo +
   fee physically escrowed; Priority War/Normal) + `CourierOps`
   (Post/Accept/Resolve/ExpireOpen/AcceptOpen) + `couriers` layer v1;
@@ -135,10 +145,16 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   (goods-free, wages only — dev treasuries buy project goods now).
   Escrow terms added to both conservation tests. Suite 743/744
   (golden-only).
-- [ ] **C11 — corp standing plans.** `CorporationPolicies.Plan` via the
-  polity scheduler at corp scope (hull batches, route commitments,
-  gate pairs) packed against trailing income; `InvestFacilities`
-  one-build special case replaced.
+- [x] **C11 — corp standing plans.** COMPLETE (scoped to facilities).
+  `CorporationPolicies.Plan`; corps PERCEIVE at their scope (capability
+  brief + home-port investment pick in PerceptionPhase);
+  `CorporateController(config).Decide` packs `Planner.BuildCorpPlan`
+  against income + savings; `InvestFacilities` executes due entries with
+  truth checks (the one-build special case retired); corp plans ride the
+  PLANE serializer lines (Intent runs after Allocation — the plan crosses
+  the save boundary). SCOPED OUT with flags: route commitments and gate
+  pairs stay opportunistic in Operate; hull purchases stay immediate
+  (corps buy hulls off the book, they don't run yard batches).
 - [ ] **C12 — B2 gate.** Courier lifecycle tests, self-fulfillment, plan
   packing never over-commits; shape check; REPL `econtracts [polity]`,
   `efreight` cargo purpose; determinism ×2.

@@ -120,11 +120,19 @@ public static class ArtifactSerializer
                     R(pp.Research.Industrial), R(pp.Research.Military),
                     R(pp.Research.Astrogation), R(pp.Research.Life)));
             // actors v6 (slice t1): the standing plan's entries follow the
-            // actor's POLICY line, in plan order (Load rebuilds them)
-            if (a.Policies is PolityPolicies withPlan)
-                for (int ix = 0; ix < withPlan.Plan.Entries.Count; ix++)
+            // actor's POLICY line, in plan order (Load rebuilds them).
+            // Corp plans ride the same lines (slice CE, C11): Intent runs
+            // after Allocation, so the plan crosses the save boundary.
+            var planEntries = a.Policies switch
+            {
+                PolityPolicies pp2 => pp2.Plan.Entries,
+                CorporationPolicies cp => cp.Plan.Entries,
+                _ => null,
+            };
+            if (planEntries != null)
+                for (int ix = 0; ix < planEntries.Count; ix++)
                 {
-                    var e = withPlan.Plan.Entries[ix];
+                    var e = planEntries[ix];
                     w.WriteLine(Join("PLANE", a.Id.ToString(Inv),
                         ix.ToString(Inv), ((int)e.Kind).ToString(Inv),
                         ((int)e.Priority).ToString(Inv),
@@ -947,7 +955,8 @@ public static class ArtifactSerializer
                         IController controller = kind switch
                         {
                             ActorKind.Polity => new GenesisController(config!),
-                            ActorKind.Corporation => new CorporateController(),
+                            ActorKind.Corporation =>
+                                new CorporateController(state!.Config),
                             _ => new TrivialController(),
                         };
                         state!.Actors.Add(new Actor(int.Parse(f[1], Inv), kind, f[3],
@@ -978,29 +987,37 @@ public static class ArtifactSerializer
                             Plan: StandingPlan.Empty);
                         break;
                     case "PLANE":
+                    {
                         // actors v6 (slice t1): a plan entry following its
-                        // actor's POLICY line — appended in file (plan) order
+                        // actor's POLICY line — appended in file (plan)
+                        // order. Corp plans ride the same lines (slice CE).
                         var planActor = state!.Actors[int.Parse(f[1], Inv)];
+                        var loadedEntry = new PlanEntry(
+                            (PlanEntryKind)int.Parse(f[3], Inv),
+                            (ProjectPriority)int.Parse(f[4], Inv),
+                            int.Parse(f[5], Inv), int.Parse(f[6], Inv),
+                            int.Parse(f[7], Inv),
+                            new HexCoordinate(int.Parse(f[8], Inv),
+                                              int.Parse(f[9], Inv)),
+                            int.Parse(f[10], Inv));
                         if (planActor.Policies is PolityPolicies planPolicies)
                         {
                             var entries = new List<PlanEntry>(
-                                planPolicies.Plan.Entries)
-                            {
-                                new PlanEntry(
-                                    (PlanEntryKind)int.Parse(f[3], Inv),
-                                    (ProjectPriority)int.Parse(f[4], Inv),
-                                    int.Parse(f[5], Inv), int.Parse(f[6], Inv),
-                                    int.Parse(f[7], Inv),
-                                    new HexCoordinate(int.Parse(f[8], Inv),
-                                                      int.Parse(f[9], Inv)),
-                                    int.Parse(f[10], Inv)),
-                            };
+                                planPolicies.Plan.Entries) { loadedEntry };
                             planActor.Policies = planPolicies with
-                            {
-                                Plan = new StandingPlan(entries),
-                            };
+                            { Plan = new StandingPlan(entries) };
+                        }
+                        else if (planActor.Kind == ActorKind.Corporation)
+                        {
+                            var cp = planActor.Policies as CorporationPolicies
+                                     ?? CorporationPolicies.Default;
+                            var entries = new List<PlanEntry>(
+                                cp.Plan.Entries) { loadedEntry };
+                            planActor.Policies = cp with
+                            { Plan = new StandingPlan(entries) };
                         }
                         break;
+                    }
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv))
