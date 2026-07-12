@@ -48,6 +48,7 @@ public sealed class Repl
                     Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
+                    Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
                     Console.WriteLine("emap works — construction sites and freight on the move (the in-flight world)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
@@ -282,6 +283,25 @@ public sealed class Repl
                     RenderFreight(_sim);
                     break;
                 case "efreight":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "ebook" when _sim != null && parts.Length >= 2
+                        && int.TryParse(parts[1], out var bookPort):
+                {
+                    Core.Substrate.GoodId? bookGood = null;
+                    if (parts.Length >= 3)
+                    {
+                        if (!TryParseGood(parts[2], out var bg))
+                        { Console.WriteLine($"unknown good '{parts[2]}' — see `goods`"); break; }
+                        bookGood = bg;
+                    }
+                    RenderBook(_sim, bookPort, bookGood);
+                    break;
+                }
+                case "ebook" when _sim != null:
+                    Console.WriteLine("usage: ebook <portId> [good]");
+                    break;
+                case "ebook":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "eprojects" when _sim != null:
@@ -866,6 +886,54 @@ public sealed class Repl
                 + eta + $"  ({owner})");
         }
     }
+
+    /// <summary>`ebook` (slice CE): one port's order book — resting asks
+    /// and bids per good with owners, plus the reference price the
+    /// downstream valuations read. The market IS the book now.</summary>
+    private static void RenderBook(Core.Epoch.SimState sim, int portId,
+                                   Core.Substrate.GoodId? only)
+    {
+        if (portId < 0 || portId >= sim.Ports.Count)
+        { Console.WriteLine($"no port #{portId} (0..{sim.Ports.Count - 1})"); return; }
+        var market = sim.Markets[portId];
+        Console.WriteLine(FormattableString.Invariant(
+            $"book at port #{portId} — {sim.Actors[sim.Ports[portId].OwnerActorId].Name}'s domain"));
+        bool any = false;
+        for (int g = 0; g < Core.Substrate.Goods.All.Count; g++)
+        {
+            if (only.HasValue && g != (int)only.Value) continue;
+            var asks = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
+            var bids = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
+            foreach (var o in sim.Orders)
+            {
+                if (o.PortId != portId || o.Good != g || o.QtyRemaining <= 0)
+                    continue;
+                (o.Side == Core.Epoch.OrderSide.Sell ? asks : bids).Add(o);
+            }
+            if (asks.Count == 0 && bids.Count == 0 && !only.HasValue) continue;
+            any = true;
+            asks.Sort((x, y) => x.LimitPrice != y.LimitPrice
+                ? x.LimitPrice.CompareTo(y.LimitPrice) : x.Id.CompareTo(y.Id));
+            bids.Sort((x, y) => x.LimitPrice != y.LimitPrice
+                ? y.LimitPrice.CompareTo(x.LimitPrice) : x.Id.CompareTo(y.Id));
+            Console.WriteLine(FormattableString.Invariant(
+                $"  {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name,-16} ref {market.Price[g]:0.00}"));
+            foreach (var o in asks)
+                Console.WriteLine(FormattableString.Invariant(
+                    $"    ask {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + $"grade {o.Grade:0.00}  ({OwnerName(sim, o.OwnerActorId)})");
+            foreach (var o in bids)
+                Console.WriteLine(FormattableString.Invariant(
+                    $"    bid {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + FormattableString.Invariant(
+                    $"escrow {o.EscrowCredits:0.0}  ({OwnerName(sim, o.OwnerActorId)})"));
+        }
+        if (!any) Console.WriteLine("  (bare book — no resting orders)");
+    }
+
+    private static string OwnerName(Core.Epoch.SimState sim, int actorId) =>
+        actorId >= 0 && actorId < sim.Actors.Count
+            ? sim.Actors[actorId].Name : "—";
 
     private static bool TryParseGood(string text, out Core.Substrate.GoodId good)
     {
