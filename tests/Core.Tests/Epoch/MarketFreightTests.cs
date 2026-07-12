@@ -249,6 +249,25 @@ public class MarketFreightTests
         Assert.True(pa.StockQty[(int)GoodId.Provisions] < 100);
     }
 
+    /// <summary>Stage 2 residue: a project half a year from completion
+    /// pulls half a year's basket as demand, not the whole span's.</summary>
+    [Fact]
+    public void ConstructionPull_TapersToTheRemainingYears()
+    {
+        var (state, pa, _) = TwoPortFixture();
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise,
+            pa.OwnerActorId, pa.OwnerActorId, pa.Id, pa.Hex,
+            yearsRequired: 10.0, ProjectPriority.Core, 0);
+        p.TargetId = pa.Id;
+        p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
+        p.YearsDelivered = 9.5;                    // half a year to go
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.AddConstructionPull(state, scratch);
+
+        Assert.Equal(0.5, scratch.Demand[pa.Id][(int)GoodId.Alloys], 6);
+    }
+
     /// <summary>The stockpile-target pull is located too: each own port's
     /// deficit against its share of the target registers at THAT port —
     /// procurement is a market participant everywhere it banks.</summary>

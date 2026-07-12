@@ -52,8 +52,9 @@ public class CapabilityTests
         p.PerYearBasket[(int)GoodId.Machinery] = 2.0;
         var scratch = new MarketStepScratch(state);
         MarketEngine.AddConstructionPull(state, scratch);
-        int years = state.Config.Sim.YearsPerEpoch;
+        // stage 2: the pull tapers to the remaining work — a 5-year raise
+        // pulls its 5 years of basket, never the whole 25-year span's
         Assert.True(scratch.Demand[port][(int)GoodId.Machinery]
-                    >= 2.0 * years);
+                    >= 2.0 * p.YearsRequired);
     }
 }

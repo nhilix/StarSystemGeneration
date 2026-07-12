@@ -462,14 +462,22 @@ public static class MarketEngine
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var p in state.Projects)                 // id order (P6)
         {
-            if (!p.InFlight) continue;
+            // an expedition's basket is cargo already aboard, not demand
+            if (!p.InFlight || p.Kind == ProjectKind.ColonyExpedition)
+                continue;
+            // the pull tapers to the remaining work (stage 2 residue fix):
+            // a project a year from done pulls a year's basket, not the
+            // whole span's
+            double horizon = Math.Min(years,
+                Math.Max(0.0, p.YearsRequired - p.YearsDelivered));
+            if (horizon <= 0) continue;
             if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
             {
                 var lane = state.Lanes[p.TargetId];
                 for (int g = 0; g < p.PerYearBasket.Length; g++)
                     if (p.PerYearBasket[g] > 0)
                     {
-                        double half = 0.5 * p.PerYearBasket[g] * years;
+                        double half = 0.5 * p.PerYearBasket[g] * horizon;
                         scratch.Demand[lane.PortAId][g] += half;
                         scratch.Demand[lane.PortBId][g] += half;
                     }
@@ -477,7 +485,7 @@ public static class MarketEngine
             }
             for (int g = 0; g < p.PerYearBasket.Length; g++)
                 if (p.PerYearBasket[g] > 0)
-                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * years;
+                    scratch.Demand[p.PortId][g] += p.PerYearBasket[g] * horizon;
         }
     }
 

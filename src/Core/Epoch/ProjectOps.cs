@@ -196,12 +196,21 @@ public static class ProjectOps
             {
                 double span = Math.Min(years, spanEnd - p.StartedYear);
                 if (span <= 0) continue;                      // not yet due
+                double before = p.YearsDelivered;
                 double need = Math.Min(span,
                     p.YearsRequired - p.YearsDelivered);
                 if (need > 0) Feed(state, p, need);
                 if (p.YearsDelivered >= p.YearsRequired - 1e-9)
                 {
-                    Complete(state, p);
+                    // the true delivery year sits inside the span: the
+                    // feeding window's start plus the years the last
+                    // stretch took at its fed pace (stage 2 residue fix)
+                    double windowStart = Math.Max(state.WorldYear,
+                                                  p.StartedYear);
+                    double f = p.LastFedFraction;
+                    int completionYear = (int)Math.Round(windowStart
+                        + (f > 0 ? (p.YearsRequired - before) / f : 0));
+                    Complete(state, p, completionYear);
                     completions++;
                 }
             }
@@ -411,16 +420,21 @@ public static class ProjectOps
     }
 
     /// <summary>The completion payload (spec §1). Kind cases land across
-    /// tasks 5–11; each stages its chronicle event.</summary>
-    public static void Complete(SimState state, Project p)
+    /// tasks 5–11; each stages its chronicle event.
+    /// <paramref name="completionYear"/> is the interpolated delivery year
+    /// inside the span (stage 2) — state stamps carry it; staged events
+    /// still take Chronicle's step year (flagged, not built).</summary>
+    public static void Complete(SimState state, Project p,
+                                int completionYear = int.MinValue)
     {
+        if (completionYear == int.MinValue) completionYear = state.WorldYear;
         p.Completed = true;
         switch (p.Kind)
         {
             case ProjectKind.FacilityConstruction:
             {
                 var f = state.Facilities[p.TargetId];
-                f.CommissionedYear = state.WorldYear;
+                f.CommissionedYear = completionYear;
                 state.Staged.Add(new StagedEvent(
                     ClockStratum.Generational, WorldEventType.FacilityBuilt,
                     new[] { p.OwnerActorId }, f.Hex, Magnitude: f.Tier,
@@ -443,8 +457,8 @@ public static class ProjectOps
             case ProjectKind.GatePair:
             {
                 var lane = state.Lanes[p.TargetId];
-                state.Facilities[lane.GateAId].CommissionedYear = state.WorldYear;
-                state.Facilities[lane.GateBId].CommissionedYear = state.WorldYear;
+                state.Facilities[lane.GateAId].CommissionedYear = completionYear;
+                state.Facilities[lane.GateBId].CommissionedYear = completionYear;
                 state.Staged.Add(new StagedEvent(
                     ClockStratum.Generational, WorldEventType.LaneOpened,
                     new[] { p.OwnerActorId },
@@ -505,6 +519,25 @@ public static class ProjectOps
                 // cost charged at dispatch so the ledger conserves (P4); the
                 // colony segment that would have absorbed it is never born
                 record.ExpansionPoints += cfg.Expansion.ColonyCost;
+                // the founding kit comes home too (stage 2 — goods have a
+                // transit home now): banked in the staging larder, overflow
+                // to the shelf; the draw's grade blend is long gone, so the
+                // system's neutral midpoint carries it
+                var home = state.Ports[p.PortId];
+                var homeMarket = state.Markets[p.PortId];
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                {
+                    if (p.PerYearBasket[g] <= 0) continue;
+                    double room = Math.Max(0,
+                        MarketEngine.StockCapacityAt(state, home)
+                        - home.StockQty[g]);
+                    double banked = Math.Min(room, p.PerYearBasket[g]);
+                    home.DepositStock(g, banked, 0.5);
+                    if (p.PerYearBasket[g] - banked > 0)
+                        homeMarket.Deposit(g, p.PerYearBasket[g] - banked,
+                                           0.5);
+                    p.PerYearBasket[g] = 0;
+                }
                 if (convoy != null)
                 {
                     convoy.Posture = FleetPosture.Reserve;

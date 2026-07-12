@@ -162,7 +162,10 @@ public static class CapabilityOps
         var commitments = new List<CommitmentBrief>();
         foreach (var p in state.Projects)                  // id order (P6)
         {
-            if (!p.InFlight || p.FunderActorId != actorId) continue;
+            // expeditions are paid at the act and their basket is cargo
+            // aboard, not a standing rate — no commitment to report
+            if (!p.InFlight || p.FunderActorId != actorId
+                || p.Kind == ProjectKind.ColonyExpedition) continue;
             double costPerYear = p.WagesPerYear;
             for (int g = 0; g < p.PerYearBasket.Length; g++)
             {

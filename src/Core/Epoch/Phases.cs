@@ -1115,23 +1115,34 @@ public sealed class ResolutionPhase : ISimPhase
             record.Credits -= fuelCost;
             MarketEngine.PayWages(state, staging.Id, fuelCost);
         }
-        // the departure basket includes the founding gate PAIR's goods
-        // (time-and-logistics spec §4, "Founding links get subsumed"): a
-        // best-effort draw at the staging market, like the fuel — clamped to
-        // what's there, no hard gate; the colony's founding-link project
-        // then streams no goods (tier-1 sizing: the shipped kit)
-        var gateDef = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
-        foreach (var q in gateDef.BuildCost)
-        {
-            double drawn = stagingMarket.Draw((int)q.Good, 2.0 * q.Quantity);
-            if (drawn > 0) stagingMarket.LastCleared[(int)q.Good] += drawn;
-        }
         // the crossing takes world-time now: the founding body (port,
         // market, colony, founding facilities, the convoy's docking, the
         // chronicle, the encroachment bumps) lands when the expedition
         // arrives (ProjectOps.CompleteExpedition — Task 9)
-        ProjectOps.SpawnExpedition(state, act.ActorId, staging.Id,
-            act.Target, convoy.Id, offLane);
+        var expedition = ProjectOps.SpawnExpedition(state, act.ActorId,
+            staging.Id, act.Target, convoy.Id, offLane);
+        // the departure basket includes the founding gate PAIR's goods
+        // (time-and-logistics spec §4, "Founding links get subsumed"),
+        // sized to the link the crossing actually needs (stage 2:
+        // TierCostFactor at dispatch, mirroring BuildLanes' tier pick): a
+        // best-effort draw at the staging market, like the fuel — clamped
+        // to what's there, no hard gate. The drawn kit RIDES the
+        // expedition as cargo (PerYearBasket doubles as the hold for
+        // travel kinds — they draw nothing en route) and comes home with
+        // a turned-back convoy.
+        var gateDef = Substrate.Infrastructure.Get(Substrate.InfraTypeId.Gate);
+        int linkTier = LaneMath.RequiredGateTier(cfg, offLane,
+            TechOps.AstroRadiusBonus(state, act.ActorId));
+        if (linkTier < 0) linkTier = 3;   // farther than any gate: max kit
+        double kitScale = Substrate.Production.TierCostFactor(linkTier);
+        foreach (var q in gateDef.BuildCost)
+        {
+            double drawn = stagingMarket.Draw((int)q.Good,
+                2.0 * q.Quantity * kitScale);
+            if (drawn <= 0) continue;
+            stagingMarket.LastCleared[(int)q.Good] += drawn;
+            expedition.PerYearBasket[(int)q.Good] = drawn;
+        }
         return true;
     }
 }

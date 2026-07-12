@@ -282,6 +282,115 @@ public class ProjectOpsTests
         Assert.True(p.Completed);                     // both ends fed → open
     }
 
+    /// <summary>Stage 2 residue: completion stamps carry the INTERPOLATED
+    /// world-year — a 2-year build inside a 25-year span commissions in
+    /// year 2 of the span, not at its start.</summary>
+    [Fact]
+    public void Complete_StampsTheInterpolatedYear_NotTheSpanStart()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        var market = state.Markets[portId];
+        var def = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Mine);
+        foreach (var q in def.BuildCost)
+            market.Inventory[(int)q.Good] += q.Quantity * 2;
+        pr.DevelopmentPoints += 1000;
+        var candidate = new ConstructionCandidate(
+            (int)StarGen.Core.Substrate.InfraTypeId.Mine,
+            state.Ports[portId].Hex, portId, 1.0);
+        var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
+            pr.ActorId, candidate, ProjectPriority.Core, 0);
+        ProjectOps.AdvanceAll(state);                    // fully fed
+        Assert.True(p.Completed);
+        var f = state.Facilities[p.TargetId];
+        Assert.Equal(state.WorldYear + (int)System.Math.Round(p.YearsRequired),
+                     f.CommissionedYear);
+    }
+
+    /// <summary>Stage 2 residue: the founding kit is sized to the link the
+    /// crossing actually needs — a long link ships a tier-2/3 pair's
+    /// basket, recorded on the expedition as cargo.</summary>
+    [Fact]
+    public void FoundingKit_IsTierScaled_AndRidesTheExpedition()
+    {
+        var (state, pr, port) = FleetFixture();
+        pr.ExpansionPoints = state.Config.Expansion.ColonyCost * 2;
+        var market = state.Markets[port.Id];
+        var gateDef = StarGen.Core.Substrate.Infrastructure.Get(
+            StarGen.Core.Substrate.InfraTypeId.Gate);
+        foreach (var q in gateDef.BuildCost)
+            market.Inventory[(int)q.Good] += q.Quantity * 100;
+        // a target beyond tier-1 gate reach: the link needs a higher tier
+        int t1Reach = state.Config.Infrastructure.GateReachTier1Hexes;
+        var candidates = ColonyValuation.CandidatesFor(state, pr.ActorId);
+        StarGen.Core.Model.HexCoordinate? far = null;
+        foreach (var c in candidates)
+            if (StarGen.Core.Galaxy.HexGrid.Distance(port.Hex, c.Target)
+                > t1Reach) { far = c.Target; break; }
+        Assert.True(far.HasValue, "fixture needs a beyond-tier-1 candidate");
+        state.Decisions.Add(new ActorDecision(pr.ActorId,
+            new ControllerDecision(PolityPolicies.Default, new Act[]
+            { new FoundColonyAct(pr.ActorId, far!.Value) })));
+
+        new ResolutionPhase().Run(state);
+
+        Project? expedition = null;
+        foreach (var p in state.Projects)
+            if (p.Kind == ProjectKind.ColonyExpedition) expedition = p;
+        Assert.NotNull(expedition);
+        int dist = StarGen.Core.Galaxy.HexGrid.Distance(port.Hex, far.Value);
+        int tier = LaneMath.RequiredGateTier(state.Config, dist, 0);
+        Assert.True(tier >= 2);
+        double scale = StarGen.Core.Substrate.Production.TierCostFactor(tier);
+        foreach (var q in gateDef.BuildCost)
+            Assert.Equal(2.0 * q.Quantity * scale,
+                expedition!.PerYearBasket[(int)q.Good], 6);
+    }
+
+    /// <summary>Stage 2 residue: a convoy that turns back brings the kit
+    /// home — the staging larder banks it; sunk no more.</summary>
+    [Fact]
+    public void FailedExpedition_BringsTheKitHome()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int staging = OwnPort(state, pr.ActorId);
+        var target = new StarGen.Core.Model.HexCoordinate(
+            state.Ports[staging].Hex.Q + 12, state.Ports[staging].Hex.R);
+        var p = ProjectOps.SpawnExpedition(state, pr.ActorId, staging,
+            target, convoyFleetId: -1, offLaneHexes: 12);
+        p.PerYearBasket[(int)GoodId.Alloys] = 8.0;       // the shipped kit
+        // the hex gets taken mid-flight: the convoy must turn back
+        state.Ports.Add(new Port(state.Ports.Count, pr.ActorId, target,
+                                 tier: 1, state.WorldYear));
+        state.Markets.Add(new Market(state.Ports.Count - 1,
+                                     state.Config.Economy));
+        double before = state.Ports[staging].StockQty[(int)GoodId.Alloys];
+
+        ProjectOps.AdvanceAll(state);
+
+        Assert.True(p.Completed);
+        Assert.Equal(before + 8.0,
+            state.Ports[staging].StockQty[(int)GoodId.Alloys], 6);
+    }
+
+    private static (SimState State, PolityRecord Polity, Port Port)
+        FleetFixture()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        new EpochEngine().Step(state);
+        foreach (var a in state.Actors)
+            if (a.Entered)
+                foreach (var p in state.Ports)
+                    if (p.OwnerActorId == a.Id)
+                        return (state, state.PolityOf(a.Id), p);
+        throw new Xunit.Sdk.XunitException("no polity entered after one epoch");
+    }
+
     /// <summary>A colony expedition takes world-time: the founding body fires
     /// only when the off-lane crossing is delivered, never at dispatch — the
     /// port count is unchanged in flight and up by one on arrival.</summary>
