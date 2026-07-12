@@ -25,6 +25,7 @@ intended for Unity must also stay inside this table.
 | Selectors | Type (`Button`), `.class`, `#name`, descendant, `>`, chained pseudo-classes | No sibling/attribute/`:nth-*` → toggle classes from C# |
 | Pseudo-classes | `:hover :active :inactive :focus :disabled :enabled :checked :root` | No `:selected` (use `:checked`), no `::before`/`::after` |
 | Variables | `--name` + `var()`; theme (`.tss`) files | — |
+| Runtime theming | Swap the PanelSettings theme asset (`.tss`); palettes as var-only token stylesheets | No writing USS custom properties from C# → preset themes, not arbitrary runtime colors |
 | Fills | Solid colors; per-side `border-*`; `border-radius`; `opacity`; `background-image` (texture/sprite/VectorImage); `background-size/position/repeat`; 9-slice (`-unity-slice-*`) | No gradients, `box-shadow`, `filter`, blend modes → bake into a texture/sprite asset |
 | Text | `font-size`, `color`, `letter-spacing`, `word-spacing`, `text-shadow`, `text-overflow`, `white-space`, `-unity-font-style` (normal/bold/italic), `-unity-text-align`, `-unity-text-outline` | No `font-weight: <n>` → Font Asset per weight; no `text-transform` → case the string itself; no `text-align` → `-unity-text-align` |
 | Motion | `transition-*` fired by class toggles; `translate:`, `rotate:`, `scale:`, `transform-origin` as **separate properties** | No `@keyframes`, no `transform:` shorthand → orchestrate in C# (`schedule.Execute`) |
