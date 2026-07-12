@@ -27,10 +27,19 @@ public class ProjectOpsTests
         // stock exactly 60% of the span's need, wipe reserves
         market.Inventory[(int)GoodId.Alloys] = 0.6 * years;
         pr.ReserveQty[(int)GoodId.Alloys] = 0;
+        double stockBefore = market.Inventory[(int)GoodId.Alloys];
         ProjectOps.AdvanceAll(state);
         Assert.Equal(0.6 * years, p.YearsDelivered, 6);
         Assert.Equal(0.6, p.LastFedFraction, 6);
         Assert.Equal(0.0, market.Inventory[(int)GoodId.Alloys], 6);
+        // conservation (spec §2), Stage-1 boundary: a project draws its
+        // basket FROM THE MARKET and nowhere else — goods removed from the
+        // stall equal goods delivered into the work (basket × years
+        // delivered). There is no in-transit pool in Stage 1; located
+        // stockpiles and shipments-in-flight arrive with Stage 2, at which
+        // point this identity gains a transit term.
+        Assert.Equal(stockBefore - market.Inventory[(int)GoodId.Alloys],
+            p.PerYearBasket[(int)GoodId.Alloys] * p.YearsDelivered, 6);
     }
 
     /// <summary>Priority order: the War-class project drinks the shared
