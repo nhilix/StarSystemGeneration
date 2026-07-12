@@ -167,18 +167,37 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
 
 ### B3 — front supply lines
 
-- [ ] **C13 — forward depot.** Deployed forces draw upkeep from nearest
-  owned port to the front, not home.
-- [ ] **C14 — war couriers.** Quartermaster stocks the depot vs deployed
-  consumption over step + lead window at War priority (outranks Normal in
-  acceptance and self-fulfillment).
-- [ ] **C15 — interdiction.** Channel 76 keyed (step, owner, shipment id):
-  contested legs roll seizure per contested-year; seized cargo lands at
-  interdictor's nearest port + chronicle event; escort warship strength
-  damps deterministically. Consider a WorldEventType for project
-  cancellation while touching event types (kickoff carried flag).
-- [ ] **C16 — B3 gate.** Depot relocation, priority ranking, seizure
-  conservation, readiness starves on a cut line; shape; determinism ×2.
+- [x] **C13 — forward depot.** War-stationed fleets (Blockade/Expedition)
+  victual at `FleetOps.NearestOwnedPortId(fleet.Hex)` instead of home;
+  docked/Posted/Patrol draws unchanged. Helper is public — the
+  interdictor's prize port reuses it. Interdiction knobs
+  (`War.InterdictionReachHexes` 4, `War.InterdictionLossPerContestedYear`
+  0.12, `War.EscortDampPerHull` 0.15) in config + registry; channel 76.
+- [x] **C14 — war couriers.** `ShipmentOps.StockDepots` (after
+  ManagePostures, before SupplyFleets): per war-stationed fleet,
+  `FleetOps.UpkeepNeed` (extracted from SupplyFleets — one basket truth)
+  over step + lead window, aggregated per depot in port-id order,
+  shortfall net of larder + Inbound (open couriers count — no
+  double-orders), posted via OrderFromOwnPorts at CourierPriority.War.
+- [x] **C15 — interdiction.** `WarPresenceMap` (war-stationed squadrons
+  within reach of either lane endpoint + Escort fleets riding the lane;
+  warship hulls only) threads through Sail beside HunterMap. Seizure
+  compounds per contested-year, escorts damp `p/(1+damp×hulls)` — one
+  roll, channel 76 keyed (epoch, owner, shipment id), rolled AFTER piracy
+  took its chance. Prize posts at interdictor's nearest own port as its
+  asks (portless interdictor takes nothing — conservation);
+  `WorldEventType.CargoSeized = 409` + payload + serializer + headline.
+  Project-cancellation event already landed at C10 (ProjectAbandoned 211);
+  headline added here.
+- [x] **C16 — B3 gate.** FrontSupplyTests ×8: depot relocation (home book
+  untouched), home draw unchanged, quartermaster posts/holds fire, War
+  outranks Normal at the job board (shipment-id order), readiness bleeds
+  on a blockaded supply line, certain-seizure lands the prize + event,
+  overwhelming escorts pass. Suite 752/753 — only the sanctioned golden
+  red. Post-B3 trajectory stabilization done here: LapsedTie asserts the
+  mechanism (a house of the holder; release is eventually consistent),
+  FoundingLinks excludes ports founded within the last epoch (its own
+  documented exception) — 4/57 settled isolates, under the 10% bar.
 
 ### Wrap
 
