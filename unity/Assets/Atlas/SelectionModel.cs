@@ -42,7 +42,6 @@ namespace StarGen.AtlasView
         private Vector2 _rightPressPos;
         private bool _rightPressLive;
         private GameObject _marker;
-        private LineRenderer _outline;
 
         public HexCoordinate? HoveredHex => _hovered;
         public HexInfo HoverInfo => _hoverInfo;
@@ -178,44 +177,88 @@ namespace StarGen.AtlasView
             return null;
         }
 
-        // ---- the selected-hex outline (the hex border, not a ring) ----
+        // ---- the selected-hex highlight: the lattice's own grammar, one
+        // hex, bolder — a hexagonal ring mesh (6 trapezoid quads on the
+        // same CornerOffsets the lattice draws), moved to the selection,
+        // never LOD-faded ----
 
         private static readonly Color OutlineColor =
             new Color32(0x86, 0xD7, 0xFF, 0xE6);   // the UI accent — an
         // affordance over the map, not a data color
 
+        private Mesh _ringMesh;
+        private Material _ringMaterial;
+        private float _ringThickness = -1f;
+
         private void MarkHex(HexCoordinate hex)
         {
             if (_marker == null)
             {
-                _marker = new GameObject("SelectionOutline");
-                _outline = _marker.AddComponent<LineRenderer>();
-                _outline.loop = true;
-                _outline.positionCount = 6;
-                _outline.useWorldSpace = true;
-                var mat = new Material(Shader.Find("Sprites/Default"))
-                { renderQueue = 3200, hideFlags = HideFlags.HideAndDontSave };
-                _outline.sharedMaterial = mat;
-                _outline.startColor = OutlineColor;
-                _outline.endColor = OutlineColor;
+                _marker = new GameObject("SelectionHighlight");
+                _marker.AddComponent<MeshFilter>();
+                var renderer = _marker.AddComponent<MeshRenderer>();
+                _ringMaterial = new Material(Shader.Find("Sprites/Default"))
+                {
+                    color = OutlineColor,
+                    renderQueue = 3200,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                renderer.sharedMaterial = _ringMaterial;
+                renderer.shadowCastingMode =
+                    UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
             }
-            var center = AtlasGeometry.HexToWorld(hex, -0.5f);
-            for (int i = 0; i < 6; i++)
-            {
-                var (x, y) = HexGrid.CornerOffsets[i];
-                _outline.SetPosition(i, center
-                    + new Vector3((float)x, (float)y, 0f));
-            }
+            // above the lattice (its Z is -0.02), below screen-space chrome
+            _marker.transform.position = AtlasGeometry.HexToWorld(hex, -0.03f);
             _marker.SetActive(true);
+            RebuildRing(force: false);
+        }
+
+        /// <summary>The ring in local space: outer edge exactly on the hex
+        /// border, inner edge inset by the stroke — rebuilt only when the
+        /// zoom band moves the stroke meaningfully.</summary>
+        private void RebuildRing(bool force)
+        {
+            float distance = root?.CameraRig != null
+                ? root.CameraRig.Distance : 20f;
+            // bold at region zoom, fattening as the camera pulls back so
+            // the marker never vanishes (the no-LOD-out requirement)
+            float thickness = Mathf.Clamp(0.08f + distance * 0.004f,
+                                          0.08f, 0.55f);
+            if (!force && Mathf.Abs(thickness - _ringThickness)
+                    < _ringThickness * 0.15f) return;
+            _ringThickness = thickness;
+
+            var vertices = new Vector3[12];
+            for (int c = 0; c < 6; c++)
+            {
+                var (ox, oy) = HexGrid.CornerOffsets[c];
+                vertices[c] = new Vector3((float)ox, (float)oy, 0f);
+                vertices[6 + c] = new Vector3(
+                    (float)(ox * (1f - thickness)),
+                    (float)(oy * (1f - thickness)), 0f);
+            }
+            var triangles = new int[36];
+            for (int c = 0; c < 6; c++)
+            {
+                int n = (c + 1) % 6;
+                int t = c * 6;
+                triangles[t] = c; triangles[t + 1] = n; triangles[t + 2] = 6 + c;
+                triangles[t + 3] = n; triangles[t + 4] = 6 + n; triangles[t + 5] = 6 + c;
+            }
+            if (_ringMesh == null)
+                _ringMesh = new Mesh { hideFlags = HideFlags.HideAndDontSave };
+            _ringMesh.Clear();
+            _ringMesh.vertices = vertices;
+            _ringMesh.triangles = triangles;
+            _ringMesh.RecalculateBounds();
+            _marker.GetComponent<MeshFilter>().sharedMesh = _ringMesh;
         }
 
         private void LateUpdate()
         {
-            if (_outline == null || !_marker.activeSelf
-                || root?.CameraRig == null) return;
-            // screen-constant-ish stroke: thicker as the camera pulls back
-            _outline.widthMultiplier =
-                Mathf.Clamp(root.CameraRig.Distance * 0.006f, 0.04f, 1.2f);
+            if (_marker == null || !_marker.activeSelf) return;
+            RebuildRing(force: false);
         }
 
         private void OnDisable()
@@ -225,12 +268,12 @@ namespace StarGen.AtlasView
 
         private void OnDestroy()
         {
-            if (_outline == null) return;
-            if (_outline.sharedMaterial != null)
-                Destroy(_outline.sharedMaterial);   // HideAndDontSave leaks
-            Destroy(_marker);
+            if (_ringMaterial != null) Destroy(_ringMaterial);
+            if (_ringMesh != null) Destroy(_ringMesh);
+            if (_marker != null) Destroy(_marker);
             _marker = null;
-            _outline = null;
+            _ringMaterial = null;
+            _ringMesh = null;
         }
     }
 }

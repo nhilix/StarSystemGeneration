@@ -122,6 +122,12 @@ Core.Tests never references Inspector.
 - [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
       numbers incl. larder; click site → starvation readout; threads rows
       jump camera; menu scene eyeball folded in)
+  - Eyeball wave 4 (2026-07-12): LineRenderer was the wrong tool — the
+    highlight is now a hexagonal RING MESH in the lattice's own grammar
+    (6 trapezoid quads on HexGrid.CornerOffsets, Sprites/Default like
+    LatticeLayer, z above the lattice), one mesh moved to the selected
+    hex; stroke fattens with camera distance and NEVER LOD-fades.
+    Compile verified live through the editor bridge.
   - Eyeball wave 3 (2026-07-12, selection feel): hover tooltip now
     waits for the cursor to REST 0.45s before showing (was instant —
     spammed every hex crossed) · right-CLICK (no wander; right-drag
