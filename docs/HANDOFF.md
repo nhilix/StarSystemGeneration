@@ -1,149 +1,126 @@
-# Session Handoff — 2026-07-11 (Time & logistics Stage 1 on `slice-t1-project-ledger`)
+# Session Handoff — 2026-07-11 (Time & logistics Stage 2 on `slice-t2-located-logistics`)
 
-State: branch `slice-t1-project-ledger` complete and green (**657/0**, twice
-for determinism; hex-tier untouched; goldens re-frozen after the final-review
-fix wave — the red window closed), **awaiting the user's REPL eyeball + merge
-decision**.
-`main` at `dd8457f` (the Stage-1 plan commit). ProjectSettings churn
-uncommitted.
+State: branch `slice-t2-located-logistics` complete and green (**689/689,
+twice** — determinism ×2; hex-tier untouched; golden re-frozen once at slice
+end after the review fix wave — the red window closed), **awaiting the user's
+REPL eyeball + merge decision**.
+`main` at `0702f86` (the Stage-1 merge). ProjectSettings churn uncommitted.
 
-## Time & logistics Stage 1 — the project ledger (spec → plan → implementation)
+## Time & logistics Stage 2 — located logistics (spec §4b, closed)
 
-Spec `docs/superpowers/specs/2026-07-11-time-and-logistics-design.md`
-(§§1–6 = Stage 1; §4b located logistics = Stage 2), plan
-`docs/superpowers/plans/2026-07-11-time-stage1-project-ledger.md`, ledger
-`.superpowers/sdd/progress.md` (per-task, with the carried reds and flags).
+Spec `docs/superpowers/specs/2026-07-11-time-and-logistics-design.md` §4b;
+ledger `docs/superpowers/plans/2026-07-11-slice-t2-ledger.md` (per-task, with
+the review findings and carried flags). **Stock has an address; remote
+sourcing is shipments over the lane network that take transit time.**
 
-The epoch→fine-tick move had broken every "completes within the generational
-tick" hand-wave; the governing principle is **things take time, not ticks** —
-durations are world-time state, never per-step or per-generation rate caps.
-Stage 1 makes that real for every kind of in-flight work through one
-mechanism, the **project**.
-
-- **The record** (`src/Core/Epoch/Project.cs`): `ProjectKind`,
-  `ProjectPriority`, `Project` (PerYearBasket / WagesPerYear / YearsRequired /
-  YearsDelivered / LastFedFraction / StartedYear), held in `SimState.Projects`.
-- **ProjectOps** (`src/Core/Epoch/ProjectOps.cs`): Spawn/SpawnAt,
-  SpawnFacilityConstruction, SpawnGatePair (a founding link is goods-free per
-  spec §4 — the expedition ships the kit, best-effort drawn at the staging
-  market at departure), SpawnExpedition, SpawnHullBatch; **AdvanceAll**
-  (priority-ordered starvation — fed fraction = min across goods AND the wage
-  stream; progress += f × span); **Complete** (commissions facilities via
-  `Facility.CommissionedYear`, raises port tiers, opens lanes, commissions
-  hulls at accumulated component grade, founds colonies on arrival incl. the
-  failed-founding ColonyCost refund); Cancel.
-- **Capability brief** (`src/Core/Epoch/CapabilityOps.cs`):
-  `ConstructionCandidatesFor` (top-3 per-port perceived candidates — the old
-  `CanAfford` stock gate is deleted); `BriefFor` → `CapabilityBrief` (trailing
-  IncomePerYear, GenerationPerYear estimate, CommitmentBriefs);
-  `PortBrief(PortId, Tier, YardTiers)`.
-- **Standing plan** (`Plan.cs` + `Planner.cs`): `StandingPlan` of
-  `PlanEntry(Kind: Facility/PortRaise/HullBatch, Priority, StartYear absolute,
-  …)`; fixed GenerationYears horizon; packs entry cost/yr against perceived
-  IncomePerYear; D'Hondt hull batches; temperament-weighted scores;
-  `PolityPolicies.Plan`; `GenesisController` emits it; serialized as PLANE
-  lines (actors **v6**).
-- **AllocationPhase**: SpawnMobilizations (war ramp,
-  `PolityRecord.Mobilization`, peace decay) → Groundbreak (truth checks, spawns
-  due entries) → BuildLanes (pass 1 founding links goods-free; pass 2
-  densification streams honestly) → … → `ProjectOps.AdvanceAll`. **Deleted**:
-  the greedy BuildFacilities / RaisePorts / BuildFleets loops,
-  GatePairGoodsPresent, BuildGate.
-- **Port raises cost real goods**: an Alloys/Machinery/Refined-Exotics basket
-  × tier over `Expansion.PortUpgradeYears` (5) — knobs in TUNING.md
-  (`Expansion.PortUpgrade*`).
-- **MarketEngine**: `IsActive = CommissionedYear ≥ 0`; `AddConstructionPull`
-  sums in-flight project baskets (the dead pull knobs are gone);
-  `FleetOps.WarStrength` scales by `1 + (MobilizationFactor − 1) × Mobilization`.
-- **Colony expeditions** travel at `Fleet.ExpeditionHexesPerYear` (6); the
-  convoy hex interpolates en route; arrival founds (or fails gracefully,
-  refunding ColonyCost).
-- **Conquest**: `WarConduct.TransferPort` transfers in-flight projects with a
-  captured port (ColonyExpedition excluded; Mobilization projects CANCEL on
-  capture — a readiness ramp is polity state, not site-anchored work). White
-  peace reverts ports through the same seam, so project ownership reverts too.
-- **Serializer**: actors **v6** (POLITY + LastIncomePerYear + Mobilization,
-  PLANE lines), facilities **v2** (CommissionedYear), corporations **v3**,
-  trailing **projects layer v1**.
-- **REPL**: `eprojects [actorId|all]`, `eplan <actorId>` (ETA under current
-  starvation).
-- **Tuning wave**: `WarTensionFloor` 0.55→0.35, `WarAppetiteThreshold`
-  0.60→0.38 (the slowed economy lowered the tension ceiling). Wars on seed 42
-  after the fix wave: **8 declared / 5 settled**; 202 lanes / 198 ports at
-  y1000.
-- **Final-review fix wave** (one whole-branch review, one wave, 8 new tests):
-  captured mobilizations cancel instead of gifting the attacker the surge;
-  corp dissolution / nationalization / federation absorption sweep in-flight
-  projects (no zombie work holding gate slots and facility caps); Groundbreak
-  honors `PlanEntry.StartYear` via `SpawnAt` (the staggered schedule is real
-  at coarse tick); yard tiers cap concurrent hull batches; an in-flight
-  founding link counts as connected (no duplicate goods-free pairs).
-- **FineTick P7 honesty test** pins built-world completions
-  (facilities/ports/hull-batches) coarse-vs-fine within an honest band;
-  expansion/logistics foundings are deliberately excluded (decision-cadence
-  divergence, per spec).
-- **Design tree amended** to the project model (this session's docs commit):
-  `frame/simulation-flow.md` (Perception capability brief + Allocation plan
-  execution), `frame/controller-contract.md` (standing plan on polity/corp
-  policies), `economy/assets-and-investment.md` (§Construction → project
-  model), `substrate/infrastructure.md` (ConstructionYears load-bearing +
-  port-upgrade basket), `frame/time.md` (durations-as-world-time-state),
-  `economy/markets.md` (construction pull), `fleets/ships-and-fleets.md` (hull
-  batches, expedition travel time), `interpolity/war.md` (mobilization ramp).
+- **Located stockpiles** (`Port.StockQty/StockGrade`, `DepositStock`/`DrawStock`):
+  the global `PolityRecord.ReserveQty/Grade` pool is DELETED. Serialized as
+  STOCK lines (markets layer v2, RESERVE lines dead). Ownership is the port's
+  owner — conquest, federation, and schism move stock by moving the port (the
+  merge/split blocks are gone). Capacity = port tier × `StockCapPerPortTier`
+  + active Depot tiers × `StockCapPerDepotTier`; decay compounds per
+  world-year, each Depot tier multiplying the rate by `DepotDecayFactor`.
+- **The reserve treasury**: `Budget.Reserves` (0.10) had NEVER been spent —
+  the stage-1 golden held zero RESERVE lines; procurement always lost to the
+  drained credit balance. Now `PolityRecord.ReservePoints` (POLITY tail,
+  actors v7) accrues in the budget split, funds `Procure` (each own port buys
+  toward its target share from its own market), splits at schism, merges at
+  federation, and is counted by the mint-conservation gates.
+- **Shipments** (`Shipment`, `ShipmentOps`, `SimState.Shipments` +
+  `NextShipmentId`, trailing shipments layer v1): origin/dest ports, cargo
+  with grades, route lane ids + leg years priced at departure
+  (`FreightHexesPerYearBase` × gate-tier `TransitSpeed`; off-lane at
+  `OffLaneFreightHexesPerYear` crawl). ONE sailing rule (`Sail`) shared by
+  dispatch and the per-Markets-step `Advance` (arrivals land BEFORE supply
+  and draws): closed legs (blockade/quarantine/dead gate) stall the freight —
+  dispatch is NOT exempt, so state logistics cannot resupply through a
+  blockade even at coarse tick; hunted legs roll piracy (channel 75, keyed
+  step/owner/shipment) for the years sailed — loot lands at the band's haven
+  with the band as supplier. Sub-span open-route transits deliver in-step
+  (sub-step blur). In-flight only; arrivals/losses leave the registry.
+- **`MoveFreight` transit**: Arbitrage routes through `DispatchVia` on its
+  own lane — costs settle at departure, the sale lands with arrival.
+- **The requisition channel** (`ShipmentOps.RaiseRequisitions`, called per
+  polity in Allocation): covers in-flight project sites AND pre-positions
+  due-soon plan entries (`RequisitionLeadYears` window, `GroundBroken`
+  guard); gate pairs provision both ends; consumption stores (provisions,
+  fuel, ship parts, armaments) keep their target share at the source;
+  never ships to ports the funder doesn't own; orders capped at the route's
+  weakest-lane capacity over the window.
+- **Pass-1 draws are local-only**: site market + the site port's larder when
+  the funder owns it (`ProjectOps.Feed`); gate pairs draw per end, the
+  scarcer end pacing the pair (`FeedGatePair`); `AddConstructionPull`
+  registers half the pair's demand at EACH end and **tapers every pull to
+  the remaining years**.
+- **Located capability brief**: `PortBrief.Stock` (Perception clones the
+  larder); the planner leans toward supplied sites
+  (`Controller.PlanSupplyWeight`, score × 1−w+w·coverage);
+  `Planner.EntryBasketPerYear` shared with the quartermaster.
+- **Fine-tick gaps closed**: yard slots accrue on a STATELESS world-time
+  clock (floor(rate·year) telescopes exactly — RollChannel 73 retired);
+  founding cadence via `Expansion.FoundingCadenceYears` (25) in `TryFound`
+  (coarse unchanged, fine founds at the same world pace); FineTick hulls
+  band tightened 0.6→0.5; the completions test counts UNITS (hulls per
+  batch).
+- **Residue closed**: founding kit tier-scaled (`RequiredGateTier` at
+  dispatch) and riding the expedition as cargo (`PerYearBasket` doubles as
+  the hold for travel kinds); a turned-back convoy banks the kit at the
+  staging larder; completion STATE stamps interpolated
+  (facility/gate `CommissionedYear`, expedition `FoundedYear`); corps pack
+  builds against income (one at a time until income carries more).
+- **REPL**: `efreight` (route, cargo, sailed/total, live ETA, STALLED) ·
+  `emap works` (#=sites, >=freight/convoys) · `eprojects`/`eplan` intact.
+- **Knobs added** (all registered + TUNING.md): DepotDecayFactor,
+  StockCapPerPortTier/PerDepotTier, FreightHexesPerYearBase,
+  OffLaneFreightHexesPerYear, RequisitionLeadYears, ShipmentLossPerHuntedYear,
+  PlanSupplyWeight, FoundingCadenceYears.
+- **Design tree amended**: `economy/markets.md` (freight transit + located
+  stockpiles + requisition channel), `economy/assets-and-investment.md`
+  (local-only draws, per-end gates), `frame/controller-contract.md`
+  (stockpile-targets mechanism), `substrate/infrastructure.md` (Depot).
+- Seed-42 eyeball numbers: 9 wars declared / 5 burning, 175 live lanes,
+  ports founding steadily; requisitions visibly crawling off-lane to
+  frontier sites in `efreight`.
 
 ## Deliberately deferred / flagged
 
-- **Stage 2 — located logistics** is the whole §4b of the spec, deliberately
-  out of Stage 1: per-port stockpiles replacing the global
-  `PolityRecord.ReserveQty/Grade` pool, `Shipment` records + transit years over
-  `LaneNetwork`, `MoveFreight` transit conversion, the requisition channel,
-  per-end gate draws, the located capability brief. Kickoff prompt:
-  `docs/superpowers/plans/2026-07-11-time-stage2-kickoff-prompt.md` (complete
-  scope + the hand-off interfaces + the flagged gaps below).
-- **Two fine-tick invariance gaps** (flagged in the FineTick honesty test body,
-  `tests/Core.Tests/Epoch/FineTickTests.cs`): the controller commits one
-  founding per decision step (a finer clock founds more often over the same
-  world-time), and the Planner's `Max(1, tier·rate·span)` hull-batch slot floor
-  fires a unit batch every step at fine tick. Both want a world-time
-  normalization in Stage 2; neither hides the failure the test guards.
-- **Dotted domains (user eyeball observation, 2026-07-11)**: the planner era
-  produces more low-tier ports, so polity domain reach reads dotted rather
-  than contiguous — port raises now compete with everything else for rates
-  and take 5 years each. A tuning consideration for Stage 2 (e.g., planner
-  weight on PortRaise vs new facilities, or service-radius perception),
-  not a defect.
-- **Project cancellation stages no chronicle event** (no fitting existing
-  `WorldEventType`; inventing one was out of slice scope) — abandoned works
-  are P1 residue only via the uncommissioned facility row for now.
-- **Future passes flagged in the spec** (not designed yet): the contract
-  economy (buy/sell contracts fulfilled by freight-line actors — located stock
-  + shipments + transit are its substrate), front supply lines (interdictable
-  convoys to the front), and program-style plan entries (the entry schema
-  already reserves the kind discriminator).
+- **Contract economy is next** — kickoff:
+  `docs/superpowers/plans/2026-07-11-contract-economy-kickoff-prompt.md`
+  (needs its own design pass first). Carried into it: nearest-first /
+  bid-based requisition sourcing, real shared capacity competition, front
+  supply lines, corp standing plans, scratch-less piracy loot attribution.
+- **Dotted domains**: the levers are now `Controller.PlanSupplyWeight`
+  (raise = consolidation lean) and `Controller.PortRaisePlanScore`; judged
+  by the emap eyeball — no tuning applied this slice (war shape and
+  colonization bars all green untouched).
+- Staged chronicle events still stamp Chronicle's step year (only STATE
+  stamps interpolate); project cancellation still stages no event.
+- Turn-back kit deposits at neutral 0.5 grade (the draw's blend isn't
+  stored).
 
 ## Next up
 
-0. **REPL eyeball + merge decision for THIS branch** (the taste gate): run the
-   sim on seed 42, `eprojects all` / `eplan <polity>`; the throttle test —
-   quarantine a lane feeding a construction site and watch the ETA slide.
-   Merge `slice-t1-project-ledger` to main locally on the nod; push only when
-   the user says so.
-1. **Time & logistics Stage 2 (located logistics)** — fresh session, point it
-   at `docs/superpowers/plans/2026-07-11-time-stage2-kickoff-prompt.md`.
-2. **Slice K2 (Lens catalog)** — fresh session, point it at
-   `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`.
-3. Then K3 (selection & panels), K4 (timeline — may parallel K3 in a
-   worktree), K5 (system stage & roadmap close). Governing plan:
-   `docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`.
-4. **User read-through of the design specs** — still outstanding.
+0. **REPL eyeball + merge decision for THIS branch** (the taste gate):
+   `epoch 42` · `efreight` (requisitions in transit with ETAs) ·
+   `emap works` · `eprojects all` · the throttle test: `elanes` to pick a
+   lane feeding a construction site, `equarantine <laneId>`, `estep`, then
+   `efreight` (STALLED) and `eprojects` (the ETA slides — starvation at the
+   pace of the last delivery). Merge locally on the nod; push on say-so.
+1. **Contract economy** — fresh session, point it at the kickoff prompt
+   (design pass first).
+2. **Slice K2 (Lens catalog)** — fresh session,
+   `docs/superpowers/plans/2026-07-11-slice-k2-kickoff-prompt.md`; then K3,
+   K4, K5 per `docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`.
+3. **User read-through of the design specs** — still outstanding.
 
-## Carried process conventions (unchanged unless noted)
+## Carried process conventions (unchanged)
 
 Lighter protocol per /CLAUDE.md (scope nod · eyeball · merge decision;
 kickoff-prompt chaining); hex-tier suite never breaks; ProjectSettings stays
-uncommitted; bash printf for REPL piping; parallel slices never share a
-checkout — take a `git worktree` each; every new `src/Core` file gets a
-two-line `.meta` with a fresh guid; every calibration constant in a knob
-registry + TUNING.md. The design is the spec — a deviation amends the affected
-`docs/design/` doc in the same branch (this slice amended eight). Golden regen
-one-liner and older conventions: `git show 27fefe7~1:docs/HANDOFF.md`.
+uncommitted; bash printf for REPL piping; parallel slices take worktrees;
+every new `src/Core` file gets a two-line `.meta` with a fresh guid; every
+calibration constant in a knob registry + TUNING.md. The design is the spec —
+a deviation amends the affected `docs/design/` doc in the same branch (this
+slice amended four). Golden regen: a temporary xunit fact writing
+`ArtifactSerializer.ToText` of the seed-42/radius-12 default run to
+`tests/Core.Tests/Goldens/slice-b-artifact-seed42.txt`, deleted after.

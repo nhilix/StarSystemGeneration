@@ -19,7 +19,12 @@ treasury covers the administered value, slots open).
 A project carries a **rate contract**, not a lump: its catalog `BuildCost` spread
 across its `ConstructionYears` as a per-year basket of real goods (Alloys,
 Machinery, Composites) plus a wage stream to the site's labor. Each Allocation the
-project draws that basket from its **local** market and stockpile. It advances by
+project draws that basket **locally only**: the site's market shelf first, then
+the site port's own larder where the funder owns the port — nothing teleports
+in; remote goods arrive as shipments that land in the larder before the draw,
+and a remote site starves at the pace of its last delivery. A gate pair draws
+per end, half the pair's basket at each gate's own market and larder, the
+scarcer end pacing the pair — half a highway opens no lane. It advances by
 the fraction its scarcest input meets — a project fed 60% of its basket delivers
 0.6 of a year's progress — so a starved work does not hoard, and its completion
 year simply slides. Draws are **priority-ordered** against shared local inventory:

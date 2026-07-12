@@ -144,16 +144,29 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
   works` (#=sites incl. both gate ends, >=shipments interpolated + convoys,
   *=ports); help text updated; smoke on seed 42 shows real off-lane
   requisitions crawling to remote sites.
-- [ ] **T11 — fresh-eyes whole-branch review + one fix wave.**
-- [ ] **T12 — tuning wave + goldens.** Dotted-domains eyeball lever
-  (PortRaisePlanScore / planner weights — judged by emap, not a metric); war
-  believability check on seed 42; golden re-frozen ONCE; determinism ×2;
-  hex-tier untouched.
-- [ ] **T13 — wrap-up docs.** Design-tree amendments (`economy/markets.md`
-  freight transit, `economy/assets-and-investment.md` located draws,
-  `frame/controller-contract.md` depot/stockpile mechanism,
-  `substrate/infrastructure.md` Depot); HANDOFF rewrite; **contract-economy
-  kickoff prompt**; user eyeball + merge decision.
+- [x] **T11 — fresh-eyes whole-branch review + one fix wave.** COMPLETE.
+  Review: 2 MAJOR (dispatch exempt from closures → coarse-tick blockades
+  porous; piracy fine-tick-only), 1 MINOR (stranded stock at unowned sites),
+  4 NOTEs. Fix wave closed ALL seven: one `Sail` rule shared by dispatch and
+  Advance (closures stall at the dock, piracy rolls sailed exposure both
+  paths); requisitions skip unowned sites; decay compounds per world-year
+  (tick-invariant, tested); RollChannel 73 annotated retired; efreight shows
+  blockade stalls; expedition founding stamps interpolated. Two test
+  migrations (event-year vs state-stamp tolerance; piracy test's
+  dispatch-exemption premise).
+- [x] **T12 — tuning + goldens.** COMPLETE. War shape healthy untouched
+  (seed 42: 9 declared / 5 burning; 175 live lanes) — no war knobs moved;
+  colonization bars green since T8; FineTick hulls band tightened 0.6→0.5
+  (holds both seeds); golden re-frozen ONCE; suite **689/689 ×2**.
+  Dotted-domains left as an eyeball call with named levers
+  (PlanSupplyWeight, PortRaisePlanScore).
+- [x] **T13 — wrap-up docs.** COMPLETE. Four design docs amended (markets:
+  freight transit + located stockpiles + requisition channel;
+  assets-and-investment: local-only + per-end draws; controller-contract:
+  the stockpile-targets mechanism; infrastructure: Depot). HANDOFF
+  rewritten. Contract-economy kickoff prompt written
+  (`2026-07-11-contract-economy-kickoff-prompt.md`). Remaining: user
+  eyeball + merge decision.
 
 ## Carried / flagged (running)
 
