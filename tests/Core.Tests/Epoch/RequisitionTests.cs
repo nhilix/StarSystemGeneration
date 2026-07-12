@@ -76,6 +76,26 @@ public class RequisitionTests
         _ = p;
     }
 
+    /// <summary>Review fix 3: the quartermaster never ships into a larder
+    /// the funder cannot draw from — a project site whose port fell to
+    /// someone else gets the market channel only, not gifted stock.</summary>
+    [Fact]
+    public void Requisitions_SkipSites_TheFunderDoesNotOwn()
+    {
+        var (state, home, frontier) = Fixture();
+        home.DepositStock((int)GoodId.Alloys, 100, 0.6);
+        var p = RemoteProject(state, frontier);
+        state.Actors[1].Entered = true;
+        frontier.OwnerActorId = state.Actors[1].Id;   // captured mid-build
+
+        int raised = ShipmentOps.RaiseRequisitions(state,
+            state.PolityOf(home.OwnerActorId));
+
+        Assert.Equal(0, raised);
+        Assert.Empty(state.Shipments);
+        _ = p;
+    }
+
     /// <summary>The phase wiring: Allocation raises the standing orders
     /// mechanically, every step, before it advances the works.</summary>
     [Fact]

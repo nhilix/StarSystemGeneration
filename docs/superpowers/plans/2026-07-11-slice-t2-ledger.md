@@ -134,12 +134,16 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
   flagged, not built). Construction pull tapers to remaining years.
   **The taper + kit fixes recovered both carried shape reds** — suite
   683/684, golden window only.
-- [ ] **T9 — corp standing plans (scoped minimal).** `CorporationOps.Operate`
-  builds through Planner/StandingPlan against `BriefFor` so corps stagger and
-  pack against income. If it fights the slice, flag + carry with user note.
-- [ ] **T10 — REPL surface.** `efreight` (shipments in transit: route, basket,
-  ETA); `emap works` markers (construction sites + freight on lanes);
-  `eprojects`/`eplan` still work; REPL smoke via bash printf pipe.
+- [x] **T9 — corp packing (scoped minimal).** COMPLETE. `InvestFacilities`
+  packs the new build's rate (goods+wages/yr) beside committed rates under
+  the trailing income via `BriefFor`, floored at one build (young corps
+  bootstrap). Full corp StandingPlan deliberately NOT built — corps become
+  fulfillment actors in the contract-economy pass; flag carried there.
+- [x] **T10 — REPL surface.** COMPLETE. `efreight` (channel, route,
+  cargo, sailed/total, live ETA, STALLED on a closed leg, owner); `emap
+  works` (#=sites incl. both gate ends, >=shipments interpolated + convoys,
+  *=ports); help text updated; smoke on seed 42 shows real off-lane
+  requisitions crawling to remote sites.
 - [ ] **T11 — fresh-eyes whole-branch review + one fix wave.**
 - [ ] **T12 — tuning wave + goldens.** Dotted-domains eyeball lever
   (PortRaisePlanScore / planner weights — judged by emap, not a metric); war

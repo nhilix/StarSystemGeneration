@@ -150,12 +150,15 @@ public class ShipmentTests
             return s!;
         }
 
-        // a band hunts the lane from its haven at port A
+        // a band hunts the lane from its haven at port A. Dispatch itself
+        // sails safe water (loss 0), then the band arms mid-voyage: the
+        // in-transit Advance rolls take it
+        var doomed = Sail(lossPerYear: 0.0);
+        Assert.Single(state.Shipments);
         state.Corporations.Add(new Corporation(0, state.Actors[0].Id,
             "Red Sails", -1, CorporateNiche.Raiding, homePortId: 0,
             foundedYear: 90) { TargetId = 0 });
-
-        var doomed = Sail(lossPerYear: 1.0);
+        state.Config.Corporate.ShipmentLossPerHuntedYear = 1.0;
         double havenBefore = state.Markets[0].Inventory[g];
         ShipmentOps.Advance(state, new MarketStepScratch(state));
         Assert.Empty(state.Shipments);                    // taken
@@ -164,12 +167,67 @@ public class ShipmentTests
             state.Markets[0].Inventory[g], 6);            // loot at the haven
         _ = doomed;
 
+        state.Config.Corporate.ShipmentLossPerHuntedYear = 0.0;
         var lucky = Sail(lossPerYear: 0.0);
         for (int i = 0; i < 4; i++)
             ShipmentOps.Advance(state, new MarketStepScratch(state));
         Assert.Empty(state.Shipments);                    // arrived intact
         Assert.Equal(25.0, pb.StockQty[g], 6);
         _ = lucky;
+    }
+
+    /// <summary>Review fix 1: dispatch is NOT exempt from closures — a
+    /// quarantined leg blocks the sub-step-blur delivery too, so a coarse
+    /// tick cannot supply a fortress through its own blockade. The order
+    /// becomes a stalled record instead.</summary>
+    [Fact]
+    public void Dispatch_AcrossAClosedLane_StallsInsteadOfDelivering()
+    {
+        var (state, pa, pb) = Fixture();     // default speed: sub-span haul
+        state.Lanes[0].QuarantinedUntil = 100000;
+        int g = (int)GoodId.Alloys;
+        pa.DepositStock(g, 25, 0.7);
+
+        var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
+            ShipmentChannel.Requisition, pa.Id, pb.Id,
+            new[] { (g, pa.DrawStock(g, 25), 0.7) });
+
+        Assert.NotNull(s);                    // a record, not a delivery
+        Assert.Equal(0.0, pb.StockQty[g], 6);
+        Assert.Single(state.Shipments);
+        Assert.Equal(0.0, s!.YearsInTransit, 6);   // never left the dock
+
+        // the lane reopens: the next steps sail it home
+        state.Lanes[0].QuarantinedUntil = -1;
+        ShipmentOps.Advance(state, new MarketStepScratch(state));
+        Assert.Empty(state.Shipments);
+        Assert.Equal(25.0, pb.StockQty[g], 6);
+    }
+
+    /// <summary>Review fix 2: piracy is tick-honest — a sub-span haul on a
+    /// hunted lane rolls for its sailed exposure at dispatch, so coarse
+    /// ticks lose cargo to the same bands fine ticks do.</summary>
+    [Fact]
+    public void Piracy_FiresOnSubSpanHauls_AtDispatch()
+    {
+        var (state, pa, pb) = Fixture();     // default speed: sub-span haul
+        state.Config.Corporate.ShipmentLossPerHuntedYear = 1.0;
+        state.Corporations.Add(new Corporation(0, state.Actors[0].Id,
+            "Red Sails", -1, CorporateNiche.Raiding, homePortId: 0,
+            foundedYear: 90) { TargetId = 0 });
+        int g = (int)GoodId.Alloys;
+        pa.DepositStock(g, 25, 0.7);
+        double havenBefore = state.Markets[0].Inventory[g];
+
+        var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
+            ShipmentChannel.Requisition, pa.Id, pb.Id,
+            new[] { (g, pa.DrawStock(g, 25), 0.7) });
+
+        Assert.Null(s);                       // taken, not in transit
+        Assert.Empty(state.Shipments);
+        Assert.Equal(0.0, pb.StockQty[g], 6); // never arrived
+        Assert.Equal(havenBefore + 25.0,
+            state.Markets[0].Inventory[g], 6);
     }
 
     [Fact]

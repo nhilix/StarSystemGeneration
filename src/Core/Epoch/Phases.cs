@@ -492,8 +492,10 @@ public sealed class AllocationPhase : ISimPhase
                     Substrate.GoodId.Medicine => 3.0,
                     _ => 1.0,
                 };
-                double keep = Math.Max(0.0,
-                    1.0 - eco.StockpileDecayPerYear * perish * cut * years);
+                // compounded per world-year (P7, review fix 4): a 25-year
+                // step rots exactly what twenty-five 1-year steps rot
+                double keep = Math.Pow(Math.Max(0.0,
+                    1.0 - eco.StockpileDecayPerYear * perish * cut), years);
                 port.StockQty[g] *= keep;
                 if (port.StockQty[g] <= 0) port.StockGrade[g] = 0;
             }

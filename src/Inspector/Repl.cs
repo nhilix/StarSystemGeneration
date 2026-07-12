@@ -831,6 +831,7 @@ public sealed class Repl
     {
         if (sim.Shipments.Count == 0)
         { Console.WriteLine("no shipments in transit"); return; }
+        var severed = Core.Epoch.FleetOps.SeveredLaneIds(sim);
         Console.WriteLine("  id   chan         route                cargo                            sailed/total   eta");
         foreach (var s in sim.Shipments)
         {
@@ -851,7 +852,8 @@ public sealed class Repl
             if (leg < s.RouteLaneIds.Count)
             {
                 var lane = sim.Lanes[s.RouteLaneIds[leg]];
-                stalled = lane.QuarantinedUntil > sim.WorldYear
+                stalled = severed.Contains(lane.Id)
+                          || lane.QuarantinedUntil > sim.WorldYear
                           || !Core.Epoch.LaneMath.IsLive(sim, lane);
             }
             string eta = stalled ? "STALLED"

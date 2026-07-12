@@ -210,6 +210,24 @@ public class AllocationEconomyTests
             "provisions rot faster than durables");
     }
 
+    /// <summary>Review fix 4 (P7): decay compounds per world-year, so a
+    /// 25-year step rots exactly what twenty-five 1-year steps rot.</summary>
+    [Fact]
+    public void StockpileDecay_IsTickInvariant()
+    {
+        var (coarse, coarsePort) = Fixture();
+        coarsePort.StockQty[(int)GoodId.Provisions] = 100;
+        new AllocationPhase().Run(coarse);
+
+        var (fine, finePort) = Fixture();
+        fine.Config.Sim.YearsPerEpoch = 1;
+        finePort.StockQty[(int)GoodId.Provisions] = 100;
+        for (int i = 0; i < 25; i++) new AllocationPhase().Run(fine);
+
+        Assert.Equal(coarsePort.StockQty[(int)GoodId.Provisions],
+                     finePort.StockQty[(int)GoodId.Provisions], 6);
+    }
+
     /// <summary>The controller contract's "stockpile targets →
     /// depots/reserves" mechanism (spec §4b): an active Depot at the port
     /// cuts the stockpile's decay.</summary>

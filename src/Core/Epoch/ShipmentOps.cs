@@ -12,12 +12,13 @@ namespace StarGen.Core.Epoch;
 /// math over ordered state; the piracy roll (channel 75) is the only draw.</summary>
 public static class ShipmentOps
 {
-    /// <summary>Route a basket from port to port. Transit inside the
-    /// current step's span is sub-step blur: delivered immediately, no
-    /// record, null return. Otherwise the goods exist only in the returned
-    /// shipment until arrival; departure sails the dispatching step's span.
-    /// The basket is already drawn — the caller owns conservation up to
-    /// this call.</summary>
+    /// <summary>Route a basket from port to port. Departure sails the
+    /// dispatching step's span through the SAME world Advance sails —
+    /// closed legs stall it at the dock, hunted legs roll the same piracy
+    /// (review fixes 1–2: dispatch is not exempt); an open route inside
+    /// the span is sub-step blur and delivers now (null return, no
+    /// record). The basket is already drawn — the caller owns conservation
+    /// up to this call.</summary>
     public static Shipment? Dispatch(SimState state, int ownerActorId,
         ShipmentChannel channel, int fromPortId, int toPortId,
         IReadOnlyList<(int Good, double Qty, double Grade)> basket,
@@ -36,21 +37,13 @@ public static class ShipmentOps
         IReadOnlyList<(int Good, double Qty, double Grade)> basket,
         MarketStepScratch? scratch = null)
     {
-        double total = 0;
-        foreach (var y in legYears) total += y;
-        int span = state.Config.Sim.YearsPerEpoch;
-        if (total <= span)
-        {
-            var direct = new Shipment(-1, ownerActorId, channel, fromPortId,
-                toPortId, state.WorldYear, laneIds, legYears);
-            Fill(direct, basket);
-            Deliver(state, scratch, direct);
-            return null;
-        }
         var s = new Shipment(state.NextShipmentId++, ownerActorId, channel,
-            fromPortId, toPortId, state.WorldYear, laneIds, legYears)
-        { YearsInTransit = span };
+            fromPortId, toPortId, state.WorldYear, laneIds, legYears);
         Fill(s, basket);
+        var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
+        if (Sail(state, scratch, severed, HunterMap(state), s,
+                state.Config.Sim.YearsPerEpoch) != SailOutcome.InTransit)
+            return null;                     // delivered or taken this step
         state.Shipments.Add(s);
         return s;
     }
@@ -109,7 +102,23 @@ public static class ShipmentOps
     {
         if (state.Shipments.Count == 0) return;
         int span = state.Config.Sim.YearsPerEpoch;
-        // hunted lanes: active raiding bands, first band by id claims (P6)
+        var hunters = HunterMap(state);
+        List<int>? resolved = null;                       // indexes done
+        for (int i = 0; i < state.Shipments.Count; i++)   // id order (P6)
+            if (Sail(state, scratch, scratch.Severed, hunters,
+                    state.Shipments[i], span) != SailOutcome.InTransit)
+                (resolved ??= new List<int>()).Add(i);
+        if (resolved != null)
+            for (int i = resolved.Count - 1; i >= 0; i--)
+                state.Shipments.RemoveAt(resolved[i]);
+    }
+
+    private enum SailOutcome { InTransit = 0, Arrived = 1, Lost = 2 }
+
+    /// <summary>Hunted lanes: active raiding bands, first band by corp id
+    /// claims a lane (P6). Lookup-only — iteration never touches it.</summary>
+    private static Dictionary<int, Corporation>? HunterMap(SimState state)
+    {
         Dictionary<int, Corporation>? hunters = null;
         foreach (var corp in state.Corporations)          // id order (P6)
             if (corp.Active && corp.Niche == CorporateNiche.Raiding
@@ -119,54 +128,75 @@ public static class ShipmentOps
                 if (!hunters.ContainsKey(corp.TargetId))
                     hunters[corp.TargetId] = corp;
             }
-        HashSet<int>? lost = null;
-        foreach (var s in state.Shipments)                // id order (P6)
+        return hunters;
+    }
+
+    /// <summary>The one sailing rule (review fixes 1–2: dispatch and
+    /// Advance share it): walk the legs for the span, stalling at a
+    /// closed one; roll piracy (channel 75) once for the years sailed
+    /// under a hunting band's guns — the loot lands at its haven, the
+    /// band credited as supplier where a scratch exists (a plain deposit
+    /// otherwise; Allocation-time dispatches have no pool to attribute);
+    /// deliver on arrival. Returns what became of the cargo.</summary>
+    private static SailOutcome Sail(SimState state,
+        MarketStepScratch? scratch, HashSet<int> severed,
+        Dictionary<int, Corporation>? hunters, Shipment s, double span)
+    {
+        double budget = span;
+        double huntedYears = 0;
+        Corporation? hunter = null;
+        while (budget > 1e-9 && s.YearsInTransit < s.TotalYears - 1e-9)
         {
-            double budget = span;
-            double huntedYears = 0;
-            Corporation? hunter = null;
-            while (budget > 1e-9 && s.YearsInTransit < s.TotalYears - 1e-9)
+            int leg = CurrentLeg(s);
+            if (leg < s.RouteLaneIds.Count)
             {
-                int leg = CurrentLeg(s);
-                if (leg < s.RouteLaneIds.Count
-                    && LegClosed(state, scratch, s.RouteLaneIds[leg])) break;
-                double legEnd = 0;
-                for (int i = 0; i <= leg; i++) legEnd += s.LegYears[i];
-                double sail = Math.Min(budget, legEnd - s.YearsInTransit);
-                // float dust at a leg boundary: snap forward, re-resolve
-                if (sail <= 0) { s.YearsInTransit = legEnd; continue; }
-                if (hunters != null && leg < s.RouteLaneIds.Count
-                    && hunters.TryGetValue(s.RouteLaneIds[leg], out var band))
-                { huntedYears += sail; hunter ??= band; }
-                s.YearsInTransit += sail;
-                budget -= sail;
+                var lane = state.Lanes[s.RouteLaneIds[leg]];
+                if (severed.Contains(lane.Id)
+                    || lane.QuarantinedUntil > state.WorldYear
+                    || !LaneMath.IsLive(state, lane)) break;
             }
-            if (hunter == null || huntedYears <= 0) continue;
-            // one roll per step (channel 75): exposure scales with the
-            // years actually sailed under the band's guns
+            double legEnd = 0;
+            for (int i = 0; i <= leg; i++) legEnd += s.LegYears[i];
+            double sail = Math.Min(budget, legEnd - s.YearsInTransit);
+            // float dust at a leg boundary: snap forward, re-resolve
+            if (sail <= 0) { s.YearsInTransit = legEnd; continue; }
+            if (hunters != null && leg < s.RouteLaneIds.Count
+                && hunters.TryGetValue(s.RouteLaneIds[leg], out var band))
+            { huntedYears += sail; hunter ??= band; }
+            s.YearsInTransit += sail;
+            budget -= sail;
+        }
+        if (hunter != null && huntedYears > 0)
+        {
             double p = 1.0 - Math.Pow(
                 1.0 - state.Config.Corporate.ShipmentLossPerHuntedYear,
                 huntedYears);
             if (EpochRolls.NextDouble(state.Config.MasterSeed,
                     Rng.RollChannel.ShipmentPiracy, state.EpochIndex,
-                    s.OwnerActorId, s.Id) >= p) continue;
-            // taken: the loot lands at the haven, the band is its supplier
-            // (the fence pays the pirates — conserved, P4)
-            for (int g = 0; g < s.Qty.Length; g++)
-                if (s.Qty[g] > 0)
-                    MarketEngine.Deposit(state, scratch, hunter.HomePortId,
-                        hunter.ActorId, g, s.Qty[g], s.Grade[g]);
-            (lost ??= new HashSet<int>()).Add(s.Id);
+                    s.OwnerActorId, s.Id) < p)
+            {
+                // taken: the loot lands at the haven (the fence pays the
+                // pirates — conserved, P4)
+                var havenMarket = state.Markets[hunter.HomePortId];
+                for (int g = 0; g < s.Qty.Length; g++)
+                {
+                    if (s.Qty[g] <= 0) continue;
+                    if (scratch != null)
+                        MarketEngine.Deposit(state, scratch,
+                            hunter.HomePortId, hunter.ActorId, g, s.Qty[g],
+                            s.Grade[g]);
+                    else
+                        havenMarket.Deposit(g, s.Qty[g], s.Grade[g]);
+                }
+                return SailOutcome.Lost;
+            }
         }
-        for (int i = state.Shipments.Count - 1; i >= 0; i--)
+        if (s.YearsInTransit >= s.TotalYears - 1e-9)
         {
-            var s = state.Shipments[i];
-            if (lost != null && lost.Contains(s.Id))
-            { state.Shipments.RemoveAt(i); continue; }
-            if (s.YearsInTransit < s.TotalYears - 1e-9) continue;
             Deliver(state, scratch, s);
-            state.Shipments.RemoveAt(i);
+            return SailOutcome.Arrived;
         }
+        return SailOutcome.InTransit;
     }
 
     /// <summary>The requisition channel (spec §4b): for every in-flight
@@ -210,6 +240,10 @@ public static class ShipmentOps
             foreach (int end in ends)
             {
                 var site = state.Ports[end];
+                // never ship into a larder the funder cannot draw from —
+                // a site whose port fell to someone else gets the market
+                // channel only (review fix 3)
+                if (site.OwnerActorId != pr.ActorId) continue;
                 var market = state.Markets[end];
                 bool any = false;
                 for (int g = 0; g < want.Length; g++)
@@ -236,8 +270,9 @@ public static class ShipmentOps
             {
                 double lead = entry.StartYear - state.WorldYear;
                 if (lead < 0 || lead > window) continue;
-                if (entry.PortId < 0 || entry.PortId >= state.Ports.Count)
-                    continue;
+                if (entry.PortId < 0 || entry.PortId >= state.Ports.Count
+                    || state.Ports[entry.PortId].OwnerActorId != pr.ActorId)
+                    continue;                             // review fix 3
                 if (GroundBroken(state, pr.ActorId, entry)) continue;
                 var (role, size) = entry.Kind == PlanEntryKind.HullBatch
                     && entry.TypeId >= 0 && entry.TypeId < state.Designs.Count
@@ -390,15 +425,6 @@ public static class ShipmentOps
             if (s.YearsInTransit < sofar - 1e-9) return i;
         }
         return s.LegYears.Count - 1;
-    }
-
-    private static bool LegClosed(SimState state, MarketStepScratch scratch,
-                                  int laneId)
-    {
-        var lane = state.Lanes[laneId];
-        return scratch.Severed.Contains(laneId)
-            || lane.QuarantinedUntil > state.WorldYear
-            || !LaneMath.IsLive(state, lane);
     }
 
     /// <summary>Land the cargo: a requisition banks into the destination

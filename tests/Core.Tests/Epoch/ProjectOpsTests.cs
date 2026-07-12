@@ -423,6 +423,10 @@ public class ProjectOpsTests
         ProjectOps.AdvanceAll(state);                  // 25y >= 12/6 = 2y
         Assert.True(p.Completed);
         Assert.True(PortAt(state, target));            // arrived → founded
+        // review fix 7: the founding stamp is the interpolated ARRIVAL
+        // year, not the span start — the crossing took its two years
+        Assert.Equal(state.WorldYear + 2,
+                     state.Ports[state.Ports.Count - 1].FoundedYear);
     }
 
     /// <summary>A fed Mobilization project completes and readiness reaches

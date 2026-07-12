@@ -47,8 +47,11 @@ public class ExpansionTests
                     && ev.Payload is CoupStruckPayload cs
                     && cs.Contested && cs.PolityId == e.Actors[0]))
                 Assert.Equal(e.Actors[0], port.OwnerActorId);
-            // founded at tier 1 (may be raised later; founding year pins the record)
-            Assert.Equal(e.WorldYear, port.FoundedYear);
+            // the chronicle stamps the step year; the port record carries
+            // the interpolated ARRIVAL year inside that span (stage 2 —
+            // state stamps interpolate, staged events don't)
+            Assert.InRange(port.FoundedYear, e.WorldYear,
+                           e.WorldYear + state.Config.Sim.YearsPerEpoch);
             // reachable from some port that existed by then (the founder's
             // at the time — sovereignty may have moved since)
             Assert.Contains(state.Ports, o => o.Id != port.Id

@@ -485,7 +485,7 @@ public static class ProjectOps
                 break;
             }
             case ProjectKind.ColonyExpedition:
-                CompleteExpedition(state, p);
+                CompleteExpedition(state, p, completionYear);
                 break;
             case ProjectKind.Mobilization:
             {
@@ -506,7 +506,8 @@ public static class ProjectOps
     /// tension bumps. Failed founding: if the hex gained a port mid-flight,
     /// the convoy simply turns back to its staging port — no port, no event
     /// this slice.</summary>
-    private static void CompleteExpedition(SimState state, Project p)
+    private static void CompleteExpedition(SimState state, Project p,
+                                           int completionYear)
     {
         var cfg = state.Config;
         var record = state.PolityOf(p.OwnerActorId);
@@ -556,8 +557,10 @@ public static class ProjectOps
                     record.HullsScrapped++;
                     break;
                 }
+        // the founding stamps carry the interpolated ARRIVAL year (review
+        // fix 7) — the crossing took its years inside the span
         var port = new Port(state.Ports.Count, p.OwnerActorId, p.Hex,
-                            tier: 1, state.WorldYear);
+                            tier: 1, completionYear);
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
         var colonySegment = new PopulationSegment(state.Segments.Count, port.Id,
@@ -576,11 +579,11 @@ public static class ProjectOps
         // plus a subsistence farm when that isn't farming
         var founding = FoundingIndustry(state, p.Hex);
         state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)founding, tier: 1, p.Hex, p.OwnerActorId, state.WorldYear));
+            (int)founding, tier: 1, p.Hex, p.OwnerActorId, completionYear));
         if (founding != Substrate.InfraTypeId.AgriComplex)
             state.Facilities.Add(new Facility(state.Facilities.Count,
                 (int)Substrate.InfraTypeId.AgriComplex, tier: 1, p.Hex,
-                p.OwnerActorId, state.WorldYear));
+                p.OwnerActorId, completionYear));
         // the convoy's survivors dock as the colony's first reserve fleet
         if (convoy != null)
         {
