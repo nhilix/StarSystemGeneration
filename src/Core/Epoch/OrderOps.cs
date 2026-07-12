@@ -1,6 +1,12 @@
 using System;
+using System.Collections.Generic;
 
 namespace StarGen.Core.Epoch;
+
+/// <summary>One executed trade: the buy order it filled (its owner routes
+/// the goods — consumption, site stock, a hold) and what changed hands.</summary>
+public readonly record struct OrderFill(MarketOrder Buy, int Good,
+                                        double Qty, double Grade);
 
 /// <summary>The order-book escrow primitives (contract-economy spec §1):
 /// post holds the escrow inside the order, fill moves credits→seller and
@@ -42,11 +48,11 @@ public static class OrderOps
     /// seller's ledger; the goods return to the caller, who routes them
     /// (consumption, site stock, a hold). Bid-limit surplus stays escrowed
     /// until cancel. Zero-quantity orders leave the registry.</summary>
-    public static (double Qty, double Grade) Fill(SimState state,
+    public static (double Qty, double Grade, double Paid) Fill(SimState state,
         MarketOrder buy, MarketOrder sell)
     {
         double qty = Math.Min(buy.QtyRemaining, sell.QtyRemaining);
-        if (qty <= 0) return (0, 0);
+        if (qty <= 0) return (0, 0, 0);
         double price = buy.Id < sell.Id ? buy.LimitPrice : sell.LimitPrice;
         double paid = qty * price;
         buy.QtyRemaining -= qty;
@@ -57,7 +63,67 @@ public static class OrderOps
         seller.Receipts += paid;
         Prune(state, sell);
         Prune(state, buy);        // survives while surplus escrow remains
-        return (qty, sell.Grade);
+        return (qty, sell.Grade, paid);
+    }
+
+    /// <summary>Cross one port's book (spec §2 step 3): per good ascending,
+    /// while best bid ≥ best ask, fill at maker price with (price, order id)
+    /// priority. Each fill settles its consequences: transaction tax on the
+    /// proceeds to the port's sovereign, the labor share of the seller's net
+    /// to the local segments (household income is earned from realized
+    /// revenue), the rest stays with the seller. Returns the fills for the
+    /// caller to route the goods. Pure ordered math — no rolls.</summary>
+    public static List<OrderFill> MatchPort(SimState state, int portId)
+    {
+        var fills = new List<OrderFill>();
+        var port = state.Ports[portId];
+        double taxRate = (state.Actors[port.OwnerActorId].Policies
+            as PolityPolicies ?? PolityPolicies.Default).TaxRate;
+        var sovereign = state.PolityOf(port.OwnerActorId);
+        double laborShare = state.Config.Economy.LaborShare;
+
+        var buys = new List<MarketOrder>();
+        var sells = new List<MarketOrder>();
+        foreach (var o in state.Orders)                   // id order (P6)
+        {
+            if (o.PortId != portId || o.QtyRemaining <= 0) continue;
+            (o.Side == OrderSide.Buy ? buys : sells).Add(o);
+        }
+        // price-time priority: best price first, earlier id within a price
+        buys.Sort((x, y) => x.LimitPrice != y.LimitPrice
+            ? y.LimitPrice.CompareTo(x.LimitPrice) : x.Id.CompareTo(y.Id));
+        sells.Sort((x, y) => x.LimitPrice != y.LimitPrice
+            ? x.LimitPrice.CompareTo(y.LimitPrice) : x.Id.CompareTo(y.Id));
+
+        for (int good = 0; good < Substrate.Goods.All.Count; good++)
+        {
+            int bi = 0, si = 0;
+            while (true)
+            {
+                while (bi < buys.Count && (buys[bi].Good != good
+                       || buys[bi].QtyRemaining <= 0)) bi++;
+                while (si < sells.Count && (sells[si].Good != good
+                       || sells[si].QtyRemaining <= 0)) si++;
+                if (bi >= buys.Count || si >= sells.Count) break;
+                var buy = buys[bi];
+                var sell = sells[si];
+                if (buy.LimitPrice < sell.LimitPrice) break;
+                var seller = state.LedgerOf(sell.OwnerActorId);
+                var (qty, grade, paid) = Fill(state, buy, sell);
+                if (qty <= 0) break;
+                // the fill's consequences: tax on the proceeds, wages from
+                // the net — the seller's realized take is what remains
+                double tax = paid * taxRate;
+                double wages = (paid - tax) * laborShare;
+                seller.Credits -= tax + wages;
+                seller.Receipts -= tax + wages;
+                sovereign.Credits += tax;
+                sovereign.Receipts += tax;
+                MarketEngine.PayWages(state, portId, wages);
+                fills.Add(new OrderFill(buy, good, qty, grade));
+            }
+        }
+        return fills;
     }
 
     /// <summary>Release a sell order's remaining goods to the caller and

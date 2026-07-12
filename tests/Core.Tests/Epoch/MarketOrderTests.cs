@@ -76,10 +76,11 @@ public class MarketOrderTests
         var buy = OrderOps.PostBuy(state, 0, port.Id, g,
             qty: 10.0, bid: 4.0, expiryYear: 150);
 
-        var (qty, grade) = OrderOps.Fill(state, buy, sell);
+        var (qty, grade, paid) = OrderOps.Fill(state, buy, sell);
 
         Assert.Equal(10.0, qty, 6);                  // min of the remainders
         Assert.Equal(0.7, grade, 6);
+        Assert.Equal(30.0, paid, 6);
         Assert.Equal(15.0, sell.QtyRemaining, 6);
         Assert.Equal(0.0, buy.QtyRemaining, 6);
         // maker price 3.0 × 10 to the seller; the bid-limit surplus stays

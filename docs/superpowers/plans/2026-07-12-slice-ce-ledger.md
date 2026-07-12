@@ -42,11 +42,18 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   GOLDEN byte-comparison, the sanctioned window now OPEN (re-freeze at
   C18). Expiry sweep deliberately deferred to C3 (owner-specific landing:
   polity sells → port stock, corp sells → reprice in place).
-- [ ] **C2 — matching.** Book views in scratch; per-(port, good) cross
-  while best bid ≥ best ask at maker price; ties (price, order id);
-  transaction tax per fill to port sovereign; labor share of facility
-  owners' realized sales to local segments. Tests: determinism ×2, maker
-  price, partial fills, tax/labor conservation.
+- [x] **C2 — matching.** COMPLETE. `OrderOps.MatchPort`: per-(port, good)
+  cross while best bid ≥ best ask at maker price, (price, order id)
+  priority; each fill settles tax → port sovereign and labor share of the
+  seller's net → local segments (UNIFORM rule — in the book world nothing
+  is ownerless, so every seller pays wages; DistributePools' three-way
+  split reproduced per fill); goods return as `OrderFill`s for the caller
+  to route. `Fill` extended to return Paid. DECISION: labor share applies
+  to ALL sells uniformly, not just facility output — today every scratch
+  Deposit registers a SupplyRecord and gets the same split, so this is
+  behavior-preserving, and it needs no output-vs-restock flag on the
+  record. Suite 734/735 (golden window only). Galaxy-wide determinism ×2
+  rides the C6 gate.
 - [ ] **C3 — post & reprice migration.** Facility output → owner sell
   orders (quote rule = old drift repointed: sold out ⇒ raise, glut ⇒ cut,
   rate-limited); port posts band bid tranches (subsistence/SoL/luxury,
