@@ -519,3 +519,7 @@ unity-*-log.txt
 unity-*-results.xml
 unity/test-results-*.xml
 unity/*.log
+
+# K3: batchmode outputs at repo root (worktree runs)
+test-results-*.xml
+unity-*.log
