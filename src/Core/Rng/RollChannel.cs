@@ -107,4 +107,7 @@ public enum RollChannel : ulong
 
     // --- Atlas (slice K1). ---
     AtlasNebula = 74,          // VIEW-ONLY: nature-field cloud-breakup noise (src/Core/Atlas) — the sim never rolls here
+
+    // --- Located logistics (slice T2). ---
+    ShipmentPiracy = 75,       // in-transit loss to a hunting band: step = epoch, actor = shipment owner, subIndex = shipment id
 }

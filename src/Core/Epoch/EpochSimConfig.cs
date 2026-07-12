@@ -438,6 +438,9 @@ public sealed class CorporateKnobs
     /// <summary>Posted lane capacity that reads as raid-worthy cargo where
     /// the owner keeps no warships (the pirate-band trigger).</summary>
     public double RaidCapacityFloor { get; set; } = 8.0;
+    /// <summary>Chance per world-year that a shipment sailing a hunted lane
+    /// is taken (stage 2, spec §4b) — the loot lands at the band's haven.</summary>
+    public double ShipmentLossPerHuntedYear { get; set; } = 0.15;
 }
 
 /// <summary>Tech dials (economy/technology.md): the tier ladder's cost

@@ -208,6 +208,10 @@ public static class KnobRegistry
           "unescorted posted capacity that reads as a raiding niche",
           c => c.Corporate.RaidCapacityFloor,
           (c, v) => c.Corporate.RaidCapacityFloor = v),
+        K("Corporate.ShipmentLossPerHuntedYear",
+          "chance per year a shipment on a hunted lane is taken",
+          c => c.Corporate.ShipmentLossPerHuntedYear,
+          (c, v) => c.Corporate.ShipmentLossPerHuntedYear = v),
 
         // ---- Economy (market engine, freight, credit, lifecycle) ----
         K("Economy.BasePriceCapital", "founding price of capital goods",

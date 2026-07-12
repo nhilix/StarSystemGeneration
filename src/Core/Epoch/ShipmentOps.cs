@@ -109,9 +109,22 @@ public static class ShipmentOps
     {
         if (state.Shipments.Count == 0) return;
         int span = state.Config.Sim.YearsPerEpoch;
+        // hunted lanes: active raiding bands, first band by id claims (P6)
+        Dictionary<int, Corporation>? hunters = null;
+        foreach (var corp in state.Corporations)          // id order (P6)
+            if (corp.Active && corp.Niche == CorporateNiche.Raiding
+                && corp.TargetId >= 0)
+            {
+                hunters ??= new Dictionary<int, Corporation>();
+                if (!hunters.ContainsKey(corp.TargetId))
+                    hunters[corp.TargetId] = corp;
+            }
+        HashSet<int>? lost = null;
         foreach (var s in state.Shipments)                // id order (P6)
         {
             double budget = span;
+            double huntedYears = 0;
+            Corporation? hunter = null;
             while (budget > 1e-9 && s.YearsInTransit < s.TotalYears - 1e-9)
             {
                 int leg = CurrentLeg(s);
@@ -122,13 +135,34 @@ public static class ShipmentOps
                 double sail = Math.Min(budget, legEnd - s.YearsInTransit);
                 // float dust at a leg boundary: snap forward, re-resolve
                 if (sail <= 0) { s.YearsInTransit = legEnd; continue; }
+                if (hunters != null && leg < s.RouteLaneIds.Count
+                    && hunters.TryGetValue(s.RouteLaneIds[leg], out var band))
+                { huntedYears += sail; hunter ??= band; }
                 s.YearsInTransit += sail;
                 budget -= sail;
             }
+            if (hunter == null || huntedYears <= 0) continue;
+            // one roll per step (channel 75): exposure scales with the
+            // years actually sailed under the band's guns
+            double p = 1.0 - Math.Pow(
+                1.0 - state.Config.Corporate.ShipmentLossPerHuntedYear,
+                huntedYears);
+            if (EpochRolls.NextDouble(state.Config.MasterSeed,
+                    Rng.RollChannel.ShipmentPiracy, state.EpochIndex,
+                    s.OwnerActorId, s.Id) >= p) continue;
+            // taken: the loot lands at the haven, the band is its supplier
+            // (the fence pays the pirates — conserved, P4)
+            for (int g = 0; g < s.Qty.Length; g++)
+                if (s.Qty[g] > 0)
+                    MarketEngine.Deposit(state, scratch, hunter.HomePortId,
+                        hunter.ActorId, g, s.Qty[g], s.Grade[g]);
+            (lost ??= new HashSet<int>()).Add(s.Id);
         }
         for (int i = state.Shipments.Count - 1; i >= 0; i--)
         {
             var s = state.Shipments[i];
+            if (lost != null && lost.Contains(s.Id))
+            { state.Shipments.RemoveAt(i); continue; }
             if (s.YearsInTransit < s.TotalYears - 1e-9) continue;
             Deliver(state, scratch, s);
             state.Shipments.RemoveAt(i);

@@ -126,6 +126,52 @@ public class ShipmentTests
         Assert.Equal(25.0, pb.StockQty[g], 6);
     }
 
+    /// <summary>Spec §4b: in-transit goods are lost to piracy — a band
+    /// hunting a lane on the route takes the cargo to its haven (conserved
+    /// loot, the fence pays the pirates). RollChannel 75, keyed (step,
+    /// owner, shipment).</summary>
+    [Fact]
+    public void Piracy_TakesTheCargo_ToTheHaven()
+    {
+        var (state, pa, pb) = Fixture();
+        state.Config.Sim.YearsPerEpoch = 1;
+        state.Config.Economy.FreightHexesPerYearBase = 1.0;   // 5y transit
+        int g = (int)GoodId.Alloys;
+
+        Shipment Sail(double lossPerYear)
+        {
+            state.Shipments.Clear();
+            state.Config.Corporate.ShipmentLossPerHuntedYear = lossPerYear;
+            pa.DepositStock(g, 25, 0.7);
+            var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
+                ShipmentChannel.Requisition, pa.Id, pb.Id,
+                new[] { (g, pa.DrawStock(g, 25), 0.7) });
+            Assert.NotNull(s);
+            return s!;
+        }
+
+        // a band hunts the lane from its haven at port A
+        state.Corporations.Add(new Corporation(0, state.Actors[0].Id,
+            "Red Sails", -1, CorporateNiche.Raiding, homePortId: 0,
+            foundedYear: 90) { TargetId = 0 });
+
+        var doomed = Sail(lossPerYear: 1.0);
+        double havenBefore = state.Markets[0].Inventory[g];
+        ShipmentOps.Advance(state, new MarketStepScratch(state));
+        Assert.Empty(state.Shipments);                    // taken
+        Assert.Equal(0.0, pb.StockQty[g], 6);             // never arrived
+        Assert.Equal(havenBefore + 25.0,
+            state.Markets[0].Inventory[g], 6);            // loot at the haven
+        _ = doomed;
+
+        var lucky = Sail(lossPerYear: 0.0);
+        for (int i = 0; i < 4; i++)
+            ShipmentOps.Advance(state, new MarketStepScratch(state));
+        Assert.Empty(state.Shipments);                    // arrived intact
+        Assert.Equal(25.0, pb.StockQty[g], 6);
+        _ = lucky;
+    }
+
     [Fact]
     public void Shipments_RoundTrip_ByteIdentical()
     {
