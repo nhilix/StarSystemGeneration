@@ -349,7 +349,7 @@
 .ssg-legend {
     position: absolute;
     left: 246px;
-    bottom: 8px;
+    bottom: 122px; /* clears the K4 timeline strip (eyeball wave 1) */
     background-color: var(--ssg-panel);
     border-width: 1px;
     border-color: var(--ssg-line2);
@@ -390,4 +390,121 @@
     font-size: 12px;
     white-space: normal;
     flex-shrink: 1;
+}
+
+/* ---- timeline strip (K4): the watch experience, bottom chrome ---- */
+
+.ssg-strip {
+    position: absolute;
+    left: 236px;
+    right: 470px;
+    bottom: 0;
+    background-color: var(--ssg-panel);
+    border-top-width: 2px;
+    border-top-color: var(--ssg-line2);
+    padding: 6px 12px 8px 12px;
+}
+.ssg-strip__bar {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.ssg-strip__readout {
+    color: var(--ssg-ink2);
+    font-size: 12px;
+    letter-spacing: 1px;
+    margin-left: 10px;
+}
+.ssg-strip__branch {
+    color: var(--ssg-warn);
+    border-width: 1px;
+    border-color: var(--ssg-warn);
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 0 5px;
+    margin-left: 10px;
+}
+.ssg-strip__res {
+    flex-direction: row;
+    margin-left: 12px;
+}
+.ssg-strip__seed {
+    width: 80px;
+    margin-left: 2px;
+}
+.ssg-strip__seed--num { width: 46px; }
+.ssg-strip__lbl {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-left: 8px;
+}
+.ssg-strip__seed .unity-text-field__input {
+    background-color: var(--ssg-ground);
+    border-width: 1px;
+    border-color: var(--ssg-line2);
+    border-radius: 0;
+    color: var(--ssg-acc);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+}
+
+/* the track: era bands under an event sparkline, keyframe ticks and the
+   active marker over both; paint order = child order */
+.ssg-strip__track {
+    height: 40px;
+    background-color: var(--ssg-ground);
+    border-width: 1px;
+    border-color: var(--ssg-line1);
+}
+.ssg-strip__eras {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    flex-direction: row;
+}
+.ssg-strip__era {
+    height: 100%;
+    opacity: 0.30;
+    border-right-width: 1px;
+    border-right-color: var(--ssg-ground);
+}
+.ssg-strip__era--quiet { background-color: var(--ssg-line1); }
+.ssg-strip__era--expansion { background-color: var(--ssg-good); }
+.ssg-strip__era--treaty { background-color: var(--ssg-acc-dim); }
+.ssg-strip__era--upheaval { background-color: var(--ssg-warn); }
+.ssg-strip__era--war { background-color: var(--ssg-bad); }
+.ssg-strip__spark {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    flex-direction: row;
+    align-items: flex-end;
+}
+.ssg-strip__bin {
+    background-color: var(--ssg-acc-dim);
+    opacity: 0.8;
+}
+.ssg-strip__frame {
+    position: absolute;
+    top: 60%;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--ssg-ink3);
+}
+.ssg-strip__marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--ssg-acc);
+}
+.ssg-strip__axis {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 2px;
+}
+.ssg-strip__year {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+    letter-spacing: 1px;
 }
