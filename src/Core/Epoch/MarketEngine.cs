@@ -368,8 +368,11 @@ public static class MarketEngine
                         if (legal <= 0) continue;
                         // the escrow leaves the segment NOW; unfilled bids
                         // refund at the step's end (black-book wants go
-                        // unserved until smuggling exists, H)
+                        // unserved until smuggling exists, H). The budget
+                        // is one purse across the profile's goods — each
+                        // escrow shrinks what the next good may cap to
                         seg.Wealth -= legal * bid;
+                        budget = Math.Max(0.0, budget - legal * bid);
                         want[(int)good] += legal;
                         scratch.DemandRecords.Add(new DemandRecord(
                             mIx, seg.Id, band, (int)good, legal));
@@ -765,12 +768,22 @@ public static class MarketEngine
                 double qty = Math.Min(Math.Max(absorption, spec),
                     Math.Min(capacity,
                         BookOps.AskQty(state, src.Id, g) * eco.ExportShare));
+                // a CORP trader fronts the whole run — goods, fuel, tolls —
+                // from its own free capital (review wave: an unbounded
+                // front dipped corps thousands negative into same-step
+                // bankrupt-dissolution). The sovereign marine is different
+                // plumbing, not different virtue: by MoveFreight the
+                // treasury sits escrowed in the state's own procurement
+                // and relay bids and refunds at this step's clear, so its
+                // ledger reads empty mid-step — the state hauls on that
+                // credit line and Allocation owns its solvency
+                double budget = state.CorporationOf(fleet.OwnerActorId) != null
+                    ? Math.Max(0.0, trader.Credits) : double.MaxValue;
+                qty = Math.Min(qty, budget / Math.Max(1e-9, costPerUnit));
                 if (qty <= 1e-9) continue;
 
-                // traders run on working capital: the ledger may dip within
-                // the step; insolvency is Allocation's credit problem
                 var (drawn, grade, cost) = BookOps.LiftAsks(state, src.Id,
-                    g, qty, budget: double.MaxValue);
+                    g, qty, budget);
                 if (drawn <= 0) continue;
                 trader.Credits -= cost;
                 if (tariff > 0 && feeTo >= 0)

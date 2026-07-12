@@ -40,8 +40,10 @@ public class MarketFreightTests
         int s1 = state.PolityOf(a1.Id).SpeciesId;
         state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });
         state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0) { Wealth = 500 });
-        state.PolityOf(a0.Id).Credits = 500;
-        if (!sameOwner) state.PolityOf(a1.Id).Credits = 500;
+        // the marine trades on the owner's OWN capital now (review wave,
+        // finding 3) — a fixture polity needs a real working-capital float
+        state.PolityOf(a0.Id).Credits = 5000;
+        if (!sameOwner) state.PolityOf(a1.Id).Credits = 5000;
         state.WorldYear = 100;
         // freight only moves on posted hulls (slice E): six haulers on the lane
         EpochTestKit.PostFreight(state, a0.Id, laneId: 0, hulls: 6);
@@ -334,6 +336,50 @@ public class MarketFreightTests
         // ...and owns the asks now resting at the destination
         Assert.Contains(state.Orders, o => o.Side == OrderSide.Sell
             && o.PortId == 1 && o.Good == g && o.OwnerActorId == actorId);
+    }
+
+    /// <summary>Review fix (CE wave, finding 3): a spread run is fronted by
+    /// the trader's OWN capital — a broke corp buys nothing, however steep
+    /// the gradient, instead of dipping thousands negative and getting
+    /// bankrupt-dissolved the same step.</summary>
+    [Fact]
+    public void SpreadRun_ABrokeTrader_BuysNothing()
+    {
+        var state = EpochTestKit.Seeded().State;
+        var a0 = state.Actors[0];
+        a0.Entered = true;
+        foreach (var sp in state.Skeleton.Species)
+            sp.Embodiment = Embodiment.TerranAnalog;
+        var pa = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        var pb = new Port(1, a0.Id,
+            new HexCoordinate(a0.Seat.Q + 10, a0.Seat.R), tier: 2, 0);
+        state.Ports.Add(pa);
+        state.Ports.Add(pb);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        state.Markets.Add(new Market(1, state.Config.Economy));
+        EpochTestKit.AddLane(state, 0, 1);
+        state.WorldYear = 100;
+        int g = (int)GoodId.Provisions;
+        int actorId = state.Actors.Count;
+        state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
+            "Empty Pockets", pa.Hex, 0, new CorporateController(state.Config))
+        { Entered = true });
+        var corp = new Corporation(0, actorId, "Empty Pockets", 0,
+            CorporateNiche.Freight, pa.Id, 0) { Credits = 0 };
+        state.Corporations.Add(corp);
+        EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
+        EpochTestKit.Stock(state, 0, g, 1000, 0.6);
+        state.LedgerOf(0).Credits += 4000;
+        double bid = state.Markets[0].Price[g] * 4;
+        state.LedgerOf(0).Credits -= 300 * bid;
+        OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
+
+        var scratch = new MarketStepScratch(state);
+        MarketEngine.MoveFreight(state, scratch);
+
+        Assert.Equal(0.0, corp.Credits, 9);
+        Assert.DoesNotContain(state.Orders, o => o.Side == OrderSide.Sell
+            && o.PortId == 1 && o.OwnerActorId == actorId);
     }
 
     [Fact]

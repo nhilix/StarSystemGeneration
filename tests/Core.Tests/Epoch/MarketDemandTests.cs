@@ -58,6 +58,33 @@ public class MarketDemandTests
         Assert.True(seg.Wealth < 3.0);                // they paid for dinner
     }
 
+    /// <summary>Review fix (CE wave, finding 1): the poverty cap is a
+    /// BUDGET, not a per-good ceiling — a band whose profile carries two
+    /// or three goods must not escrow the same last credits twice. A
+    /// machine population is the sharp case: its SUBSISTENCE profile is
+    /// already two goods (fuel + machinery) with no farming baseline.</summary>
+    [Fact]
+    public void BandEscrow_NeverOverdraftsSegmentWealth()
+    {
+        var (state, _, _) = Fixture();
+        int machine = state.Skeleton.Species.Count;
+        state.Skeleton.Species.Add(new StarGen.Core.Galaxy.SpeciesProfile
+        { Id = machine, Embodiment = Embodiment.Machine, Name = "Probes" });
+        var seg = new PopulationSegment(1, portId: 0, machine, machine, 3.0)
+        { Wealth = 0.5 };                        // destitute: wants ≫ budget
+        state.Segments.Add(seg);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Fuel, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Machinery, 1000, 0.5);
+        var scratch = new MarketStepScratch(state);
+        BookOps.RepriceAsks(state);
+        MarketEngine.SupplyLands(state, scratch);
+
+        MarketEngine.PostBandBids(state, scratch);
+
+        Assert.True(seg.Wealth >= -1e-9,
+            $"the escrow overdrafted the segment to {seg.Wealth}");
+    }
+
     [Fact]
     public void UnmetSubsistence_StagesAFamineEvent()
     {

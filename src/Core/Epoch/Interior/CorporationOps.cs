@@ -962,6 +962,31 @@ public static class CorporationOps
 
     // ---- deaths and seizure ----
 
+    /// <summary>The estates pass shared by dissolution and nationalization
+    /// (slice CE review wave): resting buys refund their escrow into the
+    /// corp's settling books; resting sells, in-flight shipments, and
+    /// courier-fulfiller roles pass to the successor — nothing keeps
+    /// earning into a ledger nobody owns. Id order throughout (P6).</summary>
+    private static void SweepEstate(SimState state, Corporation corp,
+                                    int successorActorId)
+    {
+        for (int i = state.Orders.Count - 1; i >= 0; i--)
+        {
+            var o = state.Orders[i];
+            if (o.OwnerActorId != corp.ActorId) continue;
+            if (o.Side == OrderSide.Buy)
+                corp.Credits += OrderOps.CancelBuy(state, o);
+            else
+                o.OwnerActorId = successorActorId;
+        }
+        foreach (var s in state.Shipments)                    // id order (P6)
+            if (s.OwnerActorId == corp.ActorId)
+                s.OwnerActorId = successorActorId;
+        foreach (var c in state.Couriers)                     // id order (P6)
+            if (c.FulfillerActorId == corp.ActorId)
+                c.FulfillerActorId = successorActorId;
+    }
+
     /// <summary>Dissolution with residue (corporations.md §Death): assets
     /// abandon to whoever hosts them, hulls scrap, remaining credits settle
     /// on the home port's populations — a complete chronicle arc.</summary>
@@ -976,12 +1001,10 @@ public static class CorporationOps
         foreach (var p in state.Projects)                     // id order (P6)
             if (p.InFlight && p.FunderActorId == corp.ActorId)
                 ProjectOps.Cancel(state, p);
-        // resting sell orders abandon with the rest of the estate: their
-        // goods pass to each port's sovereign (a dead corp must not keep
-        // earning through the book — slice CE)
-        foreach (var o in state.Orders)                       // id order (P6)
-            if (o.Side == OrderSide.Sell && o.OwnerActorId == corp.ActorId)
-                o.OwnerActorId = state.Ports[o.PortId].OwnerActorId;
+        // the estate on the books and afloat abandons to the home port's
+        // sovereign (a dead corp must not keep earning through the book,
+        // a delivery, or a courier fee — slice CE review wave)
+        SweepEstate(state, corp, state.Ports[corp.HomePortId].OwnerActorId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId)
             {
@@ -1050,10 +1073,9 @@ public static class CorporationOps
         var pr = state.PolityOf(polityId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) f.OwnerActorId = polityId;
-        // open sell orders seize with the assets (slice CE)
-        foreach (var o in state.Orders)                       // id order (P6)
-            if (o.Side == OrderSide.Sell && o.OwnerActorId == corp.ActorId)
-                o.OwnerActorId = polityId;
+        // the open book, cargo afloat, and signed hauling jobs seize with
+        // the rest of the assets (slice CE review wave)
+        SweepEstate(state, corp, polityId);
         // seized work continues under the state: owner AND funder pass to the
         // polity so AdvanceAll keeps feeding it (no corp mobilizations) (F2)
         foreach (var p in state.Projects)                     // id order (P6)

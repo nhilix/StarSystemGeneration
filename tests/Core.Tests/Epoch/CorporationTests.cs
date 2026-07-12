@@ -111,6 +111,61 @@ public class CorporationTests
             e.Type == WorldEventType.CorporationNationalized);
     }
 
+    /// <summary>Review fix (CE wave, finding 2): the estates pass must
+    /// sweep the WHOLE estate — resting buys refund into the settling
+    /// books, in-flight cargo and courier-fulfiller roles pass to the
+    /// successor — or a dead corp keeps earning into a ledger nobody owns.</summary>
+    [Fact]
+    public void Nationalize_SweepsBuysShipmentsAndCourierRoles()
+    {
+        var state = EpochTestKit.Seeded().State;
+        var a0 = state.Actors[0];
+        a0.Entered = true;
+        var pa = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        var pb = new Port(1, a0.Id, new StarGen.Core.Model.HexCoordinate(
+            a0.Seat.Q + 10, a0.Seat.R), tier: 2, foundedYear: 0);
+        state.Ports.Add(pa);
+        state.Ports.Add(pb);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        state.Markets.Add(new Market(1, state.Config.Economy));
+        EpochTestKit.AddLane(state, 0, 1);
+        state.Config.Economy.FreightHexesPerYearBase = 0.1;  // stays afloat
+        int corpActor = state.Actors.Count;
+        state.Actors.Add(new Actor(corpActor, ActorKind.Corporation, "Vex",
+            default, state.EpochIndex,
+            new CorporateController(state.Config)) { Entered = true });
+        var corp = new Corporation(0, corpActor, "Vex", a0.Id,
+            CorporateNiche.Freight, homePortId: 0, state.WorldYear)
+        { Credits = 100 };
+        state.Corporations.Add(corp);
+        // a resting buy (escrow leaves the corp at post, the convention)
+        corp.Credits -= 50;
+        OrderOps.PostBuy(state, corpActor, 1,
+            (int)StarGen.Core.Substrate.GoodId.Ore, qty: 10, bid: 5,
+            expiryYear: state.WorldYear + 1000);
+        // an in-flight spread run owned by the corp
+        var s = ShipmentOps.Dispatch(state, corpActor, ShipmentChannel.Freight,
+            0, 1, new[] { ((int)StarGen.Core.Substrate.GoodId.Ore, 20.0, 0.5) });
+        Assert.NotNull(s);
+        // a courier the corp signed to haul
+        pa.StockQty[(int)StarGen.Core.Substrate.GoodId.Alloys] = 40;
+        var c = CourierOps.Post(state, a0.Id, 0, 1,
+            new[] { ((int)StarGen.Core.Substrate.GoodId.Alloys, 30.0) },
+            fee: 5, CourierPriority.Normal);
+        Assert.NotNull(c);
+        Assert.True(CourierOps.Accept(state, c!, corpActor));
+        var pr = state.PolityOf(a0.Id);
+        double before = pr.Credits + corp.Credits + 50;   // incl. the escrow
+
+        Assert.True(CorporationOps.Nationalize(state, a0.Id, corp.Id));
+
+        Assert.Equal(before, pr.Credits, 9);   // buy escrow settled too
+        Assert.DoesNotContain(state.Orders,
+            o => o.OwnerActorId == corpActor);
+        Assert.Equal(a0.Id, s!.OwnerActorId);  // cargo passes to the state
+        Assert.Equal(a0.Id, c!.FulfillerActorId);
+    }
+
     [Fact]
     public void HullLedgers_Conserve_AcrossCorporateFleets()
     {
