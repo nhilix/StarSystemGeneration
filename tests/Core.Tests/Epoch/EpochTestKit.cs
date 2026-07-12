@@ -64,15 +64,19 @@ public static class EpochTestKit
     }
 
     /// <summary>The first relation whose parties are both still on the
-    /// stage and not at war with each other — the crafting anchor most
-    /// slice-H tests ride (federations retire actors mid-history, so
-    /// Relations[0] can be a dead pair).</summary>
+    /// stage and fully at peace — the crafting anchor most slice-H tests
+    /// ride to stage a CONTROLLED war (federations retire actors mid-history,
+    /// so Relations[0] can be a dead pair). Both parties must be at peace
+    /// with EVERYONE, not merely with each other: once the world-time
+    /// economy lit emergent wars again (slice t1), a party already fighting a
+    /// third polity has its mobilization/fleets committed elsewhere and its
+    /// WarScore muddied, which is not the clean stage these tests assume.</summary>
     public static PolityRelation FirstLiveRelation(SimState state)
     {
         foreach (var rel in state.Relations)
             if (RelationsOps.BothLive(state, rel)
-                && WarOps.ActiveWarBetween(state, rel.PolityAId,
-                                           rel.PolityBId) == null
+                && !WarOps.AtWar(state, rel.PolityAId)
+                && !WarOps.AtWar(state, rel.PolityBId)
                 // unbonded parties: vassalage locks diplomacy and wars
                 && rel.VassalPolityId < 0
                 && FederationOps.OverlordOf(state, rel.PolityAId) < 0

@@ -56,8 +56,8 @@ public class WarResolutionTests
         PolityRelation? rel = null;
         foreach (var r in state.Relations)
             if (RelationsOps.BothLive(state, r)
-                && WarOps.ActiveWarBetween(state, r.PolityAId, r.PolityBId)
-                   == null)
+                && !WarOps.AtWar(state, r.PolityAId)
+                && !WarOps.AtWar(state, r.PolityBId))
             { rel = r; break; }
         Assert.NotNull(rel);
         double attackerBefore = WarResolution.WarScore(state, rel!.PolityAId);

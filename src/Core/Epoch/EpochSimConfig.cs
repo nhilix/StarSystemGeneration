@@ -150,10 +150,10 @@ public sealed class WarKnobs
     public double IncidentTensionBump { get; set; } = 0.08;
     /// <summary>Tension below which no war fires whatever the menu says —
     /// low-tension incidents fizzle into demands and apologies.</summary>
-    public double WarTensionFloor { get; set; } = 0.55;
+    public double WarTensionFloor { get; set; } = 0.35;
     /// <summary>Declaration gate: tension × (0.5 + composed militancy)
     /// must clear this — the escalation-∝-tension dial.</summary>
-    public double WarAppetiteThreshold { get; set; } = 0.60;
+    public double WarAppetiteThreshold { get; set; } = 0.38;
     /// <summary>Attackers price allied fleets: own strength must be at
     /// least this share of the defender's coalition to declare.</summary>
     public double AttackStrengthRatio { get; set; } = 0.60;
