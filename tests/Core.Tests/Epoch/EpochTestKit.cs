@@ -74,7 +74,10 @@ public static class EpochTestKit
         };
         fleet.AddHulls(design.Id, hulls, 0.5);
         state.Fleets.Add(fleet);
-        state.PolityOf(actorId).HullsBuilt += hulls;
+        if (state.CorporationOf(actorId) is { } corp)
+            corp.HullsBuilt += hulls;
+        else
+            state.PolityOf(actorId).HullsBuilt += hulls;
         return fleet;
     }
 

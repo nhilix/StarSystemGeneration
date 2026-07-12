@@ -288,6 +288,54 @@ public class MarketFreightTests
         Assert.Equal(pb.Id, scratch.ProcureBids[1].Port.Id);
     }
 
+    /// <summary>C8: the trader is whoever POSTED the hulls — a corp fleet
+    /// on the lane buys the spread with corp capital and owns the arrival
+    /// asks; its profit books when they sell (P5: profit walks the goods).</summary>
+    [Fact]
+    public void SpreadRun_ACorpFleet_TradesWithItsOwnCapital()
+    {
+        // a lane whose ONLY posted hulls are a corp's — no merchant marine
+        var state = EpochTestKit.Seeded().State;
+        var a0 = state.Actors[0];
+        a0.Entered = true;
+        foreach (var sp in state.Skeleton.Species)
+            sp.Embodiment = Embodiment.TerranAnalog;
+        var pa = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        var pb = new Port(1, a0.Id,
+            new HexCoordinate(a0.Seat.Q + 10, a0.Seat.R), tier: 2, 0);
+        state.Ports.Add(pa);
+        state.Ports.Add(pb);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        state.Markets.Add(new Market(1, state.Config.Economy));
+        EpochTestKit.AddLane(state, 0, 1);
+        state.WorldYear = 100;
+        int g = (int)GoodId.Provisions;
+        int actorId = state.Actors.Count;
+        state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
+            "Test Line", pa.Hex, 0, new CorporateController(state.Config))
+        { Entered = true });
+        var corp = new Corporation(0, actorId, "Test Line", 0,
+            CorporateNiche.Freight, pa.Id, 0) { Credits = 500 };
+        state.Corporations.Add(corp);
+        EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
+
+        EpochTestKit.Stock(state, 0, g, 1000, 0.6);
+        state.LedgerOf(0).Credits += 4000;
+        double bid = state.Markets[0].Price[g] * 4;
+        state.LedgerOf(0).Credits -= 300 * bid;
+        OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
+
+        var scratch = new MarketStepScratch(state);
+        MarketEngine.MoveFreight(state, scratch);
+
+        // the corp paid for the goods out of its own book...
+        Assert.True(corp.Credits < 500,
+            "the trader fronts the purchase with its own capital");
+        // ...and owns the asks now resting at the destination
+        Assert.Contains(state.Orders, o => o.Side == OrderSide.Sell
+            && o.PortId == 1 && o.Good == g && o.OwnerActorId == actorId);
+    }
+
     [Fact]
     public void GenesisController_TargetsAProvisionsReserve()
     {

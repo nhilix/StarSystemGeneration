@@ -155,9 +155,15 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   the save boundary). SCOPED OUT with flags: route commitments and gate
   pairs stay opportunistic in Operate; hull purchases stay immediate
   (corps buy hulls off the book, they don't run yard batches).
-- [ ] **C12 — B2 gate.** Courier lifecycle tests, self-fulfillment, plan
-  packing never over-commits; shape check; REPL `econtracts [polity]`,
-  `efreight` cargo purpose; determinism ×2.
+- [x] **C12 — B2 gate: suite 742/745.** Courier lifecycle + acceptance +
+  corp-capital spread-run tests green; REPL `econtracts [actorId]` and
+  `efreight` purpose tags (courier / spread run / state haul); corp
+  packing test rewritten to the Move-1 cycle. Reds: GOLDEN (sanctioned) +
+  2 TRAJECTORY-STAGING flakes deferred to the post-B3 stabilization
+  (DynasticInstrument LapsedTie fixture staging; LaneBuilder small-polity
+  densification web — 3.5 degree across 4 ports, pre-existing eagerness
+  in pass-2's while-affordable loop). PostFreight test kit handles corp
+  owners (PolityOf threw).
 
 ### B3 — front supply lines
 

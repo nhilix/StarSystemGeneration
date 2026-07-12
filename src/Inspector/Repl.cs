@@ -49,6 +49,7 @@ public sealed class Repl
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
                     Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
+                    Console.WriteLine("econtracts [actorId] — open/in-transit courier contracts: route, cargo, fee, fulfiller");
                     Console.WriteLine("emap works — construction sites and freight on the move (the in-flight world)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
@@ -283,6 +284,16 @@ public sealed class Repl
                     RenderFreight(_sim);
                     break;
                 case "efreight":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "econtracts" when _sim != null:
+                {
+                    int poster = -1;
+                    if (parts.Length >= 2) int.TryParse(parts[1], out poster);
+                    RenderContracts(_sim, poster);
+                    break;
+                }
+                case "econtracts":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "ebook" when _sim != null && parts.Length >= 2
@@ -879,12 +890,48 @@ public sealed class Repl
             string eta = stalled ? "STALLED"
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
+            // purpose (slice CE): courier cargo vs a trader's spread run
+            bool isCourier = false;
+            foreach (var c in sim.Couriers)
+                if (c.Status == Core.Epoch.CourierStatus.InTransit
+                    && c.ShipmentId == s.Id)
+                { isCourier = true; break; }
+            string purpose = isCourier ? "courier"
+                : s.Channel == Core.Epoch.ShipmentChannel.Freight
+                    ? "spread run" : "state haul";
             Console.WriteLine(FormattableString.Invariant(
-                $"  #{s.Id,-6} {s.Channel,-12} {route,-21} {string.Join(", ", cargo),-32} ")
+                $"  #{s.Id,-6} {purpose,-11} {route,-21} {string.Join(", ", cargo),-32} ")
                 + FormattableString.Invariant(
                 $"{s.YearsInTransit,5:0.0}/{s.TotalYears,-6:0.0} ")
                 + eta + $"  ({owner})");
         }
+    }
+
+    /// <summary>`econtracts` (slice CE): the courier job board — open and
+    /// in-transit contracts with route, cargo, fee, and fulfiller.</summary>
+    private static void RenderContracts(Core.Epoch.SimState sim, int poster)
+    {
+        bool any = false;
+        Console.WriteLine("  id     prio    route          cargo                        fee      status");
+        foreach (var c in sim.Couriers)
+        {
+            if (poster >= 0 && c.PosterActorId != poster) continue;
+            any = true;
+            var cargo = new System.Collections.Generic.List<string>();
+            for (int g = 0; g < c.Qty.Length && cargo.Count < 3; g++)
+                if (c.Qty[g] > 0)
+                    cargo.Add(FormattableString.Invariant(
+                        $"{c.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            string status = c.Status == Core.Epoch.CourierStatus.Open
+                ? "OPEN"
+                : $"in transit ({OwnerName(sim, c.FulfillerActorId)})";
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{c.Id,-6} {c.Priority,-7} #{c.OriginPortId}->#{c.DestPortId,-8} ")
+                + FormattableString.Invariant(
+                $"{string.Join(", ", cargo),-28} {c.FeeEscrow,7:0.0}  ")
+                + status + $"  ({OwnerName(sim, c.PosterActorId)})");
+        }
+        if (!any) Console.WriteLine("  (no open contracts)");
     }
 
     /// <summary>`ebook` (slice CE): one port's order book — resting asks
