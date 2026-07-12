@@ -231,12 +231,20 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   allocation ranks (priority, id), fee level prices nothing — spec §3
   deviation to amend or revisit; (16) Prune's 1e-12 residue + O(n)
   removals; (20) RouteFill linear scans. Suite 821/822 (golden only).
-- [ ] **C18 — tuning + golden re-freeze ONCE.** `emap trade` spread lens;
-  knobs registered + TUNING.md swept.
-- [ ] **C19 — wrap-up docs.** Design-tree amendments (markets,
-  corporations, controller-contract, assets-and-investment, war,
-  perception-and-news); HANDOFF; next kickoff prompt; eyeball + merge
-  decision (user gates 2 and 3).
+- [x] **C18 — tuning + golden re-freeze ONCE.** `emap trade` lens (per
+  lane, steepest ACTIONABLE gradient — asks at the cheap end; saturated
+  without the filter); `efreight` war-convoy tag; TUNING.md swept (CE
+  knobs added, ParityHeadroom marked inert, RealmHungerGate note); golden
+  re-frozen — suite 822/822, the golden-vs-regeneration match doubling as
+  determinism ×2. World-health spot check: 1262 project completions,
+  successions/plagues/pacts all live at seed 42.
+- [ ] **C19 — wrap-up docs.** Design-tree amendments DONE (markets.md
+  rewritten to the order-book step + couriers; war.md front supply lines;
+  corporations.md plans/speculation/estates; assets-and-investment yards +
+  savings packing + abandon clock; controller-contract; perception
+  corporate brief; infrastructure port-raise exotics; spec amendments
+  block). REMAINING: eyeball gate → merge decision (user gates 2 and 3) →
+  merge to main → HANDOFF → next kickoff prompt → push on user say-so.
 
 ## Carried / flagged (running)
 
