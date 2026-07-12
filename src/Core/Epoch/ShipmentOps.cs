@@ -24,6 +24,18 @@ public static class ShipmentOps
         MarketStepScratch? scratch = null)
     {
         var (laneIds, legYears) = PlanRoute(state, fromPortId, toPortId);
+        return DispatchVia(state, ownerActorId, channel, fromPortId,
+            toPortId, laneIds, legYears, basket, scratch);
+    }
+
+    /// <summary>Dispatch over an already-chosen route — arbitrage moves on
+    /// THE lane its haulers are posted to, not a recomputed path.</summary>
+    public static Shipment? DispatchVia(SimState state, int ownerActorId,
+        ShipmentChannel channel, int fromPortId, int toPortId,
+        IReadOnlyList<int> laneIds, IReadOnlyList<double> legYears,
+        IReadOnlyList<(int Good, double Qty, double Grade)> basket,
+        MarketStepScratch? scratch = null)
+    {
         double total = 0;
         foreach (var y in legYears) total += y;
         int span = state.Config.Sim.YearsPerEpoch;
@@ -55,6 +67,17 @@ public static class ShipmentOps
         }
     }
 
+    /// <summary>One lane's transit years for freight (spec §4b: gate tier
+    /// sets speed).</summary>
+    public static double LaneLegYears(SimState state, Lane lane)
+    {
+        double hexes = HexGrid.Distance(state.Ports[lane.PortAId].Hex,
+                                        state.Ports[lane.PortBId].Hex);
+        return hexes / Math.Max(1e-9,
+            state.Config.Economy.FreightHexesPerYearBase
+            * LaneMath.TransitSpeed(state, lane));
+    }
+
     /// <summary>The route and its leg years: the shortest live-lane path
     /// when one exists (leg speed = FreightHexesPerYearBase × the lane's
     /// gate-tier TransitSpeed), else one off-lane crawl leg (spec §4b).</summary>
@@ -73,13 +96,7 @@ public static class ShipmentOps
         }
         var legYears = new double[laneIds.Count];
         for (int i = 0; i < laneIds.Count; i++)
-        {
-            var lane = state.Lanes[laneIds[i]];
-            double hexes = HexGrid.Distance(state.Ports[lane.PortAId].Hex,
-                                            state.Ports[lane.PortBId].Hex);
-            legYears[i] = hexes / Math.Max(1e-9,
-                eco.FreightHexesPerYearBase * LaneMath.TransitSpeed(state, lane));
-        }
+            legYears[i] = LaneLegYears(state, state.Lanes[laneIds[i]]);
         return (laneIds, legYears);
     }
 

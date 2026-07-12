@@ -148,6 +148,40 @@ public class MarketFreightTests
         Assert.Equal(0.0, mB.Inventory[(int)GoodId.Narcotics]);
     }
 
+    /// <summary>Stage 2 (spec §4b, §5 Freight-delivery row): the market
+    /// channel's routed goods take transit time — a slow route turns the
+    /// trade into a shipment record arriving in a future year; costs still
+    /// settle at departure, the sale lands with arrival.</summary>
+    [Fact]
+    public void Arbitrage_OverASlowRoute_BecomesAShipmentInTransit()
+    {
+        var (state, pa, pb) = TwoPortFixture();
+        state.Config.Sim.YearsPerEpoch = 1;
+        state.Config.Economy.FreightHexesPerYearBase = 1.0;   // 5y transit
+        var mA = state.Markets[0];
+        var mB = state.Markets[1];
+        mA.Deposit((int)GoodId.Provisions, 1000, 0.6);
+        mB.Price[(int)GoodId.Provisions] = mA.Price[(int)GoodId.Provisions] * 4;
+        var scratch = new MarketStepScratch(state);
+        scratch.Demand[1][(int)GoodId.Provisions] = 500;
+
+        MarketEngine.MoveFreight(state, scratch);
+
+        Assert.Equal(0.0, mB.Inventory[(int)GoodId.Provisions]);
+        var s = Assert.Single(state.Shipments);
+        Assert.Equal(ShipmentChannel.Freight, s.Channel);
+        Assert.True(s.Qty[(int)GoodId.Provisions] > 0,
+            "the routed goods ride the shipment");
+        Assert.True(mA.Inventory[(int)GoodId.Provisions] < 1000,
+            "the goods left the source at departure");
+
+        for (int i = 0; i < 4; i++)
+            ShipmentOps.Advance(state, new MarketStepScratch(state));
+        Assert.Empty(state.Shipments);
+        Assert.True(mB.Inventory[(int)GoodId.Provisions] > 0,
+            "arrival puts the cargo on the destination shelf");
+    }
+
     /// <summary>Stage 2 (spec §4b): procurement buys into the LOCAL port
     /// stockpile — stock lands where it was bought, never in a polity pool.</summary>
     [Fact]

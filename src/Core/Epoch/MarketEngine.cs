@@ -830,7 +830,15 @@ public static class MarketEngine
                 scratch.Demand[src.Id][(int)GoodId.Fuel] += drawn * fuelUnits;
                 double fuelDrawn = mSrc.Draw((int)GoodId.Fuel, drawn * fuelUnits);
                 mSrc.LastCleared[(int)GoodId.Fuel] += fuelDrawn;
-                Deposit(state, scratch, dst.Id, src.OwnerActorId, g, drawn, grade);
+                // the routed goods take transit time (spec §4b): a hop
+                // inside the step lands now (sub-step blur); a longer haul
+                // rides a shipment record and sells on arrival — costs
+                // settled above either way
+                ShipmentOps.DispatchVia(state, src.OwnerActorId,
+                    ShipmentChannel.Freight, src.Id, dst.Id,
+                    new[] { lane.Id },
+                    new[] { ShipmentOps.LaneLegYears(state, lane) },
+                    new[] { (g, drawn, grade) }, scratch);
                 scratch.LaneCapacityUsed[lane.Id] += drawn;
                 capacity -= drawn;
                 shipments++;
