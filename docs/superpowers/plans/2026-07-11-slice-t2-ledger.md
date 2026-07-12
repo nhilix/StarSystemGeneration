@@ -63,7 +63,35 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
   `GraduationOps` schism (seceding ports carry stock — delete split);
   serializer STOCK write/load + RESERVE delete; `PolityRecord.ReserveQty/Grade`
   deleted; tests migrated. Gate: suite green except golden/carried.
-- [ ] **T2 — shipments + transit.** `Shipment` record, `SimState.Shipments`,
+- [x] **T2 — shipments + transit.** COMPLETE. Shipment record + SimState
+  registry (in-flight only; NextShipmentId keeps identity; shipments layer
+  v1); Dispatch/DispatchVia with route-priced leg years (FreightHexesPerYear-
+  Base × TransitSpeed; off-lane crawl); sub-step transits deliver immediately
+  (no record — coarse blur); Advance at Markets open (arrivals land BEFORE
+  supply/draws), stalls at severed/quarantined/dead legs; piracy channel 75
+  (loot to the hunting band's haven, band credited as supplier).
+- [x] **T3 — MoveFreight transit conversion.** COMPLETE — Arbitrage routes
+  through DispatchVia on its own lane; costs settle at departure, the sale
+  lands with arrival.
+- [x] **T4 — Pass-1 local draws + per-end gate draws.** COMPLETE (local draws
+  landed in T1's Feed rewrite; owner-gated site-stock fallback). GatePair
+  feeds per end, scarcer end paces; AddConstructionPull registers half at
+  each end (skipping this killed every frontier pair — the full-run world
+  went dead until the demand signal followed the draw).
+- [x] **T5 — requisition channel.** COMPLETE for in-flight projects (plan-
+  entry pre-positioning folded into T6's located-brief work). Allocation
+  raises orders from own ports' stock toward under-covered sites (gate pairs
+  both ends); quartermaster stores (provisions/fuel/parts/armaments) keep
+  their target share — draining them wrecked every navy in the first
+  attempt; construction stock moves freely. Orders capped at the route's
+  weakest-lane capacity over the provisioning window; sources in port-id
+  order (nearest-first = contract-economy refinement, flagged).
+  **Found + fixed a pre-main dead knob**: `Budget.Reserves` (0.10) was never
+  accrued or spent — the seed-42 golden holds ZERO RESERVE lines; polity
+  procurement always lost to the drained credit balance. Stage 2 gives it
+  its mechanism: `PolityRecord.ReservePoints` (POLITY tail, actors v7),
+  accrued in the budget split, spent by Procure, split/merged/conserved
+  everywhere the other treasuries are. `Shipment` record, `SimState.Shipments`,
   routing over `LaneNetwork` with transit years, arrival processing at Markets
   open, blockade/quarantine stall, serialization layer, fixed iteration by id.
   Tests: requisition transit (goods leave at departure, exist only in the
@@ -114,6 +142,22 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
 ## Carried / flagged (running)
 
 - Golden red (sanctioned window) — re-freeze once at T12 after the fix wave.
+- **Carried reds to T12 tuning** (root-caused as shape drift, not defects):
+  `ExpansionTests.FullRun_EstablishesColonyPortsBeyondHomeworlds` (44 ports
+  vs >45) and `GenesisShapeTests.FortyEpochHistory_StaysAlive` (57 ports vs
+  67 polities) — colonization pace sits a hair under the acceptance bars
+  after the located rewiring. Diag trend is HEALTHY (stock banks, lanes
+  unstall, hull batches 49 vs 26 pre-channel); the throttle is colony-hull
+  scarcity (D'Hondt slots go to freight/warships) plus high expedition
+  turn-back contention. T5/T6 siting changes will move these again — tune
+  once at T12 (colony shipbuilding weight / candidate contention).
+- Expedition turn-back rate is high (~30 spawned → few foundings; targets
+  collide at coarse-step lag). Review/tuning candidate, possibly candidate
+  filtering against in-flight rival expeditions (P3 question — convoys are
+  public residue).
+- Requisition sourcing is port-id ordered, not nearest-first; per-order
+  capacity cap approximates shared lane capacity — both flagged for the
+  contract-economy pass.
 - T7 scope now: founding-cadence world-time gate + FineTick hulls-band
   tightening (the slot floor itself landed in T1).
 - Coarse-tick built-world output is thin galaxy-wide (1 facility groundbreak
