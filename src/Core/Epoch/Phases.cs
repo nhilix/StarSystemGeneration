@@ -274,8 +274,10 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
-        // stale job postings clear the board before anything sails
+        // stale job postings clear the board before anything sails, and
+        // orders past their expiry refund/escheat (spec §2 step 2)
         CourierOps.ExpireOpen(state);
+        OrderOps.ExpireOrders(state);
         // in-flight freight sails first (spec §4b): this step's arrivals
         // post on the books and land in the larders BEFORE supply, demand,
         // and the Allocation draws that follow
@@ -291,8 +293,9 @@ public sealed class MarketsPhase : ISimPhase
         // consumers who lift asks directly still register their want, so
         // the reference drift prices the scarcity they are about to cause
         MarketEngine.AddConsumptionSignal(state, scratch);
-        // the bridge (B1 only — dies when corps fulfill in B2): freight
-        // lifts cheap asks toward the dear end's REAL resting bids
+        // spread runs (B2): every posted fleet's owner trades the lane's
+        // price gradient with its own capital — absorption reads the dear
+        // end's REAL resting bids, the speculative term its reference
         var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
         // the express earn-in clock: consecutive saturated world-years of
         // the lane's posted capacity (lane-economics spec §3.4; the clock

@@ -34,7 +34,10 @@ public sealed class MarketOrder
     /// doesn't).</summary>
     public double EscrowCredits { get; set; }
     public int PostedYear { get; }
-    public int ExpiryYear { get; }
+    /// <summary>Settable: a restocked supply quote is a fresh commitment —
+    /// PostSupply's blend refreshes it, so an ACTIVE producer's rolling
+    /// order never escheats; only truly stale books do.</summary>
+    public int ExpiryYear { get; set; }
 
     public MarketOrder(int id, OrderSide side, int ownerActorId, int portId,
                        int good, double limitPrice, double qtyRemaining,

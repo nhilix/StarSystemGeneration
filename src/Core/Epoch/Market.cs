@@ -6,17 +6,19 @@ namespace StarGen.Core.Epoch;
 /// port's service area meets the lane network. THE MARKET IS THE ORDER
 /// BOOK (contract-economy spec §2): goods for sale live on named sellers'
 /// orders in SimState.Orders — the anonymous shelf is dead. What remains
-/// here per good: the reference price (last prints, falling back to best
-/// ask — the readout every valuation keeps reading), the last-cleared
-/// quantity, and the black book for goods prohibited under local law.
+/// here per good: the reference price (drifts rate-limited on book
+/// imbalance in MatchAndClear — the readout every valuation keeps
+/// reading), the last-cleared quantity, and the black book for goods
+/// prohibited under local law.
 /// Registry in SimState.Markets, parallel to Ports (market id = port id).
 /// Iteration is port-id then good-id order everywhere (P6); matching is
 /// roll-free.</summary>
 public sealed class Market
 {
     public int PortId { get; }
-    /// <summary>The reference price per good: this step's volume-weighted
-    /// prints, else the best surviving ask, else yesterday's value.</summary>
+    /// <summary>The reference price per good: yesterday's value moved by
+    /// the rate-clamped imbalance drift (posted bids + consumption signal
+    /// vs resting asks, snapshotted pre-match).</summary>
     public double[] Price { get; }
     /// <summary>Quantity cleared (traded) in the last market step.</summary>
     public double[] LastCleared { get; }

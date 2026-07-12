@@ -41,11 +41,14 @@ public static class CourierOps
     }
 
     /// <summary>Take every open contract a carrier can serve, in (priority,
-    /// id) order (spec §3): the fulfiller is whoever posts the deepest
-    /// freight capacity on the route's first lane — the POSTER ITSELF when
-    /// its own hulls are the deepest (self-fulfillment at cost: the fee
-    /// pays back into its own ledger). A route with no lane at all is the
-    /// state hauling its own goods off-lane, as ever. Returns acceptances.</summary>
+    /// id) order (spec §3): the fulfiller is whoever holds the deepest
+    /// REMAINING step lift on the route's first lane — the POSTER ITSELF
+    /// when its own hulls are the deepest (self-fulfillment at cost: the
+    /// fee pays back into its own ledger). Acceptance charges the carrier's
+    /// real capacity (review wave, finding 5), so War priority genuinely
+    /// takes the hulls and commerce waits behind an exhausted board. A
+    /// route with no lane at all is the state hauling its own goods
+    /// off-lane, as ever. Returns acceptances.</summary>
     public static int AcceptOpen(SimState state)
     {
         var open = new List<CourierContract>();
@@ -57,31 +60,41 @@ public static class CourierOps
             return p != 0 ? p : x.Id.CompareTo(y.Id);
         });
         int accepted = 0;
+        var liftLeft = new Dictionary<int, double>();     // fleet id → units
         foreach (var c in open)
         {
             var (laneIds, _) = ShipmentOps.PlanRoute(state, c.OriginPortId,
                                                      c.DestPortId);
             int fulfiller = c.PosterActorId;              // off-lane: self
+            FleetRecord? carrier = null;
             if (laneIds.Count > 0)
             {
                 var lane = state.Lanes[laneIds[0]];
                 double best = 0;
-                int bestOwner = -1;
                 foreach (var fleet in state.Fleets)       // id order (P6)
                 {
                     if (fleet.Posture != FleetPosture.Posted
                         || fleet.TargetId != lane.Id
                         || fleet.TotalHulls == 0) continue;
-                    double cap = fleet.TotalHulls * fleet.Readiness;
-                    if (cap > best
-                        || (cap == best && bestOwner >= 0
-                            && fleet.OwnerActorId < bestOwner))
-                    { best = cap; bestOwner = fleet.OwnerActorId; }
+                    if (!liftLeft.TryGetValue(fleet.Id, out double left))
+                        left = FleetOps.PostedLift(state, fleet, lane);
+                    if (left > best)
+                    { best = left; carrier = fleet; }
                 }
-                if (bestOwner < 0) continue;              // no hulls, no haul
-                fulfiller = bestOwner;
+                if (carrier == null) continue;      // no free hulls, no haul
+                fulfiller = carrier.OwnerActorId;
             }
-            if (Accept(state, c, fulfiller)) accepted++;
+            if (!Accept(state, c, fulfiller)) continue;
+            accepted++;
+            if (carrier != null)
+            {
+                double units = 0;
+                for (int g = 0; g < c.Qty.Length; g++) units += c.Qty[g];
+                if (!liftLeft.TryGetValue(carrier.Id, out double left))
+                    left = FleetOps.PostedLift(state, carrier,
+                        state.Lanes[laneIds[0]]);
+                liftLeft[carrier.Id] = left - units;
+            }
         }
         return accepted;
     }

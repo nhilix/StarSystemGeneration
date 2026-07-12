@@ -572,8 +572,17 @@ public static class MarketEngine
         var fleetKnobs = state.Config.Fleet;
         foreach (var fleet in state.Fleets)               // id order (P6)
         {
-            if (fleet.TotalHulls == 0 || fleet.HomePortId < 0
-                || fleet.HomePortId >= state.Markets.Count) continue;
+            if (fleet.TotalHulls == 0) continue;
+            // the signal points where the DRAW happens: a war-stationed
+            // force victuals at its forward depot (spec §4), so that is
+            // the reference price its burn should spike — not the home
+            // port a sector behind the line (review wave, finding 10)
+            int at = fleet.Posture is FleetPosture.Blockade
+                         or FleetPosture.Expedition
+                ? FleetOps.NearestOwnedPortId(state, fleet.OwnerActorId,
+                                              fleet.Hex)
+                : fleet.HomePortId;
+            if (at < 0 || at >= state.Markets.Count) continue;
             double posture = fleet.Posture == FleetPosture.Reserve
                 ? fleetKnobs.ReserveUpkeepFactor : 1.0;
             bool atWar = WarOps.AtWar(state, fleet.OwnerActorId);
@@ -584,14 +593,14 @@ public static class MarketEngine
                 double draw = sheet[ShipStat.Upkeep] * g.Count
                               * fleetKnobs.UpkeepUnitsPerPointPerYear * years
                               * posture;
-                scratch.SignalDemand[fleet.HomePortId][(int)GoodId.Fuel]
+                scratch.SignalDemand[at][(int)GoodId.Fuel]
                     += draw * fleetKnobs.UpkeepFuelShare;
                 int rest = ShipCatalog.IsWarship(design.Role)
                     ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
-                scratch.SignalDemand[fleet.HomePortId][rest]
+                scratch.SignalDemand[at][rest]
                     += draw * (1 - fleetKnobs.UpkeepFuelShare);
                 if (atWar && ShipCatalog.IsWarship(design.Role))
-                    scratch.SignalDemand[fleet.HomePortId][(int)GoodId.Provisions]
+                    scratch.SignalDemand[at][(int)GoodId.Provisions]
                         += g.Count * posture * years
                            * state.Config.War.RationsPerHullPerYear;
             }
@@ -639,14 +648,15 @@ public static class MarketEngine
         }
     }
 
-    /// <summary>Relay bids — B1 bridge machinery, dies with the bridge in
-    /// B2 (corps speculate multi-hop then): the old re-export term as REAL
-    /// escrowed bids. Wherever a live, hulled lane shows a price gradient,
-    /// the cheap end's sovereign bids at its own reference price to stage
-    /// goods for export; the fills go straight back on sale at the hub
-    /// (RouteFill), so the NEXT step's bridge carries them a hop onward.
-    /// Without this, goods refuse to cross more than one hop and every
-    /// frontier project starves; with it, entrepôts emerge — funded.</summary>
+    /// <summary>Relay bids — funded re-export staging, KEPT past B2 (a
+    /// flagged deviation: spread runs are single-lane, so hop-by-hop
+    /// diffusion still needs the cheap end's sovereign staging goods until
+    /// multi-hop actor runs land — the C18 carried flag). Wherever a live,
+    /// hulled lane shows a price gradient, the cheap end's sovereign bids
+    /// at its own reference price; the fills go straight back on sale at
+    /// the hub (RouteFill), so the NEXT step's spread run carries them a
+    /// hop onward. Without this, goods refuse to cross more than one hop
+    /// and every frontier project starves; with it, entrepôts emerge.</summary>
     public static void PostRelayBids(SimState state, MarketStepScratch scratch)
     {
         var eco = state.Config.Economy;

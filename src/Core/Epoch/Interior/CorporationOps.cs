@@ -195,7 +195,8 @@ public static class CorporationOps
     }
 
     /// <summary>Would a hauler on this lane actually clear the freight-niche
-    /// margin? Mirrors MarketEngine.Arbitrage's per-unit economics.</summary>
+    /// margin? Mirrors the spread run's per-unit economics
+    /// (MarketEngine.MoveFreight — the old engine Arbitrage is deleted).</summary>
     private static bool LaneCarriesProfit(SimState state, Lane lane,
                                           double margin) =>
         PairCarriesProfit(state, lane.PortAId, lane.PortBId, margin);

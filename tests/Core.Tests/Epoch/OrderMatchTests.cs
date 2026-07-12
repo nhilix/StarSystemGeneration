@@ -32,6 +32,36 @@ public class OrderMatchTests
         return state;
     }
 
+    /// <summary>Review fix (CE wave, finding 4): spec §2 step 2 — expired
+    /// orders refund. A buy returns its escrow to the owner; a sell's
+    /// abandoned goods escheat to the port's stockpile (dock storage
+    /// lapsed) — nothing sits on a book forever.</summary>
+    [Fact]
+    public void ExpiredOrders_Refund_AndEscheat()
+    {
+        var state = Fixture();
+        var seller = state.LedgerOf(1);
+        double sellerBefore = seller.Credits;
+        OrderOps.PostSell(state, 1, 0, G, qty: 25.0, grade: 0.7,
+            ask: 3.0, expiryYear: 99);            // already lapsed
+        var live = OrderOps.PostSell(state, 1, 0, G, qty: 5.0, grade: 0.7,
+            ask: 3.0, expiryYear: 150);
+        var buy = OrderOps.PostBuy(state, 0, 0, G, qty: 10.0, bid: 4.0,
+            expiryYear: 99);
+        double escrow = buy.EscrowCredits;
+        var sovereign = state.PolityOf(0);
+        double sovereignBefore = sovereign.Credits;
+
+        int expired = OrderOps.ExpireOrders(state);
+
+        Assert.Equal(2, expired);
+        Assert.Contains(live, state.Orders);
+        Assert.DoesNotContain(buy, state.Orders);
+        Assert.Equal(sovereignBefore + escrow, sovereign.Credits, 6);
+        Assert.Equal(25.0, state.Ports[0].StockQty[G], 6);
+        Assert.Equal(sellerBefore, seller.Credits, 6);   // goods, not money
+    }
+
     [Fact]
     public void MatchPort_Crosses_AtMakerPrice_TaxAndWagesConserved()
     {

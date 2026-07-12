@@ -430,8 +430,8 @@ public class MarketFreightTests
         Assert.Equal(before, Total(state), 6);
     }
 
-    /// <summary>Credits live in ledgers, segment wealth, and open-order
-    /// escrow — all conserved together (spec §5).</summary>
+    /// <summary>Credits live in ledgers, segment wealth, open-order escrow,
+    /// and courier fee escrow — all conserved together (spec §5).</summary>
     private static double Total(SimState state)
     {
         double total = 0;
@@ -441,6 +441,7 @@ public class MarketFreightTests
         foreach (var s in state.Segments) total += s.Wealth;
         foreach (var o in state.Orders) total += o.EscrowCredits;
         foreach (var c in state.Corporations) total += c.Credits;
+        foreach (var c in state.Couriers) total += c.FeeEscrow;
         return total;
     }
 }

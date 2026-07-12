@@ -25,6 +25,11 @@ public static class BookOps
                 double total = o.QtyRemaining + qty;
                 o.Grade = (o.QtyRemaining * o.Grade + qty * grade) / total;
                 o.QtyRemaining = total;
+                // restock refreshes the commitment: an active producer's
+                // rolling order never expires under it (tick-honest, P7 —
+                // only stale, unreplenished books escheat)
+                o.ExpiryYear = state.WorldYear + (int)Math.Round(
+                    state.Config.Economy.OrderExpiryYears);
                 return o;
             }
         var eco = state.Config.Economy;

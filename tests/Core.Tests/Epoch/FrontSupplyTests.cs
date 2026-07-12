@@ -190,20 +190,22 @@ public class FrontSupplyTests
     public void WarCouriers_OutrankCommerce_AtTheJobBoard()
     {
         var (state, pr, home, fwd) = TwoPortRealm();
-        EpochTestKit.AddLane(state, home.Id, fwd.Id);
-        EpochTestKit.PostFreight(state, pr.ActorId, 0, 4);
+        var lane = EpochTestKit.AddLane(state, home.Id, fwd.Id);
+        var fleet = EpochTestKit.PostFreight(state, pr.ActorId, 0, 4);
         // slow boats: the crossing outlasts the step, so both contracts
         // ride REGISTERED shipments and the dispatch order is observable
         state.Config.Economy.FreightHexesPerYearBase = 0.1;
+        // both fit the fleet's step lift — ORDER is what's under test here
+        double load = FleetOps.PostedLift(state, fleet, lane) / 4;
         home.StockQty[(int)GoodId.Provisions] = 1000;
         home.StockQty[(int)GoodId.Armaments] = 1000;
         pr.Credits = 10000;
         // commerce posts first (lower contract id), the war order second
         var trade = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
-            new[] { ((int)GoodId.Provisions, 100.0) }, fee: 10,
+            new[] { ((int)GoodId.Provisions, load) }, fee: 10,
             CourierPriority.Normal);
         var war = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
-            new[] { ((int)GoodId.Armaments, 100.0) }, fee: 10,
+            new[] { ((int)GoodId.Armaments, load) }, fee: 10,
             CourierPriority.War);
         Assert.NotNull(trade);
         Assert.NotNull(war);
@@ -216,6 +218,70 @@ public class FrontSupplyTests
         Assert.Equal(CourierStatus.InTransit, trade!.Status);
         Assert.True(war.ShipmentId < trade.ShipmentId,
             "War priority dispatches ahead of Normal");
+    }
+
+    /// <summary>Review fix (CE wave, finding 6): the depot forecast counts
+    /// the depot's BOOK as coverage (the fleet draw lifts asks first) and
+    /// caps at warehouse capacity — otherwise overflow re-posts as asks the
+    /// shortfall never sees and the quartermaster reorders forever.</summary>
+    [Fact]
+    public void Quartermaster_CountsTheDepotBook_AndItsCapacity()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        Deploy(state, pr.ActorId,
+            new HexCoordinate(fwd.Hex.Q + 2, fwd.Hex.R), home.Id, hulls: 40);
+        home.StockQty[(int)GoodId.Fuel] = 100000;
+        home.StockQty[(int)GoodId.Armaments] = 100000;
+        // the depot's book already brims with fuel and armaments
+        EpochTestKit.Stock(state, fwd.Id, (int)GoodId.Fuel, 100000, 0.5);
+        EpochTestKit.Stock(state, fwd.Id, (int)GoodId.Armaments, 100000, 0.5);
+        pr.Credits = 100000;
+
+        Assert.Equal(0, ShipmentOps.StockDepots(state, pr));
+
+        // and with a bare book, orders never exceed the warehouse
+        var (state2, pr2, home2, fwd2) = TwoPortRealm();
+        Deploy(state2, pr2.ActorId,
+            new HexCoordinate(fwd2.Hex.Q + 2, fwd2.Hex.R), home2.Id,
+            hulls: 4000);                       // need dwarfs any warehouse
+        home2.StockQty[(int)GoodId.Fuel] = 1e9;
+        home2.StockQty[(int)GoodId.Armaments] = 1e9;
+        pr2.Credits = 1e9;
+        Assert.True(ShipmentOps.StockDepots(state2, pr2) > 0);
+        double cap = MarketEngine.StockCapacityAt(state2, fwd2);
+        double ordered = 0;
+        foreach (var c in state2.Couriers)
+            ordered += c.Qty[(int)GoodId.Fuel];
+        Assert.True(ordered <= cap + 1e-6,
+            $"ordered {ordered} fuel into a warehouse of {cap}");
+    }
+
+    /// <summary>Review fix (CE wave, finding 5): acceptance charges real
+    /// hull capacity — when the war order fills the fleet's step lift,
+    /// commerce WAITS instead of riding the same hulls for free.</summary>
+    [Fact]
+    public void WarCouriers_ConsumeTheHulls_CommerceWaits()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        var lane = EpochTestKit.AddLane(state, home.Id, fwd.Id);
+        var fleet = EpochTestKit.PostFreight(state, pr.ActorId, 0, 2);
+        state.Config.Economy.FreightHexesPerYearBase = 0.1;
+        double lift = FleetOps.PostedLift(state, fleet, lane);
+        Assert.True(lift > 0);
+        home.StockQty[(int)GoodId.Provisions] = lift * 4;
+        home.StockQty[(int)GoodId.Armaments] = lift * 4;
+        pr.Credits = 100000;
+        var trade = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
+            new[] { ((int)GoodId.Provisions, lift) }, fee: 10,
+            CourierPriority.Normal);
+        var war = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
+            new[] { ((int)GoodId.Armaments, lift) }, fee: 10,
+            CourierPriority.War);
+
+        CourierOps.AcceptOpen(state);
+
+        Assert.Equal(CourierStatus.InTransit, war!.Status);
+        Assert.Equal(CourierStatus.Open, trade!.Status);
     }
 
     [Fact]

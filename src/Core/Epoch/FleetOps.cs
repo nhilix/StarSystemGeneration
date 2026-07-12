@@ -233,6 +233,25 @@ public static class FleetOps
         return capacity;
     }
 
+    /// <summary>One posted fleet's lift for a step on its lane, in units —
+    /// the same capacity a spread run gets, shared with the courier job
+    /// board so acceptance charges real hulls (review wave, finding 5).</summary>
+    public static double PostedLift(SimState state, FleetRecord fleet,
+                                    Lane lane)
+    {
+        var a = state.Ports[lane.PortAId];
+        var b = state.Ports[lane.PortBId];
+        int dist = HexGrid.Distance(a.Hex, b.Hex);
+        double speed = LaneMath.TransitSpeed(state, lane);
+        int years = state.Config.Sim.YearsPerEpoch;
+        double capacity = 0;
+        foreach (var g in fleet.Hulls)                    // design-id order
+            capacity += FleetMath.PostedCapacityPerEpoch(state.Config.Fleet,
+                DesignRegistry.SheetOf(state, state.Designs[g.DesignId]),
+                g.Count, speed, dist, years) * fleet.Readiness;
+        return capacity;
+    }
+
     /// <summary>Traffic frequency of a lane: posted round trips per
     /// world-year — the news-speed data Perception consumes in slice I
     /// (busy lanes carry news fast, backwaters slowly, wilds barely).</summary>

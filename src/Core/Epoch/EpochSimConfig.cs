@@ -732,8 +732,11 @@ public sealed class EconomyKnobs
     /// imbalance drift (contract economy).</summary>
     public double AskMarkupOnPost { get; set; } = 1.0;
     /// <summary>Standing orders expire after this many world-years unless
-    /// refreshed — refunds return where the escrow came from.</summary>
-    public double OrderExpiryYears { get; set; } = 30.0;
+    /// refreshed — buys refund, sells escheat to the port's stockpile.
+    /// Kept WELL above the coarse step span: an expiry inside ~2 steps
+    /// quantizes to wildly different world-years across tick resolutions
+    /// (P7), since sweeps only run at step boundaries.</summary>
+    public double OrderExpiryYears { get; set; } = 100.0;
     /// <summary>Subsistence bids quote reference × this — hunger crosses
     /// fresh asks first (band priority through price, not code order).</summary>
     public double SubsistenceBidPremium { get; set; } = 1.2;

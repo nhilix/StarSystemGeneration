@@ -42,6 +42,31 @@ public static class OrderOps
         return order;
     }
 
+    /// <summary>Sweep orders past their expiry (spec §2 step 2 — review
+    /// wave, finding 4): a buy refunds its remaining escrow to the owner's
+    /// ledger; a sell's abandoned goods escheat to the port's stockpile —
+    /// dock storage lapsed, the sovereign's warehouse takes the cargo
+    /// (conserving; ownership is the fee). Id order (P6).</summary>
+    public static int ExpireOrders(SimState state)
+    {
+        int expired = 0;
+        for (int i = state.Orders.Count - 1; i >= 0; i--)
+        {
+            var o = state.Orders[i];
+            if (state.WorldYear <= o.ExpiryYear) continue;
+            if (o.Side == OrderSide.Buy)
+                state.LedgerOf(o.OwnerActorId).Credits += CancelBuy(state, o);
+            else
+            {
+                var (qty, grade) = CancelSell(state, o);
+                if (qty > 0)
+                    state.Ports[o.PortId].DepositStock(o.Good, qty, grade);
+            }
+            expired++;
+        }
+        return expired;
+    }
+
     /// <summary>Trade the crossing pair: qty = min of the remainders, at
     /// MAKER price (the earlier-posted order's limit — price-time
     /// priority's resting side). Credits move from the buy's escrow to the

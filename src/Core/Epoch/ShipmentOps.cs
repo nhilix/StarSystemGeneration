@@ -166,6 +166,12 @@ public static class ShipmentOps
     private static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
         WarPresenceMap(SimState state)
     {
+        // no active war, no contested legs and no screens worth pricing —
+        // skip the fleets × lanes sweep entirely (review wave, finding 8)
+        bool anyWar = false;
+        foreach (var w in state.Wars)                     // id order (P6)
+            if (w.Active) { anyWar = true; break; }
+        if (!anyWar) return null;
         Dictionary<int, List<(FleetRecord, int)>>? map = null;
         int reach = state.Config.War.InterdictionReachHexes;
         foreach (var fleet in state.Fleets)               // id order (P6)
@@ -585,12 +591,18 @@ public static class ShipmentOps
         foreach (var (depot, need) in needByDepot)        // port-id order
         {
             var site = state.Ports[depot];
+            // the warehouse bounds the ambition (review wave, finding 6):
+            // arrivals over capacity re-post as book asks, so an uncapped
+            // forecast reorders forever — and the book itself is coverage
+            // (the fleet draw lifts asks before it touches the larder)
+            double cap = MarketEngine.StockCapacityAt(state, site);
             bool any = false;
             for (int g = 0; g < want.Length; g++)
             {
                 want[g] = 0;
                 if (need[g] <= 0) continue;
-                double shortfall = need[g] - site.StockQty[g]
+                double shortfall = Math.Min(need[g], cap) - site.StockQty[g]
+                                   - BookOps.AskQty(state, depot, g)
                                    - Inbound(state, pr.ActorId, depot, g);
                 if (shortfall > 1e-6) { want[g] = shortfall; any = true; }
             }
@@ -658,10 +670,15 @@ public static class ShipmentOps
                                 Shipment s)
     {
         var port = state.Ports[s.DestPortId];
+        // a requisition into a port that FELL in transit must not resupply
+        // the captor's larder (review wave, finding 9 — the review-fix-3
+        // rule at post time, re-checked at the dock): the cargo posts as
+        // the owner's asks instead — goods conserve, to the right flag
+        bool ownLarder = port.OwnerActorId == s.OwnerActorId;
         for (int g = 0; g < s.Qty.Length; g++)
         {
             if (s.Qty[g] <= 0) continue;
-            if (s.Channel == ShipmentChannel.Requisition)
+            if (s.Channel == ShipmentChannel.Requisition && ownLarder)
             {
                 double cap = MarketEngine.StockCapacityAt(state, port);
                 double room = Math.Max(0, cap - port.StockQty[g]);
