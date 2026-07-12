@@ -278,6 +278,33 @@ public class ProjectOpsTests
         Assert.Equal(expected, pr.Mobilization, 6);
     }
 
+    /// <summary>Conquest is site-anchored: a captured port carries its
+    /// in-flight project to the new owner at whatever progress it had
+    /// (spec §1) — the conqueror's next replan keeps or cancels it.</summary>
+    [Fact]
+    public void Conquest_TransfersInFlightProjects_AtCurrentProgress()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int port = OwnPort(state, pr.ActorId);
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
+            pr.ActorId, port, state.Ports[port].Hex, 5.0,
+            ProjectPriority.Core, 0);
+        p.TargetId = port;
+        p.YearsDelivered = 2.0;
+        // find any other entered polity to play conqueror
+        int other = -1;
+        foreach (var a in state.Actors)
+            if (a.Entered && a.Kind == ActorKind.Polity
+                && a.Id != pr.ActorId) { other = a.Id; break; }
+        if (other < 0) return;                            // seed-shaped: skip
+        WarConduct.TransferPort(state, port, other);
+        Assert.Equal(other, p.OwnerActorId);
+        Assert.Equal(other, p.FunderActorId);
+        Assert.Equal(2.0, p.YearsDelivered, 9);           // progress kept
+    }
+
     private static bool PortAt(SimState state,
                                StarGen.Core.Model.HexCoordinate target)
     {
