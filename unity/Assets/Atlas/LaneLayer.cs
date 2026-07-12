@@ -5,10 +5,16 @@ using UnityEngine.Rendering;
 
 namespace StarGen.AtlasView
 {
-    /// <summary>Lanes as thin, screen-constant highways on the plane
-    /// (LaneLens status colors: open subtle, quarantined/severed loud
-    /// enough to read). Width tracks camera altitude continuously; the
-    /// perspective foreshortening near the horizon is intentional depth.</summary>
+    /// <summary>What the lane strokes say (K2): Status is the K1 read
+    /// (open/quarantined/severed colors), Traffic weights width and
+    /// brightness by posted trips/year, QuarantineOnly is the plague
+    /// lens's approaches-closed read with the rest of the network dark.</summary>
+    public enum LaneMode { Status, Traffic, QuarantineOnly }
+
+    /// <summary>Lanes as thin, screen-constant highways on the plane.
+    /// Base width tracks camera altitude continuously; each stroke can
+    /// scale it (traffic mode widens busy lanes). The perspective
+    /// foreshortening near the horizon is intentional depth.</summary>
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class LaneLayer : MonoBehaviour
     {
@@ -16,7 +22,26 @@ namespace StarGen.AtlasView
         private const float WidthPx = 1.4f;
         private const float FovDegrees = 50f;
 
-        private IReadOnlyList<LaneSegment> _segments;
+        private readonly struct Stroke
+        {
+            public readonly Vector3 A;
+            public readonly Vector3 B;
+            public readonly Color32 Color;
+            public readonly float WidthFactor;
+
+            public Stroke(Vector3 a, Vector3 b, Color32 color, float widthFactor)
+            {
+                A = a;
+                B = b;
+                Color = color;
+                WidthFactor = widthFactor;
+            }
+        }
+
+        private AtlasReadModel _model;
+        private EyeContext _eye;
+        private LaneMode _mode = LaneMode.Status;
+        private List<Stroke> _strokes;
         private Mesh _mesh;
         private Material _material;
         private float _width = 0.5f;
@@ -44,22 +69,35 @@ namespace StarGen.AtlasView
             if (_material == null) Awake();
         }
 
+        public LaneMode Mode => _mode;
+
         public void Show(AtlasReadModel model, EyeContext eye)
         {
-            _segments = LaneLens.Segments(model, eye);
+            _model = model;
+            _eye = eye;
+            BuildStrokes();
+            Rebuild();
+        }
+
+        public void SetMode(LaneMode mode)
+        {
+            if (_mode == mode) return;
+            _mode = mode;
+            if (_model == null) return;
+            BuildStrokes();
             Rebuild();
         }
 
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
 
-        /// <summary>Screen-constant width plus the altitude fade: lanes
-        /// defer to the glows at galaxy distance. Rebuilds only when the
-        /// width drifts >8%; the fade rides the material tint.</summary>
         /// <summary>Render-target height — Screen.height lies in batch
         /// captures; the root/tooling supplies the real value.</summary>
         public float ViewportPx = 1080f;
 
+        /// <summary>Screen-constant width plus the altitude fade: lanes
+        /// defer to the glows at galaxy distance. Rebuilds only when the
+        /// width drifts >8%; the fade rides the material tint.</summary>
         public void OnZoom(float cameraDistance)
         {
             _material.color = new Color(1f, 1f, 1f,
@@ -76,26 +114,52 @@ namespace StarGen.AtlasView
 
         public void SetExtent(float galaxyExtent) => _extentForFade = galaxyExtent;
 
+        private void BuildStrokes()
+        {
+            _strokes = new List<Stroke>();
+            if (_mode == LaneMode.Traffic)
+            {
+                foreach (var seg in TrafficLens.Segments(_model, _eye))
+                {
+                    // Idle lanes stay ghost-thin; busy ones widen toward 3×.
+                    float factor = 0.45f + 2.55f * (float)seg.Weight;
+                    _strokes.Add(new Stroke(
+                        AtlasGeometry.HexToWorld(seg.A, Z),
+                        AtlasGeometry.HexToWorld(seg.B, Z),
+                        AtlasGeometry.ToColor32(seg.Color), factor));
+                }
+                return;
+            }
+            foreach (var seg in LaneLens.Segments(_model, _eye))
+            {
+                if (_mode == LaneMode.QuarantineOnly
+                    && seg.Status != LaneStatus.Quarantined) continue;
+                float factor = _mode == LaneMode.QuarantineOnly ? 1.8f : 1f;
+                _strokes.Add(new Stroke(
+                    AtlasGeometry.HexToWorld(seg.A, Z),
+                    AtlasGeometry.HexToWorld(seg.B, Z),
+                    AtlasGeometry.ToColor32(seg.Color), factor));
+            }
+        }
+
         private void Rebuild()
         {
-            if (_segments == null) return;
-            var vertices = new Vector3[_segments.Count * 4];
-            var colors = new Color32[_segments.Count * 4];
-            var triangles = new int[_segments.Count * 6];
-            for (int i = 0; i < _segments.Count; i++)
+            if (_strokes == null) return;
+            var vertices = new Vector3[_strokes.Count * 4];
+            var colors = new Color32[_strokes.Count * 4];
+            var triangles = new int[_strokes.Count * 6];
+            for (int i = 0; i < _strokes.Count; i++)
             {
-                var seg = _segments[i];
-                var a = AtlasGeometry.HexToWorld(seg.A, Z);
-                var b = AtlasGeometry.HexToWorld(seg.B, Z);
-                var dir = (b - a).normalized;
-                var side = new Vector3(-dir.y, dir.x, 0f) * (_width * 0.5f);
+                var stroke = _strokes[i];
+                var dir = (stroke.B - stroke.A).normalized;
+                var side = new Vector3(-dir.y, dir.x, 0f)
+                    * (_width * stroke.WidthFactor * 0.5f);
                 int v = i * 4;
-                vertices[v] = a - side;
-                vertices[v + 1] = a + side;
-                vertices[v + 2] = b + side;
-                vertices[v + 3] = b - side;
-                var color = AtlasGeometry.ToColor32(seg.Color);
-                for (int k = 0; k < 4; k++) colors[v + k] = color;
+                vertices[v] = stroke.A - side;
+                vertices[v + 1] = stroke.A + side;
+                vertices[v + 2] = stroke.B + side;
+                vertices[v + 3] = stroke.B - side;
+                for (int k = 0; k < 4; k++) colors[v + k] = stroke.Color;
                 int t = i * 6;
                 triangles[t] = v;
                 triangles[t + 1] = v + 1;
