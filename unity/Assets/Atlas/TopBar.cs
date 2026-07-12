@@ -32,6 +32,7 @@ namespace StarGen.AtlasView
             if (root != null && root.SimHost != null)
             {
                 root.SimHost.Loaded += Refresh;
+                root.SimHost.TimeChanged += Refresh;
                 if (root.SimHost.State != null) Refresh();
             }
         }
@@ -39,7 +40,10 @@ namespace StarGen.AtlasView
         private void OnDisable()
         {
             if (root != null && root.SimHost != null)
+            {
                 root.SimHost.Loaded -= Refresh;
+                root.SimHost.TimeChanged -= Refresh;
+            }
         }
 
         private void BuildUi()

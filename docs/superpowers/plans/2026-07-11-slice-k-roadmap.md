@@ -99,5 +99,9 @@ K5's wrap-up closes the epoch-sim roadmap itself.
 - [x] K3 — Selection & panels (accepted 2026-07-12; four eyeball waves:
       screen-size scaling, hidden scrollers, menu scanline rebind, hex-ring
       selection; carried: credit-loop equilibrium flag → contract economy)
-- [ ] K4 — Timeline
+- [x] K4 — Timeline (accepted 2026-07-12, "a lot of control"; one
+      eyeball wave: legend/strip overlap, run-seed radius+epochs
+      controls, run-seed re-based on the unstepped genesis world with
+      auto-play to target; carried: branch switch-back UI → K5/backlog,
+      unbounded keyframe memory on unattended play → note)
 - [ ] K5 — System stage & closeout

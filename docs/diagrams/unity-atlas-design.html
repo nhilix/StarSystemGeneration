@@ -742,7 +742,7 @@
       <table>
         <thead><tr><th>Component</th><th>Responsibility</th><th>Depends on</th></tr></thead>
         <tbody>
-          <tr><td class="mono">SimHost</td><td>Owns the Core sim/artifact lifecycle in Unity: load artifact (or delta save), run seed, step coarse or fine (any <span class="mono">YearsPerEpoch</span>). The only writer.</td><td class="mono">Core</td></tr>
+          <tr><td class="mono">SimHost</td><td>Owns the Core sim/artifact lifecycle in Unity: load artifact (or delta save), run seed, step coarse or fine (any <span class="mono">YearsPerEpoch</span>). The only writer. Two events (K4): <span class="mono">Loaded</span> = new world (camera refit, Threads greets, all panels close); <span class="mono">TimeChanged</span> = same world, new moment (layers and unpinned panels re-query in place — pinned panels keep their captured moment for comparison across time). Run-seed bases the timeline on the <b>unstepped genesis world</b> and auto-plays to the target epoch, so the whole evolution is captured and scrubbable.</td><td class="mono">Core</td></tr>
           <tr><td class="mono">EyeContext</td><td>The active observer (God | actor id) + world-year. App-global; changing it invalidates all views.</td><td>—</td></tr>
           <tr><td class="mono">AtlasReadModel</td><td>The single query surface: lens data, panel view-models, chronicle/era views — all Eye-parameterized.</td><td class="mono">Core, EyeContext</td></tr>
           <tr><td class="mono">TimeMachine</td><td>Epoch keyframe capture + retrieval, stored as delta saves against the loaded base; tracks the active tick-path and forks a branch on resolution change.</td><td class="mono">SimHost, DeltaSerializer</td></tr>
@@ -753,7 +753,7 @@
           <tr><td class="mono">SelectionModel</td><td>What is selected/hovered (hex, port, fleet, polity, POI); drives ring, tooltip, panel opening.</td><td class="mono">MapSurface</td></tr>
           <tr><td class="mono">InspectorDock</td><td>Panel lifecycle: open on select, pin, stack, close; layout of the right dock.</td><td class="mono">SelectionModel, PanelRegistry</td></tr>
           <tr><td class="mono">Typed Panels</td><td>Open Threads, Polity, Market, Fleet, War, Relations, Character/Bio, Corp, POI, Belief, News, Stances — each a view over one PanelQuery.</td><td class="mono">AtlasReadModel</td></tr>
-          <tr><td class="mono">TimelineStrip</td><td>Era bands, event sparkline, cursor, play/step controls; sets EyeContext.worldYear.</td><td class="mono">AtlasReadModel, TimeMachine</td></tr>
+          <tr><td class="mono">TimelineStrip</td><td>Era bands, event sparkline, keyframe ticks, cursor; press/drag scrubs to the nearest keyframe. Transport (play/step ×1/×5), resolution chips (a mid-run change forks — FORK chip shows the branch), run-seed box (seed · radius · epochs). All mutation via SimHost.</td><td class="mono">AtlasReadModel, TimeMachine (via SimHost)</td></tr>
           <tr><td class="mono">SystemStage</td><td>The orbit-view scene fragment swapped in at system LOD: star, bodies, port, facilities.</td><td class="mono">AtlasReadModel, CameraRig</td></tr>
         </tbody>
       </table>

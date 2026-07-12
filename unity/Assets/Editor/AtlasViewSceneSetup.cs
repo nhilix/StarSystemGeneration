@@ -85,6 +85,8 @@ namespace StarGen.AtlasView.EditorTools
             tooltip.Wire(selection);
             var legend = chromeGo.AddComponent<LegendPanel>();
             legend.Wire(rail);
+            var strip = chromeGo.AddComponent<TimelineStrip>();
+            strip.Wire(root);
 
             EditorSceneManager.MarkSceneDirty(scene);
             var sceneDir = Path.GetDirectoryName(ScenePath);

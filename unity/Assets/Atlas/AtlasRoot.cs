@@ -65,17 +65,41 @@ namespace StarGen.AtlasView
 
         private void OnEnable()
         {
-            if (simHost != null) simHost.Loaded += OnLoaded;
+            if (simHost != null)
+            {
+                simHost.Loaded += OnLoaded;
+                simHost.TimeChanged += OnTimeChanged;
+            }
             if (cameraRig != null) cameraRig.ZoomChanged += OnZoomChanged;
         }
 
         private void OnDisable()
         {
-            if (simHost != null) simHost.Loaded -= OnLoaded;
+            if (simHost != null)
+            {
+                simHost.Loaded -= OnLoaded;
+                simHost.TimeChanged -= OnTimeChanged;
+            }
             if (cameraRig != null) cameraRig.ZoomChanged -= OnZoomChanged;
         }
 
         private void OnLoaded()
+        {
+            ShowAll();
+            cameraRig.FitTo(AtlasGeometry.DiscBounds(simHost.Model));
+            laneLayer.SetExtent(cameraRig.GalaxyExtent);
+            OnZoomChanged(cameraRig.Distance);
+        }
+
+        /// <summary>Same world, new moment (step/scrub): every layer
+        /// re-queries; the camera stays where the user left it.</summary>
+        private void OnTimeChanged()
+        {
+            ShowAll();
+            OnZoomChanged(cameraRig.Distance);
+        }
+
+        private void ShowAll()
         {
             var eye = simHost.Eye;
             var model = simHost.Model;
@@ -92,9 +116,6 @@ namespace StarGen.AtlasView
             warLayer.Show(model, eye);
             newsLayer.Show(model, eye);
             priceField.Show(model, eye);
-            cameraRig.FitTo(AtlasGeometry.DiscBounds(model));
-            laneLayer.SetExtent(cameraRig.GalaxyExtent);
-            OnZoomChanged(cameraRig.Distance);
         }
 
         private void OnZoomChanged(float distance)
