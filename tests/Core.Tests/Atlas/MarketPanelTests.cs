@@ -39,8 +39,8 @@ public class MarketPanelTests
         var (model, state) = WithMarket();
         var market = state.Markets[0];
         market.Price[(int)GoodId.Alloys] = 4.25;
-        market.Inventory[(int)GoodId.Alloys] = 30;
-        market.InventoryGrade[(int)GoodId.Alloys] = 0.7;
+        // the shelf is the book now (slice CE): a resting sell is the row
+        EpochTestKit.Stock(state, 0, (int)GoodId.Alloys, 30, 0.7);
         market.LastCleared[(int)GoodId.Alloys] = 11;
         market.BlackBookDemand[(int)GoodId.Alloys] = 2.5;
         market.BlackBookPrice[(int)GoodId.Alloys] = 9.0;

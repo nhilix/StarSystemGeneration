@@ -66,7 +66,7 @@ public class CharacterCorpPoiPanelTests
         var corpActorId = state.Actors.Count;
         state.Actors.Add(new Actor(corpActorId, ActorKind.Corporation,
             "Vex Combine", default, state.EpochIndex,
-            new CorporateController()) { Entered = true });
+            new CorporateController(state.Config)) { Entered = true });
         state.Corporations.Add(new Corporation(0, corpActorId,
             "Vex Combine", host, CorporateNiche.Freight, 0,
             state.WorldYear) { Credits = 300 });
