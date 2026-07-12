@@ -97,6 +97,15 @@ namespace StarGen.AtlasView
             var mouse = Mouse.current;
             var keyboard = Keyboard.current;
 
+            // Chrome owns the pointer over itself (K1 carried note): no
+            // zooming or panning under the rail. Keyboard pan stays live.
+            if (mouse != null
+                && AtlasPointerGuard.Blocks(mouse.position.ReadValue()))
+            {
+                _panning = false;
+                mouse = null;
+            }
+
             if (mouse != null)
             {
                 float scroll = mouse.scroll.ReadValue().y;

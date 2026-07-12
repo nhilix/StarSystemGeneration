@@ -37,6 +37,19 @@ namespace StarGen.AtlasView
             return Mathf.Lerp(0.40f, 1f, Mathf.Clamp01((float)t));
         }
 
+        /// <summary>Glyph-mark opacity (fleets, POIs, works, plague, war
+        /// stations): ghosted at altitude, resolving toward Region — the
+        /// spec's "fleets and POIs resolve" band, as a continuous curve.</summary>
+        public static float GlyphFade(double cameraDistance, double galaxyExtent)
+        {
+            if (galaxyExtent <= 0) return 1f;
+            double f = cameraDistance / galaxyExtent;
+            const double start = DomainsFloor * 1.4;   // begin fading in
+            const double full = DomainsFloor * 0.7;    // fully resolved
+            double t = (start - f) / (start - full);
+            return Mathf.Lerp(0.0f, 1f, Mathf.Clamp01((float)t));
+        }
+
         /// <summary>The lattice's alpha: invisible above Region, fading to
         /// its full (still faint) strength approaching Hex — the artifact
         /// draws the grid at rgba(140,160,200,0.10).</summary>

@@ -50,6 +50,7 @@ namespace StarGen.AtlasView
     {
         private static Texture2D _softDot;
         private static Texture2D _solidDot;
+        private static Texture2D _ring;
 
         /// <summary>64² crisp filled circle with a 2-texel AA rim — the
         /// port marker until authored tier glyphs land (K2).</summary>
@@ -79,6 +80,39 @@ namespace StarGen.AtlasView
                 _solidDot.SetPixels32(pixels);
                 _solidDot.Apply();
                 return _solidDot;
+            }
+        }
+
+        /// <summary>64² thin annulus with AA edges — blockade rings and
+        /// news-pulse fronts (a ring is a state, not an identity glyph).</summary>
+        public static Texture2D Ring
+        {
+            get
+            {
+                if (_ring != null) return _ring;
+                const int size = 64;
+                _ring = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                {
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                var pixels = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = (x + 0.5f) / size - 0.5f;
+                        float dy = (y + 0.5f) / size - 0.5f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                        // Band centered at 0.86 diameter, ~0.10 wide.
+                        float a = 1f - Mathf.Clamp01(
+                            (Mathf.Abs(d - 0.86f) - 0.05f) / 0.05f);
+                        pixels[y * size + x] = new Color32(255, 255, 255,
+                            (byte)(a * 255f));
+                    }
+                _ring.SetPixels32(pixels);
+                _ring.Apply();
+                return _ring;
             }
         }
 
