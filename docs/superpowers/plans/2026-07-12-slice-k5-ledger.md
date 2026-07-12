@@ -84,7 +84,7 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       (additive: rgb×fade too), domain field (`_MapFade` uniform),
       nature/price fields (Sprites/Default material color). Starfield
       deliberately stays — space is still space under the orbit view.
-- [ ] **T4 — SystemStage** (`unity/Assets/Atlas/SystemStage.cs`, scene
+- [x] **T4 — SystemStage** (`unity/Assets/Atlas/SystemStage.cs`, scene
       fragment): builds the orbit view from SystemInfo at the camera's
       focus hex when the band enters System — star(s) as tinted SoftDot
       billboards, orbit rings as thin line-loop meshes (the hex-ring
@@ -94,21 +94,21 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       alpha via T3 curves; focus-hex change while in-band rebuilds;
       rides Loaded/TimeChanged; all runtime meshes/materials
       HideAndDontSave, destroyed on teardown.
-- [ ] **T5 — Stage picking + panels**: SelectionModel consults the stage
+- [x] **T5 — Stage picking + panels**: SelectionModel consults the stage
       first when it's live — nearest pickable within a screen-px radius
       (port → Market+Polity exactly as on the map; facility →
       SelectionKind.Facility → FacilityPanel; body/star → Hex panel;
       site → Project). Hover over a pickable feeds the tooltip a stage
       line (body name · kind · settlement) through the existing
       rest-delay path.
-- [ ] **T6 — PoC-remnant sweep**: empty `unity/Assets/Scripts` dir +
+- [x] **T6 — PoC-remnant sweep**: empty `unity/Assets/Scripts` dir +
       .meta removed; grep for PoC-era symbols
       (AtlasController/GalaxyService/SystemView/OrbitLayout/CellView…) —
       none compile anywhere; K1 runtime meshes/textures sweep: every
       `new Mesh`/`new Texture2D`/`new Material` in Assets/Atlas carries
       HideAndDontSave or an owning OnDestroy (the carried-since-K2 flag —
       close it).
-- [ ] **T7 — Scene rebuild + gates**: scene setup grows the SystemStage
+- [x] **T7 — Scene rebuild + gates**: scene setup grows the SystemStage
       GO; Atlas.unity rebuilt + committed (ProjectSettings churn NOT);
       `dotnet test` green ×3 · goldens untouched (`git status` clean) ·
       determinism suites in the count · EditMode green · AtlasSmoke every
