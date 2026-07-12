@@ -40,29 +40,29 @@ Core.Tests never references Inspector.
 ## Tasks
 
 - [x] **T0 — Worktree + baseline**: `slice-k3-panels` @ ae19064, 727/727.
-- [ ] **T1 — Core panel queries, TDD** (`src/Core/Atlas`, two-line .meta
-      per file; Eye-parameterized; id-order iteration):
-  - [ ] HandoffQueries (threads parity + jump-target hex per row)
-  - [ ] PolityPanel (polity/tech/characters + ReservePoints + Plan w/
-        in-flight star — eplan parity)
-  - [ ] MarketPanel (market parity + larder: StockQty/StockGrade per good,
-        capacity from tier × StockCapPerPortTier + depot tiers ×
-        StockCapPerDepotTier, decay)
-  - [ ] ProjectPanel (eprojects parity: honest ETA under LastFedFraction,
-        funder vs owner)
-  - [ ] ShipmentPanel (efreight parity: route, cargo+grades, sailed/total,
-        live ETA, STALLED derivation)
-  - [ ] FleetPanel (fleet/designs parity)
-  - [ ] WarPanel (wars/war <id> parity) + RelationsPanel
-  - [ ] CharacterPanel (characters/bio) + CorporationPanel (funded projects
-        via Project.FunderActorId)
-  - [ ] PoiPanel + BeliefPanel/NewsPanel/StancesPanel
-  - [ ] ChronicleQueries (log + place/actor filters, era-annotated) +
-        EraQueries
-  - [ ] RegistryQueries (find/stats/goods/knobs)
-  - [ ] LegendQuery — the authoritative per-lens legend table (glyph cells,
-        color ramps, lane stroke states) sourced from the lens constants so
-        the legend can never drift
+- [x] **T1 — Core panel queries, TDD** (`src/Core/Atlas`, 13 new files w/
+      two-line .meta; Eye-parameterized; id-order iteration; **786/786**
+      full suite at completion, 59 new atlas panel tests):
+  - [x] HandoffQueries (threads Kind/Text verbatim via HandoffView +
+        jump hex; Core amendment: OpenThread carries SubjectId/SubjectId2)
+  - [x] PolityPanel (+ ReservePoints, Credits, eplan plan w/ in-flight star)
+  - [x] MarketPanel (+ larder; StockPerishFactor/ActiveDepotTiersAt
+        EXTRACTED to MarketEngine so sim and panel share one derivation)
+  - [x] ProjectPanel (honest starvation eta, funder vs owner, basket)
+  - [x] ShipmentPanel (STALLED: the K2 clock-edge note RESOLVED — severed
+        set folds quarantine in at >=, so efreight's effective edge is >=)
+  - [x] FleetPanel (typed StationKind; vectors ARE FleetOps.Vectors)
+  - [x] WarPanel (falls-at via WarConduct.SiegeThreshold; side strength
+        fraction) + RelationsPanel (BothLive filter, 6+6 source terms)
+  - [x] CharacterPanel + CorporationPanel (funded projects by FunderActorId)
+  - [x] PoiPanel + BeliefPanel/NewsPanel/StancesPanel (verdicts ±0.3)
+  - [x] ChronicleQueries (Annotated/ForActor/AtPlace/DeepTime) + EraQueries
+  - [x] RegistryQueries (Find across registries w/ jump hexes · Stats =
+        registry counts, an interpretation of the REPL's hex-tier `stats`
+        for the drawer · GoodsCatalog · Knobs w/ live values)
+  - [x] LegendQuery (rail-key → entries; lens color constants publicized
+        as the single source; GlyphKey = AtlasGlyph enum member names —
+        Unity side must Enum.TryParse-verify at T7)
 - [ ] **T2 — Unified UI chrome foundation**: read
       `.claude/skills/translating-css-to-uss/SKILL.md` FIRST; atlas chrome
       USS (structure, `ssg-` classes, var() tokens only);

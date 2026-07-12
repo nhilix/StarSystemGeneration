@@ -20,9 +20,9 @@ public static class LaneLens
 {
     // The artifact's lane hue (#56C4DC) at its restraint: lanes support
     // the glows, they never outshine them. Trouble states stay loud.
-    private static readonly Rgba OpenColor = new(86, 196, 220, 120);
-    private static readonly Rgba QuarantinedColor = new(190, 205, 70, 185);
-    private static readonly Rgba SeveredColor = new(235, 85, 75, 195);
+    public static readonly Rgba OpenColor = new(86, 196, 220, 120);
+    public static readonly Rgba QuarantinedColor = new(190, 205, 70, 185);
+    public static readonly Rgba SeveredColor = new(235, 85, 75, 195);
 
     public static IReadOnlyList<LaneSegment> Segments(AtlasReadModel model,
                                                       EyeContext eye)

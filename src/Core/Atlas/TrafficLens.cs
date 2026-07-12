@@ -26,7 +26,7 @@ public static class TrafficLens
 {
     // The lane cyan carries traffic too — same hue as LaneLens so the
     // two lenses read as one system, loudness the only variable.
-    private static readonly Rgba LaneHue = new(86, 196, 220);
+    public static readonly Rgba LaneHue = new(86, 196, 220);
     private const byte IdleAlpha = 45;
     private const byte FullAlpha = 220;
     /// <summary>Trips/year where the weight saturates — the '#' band's
