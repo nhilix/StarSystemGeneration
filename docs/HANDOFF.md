@@ -1,107 +1,98 @@
-# Session Handoff — 2026-07-12 (Slice K2, Lens catalog — MERGED)
+# Session Handoff — 2026-07-12 (Slice K3, Selection & panels — MERGED)
 
-State: `slice-k2-lenses` merged to `main` locally (not pushed — push on
-say-so). Gates at merge: **727/727 dotnet ×2** (determinism suites in the
-count, golden untouched — K2 adds zero sim behavior) · **8/8 EditMode
-headless** · 14-shot AtlasSmoke suite renders every lens · fresh-eyes
-whole-branch review "merge-ready" + fix wave landed · **user eyeball
-accepted 2026-07-12 as foundational groundwork** (carries below).
+State: `slice-k3-panels` merged to `main` locally (not pushed — push on
+say-so). Gates at merge: **790/790 dotnet** (determinism suites in the
+count, golden untouched — K3 adds zero sim behavior) · **10/10 EditMode**
+(incl. new LegendDriftTests) · AtlasSmoke renders every lens ·
+fresh-eyes whole-branch review ("one confirmed bug") + fix wave landed ·
+**user eyeball ACCEPTED 2026-07-12** after four fix waves (below).
 ProjectSettings churn stays uncommitted.
 
-## Slice K2 — Lens catalog (closed)
+## Slice K3 — Selection & panels + the unified UI layer (closed)
 
-Ledger `docs/superpowers/plans/2026-07-12-slice-k2-ledger.md` (per-task,
-decisions, review findings, carried flags). Scope was amended at the nod
-after a T1/T2 impact pass: the nine kickoff lenses **plus works** (the
-T2-added `emap works` layer — construction sites + freight in transit).
+Ledger `docs/superpowers/plans/2026-07-12-slice-k3-ledger.md` (per-task,
+decisions, review findings, eyeball waves, carried flags).
 
-- **Core** (`src/Core/Atlas`, ten new lens queries, 76 atlas tests):
-  TrafficLens (emap band parity, sqrt weight) · FleetLens (posture +
-  owner tint) · PriceLens (nearest-servicing-port ratio vs founding,
-  PriceGlyph bands, NaN wilds, CellShades bake) · WarLens (Stations =
-  warring Blockade/Expedition; SlotBelligerence) · TensionLens (hottest
-  BothLive relation, ×9 digit parity, cold→ember ramp) · TechLens
-  (Astrogation SlotTiers, bronze→arc-light) · PlagueLens (Afflicted burn
-  / ImmuneUntil scar) · NewsLens (DeliverPulses liveness parity) ·
-  PoiLens (!Depleted anchors, typed colors) · WorksLens (sites w/
-  progress + LastFedFraction, gate pairs both ends; freight lerped by
-  sailed fraction w/ efreight STALLED read; expedition convoys). All
-  read-only, id-order iteration, Eye-parameterized (controller = seam).
-- **Presentation** (`unity/Assets/Atlas`): the first AUTHORED glyph
-  vocabulary — `Resources/AtlasGlyphs.png`, 4×5 cells, 16 game-icons
-  CC-BY sprites (GLYPH-CREDITS.md is the attribution ledger; cell 16 =
-  the generated backing chip; `AtlasGlyphs.UvRect` + enum order is the
-  contract, append-only) · GlyphLayerBase (backing chip under every
-  glyph — owner-tinted glyphs are camouflaged on owner-tinted port dots
-  otherwise; explicit renderQueue 3100+ past the dots) · FleetLayer /
-  PoiLayer / WorksLayer / PlagueLayer / WarLayer · NewsLayer (additive
-  ring-fronts, display cap 40y over Core's 150y liveness) ·
-  PriceFieldLayer (256² cell-shade bake; NO spatial index needed — the
-  K1 perf flag rides to K4) · DomainFieldLayer.SetAccent
-  (Owner/War/Tension/Tech slot retints; war fades peace to ash) ·
-  LaneLayer.SetMode (Status/Traffic/QuarantineOnly — plague forces
-  QuarantineOnly when lanes/traffic are off) · Shaders/AtlasGlyph
-  (UV-rect billboards + LOD `_Tint`).
-- **Lens rail** (UI Toolkit, code-built; AtlasHud DELETED): POLITICAL /
-  LOGISTICS / KNOWLEDGE / NARRATIVE / NATURE, swatch chips
-  (war/tension/tech and lanes/traffic radio-like — one fill, one stroke),
-  `price ▾ good` DropdownField, AtlasPointerGuard (rail owns the pointer;
-  CameraRig consults it; document root pickingMode=Ignore — the review's
-  one plausible-bug) · SimHost auto-loads the seed-42 golden in play mode.
-- **Acceptance tooling**: AtlasSmoke renders 14 shots (4 base + one per
-  lens) — the pre-eyeball loop; it caught the camouflage, render-order,
-  and news-flood defects before review. EditMode: LodBands +
-  GlyphAtlasTests (UV/layout/mapping contracts).
+- **Core** (`src/Core/Atlas`, 16 new files, 96 atlas tests in the 790
+  suite): PanelQueries for every diagram-§9 panel at REPL parity —
+  PolityPanel (+ ReservePoints, standing plan w/ eplan's in-flight ★),
+  MarketPanel (+ the located larder; capacity/decay ride the SAME
+  MarketEngine derivations the sim uses — StockPerishFactor/
+  ActiveDepotTiersAt extracted, behavior-identical), ProjectPanel
+  (honest starvation eta), ShipmentPanel (STALLED; the K2 clock-edge
+  note RESOLVED: SeveredLaneIds folds quarantine at >=, so efreight's
+  effective edge matches the lane lens), FleetPanel (+Designs), WarPanel
+  (falls-at via SiegeThreshold), RelationsPanel (6+6 source terms),
+  CharacterPanel, CorporationPanel (funded projects via FunderActorId),
+  PoiPanel, Belief/News/Stances, ChronicleQueries (Annotated/ForActor/
+  AtPlace/DeepTime) + EraQueries, RegistryQueries (Find w/ jump hexes,
+  Stats, Goods, Knobs), LegendQuery (rail key → entries from the lens
+  constants themselves — drift-proof; GlyphKey = AtlasGlyph member
+  names), HexQuery (tooltip content). Core amendment: OpenThread carries
+  SubjectId/SubjectId2 (camera jumps).
+- **Chrome** (`unity/Assets/Atlas`, cassette × ice everywhere):
+  AtlasChrome owns the one UIDocument + `Resources/AtlasChrome.uss`
+  (`ssg-` BEM, var() tokens only) + THE pointer guard + named hosts ·
+  PanelSettings → SSG-Ice.tss, **ScaleWithScreenSize @1920×1080** ·
+  LensRail re-skinned (year readout retired) · SelectionModel (plane
+  picking, no colliders; click-vs-drag; right-click clears; hex-RING
+  mesh highlight in the lattice's grammar, never LOD-fades) · HexTooltip
+  (0.45s hover-rest) · InspectorDock (pinnable; port click opens Market
+  + owner Polity; every §9 panel via PanelViews/DockKit) · **Open
+  Threads opens on load, rows jump the camera** · TopBar (GOD chip ·
+  year/epoch/era · config stamp · find search · THREADS/STATS/GOODS/
+  KNOBS drawer · artifact load box) · LegendPanel (sprite-crops the
+  authored glyph atlas by enum cell) · scrollers hidden everywhere.
+- **Acceptance**: panel capture stays on the in-editor eyeball (UI
+  Toolkit never renders in batch cam.Render()); EditMode LegendDriftTests
+  pin the legend↔glyph contract.
 
-## Carried / deferred (user notes at the K2 eyeball)
+## Eyeball waves (all landed in-branch)
 
-1. **Per-lens LEGENDS** — nothing in the atlas explains icons, colors, or
-   regions. K3 scope (chrome next to the panel system); the K3 kickoff
-   carries the requirement with the no-drift constraint (one
-   authoritative mapping the layers AND legend share).
-2. **Per-lens readability deep-dives** — every lens renders something,
-   but "pretty unintuitive to read"; each representation deserves its own
-   design pass. BACKLOG (behind K5 or the design-acceptance gap list),
-   not K3.
-3. Quarantine clock edge inconsistent upstream (lanes `>=` vs freight
-   stall `>` — FleetOps vs ShipmentOps): a Core cleanup, K2 ported both
-   faithfully.
-4. Plague lens legitimately empty on the seed-42 golden at y1000 (all 5
-   strains burned out) — pick a mid-plague year to demo it.
-5. K1 runtime meshes/textures lack HideAndDontSave in edit mode —
-   cosmetic leak, sweep opportunistically.
+1. Atlas PanelSettings was ConstantPhysicalSize → tiny on big displays;
+   now ScaleWithScreenSize; dock 470px/60%, type +2px across chrome;
+   scroll bars hidden (wheel scroll stays).
+2. Menu scanline rendered as a yellow screen-door: on a fresh checkout
+   MainMenu.uss imports BEFORE the builder generates scanline.png →
+   broken url() → UITK missing-image placeholder. Builder now rebinds
+   the USS and imports the tile as Default/no-dilation. Generated menu
+   assets un-tracked + gitignored (spec: no binaries in git).
+3. Tooltip hover-rest 0.45s; right-click clears selection.
+4. Selection highlight = hexagonal ring MESH on HexGrid.CornerOffsets
+   (the lattice's grammar, bolder, no LOD fade) — LineRenderer rejected.
 
-## UI language & entry scene (merged 2026-07-12, session "ui-toolkit")
+## Carried / flagged
 
-The game's UI visual language is decided and its foundation is on main:
-**cassette-futurism structure × Ice palette**, scanlines on world
-surfaces only, color theme as a future Settings preset. Spec:
-`docs/superpowers/specs/2026-07-12-ui-language-design.md`; living visual
-refs: UI Language Lab artifact (atlas chrome mocked in the language) +
-main-menu mock. Landed: `.claude/skills/translating-css-to-uss/` (read
-before writing any USS), `unity/Assets/UI/Themes/` (Ice + Phosphor
-`.tss`), and the main-menu entry scene (`unity/Assets/UI/MainMenu`,
-menu `SSG → UI → Create Main Menu Scene`, stub actions). **The menu's
-in-editor eyeball is pending — folded into K3's first play-mode
-eyeball.** The K3 kickoff was amended with a "unified UI layer" section:
-K3 chrome ships in this language and re-skins the K2 rail to it.
+1. **Credit-loop equilibrium (user-flagged, → contract-economy slice)**:
+   every entered polity holds deeply negative Credits (seed-42: −6k to
+   −278k). Deficit financing is intentional (AllocationPhase budgets
+   max(Credits, Receipts)) but Phases.Borrow needs a lender at 2.4× the
+   hole — once ALL polities are negative no lender exists, insolvency
+   never clears, and host.Credits ≤ 0 silently disables the
+   corp-leverage/nationalization thread. Panel labels it "(in deficit —
+   credit-financed)".
+2. **Worktree traps (K4/K5, real cost)**: `unity/Packages/manifest.json`,
+   `packages-lock.json`, `src/Core/csc.rsp` are GITIGNORED — copy from
+   the main checkout before any Unity batch run. Batchmode cannot run
+   while an editor holds the project (and stale test-results XML lies —
+   delete before re-runs). The editor MCP bridge verifies compiles live.
+3. Per-lens readability deep-dives — backlog (behind K5 / gap list).
+4. K1 runtime meshes/textures lack HideAndDontSave in edit mode — sweep
+   opportunistically (K3's new resources all set it).
+5. Menu F1–F4 remain stubs; NEW GALAXY hands its seed to the atlas flow
+   in a later slice.
 
 ## Next up
 
-1. **Slice K3 (Selection & panels + the unified UI layer)** — fresh
-   session, point it at
-   `docs/superpowers/plans/2026-07-12-slice-k3-kickoff-prompt.md`
-   (includes the T1/T2 panel additions: located larder in Market,
-   ReservePoints + standing plan in Polity, NEW Project/Shipment
-   inspectors, corp panel = funded projects only; plus the legend item;
-   amended with the UI language section — cassette × ice chrome, K2
-   rail re-skin, menu-scene eyeball).
-2. **Contract economy** — still queued:
+1. **Slice K4 (Timeline)** — fresh session, point it at
+   `docs/superpowers/plans/2026-07-12-slice-k4-kickoff-prompt.md`
+   (TimeMachine keyframes as delta saves · TimelineStrip w/ era bands +
+   event sparkline + scrubber · play/step coarse+fine · resolution fork ·
+   SimHost run-seed; includes K3's chrome integration notes and traps).
+2. **Contract economy** — still queued (parallel session may be live):
    `docs/superpowers/plans/2026-07-11-contract-economy-kickoff-prompt.md`
-   (design pass first; independent of K3 — parallel sessions take
-   separate worktrees, never a shared checkout).
-3. Then K4 (timeline), K5 (system stage & closeout) per
-   `docs/superpowers/plans/2026-07-11-slice-k-roadmap.md`.
+   — now carries the credit-loop equilibrium flag above.
+3. Then K5 (system stage & closeout) per the K roadmap.
 4. User read-through of the design specs — still outstanding.
 
 ## Carried process conventions (unchanged)
@@ -109,9 +100,10 @@ K3 chrome ships in this language and re-skins the K2 rail to it.
 Lighter protocol per /CLAUDE.md (scope nod · eyeball · merge decision;
 kickoff-prompt chaining); hex-tier suite never breaks; ProjectSettings
 stays uncommitted; bash printf for REPL piping; parallel slices take
-worktrees; every new `src/Core` file gets a two-line `.meta` with a fresh
-guid; the design is the spec — deviations amend `docs/design/` in-branch.
-The living atlas diagram (`docs/diagrams/unity-atlas-design.html`) is
-republished to its stable URL on change (§8 gained the works row this
-slice). Unity gates: `Unity -batchmode -runTests -testPlatform EditMode`
-+ AtlasSmoke batch twin (editor 6000.5.2f1).
+worktrees (never a shared checkout); every new `src/Core` file gets a
+two-line `.meta` with a fresh guid; the design is the spec — deviations
+amend `docs/design/` in-branch. The living atlas diagram
+(`docs/diagrams/unity-atlas-design.html`) is republished to its stable
+URL on change (§9 gained the Project/Shipment rows + larder/plan notes
+this slice). Unity gates: `Unity -batchmode -runTests -testPlatform
+EditMode` + AtlasSmoke batch twin (editor 6000.5.2f1).

@@ -20,8 +20,8 @@ public readonly record struct PlagueMark(
 /// re-deriving.</summary>
 public static class PlagueLens
 {
-    private static readonly Rgba InfectedBurn = new(235, 95, 60, 230);
-    private static readonly Rgba ImmuneScar = new(150, 162, 150, 180);
+    public static readonly Rgba InfectedBurn = new(235, 95, 60, 230);
+    public static readonly Rgba ImmuneScar = new(150, 162, 150, 180);
 
     public static IReadOnlyList<PlagueMark> Marks(AtlasReadModel model,
                                                   EyeContext eye)

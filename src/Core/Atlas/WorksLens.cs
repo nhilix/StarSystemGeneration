@@ -33,10 +33,10 @@ public readonly record struct ConvoyMark(
 /// registries and thus the lens.</summary>
 public static class WorksLens
 {
-    private static readonly Rgba SiteAmber = new(240, 195, 95, 230);
-    private static readonly Rgba FreightMoving = new(190, 225, 240, 210);
-    private static readonly Rgba FreightStalled = new(240, 90, 70, 240);
-    private static readonly Rgba ConvoyWhite = new(235, 230, 210, 220);
+    public static readonly Rgba SiteAmber = new(240, 195, 95, 230);
+    public static readonly Rgba FreightMoving = new(190, 225, 240, 210);
+    public static readonly Rgba FreightStalled = new(240, 90, 70, 240);
+    public static readonly Rgba ConvoyWhite = new(235, 230, 210, 220);
 
     /// <summary>Every in-flight project's anchor; gate pairs mark both
     /// ends (EpochMapView.WorkCells, addressed). Travel kinds are

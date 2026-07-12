@@ -19,7 +19,7 @@ public readonly record struct NewsPulseMark(
 public static class NewsLens
 {
     // The narrative parchment gold (§8's news dot #E8D66F).
-    private static readonly Rgba Parchment = new(232, 214, 111);
+    public static readonly Rgba Parchment = new(232, 214, 111);
     private const byte FreshAlpha = 230;
     private const byte FadedAlpha = 40;
 

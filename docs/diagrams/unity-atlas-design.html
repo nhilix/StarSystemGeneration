@@ -793,19 +793,21 @@
   <section>
     <p class="eyebrow">§9</p>
     <h2>Panel catalog</h2>
-    <p class="prose">Panels are the REPL made visual — each maps to a proven command surface, so parity is checkable.</p>
+    <p class="prose">Panels are the REPL made visual — each maps to a proven command surface, so parity is checkable. Shipped in K3: every row below, plus the per-lens legend (LegendQuery — the lens constants themselves, drift-proof) and the hover-hex tooltip (HexQuery).</p>
     <div class="tablewrap">
       <table>
         <thead><tr><th>Panel</th><th>REPL parity</th><th>Opened by</th></tr></thead>
         <tbody>
           <tr><td><b>Open Threads</b></td><td class="mono">threads (HandoffView.OpenThreads)</td><td><b>On load — the atlas's opening screen.</b> Half-won wars, loaded tensions, pending successions, leveraged corporations, burning plagues: the world in motion, each row a jump-to</td></tr>
-          <tr><td>Polity</td><td class="mono">polity, tech, characters</td><td>Click a domain / topbar search</td></tr>
-          <tr><td>Market</td><td class="mono">market &lt;portId&gt;</td><td>Click a port → Market tab</td></tr>
+          <tr><td>Polity</td><td class="mono">polity, tech, characters + ReservePoints (actors v7) &amp; the standing plan (eplan, in-flight ★)</td><td>Click a domain / port owner line / topbar search</td></tr>
+          <tr><td>Market</td><td class="mono">market &lt;portId&gt; + the located larder: Port.StockQty/StockGrade per good, capacity (StockCapacityAt), decay (T2)</td><td>Click a port (opens Market + owner Polity)</td></tr>
+          <tr><td><b>Project inspector</b> <span class="mono">(NEW, T1)</span></td><td class="mono">eprojects — kind, funder vs owner, per-year basket, LastFedFraction starvation, honest eta</td><td>Click a works-lens site mark</td></tr>
+          <tr><td><b>Shipment card</b> <span class="mono">(NEW, T2)</span></td><td class="mono">efreight — route, cargo+grades, sailed/total, live eta, STALLED</td><td>Click a works-lens freight mark</td></tr>
           <tr><td>Fleet</td><td class="mono">fleet, designs</td><td>Click a fleet glyph</td></tr>
           <tr><td>War</td><td class="mono">wars, war &lt;id&gt;</td><td>Click a front / war lens legend</td></tr>
           <tr><td>Relations</td><td class="mono">relations [id]</td><td>Polity panel → Relations tab</td></tr>
           <tr><td>Character / Bio</td><td class="mono">characters, bio &lt;id&gt;</td><td>Roster links; notables in chronicle</td></tr>
-          <tr><td>Corporation</td><td class="mono">corps</td><td>Market/polity charter links</td></tr>
+          <tr><td>Corporation</td><td class="mono">corps + funded projects (Project.FunderActorId; corp standing plans await the contract-economy slice)</td><td>Market/polity charter links</td></tr>
           <tr><td>POI</td><td class="mono">poi [id], chronicle place</td><td>Click a POI mark</td></tr>
           <tr><td>Belief / News / Stances</td><td class="mono">belief, news, stances</td><td>Polity panel tabs; news lens</td></tr>
           <tr><td>Chronicle / Eras</td><td class="mono">chronicle, eras</td><td>Timeline strip; any entity's Chronicle tab</td></tr>

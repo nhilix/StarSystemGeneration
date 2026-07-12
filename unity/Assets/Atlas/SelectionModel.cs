@@ -1,0 +1,279 @@
+using System;
+using StarGen.Core.Atlas;
+using StarGen.Core.Galaxy;
+using StarGen.Core.Model;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace StarGen.AtlasView
+{
+    public enum SelectionKind
+    { None, Hex, Port, Project, Shipment, Fleet, Poi }
+
+    /// <summary>What the user selected: a typed registry id plus the hex
+    /// it stands on. The dock routes kinds to panels.</summary>
+    public readonly struct Selection
+    {
+        public readonly SelectionKind Kind;
+        public readonly int Id;
+        public readonly HexCoordinate Hex;
+
+        public Selection(SelectionKind kind, int id, HexCoordinate hex)
+        {
+            Kind = kind;
+            Id = id;
+            Hex = hex;
+        }
+    }
+
+    /// <summary>K3 selection: plane-intersection picking (no colliders —
+    /// the PoC lesson holds), hover hex + HexQuery info for the tooltip,
+    /// click → typed selection resolved from the read model in priority
+    /// order (port · construction site · freight · fleet · live POI ·
+    /// bare hex). A faint ring marks the selected hex.</summary>
+    public sealed class SelectionModel : MonoBehaviour
+    {
+        [SerializeField] private AtlasRoot root;
+
+        private HexCoordinate? _hovered;
+        private HexInfo _hoverInfo;
+        private Vector2 _pressPos;
+        private bool _pressLive;
+        private Vector2 _rightPressPos;
+        private bool _rightPressLive;
+        private GameObject _marker;
+
+        public HexCoordinate? HoveredHex => _hovered;
+        public HexInfo HoverInfo => _hoverInfo;
+
+        public event Action HoverChanged;
+        public event Action<Selection> Selected;
+
+        public void Wire(AtlasRoot atlasRoot) => root = atlasRoot;
+
+        private void Update()
+        {
+            if (root == null || root.SimHost?.Model == null) return;
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+            var screenPos = mouse.position.ReadValue();
+
+            if (AtlasPointerGuard.Blocks(screenPos))
+            {
+                SetHovered(null);
+                _pressLive = false;
+                return;
+            }
+
+            var hex = HexUnder(screenPos);
+            SetHovered(hex);
+
+            // A click is a press and release that never wandered — drags
+            // belong to the camera.
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                _pressPos = screenPos;
+                _pressLive = true;
+            }
+            if (_pressLive && mouse.leftButton.wasReleasedThisFrame)
+            {
+                _pressLive = false;
+                if ((screenPos - _pressPos).sqrMagnitude <= 25f && hex != null)
+                    Select(hex.Value);
+            }
+
+            // a right-CLICK (no wander — right-drag stays the camera pan)
+            // clears the selection highlight
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                _rightPressPos = screenPos;
+                _rightPressLive = true;
+            }
+            if (_rightPressLive && mouse.rightButton.wasReleasedThisFrame)
+            {
+                _rightPressLive = false;
+                if ((screenPos - _rightPressPos).sqrMagnitude <= 25f)
+                    ClearSelection();
+            }
+        }
+
+        /// <summary>Drop the selection highlight (right-click; panels keep
+        /// their own X buttons).</summary>
+        public void ClearSelection()
+        {
+            if (_marker != null) _marker.SetActive(false);
+        }
+
+        private HexCoordinate? HexUnder(Vector2 screenPos)
+        {
+            var cam = root.CameraRig.Cam;
+            if (cam == null) return null;
+            var ray = cam.ScreenPointToRay(
+                new Vector3(screenPos.x, screenPos.y, 0f));
+            float denom = ray.direction.z;
+            if (Mathf.Abs(denom) < 1e-5f) return null;
+            float t = -ray.origin.z / denom;
+            if (t < 0f) return null;
+            var p = ray.origin + ray.direction * t;
+            return HexGrid.WorldToHex(p.x, p.y);
+        }
+
+        private void SetHovered(HexCoordinate? hex)
+        {
+            if (Nullable.Equals(hex, _hovered)) return;
+            _hovered = hex;
+            _hoverInfo = hex != null
+                ? HexQuery.At(root.SimHost.Model,
+                    EyeContext.God(root.SimHost.State.WorldYear), hex.Value)
+                : null;
+            HoverChanged?.Invoke();
+        }
+
+        /// <summary>Resolve what the click means, most specific first.</summary>
+        private void Select(HexCoordinate hex)
+        {
+            var model = root.SimHost.Model;
+            var state = root.SimHost.State;
+            var eye = EyeContext.God(state.WorldYear);
+
+            var selection = new Selection(SelectionKind.Hex, -1, hex);
+            var info = _hoverInfo ?? HexQuery.At(model, eye, hex);
+            if (info.PortId >= 0)
+                selection = new Selection(SelectionKind.Port, info.PortId, hex);
+            else if (FindProject(state, hex) is int projectId)
+                selection = new Selection(SelectionKind.Project, projectId, hex);
+            else if (FindFreight(model, eye, hex) is int shipmentId)
+                selection = new Selection(SelectionKind.Shipment, shipmentId, hex);
+            else if (FindFleet(state, hex) is int fleetId)
+                selection = new Selection(SelectionKind.Fleet, fleetId, hex);
+            else if (info.LivePois.Count > 0)
+                selection = new Selection(SelectionKind.Poi,
+                                          info.LivePois[0].Id, hex);
+            MarkHex(hex);
+            Selected?.Invoke(selection);
+        }
+
+        private static int? FindProject(Core.Epoch.SimState state,
+                                        HexCoordinate hex)
+        {
+            foreach (var p in state.Projects)             // id order (P6)
+                if (p.InFlight && p.Hex.Equals(hex)) return p.Id;
+            return null;
+        }
+
+        private static int? FindFleet(Core.Epoch.SimState state,
+                                      HexCoordinate hex)
+        {
+            foreach (var f in state.Fleets)               // id order (P6)
+                if (f.TotalHulls > 0 && f.Hex.Equals(hex)) return f.Id;
+            return null;
+        }
+
+        private static int? FindFreight(AtlasReadModel model, EyeContext eye,
+                                        HexCoordinate hex)
+        {
+            foreach (var mark in WorksLens.Freight(model, eye))
+                if (mark.Hex.Equals(hex)) return mark.ShipmentId;
+            return null;
+        }
+
+        // ---- the selected-hex highlight: the lattice's own grammar, one
+        // hex, bolder — a hexagonal ring mesh (6 trapezoid quads on the
+        // same CornerOffsets the lattice draws), moved to the selection,
+        // never LOD-faded ----
+
+        private static readonly Color OutlineColor =
+            new Color32(0x86, 0xD7, 0xFF, 0xE6);   // the UI accent — an
+        // affordance over the map, not a data color
+
+        private Mesh _ringMesh;
+        private Material _ringMaterial;
+        private float _ringThickness = -1f;
+
+        private void MarkHex(HexCoordinate hex)
+        {
+            if (_marker == null)
+            {
+                _marker = new GameObject("SelectionHighlight");
+                _marker.AddComponent<MeshFilter>();
+                var renderer = _marker.AddComponent<MeshRenderer>();
+                _ringMaterial = new Material(Shader.Find("Sprites/Default"))
+                {
+                    color = OutlineColor,
+                    renderQueue = 3200,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                renderer.sharedMaterial = _ringMaterial;
+                renderer.shadowCastingMode =
+                    UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+            // above the lattice (its Z is -0.02), below screen-space chrome
+            _marker.transform.position = AtlasGeometry.HexToWorld(hex, -0.03f);
+            _marker.SetActive(true);
+            RebuildRing(force: false);
+        }
+
+        /// <summary>The ring in local space: outer edge exactly on the hex
+        /// border, inner edge inset by the stroke — rebuilt only when the
+        /// zoom band moves the stroke meaningfully.</summary>
+        private void RebuildRing(bool force)
+        {
+            float distance = root?.CameraRig != null
+                ? root.CameraRig.Distance : 20f;
+            // bold at region zoom, fattening as the camera pulls back so
+            // the marker never vanishes (the no-LOD-out requirement)
+            float thickness = Mathf.Clamp(0.08f + distance * 0.004f,
+                                          0.08f, 0.55f);
+            if (!force && Mathf.Abs(thickness - _ringThickness)
+                    < _ringThickness * 0.15f) return;
+            _ringThickness = thickness;
+
+            var vertices = new Vector3[12];
+            for (int c = 0; c < 6; c++)
+            {
+                var (ox, oy) = HexGrid.CornerOffsets[c];
+                vertices[c] = new Vector3((float)ox, (float)oy, 0f);
+                vertices[6 + c] = new Vector3(
+                    (float)(ox * (1f - thickness)),
+                    (float)(oy * (1f - thickness)), 0f);
+            }
+            var triangles = new int[36];
+            for (int c = 0; c < 6; c++)
+            {
+                int n = (c + 1) % 6;
+                int t = c * 6;
+                triangles[t] = c; triangles[t + 1] = n; triangles[t + 2] = 6 + c;
+                triangles[t + 3] = n; triangles[t + 4] = 6 + n; triangles[t + 5] = 6 + c;
+            }
+            if (_ringMesh == null)
+                _ringMesh = new Mesh { hideFlags = HideFlags.HideAndDontSave };
+            _ringMesh.Clear();
+            _ringMesh.vertices = vertices;
+            _ringMesh.triangles = triangles;
+            _ringMesh.RecalculateBounds();
+            _marker.GetComponent<MeshFilter>().sharedMesh = _ringMesh;
+        }
+
+        private void LateUpdate()
+        {
+            if (_marker == null || !_marker.activeSelf) return;
+            RebuildRing(force: false);
+        }
+
+        private void OnDisable()
+        {
+            if (_marker != null) _marker.SetActive(false);
+        }
+
+        private void OnDestroy()
+        {
+            if (_ringMaterial != null) Destroy(_ringMaterial);
+            if (_ringMesh != null) Destroy(_ringMesh);
+            if (_marker != null) Destroy(_marker);
+            _marker = null;
+            _ringMaterial = null;
+            _ringMesh = null;
+        }
+    }
+}

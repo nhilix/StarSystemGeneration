@@ -4,8 +4,13 @@ using static System.FormattableString;
 namespace StarGen.Core.Epoch;
 
 /// <summary>One surfaced open thread — a reason the world is in motion at
-/// the moment of handoff.</summary>
-public sealed record OpenThread(string Kind, string Text);
+/// the moment of handoff. SubjectId/SubjectId2 identify the subject in the
+/// kind's own registry (K3, view-only): war→war id · tension→polity A/B
+/// actor ids · succession→polity actor id (claimed thrones: holder,
+/// claimed) · corporation→corp id, host actor id · plague→plague id ·
+/// quarantine→lane id · offer→offerer actor id, other actor id.</summary>
+public sealed record OpenThread(string Kind, string Text,
+                                int SubjectId = -1, int SubjectId2 = -1);
 
 /// <summary>The world-state handoff's open-threads surface (narrative/
 /// handoff.md §Contents): the final epoch is not tidied — loaded tensions,
@@ -45,7 +50,8 @@ public static class HandoffView
                 + Invariant($"{state.Actors[war.DefenderId].Name}, ")
                 + Invariant($"{taken}/{war.Objectives.Count} objectives taken, ")
                 + Invariant($"exhaustion {war.AttackerExhaustion:0.00} vs ")
-                + Invariant($"{war.DefenderExhaustion:0.00}")));
+                + Invariant($"{war.DefenderExhaustion:0.00}"),
+                war.Id));
         }
     }
 
@@ -66,7 +72,8 @@ public static class HandoffView
                 Invariant($"{state.Actors[rel.PolityAId].Name} and ")
                 + Invariant($"{state.Actors[rel.PolityBId].Name} stand at the brink: ")
                 + Invariant($"tension {rel.Tension:0.00}, {causes} declared ")
-                + (causes == 1 ? "cause" : "causes") + " on the table"));
+                + (causes == 1 ? "cause" : "causes") + " on the table",
+                rel.PolityAId, rel.PolityBId));
         }
     }
 
@@ -92,7 +99,8 @@ public static class HandoffView
             if (age / span >= 0.75)
                 threads.Add(new OpenThread("succession",
                     Invariant($"an old throne: {ruler.Name} of {actor.Name} is ")
-                    + Invariant($"{age:0} (a span is {span:0}) — the succession looms")));
+                    + Invariant($"{age:0} (a span is {span:0}) — the succession looms"),
+                    pr.ActorId));
         }
         foreach (var rel in state.Relations)              // creation order (P6)
         {
@@ -102,7 +110,8 @@ public static class HandoffView
                     threads.Add(new OpenThread("succession",
                         Invariant($"a claimed throne: {state.Actors[claim.HolderPolityId].Name}")
                         + " holds a live succession claim on "
-                        + Invariant($"{state.Actors[rel.OtherOf(claim.HolderPolityId)].Name}")));
+                        + Invariant($"{state.Actors[rel.OtherOf(claim.HolderPolityId)].Name}"),
+                        claim.HolderPolityId, rel.OtherOf(claim.HolderPolityId)));
         }
     }
 
@@ -121,7 +130,8 @@ public static class HandoffView
             threads.Add(new OpenThread("corporation",
                 Invariant($"{corp.Name} out-banks its host: {corp.Credits:0} credits ")
                 + Invariant($"against {state.Actors[corp.HostPolityId].Name}'s ")
-                + Invariant($"{host.Credits:0} — nationalization pressure builds")));
+                + Invariant($"{host.Credits:0} — nationalization pressure builds"),
+                corp.Id, corp.HostPolityId));
         }
     }
 
@@ -133,7 +143,8 @@ public static class HandoffView
             threads.Add(new OpenThread("plague",
                 Invariant($"the {plague.Name} still burns: {plague.InfectedSince.Count} ")
                 + (plague.InfectedSince.Count == 1 ? "port" : "ports")
-                + Invariant($" infected, {plague.TotalDeaths:0.00} dead so far")));
+                + Invariant($" infected, {plague.TotalDeaths:0.00} dead so far"),
+                plague.Id));
         }
     }
 
@@ -145,7 +156,8 @@ public static class HandoffView
                 threads.Add(new OpenThread("quarantine",
                     Invariant($"lane #{lane.Id} (port {lane.PortAId} — port ")
                     + Invariant($"{lane.PortBId}) sits closed until ")
-                    + Invariant($"y{lane.QuarantinedUntil}")));
+                    + Invariant($"y{lane.QuarantinedUntil}"),
+                    lane.Id));
     }
 
     private static void UnansweredOffers(SimState state,
@@ -159,7 +171,8 @@ public static class HandoffView
             threads.Add(new OpenThread("offer",
                 Invariant($"an unanswered offer: {state.Actors[rel.OfferedById].Name} ")
                 + Invariant($"holds out {rel.OfferedRung} to ")
-                + Invariant($"{state.Actors[rel.OtherOf(rel.OfferedById)].Name}")));
+                + Invariant($"{state.Actors[rel.OtherOf(rel.OfferedById)].Name}"),
+                rel.OfferedById, rel.OtherOf(rel.OfferedById)));
         }
     }
 }
