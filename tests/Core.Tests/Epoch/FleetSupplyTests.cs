@@ -144,6 +144,47 @@ public class FleetSupplyTests
         Assert.Equal(newPort.Hex, docked!.Hex);
     }
 
+    /// <summary>Stage 2 carried gap (spec §6, P7): the controller commits
+    /// one founding per DECISION step, so a finer clock founds more often
+    /// over the same world-time — the truth check now holds fire while the
+    /// polity's last expedition is younger than the cadence window.</summary>
+    [Fact]
+    public void Founding_HoldsFire_WithinTheCadenceWindow()
+    {
+        // scenario A: an expedition left one world-year ago — blocked
+        var (state, pr, port) = Entered();
+        pr.ExpansionPoints = state.Config.Expansion.ColonyCost * 2;
+        ProjectOps.SpawnAt(state, ProjectKind.ColonyExpedition, pr.ActorId,
+            pr.ActorId, port.Id, new HexCoordinate(port.Hex.Q + 9, port.Hex.R),
+            yearsRequired: 2.0, ProjectPriority.Core, planOrder: 0,
+            startedYear: state.WorldYear - 1);
+        var candidates = ColonyValuation.CandidatesFor(state, pr.ActorId);
+        Assert.NotEmpty(candidates);
+        state.Decisions.Add(new ActorDecision(pr.ActorId,
+            new ControllerDecision(PolityPolicies.Default, new Act[]
+            { new FoundColonyAct(pr.ActorId, candidates[0].Target) })));
+        new ResolutionPhase().Run(state);
+        Assert.DoesNotContain(state.Staged,
+            e => e.Type == WorldEventType.ConvoyDispatched);
+
+        // scenario B: the last expedition is generations old — founds
+        var (state2, pr2, port2) = Entered();
+        pr2.ExpansionPoints = state2.Config.Expansion.ColonyCost * 2;
+        ProjectOps.SpawnAt(state2, ProjectKind.ColonyExpedition, pr2.ActorId,
+            pr2.ActorId, port2.Id,
+            new HexCoordinate(port2.Hex.Q + 9, port2.Hex.R),
+            yearsRequired: 2.0, ProjectPriority.Core, planOrder: 0,
+            startedYear: state2.WorldYear - 100);
+        var candidates2 = ColonyValuation.CandidatesFor(state2, pr2.ActorId);
+        Assert.NotEmpty(candidates2);
+        state2.Decisions.Add(new ActorDecision(pr2.ActorId,
+            new ControllerDecision(PolityPolicies.Default, new Act[]
+            { new FoundColonyAct(pr2.ActorId, candidates2[0].Target) })));
+        new ResolutionPhase().Run(state2);
+        Assert.Contains(state2.Staged,
+            e => e.Type == WorldEventType.ConvoyDispatched);
+    }
+
     [Fact]
     public void Founding_WithoutAColonyHull_Fails()
     {

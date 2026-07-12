@@ -109,9 +109,13 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
   polity's own port stockpiles toward project sites (in-flight shortfalls +
   pre-positioning for due-soon remote plan entries) — bypasses price, never
   time/route/capacity. Deterministic source ordering.
-- [ ] **T6 — located capability brief.** Per-port stockpile levels in the
-  brief (`PortBrief` gains stock); planner prefers sites near supply /
-  pre-positions before remote groundbreaking (lead-time damping in scores).
+- [x] **T6 — located capability brief.** COMPLETE. `PortBrief.Stock`
+  (Perception copies the larder — the view never aliases state); planner
+  supply lean via `Controller.PlanSupplyWeight` (score × 1−w+w·coverage,
+  coverage = worst-good share of the whole build basket in the site larder);
+  `Planner.EntryBasketPerYear` shared with the quartermaster; requisitions
+  pre-position due-soon plan entries (GroundBroken guard against
+  double-cover). Suite 676/679 (golden window + 2 carried shape reds).
 - [ ] **T7 — fine-tick cadence normalizations** (carried Stage-1 gaps):
   founding cadence world-time gate (via latest own expedition StartedYear);
   hull-batch fractional-throughput accumulator replacing the Max(1,·) floor;

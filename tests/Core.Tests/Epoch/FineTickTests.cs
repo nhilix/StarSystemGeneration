@@ -195,16 +195,14 @@ public class FineTickTests
     /// at a time on a fine clock, in bundles on a coarse one — the stage-2
     /// world-time slot clock makes the totals telescope), so records are
     /// not comparable but units are. Expansion/logistics foundings (colony
-    /// expeditions, gate pairs) are deliberately excluded: their COUNT
-    /// reflects the controller's decision cadence (it commits one founding
-    /// per decision step, so a finer clock decides — and founds — more
-    /// often over the same world-time), which the durations spec calls out
-    /// as expected divergence in WHICH projects run. One known cadence
-    /// effect still pending a world-time normalization (flagged for the
-    /// located-logistics stage): the one-founding-per-step expansion
-    /// commit. It does not hide the failure this test guards — whether the
-    /// built world commissions AT ALL, and at a comparable world-time rate,
-    /// across tick resolutions.</summary>
+    /// expeditions, gate pairs) are deliberately excluded: even with the
+    /// stage-2 founding cadence normalized to world-time
+    /// (Expansion.FoundingCadenceYears in TryFound), WHICH hexes get
+    /// targeted and which expeditions collide still follows the decision
+    /// cadence — expected divergence in WHICH projects run, per the
+    /// durations spec. The exclusion does not hide the failure this test
+    /// guards: whether the built world commissions AT ALL, and at a
+    /// comparable world-time rate, across tick resolutions.</summary>
     [Fact]
     public void FineTick_ProjectCompletions_LandOnWorldYears_NotSteps()
     {

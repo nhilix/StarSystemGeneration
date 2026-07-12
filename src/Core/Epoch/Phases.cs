@@ -1038,6 +1038,16 @@ public sealed class ResolutionPhase : ISimPhase
         if (!actor.Entered || actor.Kind != ActorKind.Polity) return false;
         var record = state.PolityOf(act.ActorId);
         if (record.ExpansionPoints < cfg.Expansion.ColonyCost) return false;
+        // world-time founding cadence (stage 2, P7): the controller
+        // commits one founding per DECISION, so a finer clock would found
+        // more often over the same world-years — the truth check holds
+        // fire while the polity's last expedition is younger than the
+        // cadence window (in flight, arrived, or turned back alike)
+        foreach (var p in state.Projects)                 // id order (P6)
+            if (p.Kind == ProjectKind.ColonyExpedition
+                && p.OwnerActorId == act.ActorId
+                && state.WorldYear - p.StartedYear
+                   < cfg.Expansion.FoundingCadenceYears) return false;
         if (!state.Skeleton.TryGetCell(HexGrid.CellOf(act.Target), out var cell)
             || cell.IsVoid) return false;
         foreach (var p in state.Ports)

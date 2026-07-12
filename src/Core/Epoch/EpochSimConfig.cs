@@ -859,6 +859,12 @@ public sealed class ExpansionKnobs
     public double ColonyCost { get; set; } = 15.0;
     /// <summary>Off-lane colonization reach from any owned port, in hexes.</summary>
     public int ColonizationReachHexes { get; set; } = 24;
+    /// <summary>World-years between one polity's colony dispatches (stage
+    /// 2, P7): the controller commits one founding per decision step, so
+    /// without this the founding RATE would follow the tick, not the
+    /// clock. At the 25-year default a coarse generation step behaves
+    /// exactly as before; a 1-year clock founds at the same world pace.</summary>
+    public double FoundingCadenceYears { get; set; } = 25.0;
     /// <summary>Colony-score penalty per foreign polity whose domain the
     /// new port's service area would overlap — settling someone's sphere
     /// must be outweighed by real riches (slice H: contiguous borders).</summary>
