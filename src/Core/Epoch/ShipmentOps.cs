@@ -187,7 +187,6 @@ public static class ShipmentOps
         foreach (var p in state.Projects)                 // id order (P6)
             if (p.InFlight && p.FunderActorId == pr.ActorId
                 && p.Kind != ProjectKind.ColonyExpedition) mine.Add(p);
-        if (mine.Count == 0) return 0;
         mine.Sort((x, y) =>
         {
             int c = x.Priority.CompareTo(y.Priority);
@@ -226,7 +225,75 @@ public static class ShipmentOps
                 raised += OrderFromOwnPorts(state, pr, end, want);
             }
         }
+        // pre-positioning (spec §4b "Planner consequence"): due-soon plan
+        // entries get their baskets shipped AHEAD of groundbreaking, so a
+        // remote site opens with a stocked larder instead of starving
+        // through its first lead time
+        if (state.Actors[pr.ActorId].Policies is PolityPolicies policies)
+        {
+            var basket = new double[Substrate.Goods.All.Count];
+            foreach (var entry in policies.Plan.Entries)  // plan order (P6)
+            {
+                double lead = entry.StartYear - state.WorldYear;
+                if (lead < 0 || lead > window) continue;
+                if (entry.PortId < 0 || entry.PortId >= state.Ports.Count)
+                    continue;
+                if (GroundBroken(state, pr.ActorId, entry)) continue;
+                var (role, size) = entry.Kind == PlanEntryKind.HullBatch
+                    && entry.TypeId >= 0 && entry.TypeId < state.Designs.Count
+                    ? (state.Designs[entry.TypeId].Role,
+                       state.Designs[entry.TypeId].Size)
+                    : (ShipRole.Freight, ShipSize.Medium);
+                double duration = Planner.EntryBasketPerYear(state.Config,
+                    entry.Kind, entry.TypeId, entry.Count,
+                    state.Ports[entry.PortId].Tier, role, size, basket);
+                double cover = Math.Min(duration, window);
+                var site = state.Ports[entry.PortId];
+                var market = state.Markets[entry.PortId];
+                bool any = false;
+                for (int g = 0; g < want.Length; g++)
+                {
+                    want[g] = 0;
+                    if (basket[g] <= 0) continue;
+                    double need = basket[g] * cover - site.StockQty[g]
+                        - market.Inventory[g]
+                        - Inbound(state, pr.ActorId, entry.PortId, g);
+                    if (need > 1e-6) { want[g] = need; any = true; }
+                }
+                if (!any) continue;
+                raised += OrderFromOwnPorts(state, pr, entry.PortId, want);
+            }
+        }
         return raised;
+    }
+
+    /// <summary>True when the entry's work already broke ground at its
+    /// port — the in-flight pass above covers it from here on.</summary>
+    private static bool GroundBroken(SimState state, int funderActorId,
+                                     PlanEntry entry)
+    {
+        foreach (var p in state.Projects)                 // id order (P6)
+        {
+            if (!p.InFlight || p.FunderActorId != funderActorId) continue;
+            switch (entry.Kind)
+            {
+                case PlanEntryKind.Facility:
+                    if (p.Kind == ProjectKind.FacilityConstruction
+                        && p.PortId == entry.PortId
+                        && p.TypeId == entry.TypeId) return true;
+                    break;
+                case PlanEntryKind.PortRaise:
+                    if (p.Kind == ProjectKind.PortRaise
+                        && p.TargetId == entry.PortId) return true;
+                    break;
+                case PlanEntryKind.HullBatch:
+                    if (p.Kind == ProjectKind.HullBatch
+                        && p.PortId == entry.PortId
+                        && p.TypeId == entry.TypeId) return true;
+                    break;
+            }
+        }
+        return false;
     }
 
     /// <summary>Fill the site's want from own ports' stock, port-id order

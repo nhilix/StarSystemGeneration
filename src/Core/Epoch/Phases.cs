@@ -112,8 +112,10 @@ public sealed class PerceptionPhase : ISimPhase
                             && MarketEngine.AttachedMarketIndex(state, f)
                                 == port.Id)
                             yardTiers += f.Tier;
+                    // the stock snapshot makes the brief LOCATED (spec §2,
+                    // stage 2): a copy — the view never aliases live state
                     ownPortBriefs.Add(new PortBrief(port.Id, port.Tier,
-                                                    yardTiers));
+                        yardTiers, (double[])port.StockQty.Clone()));
                 }
                 foreach (var corp in state.Corporations)
                     if (corp.Active && corp.HostPolityId == a.Id)

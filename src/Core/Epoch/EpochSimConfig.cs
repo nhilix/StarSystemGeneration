@@ -1015,4 +1015,9 @@ public sealed class ControllerKnobs
     /// <summary>Base score of a port-raise plan entry, divided by the port's
     /// current tier — the standing bias toward deepening young ports first.</summary>
     public double PortRaisePlanScore { get; set; } = 0.5;
+    /// <summary>How hard the scheduler leans toward supplied sites (stage 2,
+    /// spec §4b "Planner consequence"): entry scores scale by
+    /// 1 − w + w·coverage, coverage = the site larder's share of the whole
+    /// build basket — a sprawling polity pays a real coordination tax.</summary>
+    public double PlanSupplyWeight { get; set; } = 0.3;
 }
