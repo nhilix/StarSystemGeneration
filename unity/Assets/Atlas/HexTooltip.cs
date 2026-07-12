@@ -14,9 +14,15 @@ namespace StarGen.AtlasView
     {
         [SerializeField] private SelectionModel selection;
 
+        /// <summary>The cursor must REST on a hex this long before the tip
+        /// shows (the eyeball note: instant tips spam every hex crossed).</summary>
+        private const float HoverRestSeconds = 0.45f;
+
         private VisualElement _tip;
         private Label _title;
         private VisualElement _lines;
+        private float _restStartedAt;
+        private bool _pending;
 
         public void Wire(SelectionModel selectionModel) =>
             selection = selectionModel;
@@ -45,14 +51,14 @@ namespace StarGen.AtlasView
 
         private void Refresh()
         {
+            // every hex change hides the tip and restarts the rest clock —
+            // Update() shows it once the cursor has settled
             var layer = GetComponent<AtlasChrome>().TooltipLayer;
+            layer.style.display = DisplayStyle.None;
             var info = selection != null ? selection.HoverInfo : null;
-            if (info == null)
-            {
-                layer.style.display = DisplayStyle.None;
-                return;
-            }
-            layer.style.display = DisplayStyle.Flex;
+            _pending = info != null;
+            _restStartedAt = Time.unscaledTime;
+            if (info == null) return;
             _title.text = info.SystemSummary;
             _lines.Clear();
             Line($"hex ({info.Hex.Q},{info.Hex.R})", dim: true);
@@ -81,6 +87,13 @@ namespace StarGen.AtlasView
         {
             if (_tip == null || selection == null
                 || selection.HoverInfo == null) return;
+            if (_pending
+                && Time.unscaledTime - _restStartedAt >= HoverRestSeconds)
+            {
+                _pending = false;
+                GetComponent<AtlasChrome>().TooltipLayer.style.display =
+                    DisplayStyle.Flex;
+            }
             var mouse = Mouse.current;
             if (mouse == null || _tip.panel == null) return;
             var screenPos = mouse.position.ReadValue();

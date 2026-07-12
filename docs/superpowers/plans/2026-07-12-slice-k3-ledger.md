@@ -122,6 +122,12 @@ Core.Tests never references Inspector.
 - [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
       numbers incl. larder; click site → starvation readout; threads rows
       jump camera; menu scene eyeball folded in)
+  - Eyeball wave 3 (2026-07-12, selection feel): hover tooltip now
+    waits for the cursor to REST 0.45s before showing (was instant —
+    spammed every hex crossed) · right-CLICK (no wander; right-drag
+    stays the pan) clears the selection highlight · the highlight is now
+    the actual HEX BORDER (LineRenderer on HexGrid.CornerOffsets, ice
+    accent, screen-constant-ish stroke) instead of the white ring quad.
   - Eyeball wave 2 (2026-07-12, menu scene): the scanline overlay
     rendered as a yellow screen-door — on a fresh checkout MainMenu.uss
     imports BEFORE the builder generates scanline.png, so the compiled

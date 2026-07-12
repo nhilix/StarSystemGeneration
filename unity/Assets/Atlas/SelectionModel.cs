@@ -39,7 +39,10 @@ namespace StarGen.AtlasView
         private HexInfo _hoverInfo;
         private Vector2 _pressPos;
         private bool _pressLive;
+        private Vector2 _rightPressPos;
+        private bool _rightPressLive;
         private GameObject _marker;
+        private LineRenderer _outline;
 
         public HexCoordinate? HoveredHex => _hovered;
         public HexInfo HoverInfo => _hoverInfo;
@@ -79,6 +82,27 @@ namespace StarGen.AtlasView
                 if ((screenPos - _pressPos).sqrMagnitude <= 25f && hex != null)
                     Select(hex.Value);
             }
+
+            // a right-CLICK (no wander — right-drag stays the camera pan)
+            // clears the selection highlight
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                _rightPressPos = screenPos;
+                _rightPressLive = true;
+            }
+            if (_rightPressLive && mouse.rightButton.wasReleasedThisFrame)
+            {
+                _rightPressLive = false;
+                if ((screenPos - _rightPressPos).sqrMagnitude <= 25f)
+                    ClearSelection();
+            }
+        }
+
+        /// <summary>Drop the selection highlight (right-click; panels keep
+        /// their own X buttons).</summary>
+        public void ClearSelection()
+        {
+            if (_marker != null) _marker.SetActive(false);
         }
 
         private HexCoordinate? HexUnder(Vector2 screenPos)
@@ -154,32 +178,44 @@ namespace StarGen.AtlasView
             return null;
         }
 
-        // ---- the selected-hex ring ----
+        // ---- the selected-hex outline (the hex border, not a ring) ----
+
+        private static readonly Color OutlineColor =
+            new Color32(0x86, 0xD7, 0xFF, 0xE6);   // the UI accent — an
+        // affordance over the map, not a data color
 
         private void MarkHex(HexCoordinate hex)
         {
             if (_marker == null)
             {
-                _marker = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                _marker.name = "SelectionRing";
-                UnityEngine.Object.Destroy(
-                    _marker.GetComponent<Collider>());
-                var mat = new Material(Shader.Find("Unlit/Transparent"))
-                { mainTexture = AtlasTextures.Ring, renderQueue = 3200 };
-                mat.hideFlags = HideFlags.HideAndDontSave;
-                _marker.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                _marker = new GameObject("SelectionOutline");
+                _outline = _marker.AddComponent<LineRenderer>();
+                _outline.loop = true;
+                _outline.positionCount = 6;
+                _outline.useWorldSpace = true;
+                var mat = new Material(Shader.Find("Sprites/Default"))
+                { renderQueue = 3200, hideFlags = HideFlags.HideAndDontSave };
+                _outline.sharedMaterial = mat;
+                _outline.startColor = OutlineColor;
+                _outline.endColor = OutlineColor;
             }
-            _marker.transform.position = AtlasGeometry.HexToWorld(hex, -0.5f);
+            var center = AtlasGeometry.HexToWorld(hex, -0.5f);
+            for (int i = 0; i < 6; i++)
+            {
+                var (x, y) = HexGrid.CornerOffsets[i];
+                _outline.SetPosition(i, center
+                    + new Vector3((float)x, (float)y, 0f));
+            }
             _marker.SetActive(true);
         }
 
         private void LateUpdate()
         {
-            if (_marker == null || !_marker.activeSelf
+            if (_outline == null || !_marker.activeSelf
                 || root?.CameraRig == null) return;
-            // screen-constant-ish: scale with camera distance
-            float s = Mathf.Max(1.2f, root.CameraRig.Distance * 0.02f);
-            _marker.transform.localScale = new Vector3(s, s, 1f);
+            // screen-constant-ish stroke: thicker as the camera pulls back
+            _outline.widthMultiplier =
+                Mathf.Clamp(root.CameraRig.Distance * 0.006f, 0.04f, 1.2f);
         }
 
         private void OnDisable()
@@ -189,12 +225,12 @@ namespace StarGen.AtlasView
 
         private void OnDestroy()
         {
-            if (_marker == null) return;
-            var renderer = _marker.GetComponent<MeshRenderer>();
-            if (renderer != null && renderer.sharedMaterial != null)
-                Destroy(renderer.sharedMaterial);   // HideAndDontSave leaks
+            if (_outline == null) return;
+            if (_outline.sharedMaterial != null)
+                Destroy(_outline.sharedMaterial);   // HideAndDontSave leaks
             Destroy(_marker);
             _marker = null;
+            _outline = null;
         }
     }
 }
