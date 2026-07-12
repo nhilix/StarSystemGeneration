@@ -663,6 +663,12 @@ public sealed class EconomyKnobs
     /// targets → depots/reserves" mechanism: two depot tiers keep goods
     /// 4× longer at the default 0.5.</summary>
     public double DepotDecayFactor { get; set; } = 0.5;
+    /// <summary>Stockpile capacity per good per port tier (spec §4b) —
+    /// what a port can bank without dedicated storage.</summary>
+    public double StockCapPerPortTier { get; set; } = 100.0;
+    /// <summary>Extra stockpile capacity per good per active Depot tier at
+    /// the port — depots are how a polity builds deep larders.</summary>
+    public double StockCapPerDepotTier { get; set; } = 400.0;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

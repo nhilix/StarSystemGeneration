@@ -148,8 +148,10 @@ public class MarketFreightTests
         Assert.Equal(0.0, mB.Inventory[(int)GoodId.Narcotics]);
     }
 
+    /// <summary>Stage 2 (spec §4b): procurement buys into the LOCAL port
+    /// stockpile — stock lands where it was bought, never in a polity pool.</summary>
     [Fact]
-    public void Procurement_FillsReservesFromOwnMarkets()
+    public void Procurement_FillsThePortStockpile_FromItsOwnMarket()
     {
         var (state, pa, _) = TwoPortFixture();
         var mA = state.Markets[0];
@@ -165,27 +167,67 @@ public class MarketFreightTests
 
         MarketEngine.MoveFreight(state, scratch);
 
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions] > 0);
+        Assert.True(pa.StockQty[(int)GoodId.Provisions] > 0);
         Assert.True(pr.Credits < creditsBefore, "procurement is bought, not taken");
         Assert.True(mA.Inventory[(int)GoodId.Provisions] < 500);
-        Assert.Equal(0.6, pr.ReserveGrade[(int)GoodId.Provisions]);
+        Assert.Equal(0.6, pa.StockGrade[(int)GoodId.Provisions]);
+    }
+
+    /// <summary>Capacity is built, not assumed (spec §4b): the port's own
+    /// tier bounds the stockpile; depots extend it.</summary>
+    [Fact]
+    public void Procurement_StopsAtThePortsStockCapacity()
+    {
+        var (state, pa, _) = TwoPortFixture();
+        state.Config.Economy.StockCapPerPortTier = 3.0;   // tier 2 → cap 6
+        var mA = state.Markets[0];
+        mA.Deposit((int)GoodId.Provisions, 500, 0.6);
+        state.Actors[pa.OwnerActorId].Policies = PolityPolicies.Default with
+        {
+            StockpileTargets = new Dictionary<int, double>
+            { [(int)GoodId.Provisions] = 20.0 },
+        };
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.MoveFreight(state, scratch);
+
+        Assert.Equal(6.0, pa.StockQty[(int)GoodId.Provisions], 6);
     }
 
     [Fact]
-    public void ReserveRelease_FeedsAStarvingPort()
+    public void StockRelease_FeedsTheStarvingPort_FromItsOwnStockpile()
     {
         var (state, pa, _) = TwoPortFixture();
-        var pr = state.PolityOf(pa.OwnerActorId);
-        pr.ReserveQty[(int)GoodId.Provisions] = 100;
-        pr.ReserveGrade[(int)GoodId.Provisions] = 0.5;
+        pa.StockQty[(int)GoodId.Provisions] = 100;
+        pa.StockGrade[(int)GoodId.Provisions] = 0.5;
         state.Segments[0].LastSubsistence = 0.4;      // last step starved
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.MoveFreight(state, scratch);
 
         Assert.True(state.Markets[0].Inventory[(int)GoodId.Provisions] > 0,
-            "reserves should buffer famines (economy/markets.md §Stockpiles)");
-        Assert.True(pr.ReserveQty[(int)GoodId.Provisions] < 100);
+            "stockpiles should buffer famines (economy/markets.md §Stockpiles)");
+        Assert.True(pa.StockQty[(int)GoodId.Provisions] < 100);
+    }
+
+    /// <summary>The stockpile-target pull is located too: each own port's
+    /// deficit against its share of the target registers at THAT port —
+    /// procurement is a market participant everywhere it banks.</summary>
+    [Fact]
+    public void StockpileTargetDemand_LandsPerPort()
+    {
+        var (state, pa, pb) = TwoPortFixture(sameOwner: true);
+        state.Actors[pa.OwnerActorId].Policies = PolityPolicies.Default with
+        {
+            StockpileTargets = new Dictionary<int, double>
+            { [(int)GoodId.Provisions] = 20.0 },
+        };
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.AddConstructionPull(state, scratch);
+
+        Assert.Equal(10.0, scratch.Demand[pa.Id][(int)GoodId.Provisions], 6);
+        Assert.Equal(10.0, scratch.Demand[pb.Id][(int)GoodId.Provisions], 6);
     }
 
     [Fact]
