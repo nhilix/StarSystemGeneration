@@ -1,8 +1,9 @@
 # Session Handoff — 2026-07-11 (Time & logistics Stage 1 on `slice-t1-project-ledger`)
 
-State: branch `slice-t1-project-ledger` complete and green (**649/0**, twice
-for determinism; hex-tier untouched; goldens re-frozen at branch end — the
-red window closed), **awaiting the user's REPL eyeball + merge decision**.
+State: branch `slice-t1-project-ledger` complete and green (**657/0**, twice
+for determinism; hex-tier untouched; goldens re-frozen after the final-review
+fix wave — the red window closed), **awaiting the user's REPL eyeball + merge
+decision**.
 `main` at `dd8457f` (the Stage-1 plan commit). ProjectSettings churn
 uncommitted.
 
@@ -58,15 +59,25 @@ mechanism, the **project**.
   convoy hex interpolates en route; arrival founds (or fails gracefully,
   refunding ColonyCost).
 - **Conquest**: `WarConduct.TransferPort` transfers in-flight projects with a
-  captured port (ColonyExpedition excluded).
+  captured port (ColonyExpedition excluded; Mobilization projects CANCEL on
+  capture — a readiness ramp is polity state, not site-anchored work). White
+  peace reverts ports through the same seam, so project ownership reverts too.
 - **Serializer**: actors **v6** (POLITY + LastIncomePerYear + Mobilization,
   PLANE lines), facilities **v2** (CommissionedYear), corporations **v3**,
   trailing **projects layer v1**.
 - **REPL**: `eprojects [actorId|all]`, `eplan <actorId>` (ETA under current
   starvation).
-- **Tuning wave**: `WarTensionFloor` 0.55→0.40, `WarAppetiteThreshold`
-  0.60→0.38 (the slowed economy lowered the tension ceiling). Wars on seed 42:
-  **7 declared / 3 settled / 4 live**.
+- **Tuning wave**: `WarTensionFloor` 0.55→0.35, `WarAppetiteThreshold`
+  0.60→0.38 (the slowed economy lowered the tension ceiling). Wars on seed 42
+  after the fix wave: **8 declared / 5 settled**; 202 lanes / 198 ports at
+  y1000.
+- **Final-review fix wave** (one whole-branch review, one wave, 8 new tests):
+  captured mobilizations cancel instead of gifting the attacker the surge;
+  corp dissolution / nationalization / federation absorption sweep in-flight
+  projects (no zombie work holding gate slots and facility caps); Groundbreak
+  honors `PlanEntry.StartYear` via `SpawnAt` (the staggered schedule is real
+  at coarse tick); yard tiers cap concurrent hull batches; an in-flight
+  founding link counts as connected (no duplicate goods-free pairs).
 - **FineTick P7 honesty test** pins built-world completions
   (facilities/ports/hull-batches) coarse-vs-fine within an honest band;
   expansion/logistics foundings are deliberately excluded (decision-cadence
@@ -95,9 +106,9 @@ mechanism, the **project**.
   world-time), and the Planner's `Max(1, tier·rate·span)` hull-batch slot floor
   fires a unit batch every step at fine tick. Both want a world-time
   normalization in Stage 2; neither hides the failure the test guards.
-- **White-peace project-ownership revert gap**: a white-peace settlement
-  reverts ports/facilities but NOT in-flight projects — consider routing the
-  revert through `WarConduct.TransferPort`.
+- **Project cancellation stages no chronicle event** (no fitting existing
+  `WorldEventType`; inventing one was out of slice scope) — abandoned works
+  are P1 residue only via the uncommissioned facility row for now.
 - **Future passes flagged in the spec** (not designed yet): the contract
   economy (buy/sell contracts fulfilled by freight-line actors — located stock
   + shipments + transit are its substrate), front supply lines (interdictable
