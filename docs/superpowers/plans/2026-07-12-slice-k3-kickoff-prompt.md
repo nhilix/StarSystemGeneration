@@ -90,11 +90,23 @@ opening screen**, the registry drawer, and the top bar.
   epoch + era name · config stamp (seed, radius, artifact id) · artifact
   load box (SimHost auto-load stays the default). The rail's minimal
   year readout retires into it.
+- **Per-lens LEGEND** (user-requested at the K2 eyeball: "currently
+  there is no information saying what icons/colors/regions represent"):
+  when a lens is active, a compact legend surfaces its vocabulary —
+  glyph shapes (the AtlasGlyph cells), color ramps (price bands, tension
+  cold→ember, tech bronze→arc-light), lane stroke states. Keep the
+  mapping data Core-side or in one authoritative table so the legend
+  can never drift from the layers (the emap legend-line pattern, made
+  visual). Fits the rail/dock chrome; scope it light.
 
 **Boundary:** no timeline/stepping (K4) · no system stage (K5) · no new
 sim mechanics, read-only queries only · controller eye stays a seam ·
 lens catalog is done — panel work only (a lens bug found during K3 is a
-fix, not a feature).
+fix, not a feature). **The K2 eyeball's other carry** — deep-dive
+readability passes on each lens representation — is BACKLOG, not K3:
+K3 adds the legend so lenses are decodable; redesigning how each lens
+draws is its own later work (queue it behind K5 or fold into the
+design-acceptance gap list).
 
 ## Session shape (per /CLAUDE.md)
 

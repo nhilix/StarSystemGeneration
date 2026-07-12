@@ -77,10 +77,17 @@ Diagram §8 gets the works row at wrap-up; §9 the panel notes.
 - [x] **T7 — Gates**: `dotnet test` 725/725 ×2 (determinism suites in
       the count) · golden untouched · EditMode 8/8 headless (LodBands +
       GlyphAtlas) · smoke suite renders every lens
-- [ ] **T8 — USER: atlas eyeball** (every lens on seed 42 next to `emap`)
-- [ ] **T9 — Wrap-up**: merge · HANDOFF · tick K2 in the K roadmap · K3
-      kickoff prompt (with the panel notes above) · diagram §8 works row,
-      republish · push on say-so
+- [x] **T8 — USER: atlas eyeball — ACCEPTED as foundational groundwork**
+      (2026-07-12): "there is 'something' implemented for each lens, but
+      they are all pretty unintuitive to read." Two user notes carried
+      forward: (1) **deep-dive passes on each lens representation** are
+      future work (per-lens readability/design polish — backlog, not K3
+      scope by default); (2) **every lens needs a LEGEND** — nothing in
+      the atlas says what icons/colors/regions mean (natural K3 chrome
+      candidate alongside the panel system).
+- [x] **T9 — Wrap-up**: merged · HANDOFF · K2 ticked in the K roadmap ·
+      K3 kickoff finalized (panel notes + legend item) · diagram §8
+      works row, republished · push on say-so
 
 ## Decisions / deviations
 
