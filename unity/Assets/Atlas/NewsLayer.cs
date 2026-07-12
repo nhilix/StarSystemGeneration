@@ -29,7 +29,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("StarGen/AtlasBillboard"));
+            _material = new Material(Shader.Find("StarGen/AtlasBillboard"))
+            { hideFlags = HideFlags.HideAndDontSave };
             _material.SetTexture("_MainTex", AtlasTextures.Ring);
             // Additive: overlapping fronts brighten instead of stacking
             // into an opaque wall (the starfield's convention).
@@ -111,7 +112,8 @@ namespace StarGen.AtlasView
                 triangles[t + 5] = v + 2;
             }
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            _mesh = new Mesh { indexFormat = IndexFormat.UInt32,
+                               hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(vertices);
             _mesh.SetUVs(0, corners);
             _mesh.SetColors(colors);

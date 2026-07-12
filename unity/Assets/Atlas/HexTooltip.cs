@@ -59,6 +59,16 @@ namespace StarGen.AtlasView
             _pending = info != null;
             _restStartedAt = Time.unscaledTime;
             if (info == null) return;
+            // in the orbit view (K5) the hovered THING leads and the hex
+            // context dims below it
+            if (selection.StageHover is StagePick pick)
+            {
+                _title.text = pick.Label;
+                _lines.Clear();
+                Line(info.SystemSummary, dim: true);
+                Line($"hex ({info.Hex.Q},{info.Hex.R})", dim: true);
+                return;
+            }
             _title.text = info.SystemSummary;
             _lines.Clear();
             Line($"hex ({info.Hex.Q},{info.Hex.R})", dim: true);

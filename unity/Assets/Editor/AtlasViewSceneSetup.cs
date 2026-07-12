@@ -67,6 +67,11 @@ namespace StarGen.AtlasView.EditorTools
             var selection = atlasGo.AddComponent<SelectionModel>();
             selection.Wire(root);
 
+            // K5: the orbit-view scene fragment at System LOD
+            var stage = new GameObject("SystemStage").AddComponent<SystemStage>();
+            stage.Wire(root);
+            selection.WireStage(stage);
+
             var chromeGo = new GameObject("AtlasChrome");
             var doc = chromeGo.AddComponent<UIDocument>();
             doc.panelSettings =

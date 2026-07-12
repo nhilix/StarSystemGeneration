@@ -74,11 +74,16 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       DECISION (design amendment, flagged): "same panels" in the spec
       reads as "the same panel SYSTEM"; a facility click routing to the
       Market panel would bury the subject. SelectionKind.Facility added.
-- [ ] **T3 — LodBands System band** (+ EditMode tests): `LodBand.System`
-      below Hex; `SystemFloorAbs` absolute-distance threshold + hysteresis
-      note; `MapFade`/`StageFade` crossfade curves (map fades out, stage
-      fades in across the window above the floor). BandFor keeps its
-      (distance, extent) signature.
+- [x] **T3 — LodBands System band** (+ 3 EditMode tests, 14/14):
+      `LodBand.System` below Hex; `SystemFloorAbs = 5` ABSOLUTE distance
+      (one hex is fixed-size) guarded `min(5, 0.6·RegionFloor·extent)` so
+      a toy galaxy keeps its Hex band; `MapFade` (1→0 over floor·2→floor)
+      / `StageFade` complementary. MapFade folds INTO LaneFade/GlyphFade/
+      LatticeAlpha (those layers fade for free); new OnZoom hooks fade
+      ports (billboard `_Tint`, shader gained the uniform), news
+      (additive: rgb×fade too), domain field (`_MapFade` uniform),
+      nature/price fields (Sprites/Default material color). Starfield
+      deliberately stays — space is still space under the orbit view.
 - [ ] **T4 — SystemStage** (`unity/Assets/Atlas/SystemStage.cs`, scene
       fragment): builds the orbit view from SystemInfo at the camera's
       focus hex when the band enters System — star(s) as tinted SoftDot
@@ -120,7 +125,22 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
 
 ## Decisions / deviations
 
-(recorded as they happen)
+- **`SystemInfo` name collision**: UnityEngine.SystemInfo shadows the
+  Core record in Unity code — SystemStage aliases it
+  (`using SystemInfo = StarGen.Core.Atlas.SystemInfo`). Core name kept
+  (right name in Core's own vocabulary).
+- **Facility affinity, not facility addresses**: facilities are
+  hex-anchored in the registries; the stage docks them at bodies by TYPE
+  affinity (SystemQuery.FacilityOrbit) — a view-side layout rule, no new
+  sim state. Deep-space station ring for attachments with no body.
+- **Belt renders as its ring**: PlanetoidBelt draws 6 fragments riding a
+  wider, brighter orbit ring — a belt is not a dot.
+- **Stage labels ride the tooltip** (no text on the map — the K1–K3
+  grammar holds): hovering a stage pickable retitles the hex tooltip
+  with the thing's line; hex context dims below.
+- Both events feed one dirty flag: Loaded and TimeChanged just mark the
+  stage dirty; the rebuild happens in Update only while the stage is
+  live (crossfade begun) at the camera's focus hex.
 
 ## Carried flags (inherited)
 

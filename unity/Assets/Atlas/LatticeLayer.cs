@@ -22,7 +22,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("Sprites/Default"));
+            _material = new Material(Shader.Find("Sprites/Default"))
+            { hideFlags = HideFlags.HideAndDontSave };
             GetComponent<MeshRenderer>().material = _material;
             GetComponent<MeshRenderer>().enabled = false;
         }
@@ -96,7 +97,8 @@ namespace StarGen.AtlasView
                 }
             }
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            _mesh = new Mesh { indexFormat = IndexFormat.UInt32,
+                               hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(vertices);
             _mesh.SetIndices(indices, MeshTopology.Lines, 0);
             _mesh.RecalculateBounds();

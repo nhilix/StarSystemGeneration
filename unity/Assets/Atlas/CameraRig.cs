@@ -27,6 +27,9 @@ namespace StarGen.AtlasView
 
         public LodBand Band { get; private set; } = LodBand.Galaxy;
         public float Distance => _distance;
+        /// <summary>The damped focus point on the plane — the hex under
+        /// it is the one the SystemStage resolves (K5).</summary>
+        public Vector3 Focus => _focus;
         public float GalaxyExtent => _galaxyExtent;
         public float Pitch => _pitch;
         public Camera Cam => cam;

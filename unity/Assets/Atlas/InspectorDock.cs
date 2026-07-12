@@ -192,6 +192,9 @@ namespace StarGen.AtlasView
                 case SelectionKind.Poi:
                     Show(new PanelRequest(PanelType.Poi, sel.Id));
                     break;
+                case SelectionKind.Facility:
+                    Show(new PanelRequest(PanelType.Facility, sel.Id));
+                    break;
                 case SelectionKind.Hex:
                     Show(new PanelRequest(PanelType.Hex, hex: sel.Hex));
                     break;

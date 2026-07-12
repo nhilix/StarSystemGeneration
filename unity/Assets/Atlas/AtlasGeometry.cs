@@ -116,6 +116,43 @@ namespace StarGen.AtlasView
             }
         }
 
+        private static Texture2D _squareRing;
+
+        /// <summary>64² thin square outline with AA edges — the facility
+        /// mark in the orbit stage (K5; the design mock draws facilities
+        /// as square outlines beside their body).</summary>
+        public static Texture2D SquareRing
+        {
+            get
+            {
+                if (_squareRing != null) return _squareRing;
+                const int size = 64;
+                _squareRing = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                {
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                var pixels = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = Mathf.Abs((x + 0.5f) / size - 0.5f) * 2f;
+                        float dy = Mathf.Abs((y + 0.5f) / size - 0.5f) * 2f;
+                        // Chebyshev distance: a square band at 0.80,
+                        // ~0.14 wide, AA shoulders.
+                        float d = Mathf.Max(dx, dy);
+                        float a = 1f - Mathf.Clamp01(
+                            (Mathf.Abs(d - 0.80f) - 0.07f) / 0.06f);
+                        pixels[y * size + x] = new Color32(255, 255, 255,
+                            (byte)(a * 255f));
+                    }
+                _squareRing.SetPixels32(pixels);
+                _squareRing.Apply();
+                return _squareRing;
+            }
+        }
+
         /// <summary>64² radial gaussian-ish falloff, white, alpha-carried.</summary>
         public static Texture2D SoftDot
         {

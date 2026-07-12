@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace StarGen.AtlasView
 {
     public enum SelectionKind
-    { None, Hex, Port, Project, Shipment, Fleet, Poi }
+    { None, Hex, Port, Project, Shipment, Fleet, Poi, Facility }
 
     /// <summary>What the user selected: a typed registry id plus the hex
     /// it stands on. The dock routes kinds to panels.</summary>
@@ -34,9 +34,11 @@ namespace StarGen.AtlasView
     public sealed class SelectionModel : MonoBehaviour
     {
         [SerializeField] private AtlasRoot root;
+        [SerializeField] private SystemStage stage;
 
         private HexCoordinate? _hovered;
         private HexInfo _hoverInfo;
+        private StagePick? _stageHover;
         private Vector2 _pressPos;
         private bool _pressLive;
         private Vector2 _rightPressPos;
@@ -45,11 +47,16 @@ namespace StarGen.AtlasView
 
         public HexCoordinate? HoveredHex => _hovered;
         public HexInfo HoverInfo => _hoverInfo;
+        /// <summary>The orbit-view thing under the cursor while the stage
+        /// is live (K5) — same selection model, one more source.</summary>
+        public StagePick? StageHover => _stageHover;
 
         public event Action HoverChanged;
         public event Action<Selection> Selected;
 
         public void Wire(AtlasRoot atlasRoot) => root = atlasRoot;
+
+        public void WireStage(SystemStage systemStage) => stage = systemStage;
 
         private void Update()
         {
@@ -61,12 +68,15 @@ namespace StarGen.AtlasView
             if (AtlasPointerGuard.Blocks(screenPos))
             {
                 SetHovered(null);
+                SetStageHover(null);
                 _pressLive = false;
                 return;
             }
 
             var hex = HexUnder(screenPos);
             SetHovered(hex);
+            SetStageHover(stage != null && stage.Live
+                ? PickStage(screenPos) : null);
 
             // A click is a press and release that never wandered — drags
             // belong to the camera.
@@ -78,8 +88,22 @@ namespace StarGen.AtlasView
             if (_pressLive && mouse.leftButton.wasReleasedThisFrame)
             {
                 _pressLive = false;
-                if ((screenPos - _pressPos).sqrMagnitude <= 25f && hex != null)
-                    Select(hex.Value);
+                if ((screenPos - _pressPos).sqrMagnitude <= 25f)
+                {
+                    // the orbit view wins while it is live — same panels,
+                    // stage subjects (spec: same selection model)
+                    if (_stageHover is StagePick pick
+                        && stage.BuiltHex is HexCoordinate stageHex)
+                    {
+                        MarkHex(stageHex);
+                        Selected?.Invoke(new Selection(pick.Kind, pick.Id,
+                                                       stageHex));
+                    }
+                    else if (hex != null)
+                    {
+                        Select(hex.Value);
+                    }
+                }
             }
 
             // a right-CLICK (no wander — right-drag stays the camera pan)
@@ -127,6 +151,51 @@ namespace StarGen.AtlasView
                     EyeContext.God(root.SimHost.State.WorldYear), hex.Value)
                 : null;
             HoverChanged?.Invoke();
+        }
+
+        private void SetStageHover(StagePick? pick)
+        {
+            if (Nullable.Equals(pick?.Kind, _stageHover?.Kind)
+                && pick?.Id == _stageHover?.Id
+                && pick?.Label == _stageHover?.Label) return;
+            _stageHover = pick;
+            HoverChanged?.Invoke();
+        }
+
+        /// <summary>The nearest stage pickable under the cursor: distance
+        /// on the stage's plane against each pickable's world radius (with
+        /// a pixel floor so small marks stay clickable at altitude).</summary>
+        private StagePick? PickStage(Vector2 screenPos)
+        {
+            var cam = root.CameraRig.Cam;
+            if (cam == null) return null;
+            var ray = cam.ScreenPointToRay(
+                new Vector3(screenPos.x, screenPos.y, 0f));
+            float denom = ray.direction.z;
+            if (Mathf.Abs(denom) < 1e-5f) return null;
+            float stageZ = stage.transform.position.z;
+            float t = (stageZ - ray.origin.z) / denom;
+            if (t < 0f) return null;
+            var p = ray.origin + ray.direction * t;
+
+            // ~9 px of grace: world units one pixel spans at this depth
+            float pxWorld = 2f * root.CameraRig.Distance
+                * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad)
+                / Mathf.Max(1, cam.pixelHeight);
+            float grace = 9f * pxWorld;
+
+            StagePick? best = null;
+            float bestDist = float.MaxValue;
+            foreach (var pick in stage.Pickables)
+            {
+                var d = new Vector2(p.x - pick.WorldPos.x,
+                                    p.y - pick.WorldPos.y).magnitude;
+                float reach = Mathf.Max(pick.Radius, grace);
+                if (d > reach || d >= bestDist) continue;
+                bestDist = d;
+                best = pick;
+            }
+            return best;
         }
 
         /// <summary>Resolve what the click means, most specific first.</summary>

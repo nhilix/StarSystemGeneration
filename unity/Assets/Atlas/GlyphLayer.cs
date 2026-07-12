@@ -49,7 +49,8 @@ namespace StarGen.AtlasView
 
         protected virtual void Awake()
         {
-            _material = new Material(Shader.Find("StarGen/AtlasGlyph"));
+            _material = new Material(Shader.Find("StarGen/AtlasGlyph"))
+            { hideFlags = HideFlags.HideAndDontSave };
             _material.SetTexture("_MainTex", AtlasGlyphs.Atlas);
             _material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
             _material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
@@ -152,7 +153,8 @@ namespace StarGen.AtlasView
                 triangles[t + 5] = v + 2;
             }
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            _mesh = new Mesh { indexFormat = IndexFormat.UInt32,
+                               hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(vertices);
             _mesh.SetUVs(0, corners);
             _mesh.SetUVs(1, rects);
