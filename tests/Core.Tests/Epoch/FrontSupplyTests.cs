@@ -83,6 +83,45 @@ public class FrontSupplyTests
     }
 
     [Fact]
+    public void Quartermaster_PostsWarCouriers_TowardTheDepot()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        Deploy(state, pr.ActorId,
+            new HexCoordinate(fwd.Hex.Q + 2, fwd.Hex.R), home.Id);
+        // rear stockpile deep, depot bare — the classic supply-line picture
+        home.StockQty[(int)GoodId.Fuel] = 5000;
+        home.StockQty[(int)GoodId.Armaments] = 5000;
+        pr.Credits = 10000;
+
+        int raised = ShipmentOps.StockDepots(state, pr);
+
+        Assert.True(raised > 0, "the quartermaster should raise convoys");
+        var c = Assert.Single(state.Couriers);
+        Assert.Equal(CourierPriority.War, c.Priority);
+        Assert.Equal(home.Id, c.OriginPortId);
+        Assert.Equal(fwd.Id, c.DestPortId);
+        Assert.True(c.Qty[(int)GoodId.Fuel] > 0, "convoys carry fuel");
+        Assert.True(c.Qty[(int)GoodId.Armaments] > 0,
+            "convoys carry armaments for warships");
+    }
+
+    [Fact]
+    public void Quartermaster_HoldsFire_WhenTheDepotIsStocked()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        Deploy(state, pr.ActorId,
+            new HexCoordinate(fwd.Hex.Q + 2, fwd.Hex.R), home.Id);
+        home.StockQty[(int)GoodId.Fuel] = 5000;
+        home.StockQty[(int)GoodId.Armaments] = 5000;
+        fwd.StockQty[(int)GoodId.Fuel] = 5000;
+        fwd.StockQty[(int)GoodId.Armaments] = 5000;
+        pr.Credits = 10000;
+
+        Assert.Equal(0, ShipmentOps.StockDepots(state, pr));
+        Assert.Empty(state.Couriers);
+    }
+
+    [Fact]
     public void StationedFleet_StillDrawsItsHomePort()
     {
         var (state, pr, home, fwd) = TwoPortRealm();

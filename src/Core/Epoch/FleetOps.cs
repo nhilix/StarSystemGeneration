@@ -328,31 +328,9 @@ public static class FleetOps
             if (mIx < 0 || mIx >= state.Markets.Count) continue;
             var market = state.Markets[mIx];
 
-            double posture = fleet.Posture == FleetPosture.Reserve
-                ? knobs.ReserveUpkeepFactor : 1.0;
-            // rationing (slice H eyeball): a belligerent's warships eat —
-            // the rations come out of the same markets the households eat
-            // from, and an unfed fleet loses readiness like an unfueled one
             bool atWar = WarOps.AtWar(state, pr.ActorId);
-            double fuelNeed = 0, armsNeed = 0, partsNeed = 0, rationsNeed = 0;
-            foreach (var g in fleet.Hulls)                // design-id order
-            {
-                var design = state.Designs[g.DesignId];
-                var sheet = DesignRegistry.SheetOf(state, design);
-                double draw = sheet[ShipStat.Upkeep] * g.Count
-                              * knobs.UpkeepUnitsPerPointPerYear * years
-                              * posture;
-                fuelNeed += draw * knobs.UpkeepFuelShare;
-                if (ShipCatalog.IsWarship(design.Role))
-                {
-                    armsNeed += draw * (1 - knobs.UpkeepFuelShare);
-                    if (atWar)
-                        rationsNeed += g.Count * posture * years
-                            * state.Config.War.RationsPerHullPerYear;
-                }
-                else
-                    partsNeed += draw * (1 - knobs.UpkeepFuelShare);
-            }
+            var (fuelNeed, armsNeed, partsNeed, rationsNeed) =
+                UpkeepNeed(state, fleet, atWar, years);
 
             // met is need-weighted, not min: an armaments drought hollows a
             // fueled fleet toward degraded readiness instead of erasing it —
@@ -387,6 +365,40 @@ public static class FleetOps
             }
         }
         return lost;
+    }
+
+    /// <summary>One fleet's upkeep basket over a span of world-years — fuel
+    /// plus armaments for warship hulls, ship components for civilian ones,
+    /// rations for warships at war (slice H eyeball: a belligerent's crews
+    /// eat from the same markets the households do). Shared between the
+    /// supply draw and the quartermaster's depot forecast (spec §4) so the
+    /// convoys carry exactly what the front will burn.</summary>
+    internal static (double Fuel, double Arms, double Parts, double Rations)
+        UpkeepNeed(SimState state, FleetRecord fleet, bool atWar, double years)
+    {
+        var knobs = state.Config.Fleet;
+        double posture = fleet.Posture == FleetPosture.Reserve
+            ? knobs.ReserveUpkeepFactor : 1.0;
+        double fuel = 0, arms = 0, parts = 0, rations = 0;
+        foreach (var g in fleet.Hulls)                    // design-id order
+        {
+            var design = state.Designs[g.DesignId];
+            var sheet = DesignRegistry.SheetOf(state, design);
+            double draw = sheet[ShipStat.Upkeep] * g.Count
+                          * knobs.UpkeepUnitsPerPointPerYear * years
+                          * posture;
+            fuel += draw * knobs.UpkeepFuelShare;
+            if (ShipCatalog.IsWarship(design.Role))
+            {
+                arms += draw * (1 - knobs.UpkeepFuelShare);
+                if (atWar)
+                    rations += g.Count * posture * years
+                        * state.Config.War.RationsPerHullPerYear;
+            }
+            else
+                parts += draw * (1 - knobs.UpkeepFuelShare);
+        }
+        return (fuel, arms, parts, rations);
     }
 
     /// <summary>Buy one upkeep good off the home book first, then draw the

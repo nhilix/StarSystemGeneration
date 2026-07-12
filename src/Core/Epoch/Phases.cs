@@ -402,6 +402,10 @@ public sealed class AllocationPhase : ISimPhase
             Groundbreak(state, pr, policies.Plan);
             lanesBuilt += BuildLanes(state, pr, ownPorts);
             FleetOps.ManagePostures(state, pr, ownPorts);
+            // with the postures settled the war quartermaster reads the
+            // fronts and raises War-priority convoys toward under-stocked
+            // forward depots (contract-economy spec §4)
+            ShipmentOps.StockDepots(state, pr);
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayStockpiles(state, pr, ownPorts);

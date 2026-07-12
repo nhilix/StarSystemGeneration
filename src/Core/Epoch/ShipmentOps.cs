@@ -430,6 +430,60 @@ public static class ShipmentOps
         return raised;
     }
 
+    /// <summary>The war quartermaster (contract-economy spec §4): for every
+    /// war-stationed fleet, forecast its upkeep burn over the step plus the
+    /// lead window against its forward depot's stores, and raise
+    /// War-priority couriers from the polity's rear stockpiles toward the
+    /// shortfall. Convoys are ordinary shipments — map-visible,
+    /// blockade-stalled, pirate-hunted, interdictable. Returns orders
+    /// raised. Depots in port-id order (P6).</summary>
+    public static int StockDepots(SimState state, PolityRecord pr)
+    {
+        double window = state.Config.Sim.YearsPerEpoch
+                        + state.Config.Economy.RequisitionLeadYears;
+        bool atWar = WarOps.AtWar(state, pr.ActorId);
+        // deployed consumption aggregates per depot port
+        var needByDepot = new SortedDictionary<int, double[]>();
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            if (fleet.OwnerActorId != pr.ActorId || fleet.TotalHulls == 0
+                || fleet.Posture is not (FleetPosture.Blockade
+                                         or FleetPosture.Expedition))
+                continue;
+            int depot = FleetOps.NearestOwnedPortId(state, pr.ActorId,
+                                                    fleet.Hex);
+            if (depot < 0) continue;
+            var (fuel, arms, parts, rations) =
+                FleetOps.UpkeepNeed(state, fleet, atWar, window);
+            if (!needByDepot.TryGetValue(depot, out var need))
+                needByDepot[depot] = need
+                    = new double[Substrate.Goods.All.Count];
+            need[(int)Substrate.GoodId.Fuel] += fuel;
+            need[(int)Substrate.GoodId.Armaments] += arms;
+            need[(int)Substrate.GoodId.ShipComponents] += parts;
+            need[(int)Substrate.GoodId.Provisions] += rations;
+        }
+        int raised = 0;
+        var want = new double[Substrate.Goods.All.Count];
+        foreach (var (depot, need) in needByDepot)        // port-id order
+        {
+            var site = state.Ports[depot];
+            bool any = false;
+            for (int g = 0; g < want.Length; g++)
+            {
+                want[g] = 0;
+                if (need[g] <= 0) continue;
+                double shortfall = need[g] - site.StockQty[g]
+                                   - Inbound(state, pr.ActorId, depot, g);
+                if (shortfall > 1e-6) { want[g] = shortfall; any = true; }
+            }
+            if (!any) continue;
+            raised += OrderFromOwnPorts(state, pr, depot, want,
+                                        CourierPriority.War);
+        }
+        return raised;
+    }
+
     /// <summary>Stock held against consumption — the quartermaster's fleet
     /// stores and the famine/siege larder — as opposed to construction
     /// materials banked for the works. Requisitions never strip these
