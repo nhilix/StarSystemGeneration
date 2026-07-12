@@ -47,6 +47,8 @@ public sealed class Repl
                     Console.WriteLine("elanes — every lane with gate tiers, owners, liveness, saturation");
                     Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
+                    Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
+                    Console.WriteLine("emap works — construction sites and freight on the move (the in-flight world)");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
@@ -274,6 +276,12 @@ public sealed class Repl
                     break;
                 }
                 case "elanes":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "efreight" when _sim != null:
+                    RenderFreight(_sim);
+                    break;
+                case "efreight":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "eprojects" when _sim != null:
@@ -813,6 +821,47 @@ public sealed class Repl
                 $"  {(inFlight ? "*" : " ")}{i,2}  {e.Kind,-11} {e.Priority,-8} y{e.StartYear,-6} ")
                 + FormattableString.Invariant($"{typeDesign,-25} ")
                 + FormattableString.Invariant($"#{e.PortId}"));
+        }
+    }
+
+    /// <summary>`efreight` (stage 2): shipments in transit — route, cargo,
+    /// sailed years, and the live ETA; a closed current leg reads STALLED
+    /// (the fortress starves at the pace of its last delivery).</summary>
+    private static void RenderFreight(Core.Epoch.SimState sim)
+    {
+        if (sim.Shipments.Count == 0)
+        { Console.WriteLine("no shipments in transit"); return; }
+        Console.WriteLine("  id   chan         route                cargo                            sailed/total   eta");
+        foreach (var s in sim.Shipments)
+        {
+            string owner = s.OwnerActorId >= 0 && s.OwnerActorId < sim.Actors.Count
+                ? sim.Actors[s.OwnerActorId].Name : "—";
+            var cargo = new System.Collections.Generic.List<string>();
+            for (int g = 0; g < s.Qty.Length && cargo.Count < 3; g++)
+                if (s.Qty[g] > 0)
+                    cargo.Add(FormattableString.Invariant(
+                        $"{s.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            string route = s.RouteLaneIds.Count == 0
+                ? FormattableString.Invariant($"#{s.OriginPortId}->#{s.DestPortId} off-lane")
+                : FormattableString.Invariant(
+                    $"#{s.OriginPortId}->#{s.DestPortId} via {s.RouteLaneIds.Count} lane")
+                  + (s.RouteLaneIds.Count == 1 ? "" : "s");
+            bool stalled = false;
+            int leg = Core.Epoch.ShipmentOps.CurrentLeg(s);
+            if (leg < s.RouteLaneIds.Count)
+            {
+                var lane = sim.Lanes[s.RouteLaneIds[leg]];
+                stalled = lane.QuarantinedUntil > sim.WorldYear
+                          || !Core.Epoch.LaneMath.IsLive(sim, lane);
+            }
+            string eta = stalled ? "STALLED"
+                : FormattableString.Invariant(
+                    $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{s.Id,-4}{s.Channel,-12} {route,-20} {string.Join(", ", cargo),-32} ")
+                + FormattableString.Invariant(
+                $"{s.YearsInTransit,5:0.0}/{s.TotalYears,-6:0.0} ")
+                + eta + $"  ({owner})");
         }
     }
 
