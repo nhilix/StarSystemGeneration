@@ -127,11 +127,22 @@ public class ColonyViabilityTests
     }
 
     // ------------------------------------------------------------------
-    // Import parity disciplines connected prices
+    // Imports discipline connected prices (the book replaced parity math:
+    // real freight fills the dear end's bids and the glut's unsold asks
+    // drag the reference down — convergence is physical now)
     // ------------------------------------------------------------------
 
+    private static void BookStep(SimState state)
+    {
+        var scratch = new MarketStepScratch(state);
+        BookOps.RepriceAsks(state);
+        MarketEngine.PostBandBids(state, scratch);
+        MarketEngine.MoveFreight(state, scratch);
+        MarketEngine.MatchAndClear(state, scratch);
+    }
+
     [Fact]
-    public void ConnectedMarket_PriceIsCappedByImportParity()
+    public void ConnectedMarket_ImportsDisciplineThePrice()
     {
         var state = EnteredFixture();
         var far = new Port(1, 0, new HexCoordinate(state.Ports[0].Hex.Q + 10,
@@ -143,25 +154,22 @@ public class ColonyViabilityTests
         state.Segments.Add(new PopulationSegment(1, 1, species, species, 3.0)
         { Wealth = 500 });
 
-        var mA = state.Markets[0];
-        var mB = state.Markets[1];
-        mA.Deposit((int)GoodId.Medicine, 5000, 0.5);   // glut at the neighbor
-        mB.Price[(int)GoodId.Medicine] = 200.0;        // absurd local memory
-        EpochTestKit.PostFreight(state, 0, laneId: 0, hulls: 4);   // hulls carry parity
+        // glut at the neighbor; absurd local price memory at the colony
+        EpochTestKit.Stock(state, 0, (int)GoodId.Medicine, 5000, 0.5);
+        state.Markets[1].Price[(int)GoodId.Medicine] = 200.0;
+        EpochTestKit.PostFreight(state, 0, laneId: 0, hulls: 4);
 
-        var scratch = new MarketStepScratch(state);
-        MarketEngine.AssembleDemand(state, scratch);
-        MarketEngine.AdjustPrices(state, scratch);
+        for (int i = 0; i < 6; i++) BookStep(state);
 
-        // nobody pays 200 next to a glut one hop away: the price falls to
-        // import parity (source price + transport, grossed up for the
-        // exporter's realized margin), far below the ceiling
-        Assert.True(mB.Price[(int)GoodId.Medicine] < 50.0,
-            $"parity should discipline the price, got {mB.Price[(int)GoodId.Medicine]}");
+        // nobody pays 200 next to a glut one hop away: imports land on the
+        // colony's book and the unsold depth drags the reference down
+        Assert.True(state.Markets[1].Price[(int)GoodId.Medicine] < 100.0,
+            $"imports should discipline the price, got "
+            + $"{state.Markets[1].Price[(int)GoodId.Medicine]}");
     }
 
     [Fact]
-    public void SeveredLane_LiftsTheParityCap()
+    public void SeveredLane_LetsThePriceStayHigh()
     {
         var state = EnteredFixture();
         var far = new Port(1, 0, new HexCoordinate(state.Ports[0].Hex.Q + 10,
@@ -173,17 +181,15 @@ public class ColonyViabilityTests
         state.Segments.Add(new PopulationSegment(1, 1, species, species, 3.0)
         { Wealth = 5000 });
 
-        state.Markets[0].Deposit((int)GoodId.Medicine, 5000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Medicine, 5000, 0.5);
         state.Markets[1].Price[(int)GoodId.Medicine] = 200.0;
         EpochTestKit.PostFreight(state, 0, laneId: 0, hulls: 4);
         // a real blockade severs the lane (slice H replaced the debug cut)
         EpochTestKit.BlockadePort(state, 1, portId: 0);
 
-        var scratch = new MarketStepScratch(state);
-        MarketEngine.AssembleDemand(state, scratch);
-        MarketEngine.AdjustPrices(state, scratch);
+        for (int i = 0; i < 6; i++) BookStep(state);
 
-        Assert.True(state.Markets[1].Price[(int)GoodId.Medicine] > 50.0,
+        Assert.True(state.Markets[1].Price[(int)GoodId.Medicine] > 100.0,
             "a blockaded port has no import alternative — the spike is real");
     }
 }

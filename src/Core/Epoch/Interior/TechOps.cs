@@ -88,14 +88,11 @@ public static class TechOps
     private static double Draw(SimState state, Market market, int portId,
                                int good, ref double remaining)
     {
-        double price = Math.Max(1e-9, market.Price[good]);
-        double units = Math.Min(market.Inventory[good], remaining / price);
-        if (units <= 0) return 0;
-        units = market.Draw(good, units);
-        market.LastCleared[good] += units;
-        double cost = units * price;
+        // feedstock is bought off the book at real asks — the suppliers
+        // are paid, not an anonymous wage pool
+        var (units, _, cost) = BookOps.LiftAsks(state, portId, good,
+            qty: double.MaxValue, budget: remaining);
         remaining -= cost;
-        MarketEngine.PayWages(state, portId, cost);   // labs pay salaries
         return units;
     }
 

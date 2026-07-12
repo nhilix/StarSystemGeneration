@@ -36,9 +36,11 @@ public class ShapeAcceptanceTests
                     $"price NaN/Inf at market {m.PortId} good {g}");
                 Assert.InRange(m.Price[g], 0.001,
                     Market.InitialPrice(eco, (GoodId)g) * 100.0 + 1e-9);
-                Assert.True(double.IsFinite(m.Inventory[g]) && m.Inventory[g] >= 0);
-                Assert.True(double.IsFinite(m.InventoryGrade[g]));
-                Assert.InRange(m.InventoryGrade[g], 0.0, 1.0);
+                double asks = BookOps.AskQty(state, m.PortId, g);
+                Assert.True(double.IsFinite(asks) && asks >= 0);
+                double grade = BookOps.AskGrade(state, m.PortId, g);
+                Assert.True(double.IsFinite(grade));
+                Assert.InRange(grade, 0.0, 1.0);
             }
     }
 

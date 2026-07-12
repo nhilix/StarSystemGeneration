@@ -35,17 +35,19 @@ public static class BookOps
             state.WorldYear + (int)Math.Round(eco.OrderExpiryYears));
     }
 
-    /// <summary>Unsold quotes give ground: every surviving sell order cuts
-    /// its ask per world-year sat unsold — the glut half of the old price
-    /// drift, now visibly in sellers' hands. Compounded per year (P7).</summary>
-    public static void DecayAsks(SimState state)
+    /// <summary>Resting sells re-anchor to the CURRENT reference each step
+    /// (nobody quotes yesterday's market): price discovery lives in the
+    /// reference itself, which drifts on book imbalance in MatchAndClear —
+    /// the old rate-limited, tick-honest drift, now fed by real unfilled
+    /// bids and unsold asks instead of phantom signals.</summary>
+    public static void RepriceAsks(SimState state)
     {
         var eco = state.Config.Economy;
-        double keep = Math.Pow(1.0 - eco.AskDecayPerYear,
-                               state.Config.Sim.YearsPerEpoch);
         foreach (var o in state.Orders)                   // id order (P6)
             if (o.Side == OrderSide.Sell)
-                o.LimitPrice = Math.Max(eco.PriceFloor, o.LimitPrice * keep);
+                o.LimitPrice = Math.Max(eco.PriceFloor,
+                    state.Markets[o.PortId].Price[o.Good]
+                    * eco.AskMarkupOnPost);
     }
 
     /// <summary>Buy up to qty off the port's asks, cheapest first, within
@@ -81,6 +83,56 @@ public static class BookOps
                 state.Orders.Remove(o);
         }
         return (drawn, drawn > 0 ? gradeSum / drawn : 0, cost);
+    }
+
+    /// <summary>Total live ask quantity at (port, good) — what a buyer or
+    /// a recipe could possibly obtain locally this step.</summary>
+    public static double AskQty(SimState state, int portId, int good)
+    {
+        double qty = 0;
+        foreach (var o in state.Orders)                   // id order (P6)
+            if (o.Side == OrderSide.Sell && o.PortId == portId
+                && o.Good == good)
+                qty += o.QtyRemaining;
+        return qty;
+    }
+
+    /// <summary>Quantity-weighted grade of the live asks at (port, good) —
+    /// 0.5 (the grade system's neutral midpoint) when the book is bare.</summary>
+    public static double AskGrade(SimState state, int portId, int good)
+    {
+        double qty = 0, sum = 0;
+        foreach (var o in state.Orders)                   // id order (P6)
+            if (o.Side == OrderSide.Sell && o.PortId == portId
+                && o.Good == good && o.QtyRemaining > 0)
+            { qty += o.QtyRemaining; sum += o.QtyRemaining * o.Grade; }
+        return qty > 0 ? sum / qty : 0.5;
+    }
+
+    /// <summary>The cheapest live ask at (port, good); MaxValue when none.</summary>
+    public static double BestAsk(SimState state, int portId, int good)
+    {
+        double best = double.MaxValue;
+        foreach (var o in state.Orders)                   // id order (P6)
+            if (o.Side == OrderSide.Sell && o.PortId == portId
+                && o.Good == good && o.QtyRemaining > 0
+                && o.LimitPrice < best)
+                best = o.LimitPrice;
+        return best;
+    }
+
+    /// <summary>Live bid quantity at (port, good) with a limit at or above
+    /// the floor — the real demand a hauler can sell into (the bridge's
+    /// absorption term; the old phantom demand signal is dead).</summary>
+    public static double BidDepthAbove(SimState state, int portId, int good,
+                                       double floor)
+    {
+        double qty = 0;
+        foreach (var o in state.Orders)                   // id order (P6)
+            if (o.Side == OrderSide.Buy && o.PortId == portId
+                && o.Good == good && o.LimitPrice >= floor)
+                qty += o.QtyRemaining;
+        return qty;
     }
 
     /// <summary>Live asks at (port, good), cheapest first, id within a

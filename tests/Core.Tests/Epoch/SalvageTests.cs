@@ -64,10 +64,10 @@ public class SalvageTests
         int worked = CorporationOps.SalvageLands(state, scratch);
         Assert.Equal(1, worked);
         Assert.True(field.HullsSalvaged > 0, "the field is being stripped");
-        Assert.True(state.Markets[0].Inventory[(int)GoodId.Alloys] > 0,
-            "recovered alloys land at the home market");
-        Assert.Contains(scratch.Supplies,
-            s => s.OwnerActorId == state.Corporations[0].ActorId);
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Alloys) > 0,
+            "recovered alloys go up for sale at the home port");
+        Assert.Contains(state.Orders, o => o.Side == OrderSide.Sell
+            && o.OwnerActorId == state.Corporations[0].ActorId);
         // wreckage records stay immutable: the ledger invariant holds
         int wreckTotal = 0;
         foreach (var wr in state.Wreckage) wreckTotal += wr.Hulls;
@@ -142,7 +142,7 @@ public class SalvageTests
             CorporationOps.SalvageLands(state, new MarketStepScratch(state));
         Assert.True(site.Depleted, "the site digs out");
         Assert.True(site.Magnitude < 2.0);
-        Assert.True(state.Markets[0].Inventory[(int)GoodId.Exotics] > 0,
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Exotics) > 0,
             "digs yield exotics");
         Assert.True(state.PolityOf(0)
                 .TechProgress[(int)TechDomain.Astrogation] > astro,

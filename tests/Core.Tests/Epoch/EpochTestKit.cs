@@ -16,6 +16,21 @@ public static class EpochTestKit
         return (skeleton, state);
     }
 
+    /// <summary>Put goods up for sale on a port's book — the contract-economy
+    /// replacement for the dead anonymous-shelf Deposit: a resting sell
+    /// owned by the port's sovereign (or the given actor) at the reference
+    /// price (or the given ask), so band/project/upkeep bids can cross it.</summary>
+    public static MarketOrder Stock(SimState state, int portId, int good,
+        double qty, double grade = 0.5, double? ask = null,
+        int ownerActorId = -1)
+    {
+        int owner = ownerActorId >= 0 ? ownerActorId
+            : state.Ports[portId].OwnerActorId;
+        return OrderOps.PostSell(state, owner, portId, good, qty, grade,
+            ask ?? state.Markets[portId].Price[good],
+            state.WorldYear + 1000);
+    }
+
     /// <summary>Build a linked gate pair and its lane directly — the
     /// registry state the Allocation builder would produce, minus the
     /// treasury/goods flow (unit tests aren't economies).</summary>

@@ -216,7 +216,7 @@ public static class CorporationOps
                              <= state.Markets[portBId].Price[g]
                 ? (portA, portB) : (portB, portA);
             var mSrc = state.Markets[src.Id];
-            if (mSrc.Inventory[g] <= 0) continue;
+            if (BookOps.AskQty(state, src.Id, g) <= 0) continue;
             double pSrc = mSrc.Price[g];
             double pDst = state.Markets[dst.Id].Price[g];
             double freight = eco.FreightCostPerUnitPerHex * dist;
@@ -561,7 +561,6 @@ public static class CorporationOps
             if (!MarketEngine.IsActive(state, f)) continue;
             int mIx = MarketEngine.AttachedMarketIndex(state, f);
             if (mIx < 0) continue;
-            var market = state.Markets[mIx];
             var def = Infrastructure.Get((InfraTypeId)f.TypeId);
             double scale = Production.TierCostFactor(f.Tier) * years;
             double met = 1.0;
@@ -569,8 +568,11 @@ public static class CorporationOps
             {
                 double need = q.Quantity * scale;
                 if (need <= 0) continue;
-                double drawn = market.Draw((int)q.Good, need);
-                market.LastCleared[(int)q.Good] += drawn;
+                // upkeep is bought off the book on working capital now —
+                // the sellers are real and get paid at their asks
+                var (drawn, _, cost) = BookOps.LiftAsks(state, mIx,
+                    (int)q.Good, need, budget: double.MaxValue);
+                corp.Credits -= cost;
                 met = Math.Min(met, drawn / need);
             }
             double target = Math.Max(0.05, met);
@@ -624,40 +626,6 @@ public static class CorporationOps
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) owned++;
         return owned < state.Config.Corporate.MaxFacilities;
-    }
-
-    /// <summary>Corporate demand registers at the home market each Markets
-    /// phase (the slice-E lesson, again: without a price signal nothing
-    /// hauls the goods in, and every founding starves at an empty market —
-    /// 42 of 47 corp deaths were exactly this stillbirth). Builders pull
-    /// their planned build basket; freight lines pull hull components.</summary>
-    public static void AddCorporateDemand(SimState state, MarketStepScratch scratch)
-    {
-        foreach (var corp in state.Corporations)              // id order (P6)
-        {
-            if (!corp.Active) continue;
-            int home = corp.HomePortId;
-            switch (corp.Niche)
-            {
-                case CorporateNiche.Extraction:
-                case CorporateNiche.Fabrication:
-                    if (!WantsFacility(state, corp)) break;
-                    var def = Infrastructure.Get(PlannedFacility(state, corp));
-                    foreach (var q in def.BuildCost)
-                        scratch.Demand[home][(int)q.Good] += q.Quantity;
-                    break;
-                case CorporateNiche.Freight:
-                    if (corp.Credits <= 0) break;
-                    scratch.Demand[home][(int)GoodId.ShipComponents]
-                        += state.Config.Corporate.FreightPullComponents;
-                    // gate ambitions pull the build basket in too, so the
-                    // border markets can actually supply the founding
-                    foreach (var q in Infrastructure.Get(InfraTypeId.Gate)
-                                 .BuildCost)
-                        scratch.Demand[home][(int)q.Good] += q.Quantity;
-                    break;
-            }
-        }
     }
 
     /// <summary>Salvage supply lands with everyone else's (Markets phase,
@@ -719,17 +687,13 @@ public static class CorporationOps
         return working;
     }
 
-    /// <summary>Deposit recovered goods and register the supply so buyers'
-    /// payments flow to the salvor at distribution (MarketEngine.Deposit's
-    /// pattern — unsold salvage earns nothing).</summary>
+    /// <summary>Recovered goods go up for sale as the salvor's own asks
+    /// (contract economy) — unsold salvage earns nothing, visibly.</summary>
     private static void DepositSalvage(SimState state, MarketStepScratch scratch,
         int mIx, int ownerActorId, GoodId good, double qty, double grade)
     {
         if (qty <= 0) return;
-        var market = state.Markets[mIx];
-        market.Deposit((int)good, qty, grade);
-        scratch.Supplies.Add(new SupplyRecord(mIx, ownerActorId,
-                                              qty * market.Price[(int)good]));
+        BookOps.PostSupply(state, mIx, ownerActorId, (int)good, qty, grade);
     }
 
     /// <summary>Conglomerates and combines build where their niche points:
@@ -855,8 +819,9 @@ public static class CorporationOps
             if (port.OwnerActorId != hostId) continue;
             var m = state.Markets[port.Id];
             if (market == null
-                || m.Inventory[(int)GoodId.ShipComponents]
-                   > market.Inventory[(int)GoodId.ShipComponents])
+                || BookOps.AskQty(state, port.Id, (int)GoodId.ShipComponents)
+                   > BookOps.AskQty(state, market.PortId,
+                                    (int)GoodId.ShipComponents))
                 market = m;
         }
         if (market == null) return;
@@ -870,7 +835,8 @@ public static class CorporationOps
         double budget = Math.Max(0, corp.Credits) * policies.Investment.Fleet;
         int affordable = (int)Math.Min(
             budget / Math.Max(1e-9, perHull * price),
-            market.Inventory[(int)GoodId.ShipComponents] / Math.Max(1e-9, perHull));
+            BookOps.AskQty(state, market.PortId, (int)GoodId.ShipComponents)
+                / Math.Max(1e-9, perHull));
         if (affordable <= 0) return;
 
         // the best own-home lane gradient carries the new hulls
@@ -891,14 +857,16 @@ public static class CorporationOps
         }
         if (bestLane < 0) return;
 
-        double components = market.Draw((int)GoodId.ShipComponents,
-                                        affordable * perHull);
+        var (components, componentGrade, cost) = BookOps.LiftAsks(state,
+            market.PortId, (int)GoodId.ShipComponents, affordable * perHull,
+            budget);
         int hulls = (int)(components / perHull);
-        if (hulls <= 0) return;
-        market.LastCleared[(int)GoodId.ShipComponents] += components;
-        double cost = components * price;
         corp.Credits -= cost;
-        MarketEngine.PayWages(state, market.PortId, cost);   // the yard's crews
+        double spare = components - hulls * perHull;
+        if (spare > 1e-9)   // the sub-hull remainder goes back up for sale
+            BookOps.PostSupply(state, market.PortId, corp.ActorId,
+                (int)GoodId.ShipComponents, spare, componentGrade);
+        if (hulls <= 0) return;
 
         FleetRecord? fleet = null;
         foreach (var f in state.Fleets)
@@ -915,7 +883,7 @@ public static class CorporationOps
             };
             state.Fleets.Add(fleet);
         }
-        fleet.AddHulls(design.Id, hulls, market.InventoryGrade[(int)GoodId.ShipComponents]);
+        fleet.AddHulls(design.Id, hulls, componentGrade);
         corp.HullsBuilt += hulls;
     }
 
@@ -988,16 +956,9 @@ public static class CorporationOps
                                   Market market, int good, double need)
     {
         if (need <= 0) return 1.0;
-        double price = Math.Max(1e-9, market.Price[good]);
-        double affordable = Math.Max(0.0, corp.Credits) / price;
-        double drawn = market.Draw(good, Math.Min(need, affordable));
-        if (drawn > 0)
-        {
-            market.LastCleared[good] += drawn;
-            double cost = drawn * price;
-            corp.Credits -= cost;
-            MarketEngine.PayWages(state, market.PortId, cost);
-        }
+        var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
+            need, budget: Math.Max(0.0, corp.Credits));
+        corp.Credits -= cost;
         return drawn / need;
     }
 
@@ -1017,6 +978,12 @@ public static class CorporationOps
         foreach (var p in state.Projects)                     // id order (P6)
             if (p.InFlight && p.FunderActorId == corp.ActorId)
                 ProjectOps.Cancel(state, p);
+        // resting sell orders abandon with the rest of the estate: their
+        // goods pass to each port's sovereign (a dead corp must not keep
+        // earning through the book — slice CE)
+        foreach (var o in state.Orders)                       // id order (P6)
+            if (o.Side == OrderSide.Sell && o.OwnerActorId == corp.ActorId)
+                o.OwnerActorId = state.Ports[o.PortId].OwnerActorId;
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId)
             {
@@ -1085,6 +1052,10 @@ public static class CorporationOps
         var pr = state.PolityOf(polityId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) f.OwnerActorId = polityId;
+        // open sell orders seize with the assets (slice CE)
+        foreach (var o in state.Orders)                       // id order (P6)
+            if (o.Side == OrderSide.Sell && o.OwnerActorId == corp.ActorId)
+                o.OwnerActorId = polityId;
         // seized work continues under the state: owner AND funder pass to the
         // polity so AdvanceAll keeps feeding it (no corp mobilizations) (F2)
         foreach (var p in state.Projects)                     // id order (P6)

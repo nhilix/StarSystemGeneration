@@ -716,15 +716,28 @@ public sealed class EconomyKnobs
     /// <summary>Shape of the drift: price moves by (demand/supply)^exponent,
     /// then rate-clamped.</summary>
     public double PriceDriftExponent { get; set; } = 0.5;
-    /// <summary>A fresh sell order quotes at reference price × this markup —
-    /// sellers open a little above the last print (contract economy).</summary>
-    public double AskMarkupOnPost { get; set; } = 1.05;
-    /// <summary>Unsold asks cut their quote by this fraction per world-year:
-    /// the glut half of the old price drift, moved into sellers' hands.</summary>
-    public double AskDecayPerYear { get; set; } = 0.04;
+    /// <summary>Sell orders quote at reference price × this markup — 1.0
+    /// anchors quotes to the market; discovery lives in the reference's
+    /// imbalance drift (contract economy).</summary>
+    public double AskMarkupOnPost { get; set; } = 1.0;
     /// <summary>Standing orders expire after this many world-years unless
     /// refreshed — refunds return where the escrow came from.</summary>
     public double OrderExpiryYears { get; set; } = 30.0;
+    /// <summary>Subsistence bids quote reference × this — hunger crosses
+    /// fresh asks first (band priority through price, not code order).</summary>
+    public double SubsistenceBidPremium { get; set; } = 1.2;
+    /// <summary>Standard-of-living bids quote reference × this.</summary>
+    public double SoLBidRatio { get; set; } = 1.0;
+    /// <summary>Luxury bids quote reference × this — elastic want that
+    /// only clears in glut times, when decayed asks fall to meet it.</summary>
+    public double LuxuryBidRatio { get; set; } = 0.9;
+    /// <summary>Project-basket bids quote reference × this — the works
+    /// outbid comfort, not survival.</summary>
+    public double ProjectBidPremium { get; set; } = 1.1;
+    /// <summary>The planner treats accumulated treasuries as spendable over
+    /// this many world-years (contract economy: receipts are lean real
+    /// cash flow; savings exist to be spent at build pace).</summary>
+    public double PlanSavingsDrawdownYears { get; set; } = 5.0;
     /// <summary>Absolute price floor — gluts bottom out, never reach zero.</summary>
     public double PriceFloor { get; set; } = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes

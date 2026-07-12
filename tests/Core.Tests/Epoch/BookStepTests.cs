@@ -6,12 +6,10 @@ namespace StarGen.Core.Tests.Epoch;
 
 /// <summary>Slice CE C3 (contract-economy spec §2): the book-step policy
 /// primitives. Supply posts into the owner's ONE resting sell per (port,
-/// good) — first post quotes at reference × markup, later output blends in;
-/// unsold asks decay per world-year (the old price drift's glut half, moved
-/// into the sellers' quotes); LiftAsks buys cheapest-first with the same
-/// tax + wages settlement matching uses; the reference price tracks the
-/// step's prints so downstream readers (utilization, siting, war goals)
-/// keep working unmodified.</summary>
+/// good) — quoted at the reference price × markup, later output blends in;
+/// resting quotes re-anchor to the market each step (discovery lives in
+/// the reference's imbalance drift, MatchAndClear); LiftAsks buys
+/// cheapest-first with the same tax + wages settlement matching uses.</summary>
 public class BookStepTests
 {
     private const int G = (int)GoodId.Alloys;
@@ -54,19 +52,18 @@ public class BookStepTests
     }
 
     [Fact]
-    public void DecayAsks_CutsUnsoldQuotes_PerWorldYear()
+    public void RepriceAsks_ReanchorsRestingQuotes_ToTheReference()
     {
         var state = Fixture();
         var eco = state.Config.Economy;
-        state.Config.Sim.YearsPerEpoch = 25;
         var order = BookOps.PostSupply(state, 0, 1, G, 10.0, 0.5);
-        double before = order.LimitPrice;
+        // the market moved (imbalance drift): resting quotes follow it
+        state.Markets[0].Price[G] *= 2.0;
 
-        BookOps.DecayAsks(state);
+        BookOps.RepriceAsks(state);
 
-        double expected = System.Math.Max(eco.PriceFloor,
-            before * System.Math.Pow(1.0 - eco.AskDecayPerYear, 25));
-        Assert.Equal(expected, order.LimitPrice, 6);
+        Assert.Equal(state.Markets[0].Price[G] * eco.AskMarkupOnPost,
+                     order.LimitPrice, 6);
     }
 
     [Fact]
@@ -103,31 +100,4 @@ public class BookStepTests
         Assert.Equal(4.0, cost2, 6);
     }
 
-    [Fact]
-    public void MatchPort_UpdatesReferencePrice_ToVolumeWeightedPrints()
-    {
-        var state = Fixture();
-        OrderOps.PostSell(state, 1, 0, G, qty: 10.0, grade: 0.5, ask: 2.0,
-            expiryYear: 150);
-        OrderOps.PostBuy(state, 0, 0, G, qty: 10.0, bid: 2.5,
-            expiryYear: 150);
-
-        OrderOps.MatchPort(state, 0);
-
-        // the print at maker 2.0 becomes the reference
-        Assert.Equal(2.0, state.Markets[0].Price[G], 6);
-    }
-
-    [Fact]
-    public void MatchPort_NoPrints_ReferenceFallsToBestAsk()
-    {
-        var state = Fixture();
-        double before = state.Markets[0].Price[G];
-        OrderOps.PostSell(state, 1, 0, G, qty: 10.0, grade: 0.5,
-            ask: before * 0.5, expiryYear: 150);
-
-        OrderOps.MatchPort(state, 0);
-
-        Assert.Equal(before * 0.5, state.Markets[0].Price[G], 6);
-    }
 }

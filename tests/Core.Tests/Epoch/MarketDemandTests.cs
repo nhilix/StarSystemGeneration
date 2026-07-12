@@ -6,11 +6,12 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Epoch;
 
-/// <summary>Slice D task 3 — demand assembles, price adjusts, clearing and
-/// consequences (economy/markets.md §2/3/5): band demand from C's profiles ×
-/// config rates × segment budgets, priority-order clearing, rate-limited
-/// price drift, famine/SoL outcomes, black-book conversion, and the conserved
-/// revenue distribution.</summary>
+/// <summary>Band demand through the BOOK (contract-economy spec §2): the
+/// port posts band bid tranches escrowed from segment wealth — priority is
+/// expressed through PRICE (subsistence over fresh asks, comfort at
+/// reference, luxury only into gluts); matching feeds the bands; the
+/// reference price drifts rate-limited on book imbalance; famine/SoL and
+/// black-book conversion carry over intact.</summary>
 public class MarketDemandTests
 {
     private static (SimState State, Port Port, PopulationSegment Seg) Fixture(
@@ -30,15 +31,13 @@ public class MarketDemandTests
         return (state, port, seg);
     }
 
-    private static MarketStepScratch Step(SimState state,
-                                          bool distribute = true)
+    private static MarketStepScratch Step(SimState state)
     {
         var scratch = new MarketStepScratch(state);
+        BookOps.RepriceAsks(state);
         MarketEngine.SupplyLands(state, scratch);
-        MarketEngine.AssembleDemand(state, scratch);
-        MarketEngine.AdjustPrices(state, scratch);
-        MarketEngine.Clear(state, scratch);
-        if (distribute) MarketEngine.DistributePools(state, scratch);
+        MarketEngine.PostBandBids(state, scratch);
+        MarketEngine.MatchAndClear(state, scratch);
         return scratch;
     }
 
@@ -47,9 +46,9 @@ public class MarketDemandTests
     {
         var (state, _, seg) = Fixture(wealth: 3.0);   // poverty: eat, don't shop
         var m = state.Markets[0];
-        m.Deposit((int)GoodId.Provisions, 1000, 0.5);
-        m.Deposit((int)GoodId.Luxuries, 1000, 0.5);
-        m.Deposit((int)GoodId.Narcotics, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Provisions, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Luxuries, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Narcotics, 1000, 0.5);
 
         Step(state);
 
@@ -62,7 +61,7 @@ public class MarketDemandTests
     [Fact]
     public void UnmetSubsistence_StagesAFamineEvent()
     {
-        var (state, port, seg) = Fixture();           // empty market, no farms
+        var (state, port, seg) = Fixture();           // empty book, no farms
         Step(state);
 
         Assert.True(seg.LastSubsistence < 1.0);
@@ -76,7 +75,7 @@ public class MarketDemandTests
     [Fact]
     public void OrganicBaseline_SoftensTheShortfall()
     {
-        // no market supply at all: subsistence farming still feeds a little
+        // no supply at all: subsistence farming still feeds a little
         var (state, _, seg) = Fixture();
         Step(state);
         Assert.True(seg.LastSubsistence > 0.0,
@@ -87,18 +86,17 @@ public class MarketDemandTests
     public void SoL_RisesWhenServed_FallsWhenStarved()
     {
         var (fed, _, fedSeg) = Fixture();
-        var fm = fed.Markets[0];
-        fm.Deposit((int)GoodId.Provisions, 1000, 0.5);
-        fm.Deposit((int)GoodId.ConsumerGoods, 1000, 0.5);
-        fm.Deposit((int)GoodId.Medicine, 1000, 0.5);
-        fm.Deposit((int)GoodId.Machinery, 1000, 0.5); // lithic SoL draw
-        fm.Deposit((int)GoodId.Fuel, 1000, 0.5);      // machine subsistence
-        fm.Deposit((int)GoodId.Compute, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.Provisions, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.ConsumerGoods, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.Medicine, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.Machinery, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.Fuel, 1000, 0.5);
+        EpochTestKit.Stock(fed, 0, (int)GoodId.Compute, 1000, 0.5);
         double before = fedSeg.SoL;
         Step(fed);
         Assert.True(fedSeg.SoL > before, "served SoL band should raise SoL");
 
-        var (starved, _, poorSeg) = Fixture();        // empty market
+        var (starved, _, poorSeg) = Fixture();        // empty book
         double sBefore = poorSeg.SoL;
         Step(starved);
         Assert.True(poorSeg.SoL < sBefore, "starved SoL band should sink SoL");
@@ -109,7 +107,8 @@ public class MarketDemandTests
     {
         var (state, _, _) = Fixture(segmentSize: 6.0);
         var m = state.Markets[0];
-        m.Deposit((int)GoodId.Provisions, 0.5, 0.5);  // scraps vs real hunger
+        // scraps vs real hunger: unfilled bids drive the reference up
+        EpochTestKit.Stock(state, 0, (int)GoodId.Provisions, 0.5, 0.5);
         double before = m.Price[(int)GoodId.Provisions];
 
         Step(state);
@@ -126,7 +125,8 @@ public class MarketDemandTests
     {
         var (state, _, _) = Fixture(segmentSize: 0.01);
         var m = state.Markets[0];
-        m.Deposit((int)GoodId.Ore, 100000, 0.5);      // nobody wants this much
+        // nobody wants this much: the unsold asks ARE the glut signal
+        EpochTestKit.Stock(state, 0, (int)GoodId.Ore, 100000, 0.5);
         double before = m.Price[(int)GoodId.Ore];
 
         for (int i = 0; i < 50; i++) Step(state);
@@ -140,8 +140,8 @@ public class MarketDemandTests
     {
         var (state, port, _) = Fixture();
         var m = state.Markets[0];
-        m.Deposit((int)GoodId.Provisions, 1000, 0.5);
-        m.Deposit((int)GoodId.Narcotics, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Provisions, 1000, 0.5);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Narcotics, 1000, 0.5);
         var law = new System.Collections.Generic.Dictionary<int, LegalityLevel>
         { [(int)GoodId.Narcotics] = LegalityLevel.Prohibited };
         state.Actors[port.OwnerActorId].Policies =
@@ -176,7 +176,8 @@ public class MarketDemandTests
     public void MarketStep_ConservesCredits()
     {
         var (state, port, _) = Fixture();
-        Fill(state.Markets[0]);
+        for (int g = 0; g < Goods.All.Count; g++)
+            EpochTestKit.Stock(state, 0, g, 200, 0.5);
         state.PolityOf(port.OwnerActorId).Credits = 500;
         // a producing facility so wages, inputs, and payouts all flow
         state.Facilities.Add(new Facility(0, (int)InfraTypeId.Refinery, 1,
@@ -192,7 +193,7 @@ public class MarketDemandTests
     {
         var (state, port, seg) = Fixture(wealth: 0.0);
         state.PolityOf(port.OwnerActorId).Credits = 500;
-        // the refinery buys the mine's ore: realized revenue → wages
+        // the refinery buys the mine's ore: real sales → the labor share
         state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, 1,
             port.Hex, port.OwnerActorId, state.WorldYear - 10));
         state.Facilities.Add(new Facility(1, (int)InfraTypeId.Skimmer, 1,
@@ -201,22 +202,20 @@ public class MarketDemandTests
             port.Hex, port.OwnerActorId, state.WorldYear - 10));
 
         Step(state);
+        Step(state);   // the refinery lifts the mine's resting asks
 
         Assert.True(seg.Wealth > 0,
-            "the labor share of cleared revenue should reach households");
+            "the labor share of realized sales should reach households");
     }
 
-    private static void Fill(Market m)
-    {
-        for (int g = 0; g < Goods.All.Count; g++)
-            m.Deposit(g, 200, 0.5);
-    }
-
+    /// <summary>Credits live in ledgers, segment wealth, and open-order
+    /// escrow — conserved together (spec §5).</summary>
     private static double TotalCredits(SimState state)
     {
         double total = 0;
         foreach (var p in state.Polities) total += p.Credits;
         foreach (var s in state.Segments) total += s.Wealth;
+        foreach (var o in state.Orders) total += o.EscrowCredits;
         return total;
     }
 }

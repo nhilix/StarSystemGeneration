@@ -54,21 +54,40 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   behavior-preserving, and it needs no output-vs-restock flag on the
   record. Suite 734/735 (golden window only). Galaxy-wide determinism ×2
   rides the C6 gate.
-- [ ] **C3 — post & reprice migration.** Facility output → owner sell
-  orders (quote rule = old drift repointed: sold out ⇒ raise, glut ⇒ cut,
-  rate-limited); port posts band bid tranches (subsistence/SoL/luxury,
-  escrowed from segment wealth, refund on reprice); upkeep + project
-  baskets + procurement post buys; `Market.Inventory` deleted, every
-  Deposit/Draw caller migrated (piracy loot → hunter sell orders at haven —
-  the plain-deposit unification); reference price derivation. Gate: suite
-  compiles green except sanctioned reds.
-- [ ] **C4 — bridge freight.** Arbitrage loop re-read against books (lift
-  best ask vs distant best bid net of freight+fuel+tariff, posted capacity,
-  ships via DispatchVia, no reservation). Marked throwaway (dies in C8).
-- [ ] **C5 — consumption from fills.** Bands consume filled bids (famine /
-  SoL from fill fractions, same thresholds); facility inputs underproduce
-  on unfilled bids; `ProjectOps.Feed` draws site larder only. Tests:
-  starved port still starves; fed port doesn't.
+- [x] **C3+C4+C5 — the atomic book switch.** LANDED as one wave (the shelf
+  cannot half-die). `Market.Inventory/Deposit/Draw` DELETED; facility
+  output → owner sell orders; RunRecipe/upkeep/fleet supply/research/corp
+  ops/expedition kit → `LiftAsks` (sellers paid at their asks, tax + labor
+  settled per sale); band bid tranches escrowed from segment wealth with
+  pro-rata fill apportioning + refunds; PROJECT baskets are real escrowed
+  bids (goods COST treasuries now) filling a per-project laydown yard
+  (`Project.DeliveredQty/Grade`, projects layer v2) that `Feed` consumes
+  (+ funder-owned larder; gate-pair per-end pacing MERGED into one yard —
+  flagged approximation); procurement bids from ReservePoints; bridge
+  freight lifts asks toward REAL resting bids + a SPECULATIVE term (dear
+  reference over delivered cost — the unsold surplus is what disciplines a
+  cut-off price); RELAY bids (funded re-export — hop diffusion; B1-only,
+  dies in C8); piracy loot/salvage/turn-back → PostSupply (plain-deposit
+  seam closed); markets layer v3.
+  **Price discovery**: quotes re-anchor to the reference each step
+  (`RepriceAsks`); the reference drifts on posted bids + the CONSUMPTION
+  SIGNAL (the old demand-assembly formulas as drift-only inputs — without
+  them, lift-only consumers were invisible and the industrial loop died)
+  against resting asks — the old tick-honest clamp, pre-match snapshot.
+  **Planner**: packs against income + savings/`PlanSavingsDrawdownYears`
+  (new knob, 5y) — receipts are lean net cash now; income-only packing
+  deadlocked on idle treasuries. `CapabilityBrief.SavingsPerYear`.
+  **Bugs found**: (1) `pr.Credits -= TechOps.Research(...)` — C# compound
+  assignment reads Credits BEFORE the call; the book now pays pr as seller
+  mid-call and the store clobbered it (credit leak, −1500/run) — call
+  sites now evaluate first; (2) .NET's shortest-round-trip double format
+  prints 2.98…312E-08 and its ulp neighbor identically — serializer `R()`
+  gained a parse-back G17 guard; (3) dissolved/nationalized corps' resting
+  sells now pass to the sovereign (dead corps must not keep earning).
+  Suite 731/739; the 8 reds = GOLDEN (sanctioned) + 7 shape/honesty items
+  (colonization pace ~24 ports vs main 44, port-raise completions, CivilWar
+  4-port fixtures, FineTick completions band, GenesisShape) — the C6 gate's
+  tuning work, tracked below.
 - [ ] **C6 — B1 gate.** Conservation sweeps (credits incl. escrows; goods
   incl. orders); FineTick honesty (1y vs 25y cleared totals in bands);
   shape check vs main; REPL `ebook <port> [good]`; determinism ×2.

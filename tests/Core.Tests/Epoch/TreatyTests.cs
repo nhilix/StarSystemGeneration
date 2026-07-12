@@ -161,8 +161,7 @@ public class TreatyTests
             StarGen.Core.Substrate.InfraTypeId.Gate).BuildCost;
         foreach (var port in new[] { bestPa!, bestPb! })
             foreach (var q in basket)
-                state.Markets[port.Id].Deposit((int)q.Good,
-                    q.Quantity * 10, 0.6);
+                port.DepositStock((int)q.Good, q.Quantity * 10, 0.6);
         // drive Allocation directly: a full continuation can federate the
         // partner away mid-test (histories churn)
         new AllocationPhase().Run(state);

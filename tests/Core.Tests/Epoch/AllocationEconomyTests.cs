@@ -28,11 +28,14 @@ public class AllocationEconomyTests
         return (state, port);
     }
 
-    private static void StockBuildGoods(Market m, double qty = 500)
+    private static void StockBuildGoods(SimState state, int portId,
+                                        double qty = 500)
     {
-        m.Deposit((int)GoodId.Alloys, qty, 0.5);
-        m.Deposit((int)GoodId.Machinery, qty, 0.5);
-        m.Deposit((int)GoodId.Composites, qty, 0.5);
+        // the works feed from the site larder (and their bid-filled yard);
+        // the anonymous shelf is gone (contract economy)
+        state.Ports[portId].DepositStock((int)GoodId.Alloys, qty, 0.5);
+        state.Ports[portId].DepositStock((int)GoodId.Machinery, qty, 0.5);
+        state.Ports[portId].DepositStock((int)GoodId.Composites, qty, 0.5);
     }
 
     [Fact]
@@ -66,9 +69,8 @@ public class AllocationEconomyTests
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
         pr.DevelopmentPoints = 500;
-        var m = state.Markets[0];
-        StockBuildGoods(m);
-        double alloysBefore = m.Inventory[(int)GoodId.Alloys];
+        StockBuildGoods(state, port.Id);
+        double alloysBefore = port.StockQty[(int)GoodId.Alloys];
         // the standing plan the groundbreak pass executes: a Mine on the
         // capital, due now (StartYear at or before this span)
         var entry = new PlanEntry(PlanEntryKind.Facility, ProjectPriority.Core,
@@ -81,7 +83,7 @@ public class AllocationEconomyTests
         new AllocationPhase().Run(state);
 
         Assert.True(state.Facilities.Count > 0, "the plan should break ground");
-        Assert.True(m.Inventory[(int)GoodId.Alloys] < alloysBefore,
+        Assert.True(port.StockQty[(int)GoodId.Alloys] < alloysBefore,
             "construction consumes real goods");
         bool staged = false;
         foreach (var e in state.Staged)
@@ -98,7 +100,7 @@ public class AllocationEconomyTests
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
         var m = state.Markets[0];
-        StockBuildGoods(m);
+        StockBuildGoods(state, port.Id);
         // consumer goods desperately scarce: the fabricator should win
         m.Price[(int)GoodId.ConsumerGoods] = 60.0;
 
@@ -117,7 +119,7 @@ public class AllocationEconomyTests
     {
         var (state, port) = Fixture();
         var pr = state.PolityOf(0);
-        StockBuildGoods(state.Markets[0], 100000);
+        StockBuildGoods(state, port.Id, 100000);
         // every product desperately scarce: without the saturation penalty
         // the single top scorer would repeat
         for (int g = 0; g < Goods.All.Count; g++)
@@ -189,7 +191,13 @@ public class AllocationEconomyTests
         var f2 = new Facility(0, (int)InfraTypeId.Mine, 1, portB.Hex, 0,
                               builtYear: 50) { Condition = 0.5 };
         fed.Facilities.Add(f2);
-        StockBuildGoods(fed.Markets[0]);
+        // upkeep is BOUGHT off the book now: put the goods up for sale
+        EpochTestKit.Stock(fed, portB.Id, (int)GoodId.Machinery, 500, 0.5,
+            ownerActorId: 1);
+        EpochTestKit.Stock(fed, portB.Id, (int)GoodId.Fuel, 500, 0.5,
+            ownerActorId: 1);
+        EpochTestKit.Stock(fed, portB.Id, (int)GoodId.ShipComponents, 500,
+            0.5, ownerActorId: 1);
         new AllocationPhase().Run(fed);
         Assert.True(f2.Condition > 0.5, "met upkeep should restore condition");
     }

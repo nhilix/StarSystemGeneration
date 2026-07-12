@@ -28,22 +28,24 @@ public class FleetSupplyTests
     public void SuppliedFleet_HoldsReadiness_AndPaysTheMarket()
     {
         var (state, pr, port) = Entered();
-        var market = state.Markets[port.Id];
-        market.Deposit((int)GoodId.Fuel, 500, 0.5);
-        market.Deposit((int)GoodId.Armaments, 500, 0.5);
-        market.Deposit((int)GoodId.ShipComponents, 500, 0.5);   // civilian spares
+        EpochTestKit.Stock(state, port.Id, (int)GoodId.Fuel, 500, 0.5,
+            ownerActorId: 1);
+        EpochTestKit.Stock(state, port.Id, (int)GoodId.Armaments, 500, 0.5,
+            ownerActorId: 1);
+        EpochTestKit.Stock(state, port.Id, (int)GoodId.ShipComponents, 500,
+            0.5, ownerActorId: 1);              // civilian spares
         pr.MilitaryPoints = 1000;
         var home = FleetOps.HomeFleet(state, pr.ActorId, port);
         Assert.True(home.TotalHulls > 0);
 
         double treasury = pr.MilitaryPoints;
-        double fuel = market.Inventory[(int)GoodId.Fuel];
+        double fuel = BookOps.AskQty(state, port.Id, (int)GoodId.Fuel);
         int lost = FleetOps.SupplyFleets(state, pr);
 
         Assert.Equal(0, lost);
         Assert.Equal(1.0, home.Readiness, 6);
-        Assert.True(market.Inventory[(int)GoodId.Fuel] < fuel,
-            "supply should physically draw fuel");
+        Assert.True(BookOps.AskQty(state, port.Id, (int)GoodId.Fuel) < fuel,
+            "supply should physically buy fuel off the book");
         Assert.True(pr.MilitaryPoints < treasury,
             "upkeep is bought from the treasury");
     }
@@ -243,18 +245,21 @@ public class FleetSupplyTests
         EpochTestKit.AddLane(state, 0, 1);
         EpochTestKit.PostFreight(state, a0.Id, 0, 6);
         var mA = state.Markets[0];
-        mA.Deposit((int)GoodId.Provisions, 1000, 0.6);
-        mA.Deposit((int)GoodId.Fuel, 100, 0.5);
-        state.Markets[1].Price[(int)GoodId.Provisions] =
-            mA.Price[(int)GoodId.Provisions] * 4;
+        EpochTestKit.Stock(state, 0, (int)GoodId.Provisions, 1000, 0.6);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Fuel, 100, 0.5);
+        // a real resting bid at the destination — the bridge's absorption
+        state.PolityOf(a0.Id).Credits += 4000;
+        double bid = mA.Price[(int)GoodId.Provisions] * 4;
+        state.PolityOf(a0.Id).Credits -= 500 * bid;
+        OrderOps.PostBuy(state, a0.Id, 1, (int)GoodId.Provisions, 500, bid,
+            state.WorldYear + 1000);
         var scratch = new MarketStepScratch(state);
-        scratch.Demand[1][(int)GoodId.Provisions] = 500;
 
         MarketEngine.MoveFreight(state, scratch);
 
-        Assert.True(state.Markets[1].Inventory[(int)GoodId.Provisions] > 0);
-        Assert.True(mA.Inventory[(int)GoodId.Fuel] < 100,
-            "shipments should burn fuel out of the source market");
+        Assert.True(BookOps.AskQty(state, 1, (int)GoodId.Provisions) > 0);
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Fuel) < 100,
+            "shipments should burn fuel bought off the source book");
     }
 
     [Fact]

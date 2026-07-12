@@ -26,12 +26,15 @@ public class CorpGateLaneTests
         Assert.Equal(corp.ActorId, state.Facilities[lane.GateBId].OwnerActorId);
         Assert.False(LaneMath.IsLive(state, lane));   // half-built: no lane yet
 
-        // the pair draws its whole basket at the A end and streams wages from
-        // corp credits over the gate build years — stock the A-end market so
-        // the tier-scaled pair basket can be delivered in full
-        var aMarket = state.Markets[lane.PortAId];
+        // the pair feeds from its laydown yard (a corp on host ports owns
+        // no larder) and streams wages from corp credits over the build
+        // years — fill the yard with the tier-scaled pair basket
+        var pairProject = state.Projects[state.Projects.Count - 1];
         foreach (var q in Infrastructure.Get(InfraTypeId.Gate).BuildCost)
-            aMarket.Deposit((int)q.Good, q.Quantity * 40, 0.6);
+        {
+            pairProject.DeliveredQty[(int)q.Good] += q.Quantity * 40;
+            pairProject.DeliveredGrade[(int)q.Good] = 0.6;
+        }
         ProjectOps.AdvanceAll(state);
         Assert.True(LaneMath.IsLive(state, lane), "the pair opens on commission");
     }
@@ -89,13 +92,13 @@ public class CorpGateLaneTests
         // the price gap that makes the pair carry profit
         var mA = state.Markets[0];
         var mB = state.Markets[1];
-        mA.Deposit((int)GoodId.Provisions, 200, 0.6);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Provisions, 200, 0.6);
         mB.Price[(int)GoodId.Provisions] = mA.Price[(int)GoodId.Provisions] * 5;
         // both ends can physically supply a tier-1 gate basket
         foreach (var q in Infrastructure.Get(InfraTypeId.Gate).BuildCost)
         {
-            mA.Deposit((int)q.Good, q.Quantity * 5, 0.6);
-            mB.Deposit((int)q.Good, q.Quantity * 5, 0.6);
+            EpochTestKit.Stock(state, 0, (int)q.Good, q.Quantity * 5, 0.6);
+            EpochTestKit.Stock(state, 1, (int)q.Good, q.Quantity * 5, 0.6);
         }
 
         int actorId = state.Actors.Count;

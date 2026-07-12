@@ -27,10 +27,10 @@ public static class ArtifactSerializer
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
         ("actors", 7), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 2),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 3),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
-        ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
+        ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
         ("shipments", 1), ("orders", 1),
     };
 
@@ -218,11 +218,13 @@ public static class ArtifactSerializer
         foreach (var c in state.Cultures)
             w.WriteLine(Join("CULTURE", c.Id.ToString(Inv), Name(c.Name),
                 c.SpeciesId.ToString(Inv)));
+        // markets v3 (contract economy): the anonymous shelf is dead —
+        // inventory lives on sell orders in the orders layer; Price is the
+        // reference readout
         foreach (var m in state.Markets)
             for (int g = 0; g < m.Price.Length; g++)
                 w.WriteLine(Join("MARKET", m.PortId.ToString(Inv), g.ToString(Inv),
-                    R(m.Price[g]), R(m.Inventory[g]), R(m.InventoryGrade[g]),
-                    R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
+                    R(m.Price[g]), R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
                     R(m.BlackBookPrice[g])));
         // markets v2 (stage 2, spec §4b): located stockpiles replace the
         // RESERVE pool — per port, per good, banked where they physically sit
@@ -422,12 +424,19 @@ public static class ArtifactSerializer
                 LongMap(plague.InfectedSince), LongMap(plague.ImmuneUntil)));
 
         Layer(w, "projects");
+        // projects v2 (contract economy): the laydown yard rides along —
+        // goods the project's bids bought, awaiting the build
         foreach (var p in state.Projects)
         {
             var basket = new List<string>();
             for (int g = 0; g < p.PerYearBasket.Length; g++)
                 if (p.PerYearBasket[g] != 0)
                     basket.Add(g.ToString(Inv) + ":" + R(p.PerYearBasket[g]));
+            var yard = new List<string>();
+            for (int g = 0; g < p.DeliveredQty.Length; g++)
+                if (p.DeliveredQty[g] != 0)
+                    yard.Add(g.ToString(Inv) + ":" + R(p.DeliveredQty[g])
+                             + ":" + R(p.DeliveredGrade[g]));
             w.WriteLine(Join("PROJECT", p.Id.ToString(Inv),
                 ((int)p.Kind).ToString(Inv), p.OwnerActorId.ToString(Inv),
                 p.FunderActorId.ToString(Inv), p.PortId.ToString(Inv),
@@ -438,7 +447,7 @@ public static class ArtifactSerializer
                 R(p.LastFedFraction), p.TypeId.ToString(Inv),
                 p.TargetId.ToString(Inv), p.Count.ToString(Inv),
                 R(p.AccumGrade), R(p.AccumGradeWeight),
-                string.Join(";", basket)));
+                string.Join(";", basket), string.Join(";", yard)));
         }
 
         Layer(w, "shipments");
@@ -1106,11 +1115,9 @@ public static class ArtifactSerializer
                         var market = state!.Markets[int.Parse(f[1], Inv)];
                         int good = int.Parse(f[2], Inv);
                         market.Price[good] = double.Parse(f[3], Inv);
-                        market.Inventory[good] = double.Parse(f[4], Inv);
-                        market.InventoryGrade[good] = double.Parse(f[5], Inv);
-                        market.LastCleared[good] = double.Parse(f[6], Inv);
-                        market.BlackBookDemand[good] = double.Parse(f[7], Inv);
-                        market.BlackBookPrice[good] = double.Parse(f[8], Inv);
+                        market.LastCleared[good] = double.Parse(f[4], Inv);
+                        market.BlackBookDemand[good] = double.Parse(f[5], Inv);
+                        market.BlackBookPrice[good] = double.Parse(f[6], Inv);
                         break;
                     }
                     case "STOCK":
@@ -1417,6 +1424,16 @@ public static class ArtifactSerializer
                                 project.PerYearBasket[
                                     int.Parse(part.Substring(0, colon), Inv)] =
                                     double.Parse(part.Substring(colon + 1), Inv);
+                            }
+                        if (f.Length > 23 && f[23].Length > 0)
+                            foreach (var part in f[23].Split(';'))
+                            {
+                                var t = part.Split(':');
+                                int good = int.Parse(t[0], Inv);
+                                project.DeliveredQty[good] =
+                                    double.Parse(t[1], Inv);
+                                project.DeliveredGrade[good] =
+                                    double.Parse(t[2], Inv);
                             }
                         state.Projects.Add(project);
                         break;
@@ -1857,6 +1874,15 @@ public static class ArtifactSerializer
             ? throw new InvalidOperationException(
                 $"unserializable name '{value}': may not contain | ; or newlines")
             : value;
-    private static string R(double v) => v.ToString("R", Inv);
+    /// <summary>Round-trip-safe double text: the shortest form when it
+    /// truly reloads to the same bits, G17 otherwise. Found in slice CE:
+    /// .NET's shortest form (and the old "R") prints 2.98…312E-08 and its
+    /// ulp neighbor identically — one of them reloads WRONG. The parse-back
+    /// guard is pure and deterministic; byte-identity is unaffected.</summary>
+    private static string R(double v)
+    {
+        string s = v.ToString(Inv);
+        return double.Parse(s, Inv) == v ? s : v.ToString("G17", Inv);
+    }
     private static string B(bool v) => v ? "1" : "0";
 }

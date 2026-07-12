@@ -60,7 +60,7 @@ public class LocatedBriefTests
                 (int)InfraTypeId.Mine, 0, new HexCoordinate(0, 0), 1),
             new PerceptionView(0, 1000, new int[0], ownPorts: ports),
             cfg);
-        var cap = new CapabilityBrief(costPerYear * 1.01,
+        var cap = new CapabilityBrief(costPerYear * 1.01, 0.0,
             new double[Goods.All.Count], new CommitmentBrief[0]);
         var view = new PerceptionView(0, 1000, new int[0],
             capability: cap, constructionCandidates: candidates,

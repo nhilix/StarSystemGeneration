@@ -367,29 +367,21 @@ public static class FleetOps
         return lost;
     }
 
-    /// <summary>Draw one upkeep good from the home market first, then from
-    /// the HOME PORT's stockpile — the design's "market/stockpile" (fleets
-    /// doc §Movement and supply), located per spec §4b: navy logistics run
-    /// on the local quartermaster's stores where a frontier port's shelves
-    /// are bare; a rich larder two systems over feeds nobody here. Market
-    /// draws are paid from the military treasury at the market price and
-    /// land as home-port wages (navy money is somebody's income); stock
-    /// draws consume procurement already bought. Returns the met fraction.</summary>
+    /// <summary>Buy one upkeep good off the home book first, then draw the
+    /// HOME PORT's stockpile — the design's "market/stockpile" (fleets doc
+    /// §Movement and supply), located per spec §4b: navy logistics run on
+    /// the local quartermaster's stores where a frontier port's book is
+    /// bare; a rich larder two systems over feeds nobody here. Book lifts
+    /// are paid from the military treasury at the sellers' asks (navy
+    /// money is somebody's income); stock draws consume procurement
+    /// already bought. Returns the met fraction.</summary>
     private static double DrawUpkeep(SimState state, PolityRecord pr,
                                      Market market, int good, double need)
     {
         if (need <= 0) return 1.0;
-        double affordable = market.Price[good] > 0
-            ? Math.Max(0.0, pr.MilitaryPoints) / market.Price[good]
-            : need;
-        double drawn = market.Draw(good, Math.Min(need, affordable));
-        if (drawn > 0)
-        {
-            market.LastCleared[good] += drawn;
-            double cost = drawn * market.Price[good];
-            pr.MilitaryPoints -= cost;
-            MarketEngine.PayWages(state, market.PortId, cost);
-        }
+        var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
+            need, budget: Math.Max(0.0, pr.MilitaryPoints));
+        pr.MilitaryPoints -= cost;
         double shortfall = need - drawn;
         if (shortfall > 0)
             drawn += state.Ports[market.PortId].DrawStock(good, shortfall);
@@ -427,43 +419,6 @@ public static class FleetOps
                 Valence: -1.0, EventVisibility.Regional,
                 new FleetAttritionPayload(fleet.Id, wrecked)));
         return wrecked;
-    }
-
-    /// <summary>Fleet upkeep registers as demand at the home-port markets
-    /// (the MilitaryUpkeep use-case): the price signal keeps fuel and
-    /// armaments produced where navies base.</summary>
-    public static void AddUpkeepDemand(SimState state, MarketStepScratch scratch)
-    {
-        var knobs = state.Config.Fleet;
-        int years = state.Config.Sim.YearsPerEpoch;
-        foreach (var fleet in state.Fleets)               // id order (P6)
-        {
-            if (fleet.TotalHulls == 0 || fleet.HomePortId < 0
-                || fleet.HomePortId >= state.Markets.Count) continue;
-            double posture = fleet.Posture == FleetPosture.Reserve
-                ? knobs.ReserveUpkeepFactor : 1.0;
-            bool atWar = WarOps.AtWar(state, fleet.OwnerActorId);
-            foreach (var g in fleet.Hulls)                // design-id order
-            {
-                var design = state.Designs[g.DesignId];
-                var sheet = DesignRegistry.SheetOf(state, design);
-                double draw = sheet[ShipStat.Upkeep] * g.Count
-                              * knobs.UpkeepUnitsPerPointPerYear * years
-                              * posture;
-                scratch.Demand[fleet.HomePortId][(int)GoodId.Fuel]
-                    += draw * knobs.UpkeepFuelShare;
-                int rest = ShipCatalog.IsWarship(design.Role)
-                    ? (int)GoodId.Armaments : (int)GoodId.ShipComponents;
-                scratch.Demand[fleet.HomePortId][rest]
-                    += draw * (1 - knobs.UpkeepFuelShare);
-                // wartime rations register too — the price signal the
-                // households then compete against
-                if (atWar && ShipCatalog.IsWarship(design.Role))
-                    scratch.Demand[fleet.HomePortId][(int)GoodId.Provisions]
-                        += g.Count * posture * years
-                           * state.Config.War.RationsPerHullPerYear;
-            }
-        }
     }
 
     /// <summary>Off-lane range of a design in hexes — the endurance floor

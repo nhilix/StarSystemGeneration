@@ -234,10 +234,13 @@ public sealed class PerceptionPhase : ISimPhase
     }
 }
 
-/// <summary>Phase 2 — the market step in the design's fixed order
-/// (economy/markets.md): supply lands → demand assembles → price adjusts →
-/// freight moves → clearing and consequences. Slice D task 2 lands supply;
-/// the remaining sub-steps attach in order behind it.</summary>
+/// <summary>Phase 2 — the market step through the ORDER BOOK
+/// (contract-economy spec §2), fixed order: arrivals land → quotes decay →
+/// supply posts sells → the port posts band bids, projects and procurement
+/// post escrowed buys → bridge freight lifts asks toward distant resting
+/// bids → books match at maker price → fills route, unfilled escrow
+/// refunds, famine/SoL derive from fill fractions. The anonymous shelf is
+/// gone; unsold output is somebody's resting ask.</summary>
 public sealed class MarketsPhase : ISimPhase
 {
     public string Name => "Markets";
@@ -251,22 +254,22 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
         // in-flight freight sails first (spec §4b): this step's arrivals
-        // land on the shelf and in the larders BEFORE supply, demand, and
-        // the Allocation draws that follow — goods a year out are not here
+        // post on the books and land in the larders BEFORE supply, demand,
+        // and the Allocation draws that follow
         ShipmentOps.Advance(state, scratch);
+        // resting quotes re-anchor to the market before new output posts
+        BookOps.RepriceAsks(state);
         MarketEngine.SupplyLands(state, scratch);
         CorporationOps.SalvageLands(state, scratch);   // salvors strip fields
-        MarketEngine.AssembleDemand(state, scratch);
-        MarketEngine.AddIndustrialDemand(state, scratch);
-        MarketEngine.AddConstructionPull(state, scratch);
-        MarketEngine.AddMilitaryDemand(state, scratch);
-        MarketEngine.AddResearchDemand(state, scratch);
-        CorporationOps.AddCorporateDemand(state, scratch);
-        FleetOps.AddUpkeepDemand(state, scratch);
-        MarketEngine.AddReExportDemand(state, scratch);
-        // freight before the price drift: the drift reads realized supply —
-        // an import-fed port prices its arrivals, a blockaded one their
-        // absence (markets.md §The market step; amended in slice D)
+        MarketEngine.PostBandBids(state, scratch);
+        MarketEngine.PostProjectBids(state, scratch);
+        MarketEngine.PostProcurementBids(state, scratch);
+        MarketEngine.PostRelayBids(state, scratch);
+        // consumers who lift asks directly still register their want, so
+        // the reference drift prices the scarcity they are about to cause
+        MarketEngine.AddConsumptionSignal(state, scratch);
+        // the bridge (B1 only — dies when corps fulfill in B2): freight
+        // lifts cheap asks toward the dear end's REAL resting bids
         var (shipments, units) = MarketEngine.MoveFreight(state, scratch);
         // the express earn-in clock: consecutive saturated world-years of
         // the lane's posted capacity (lane-economics spec §3.4; the clock
@@ -278,9 +281,7 @@ public sealed class MarketsPhase : ISimPhase
                    / scratch.LaneFleetCapacity[lane.Id]
                    >= state.Config.Expansion.ExpressSaturationFloor
                 ? lane.SaturatedYears + state.Config.Sim.YearsPerEpoch : 0;
-        MarketEngine.AdjustPrices(state, scratch);
-        int famines = MarketEngine.Clear(state, scratch);
-        MarketEngine.DistributePools(state, scratch);
+        int famines = MarketEngine.MatchAndClear(state, scratch);
         int spanYears = state.Config.Sim.YearsPerEpoch;
         foreach (var pr in state.Polities)
             pr.LastIncomePerYear = pr.Receipts / spanYears;
@@ -351,12 +352,19 @@ public sealed class AllocationPhase : ISimPhase
                    + budget.Reserves);
             // the appeasement line buys factions off — a treasury→faction
             // flow, conserved (P4); without factions the line stays liquid
-            pr.Credits -= FactionOps.SpendAppeasement(state, pr,
+            // evaluate BEFORE the compound assignment: these calls can pay
+            // pr itself through the book (the polity selling to the state),
+            // and `pr.Credits -= Call(...)` reads Credits before the call
+            // runs, silently overwriting the in-call mutation (found in
+            // slice CE as a credit leak)
+            double appeaseSpent = FactionOps.SpendAppeasement(state, pr,
                 allocatable * budget.Appeasement, allocatable);
+            pr.Credits -= appeaseSpent;
             // research: the standing split converts exotics × compute into
-            // ladder progress; the spend recycles as lab wages (slice G)
-            pr.Credits -= TechOps.Research(state, pr, policies.Research,
-                allocatable * budget.Research);
+            // ladder progress; the spend pays the feedstock sellers
+            double researchSpent = TechOps.Research(state, pr,
+                policies.Research, allocatable * budget.Research);
+            pr.Credits -= researchSpent;
             // a belligerent raises (or a peaceful polity stands down) its
             // war-economy ramp before the standing plan breaks ground
             // (spec §5)
@@ -402,17 +410,18 @@ public sealed class AllocationPhase : ISimPhase
         return note;
     }
 
-    /// <summary>Upkeep drawn from the attached market, pro-rata per good when
+    /// <summary>Upkeep bought off the attached book, pro-rata per good when
     /// scarce — a starving chain recovers together instead of the first
-    /// facility by id hogging the machinery while the rest rot. Condition
-    /// drifts toward the met fraction: partial upkeep holds partial health,
-    /// never an unrecoverable floor (assets-and-investment.md §Condition;
-    /// output scales with condition).</summary>
+    /// facility by id hogging the machinery while the rest rot. The goods
+    /// cost money now: sellers are paid at their asks from the polity's
+    /// working capital. Condition drifts toward the met fraction: partial
+    /// upkeep holds partial health, never an unrecoverable floor
+    /// (assets-and-investment.md §Condition; output scales with condition).</summary>
     private static void RunUpkeep(SimState state, PolityRecord pr)
     {
         var eco = state.Config.Economy;
         int years = state.Config.Sim.YearsPerEpoch;
-        // pass 1: total upkeep need and starting stock per (market, good)
+        // pass 1: total upkeep need and live ask depth per (market, good)
         var need = new Dictionary<(int Market, int Good), double>();
         var available = new Dictionary<(int Market, int Good), double>();
         foreach (var f in state.Facilities)                   // id order (P6)
@@ -428,17 +437,16 @@ public sealed class AllocationPhase : ISimPhase
                 var key = (mIx, (int)q.Good);
                 need.TryGetValue(key, out double sum);
                 need[key] = sum + q.Quantity * scale;
-                available[key] = state.Markets[mIx].Inventory[(int)q.Good];
+                available[key] = BookOps.AskQty(state, mIx, (int)q.Good);
             }
         }
-        // pass 2: everyone gets the same fraction of the starting stock
+        // pass 2: everyone gets the same fraction of the starting depth
         foreach (var f in state.Facilities)                   // id order (P6)
         {
             if (f.OwnerActorId != pr.ActorId) continue;
             if (!MarketEngine.IsActive(state, f)) continue;
             int mIx = MarketEngine.AttachedMarketIndex(state, f);
             if (mIx < 0) continue;
-            var market = state.Markets[mIx];
             var def = Substrate.Infrastructure.Get((Substrate.InfraTypeId)f.TypeId);
             double scale = Substrate.Production.TierCostFactor(f.Tier) * years;
             double met = 1.0;
@@ -449,8 +457,9 @@ public sealed class AllocationPhase : ISimPhase
                 var key = (mIx, (int)q.Good);
                 double fraction = need[key] <= 0 ? 1.0
                     : Math.Min(1.0, available[key] / need[key]);
-                double drawn = market.Draw((int)q.Good, myNeed * fraction);
-                market.LastCleared[(int)q.Good] += drawn;
+                var (drawn, _, cost) = BookOps.LiftAsks(state, mIx,
+                    (int)q.Good, myNeed * fraction, budget: double.MaxValue);
+                pr.Credits -= cost;
                 met = Math.Min(met, drawn / myNeed);
             }
             double target = Math.Max(0.05, met);
@@ -1106,17 +1115,10 @@ public sealed class ResolutionPhase : ISimPhase
             Valence: 0.5, EventVisibility.Regional,
             new ConvoyDispatchedPayload(convoy.Id, staging.Id,
                                         act.Target.Q, act.Target.R)));
-        var stagingMarket = state.Markets[staging.Id];
         double fuelNeed = state.Config.Fleet.FuelPerHullPerHexMoved * offLane;
-        double fuelDrawn = stagingMarket.Draw((int)Substrate.GoodId.Fuel, fuelNeed);
-        if (fuelDrawn > 0)
-        {
-            stagingMarket.LastCleared[(int)Substrate.GoodId.Fuel] += fuelDrawn;
-            double fuelCost = fuelDrawn
-                * stagingMarket.Price[(int)Substrate.GoodId.Fuel];
-            record.Credits -= fuelCost;
-            MarketEngine.PayWages(state, staging.Id, fuelCost);
-        }
+        var (_, _, fuelCost) = BookOps.LiftAsks(state, staging.Id,
+            (int)Substrate.GoodId.Fuel, fuelNeed, budget: double.MaxValue);
+        record.Credits -= fuelCost;
         // the crossing takes world-time now: the founding body (port,
         // market, colony, founding facilities, the convoy's docking, the
         // chronicle, the encroachment bumps) lands when the expedition
@@ -1139,10 +1141,13 @@ public sealed class ResolutionPhase : ISimPhase
         double kitScale = Substrate.Production.TierCostFactor(linkTier);
         foreach (var q in gateDef.BuildCost)
         {
-            double drawn = stagingMarket.Draw((int)q.Good,
-                2.0 * q.Quantity * kitScale);
+            // the kit is BOUGHT off the staging book now (best-effort,
+            // clamped to what's for sale — no hard gate, like the fuel)
+            var (drawn, _, kitCost) = BookOps.LiftAsks(state, staging.Id,
+                (int)q.Good, 2.0 * q.Quantity * kitScale,
+                budget: double.MaxValue);
+            record.Credits -= kitCost;
             if (drawn <= 0) continue;
-            stagingMarket.LastCleared[(int)q.Good] += drawn;
             expedition.PerYearBasket[(int)q.Good] = drawn;
         }
         return true;

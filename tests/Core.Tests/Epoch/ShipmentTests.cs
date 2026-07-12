@@ -159,12 +159,12 @@ public class ShipmentTests
             "Red Sails", -1, CorporateNiche.Raiding, homePortId: 0,
             foundedYear: 90) { TargetId = 0 });
         state.Config.Corporate.ShipmentLossPerHuntedYear = 1.0;
-        double havenBefore = state.Markets[0].Inventory[g];
+        double havenBefore = BookOps.AskQty(state, 0, g);
         ShipmentOps.Advance(state, new MarketStepScratch(state));
         Assert.Empty(state.Shipments);                    // taken
         Assert.Equal(0.0, pb.StockQty[g], 6);             // never arrived
         Assert.Equal(havenBefore + 25.0,
-            state.Markets[0].Inventory[g], 6);            // loot at the haven
+            BookOps.AskQty(state, 0, g), 6);   // loot for sale at the haven
         _ = doomed;
 
         state.Config.Corporate.ShipmentLossPerHuntedYear = 0.0;
@@ -217,7 +217,7 @@ public class ShipmentTests
             foundedYear: 90) { TargetId = 0 });
         int g = (int)GoodId.Alloys;
         pa.DepositStock(g, 25, 0.7);
-        double havenBefore = state.Markets[0].Inventory[g];
+        double havenBefore = BookOps.AskQty(state, 0, g);
 
         var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
             ShipmentChannel.Requisition, pa.Id, pb.Id,
@@ -227,7 +227,7 @@ public class ShipmentTests
         Assert.Empty(state.Shipments);
         Assert.Equal(0.0, pb.StockQty[g], 6); // never arrived
         Assert.Equal(havenBefore + 25.0,
-            state.Markets[0].Inventory[g], 6);
+            BookOps.AskQty(state, 0, g), 6);
     }
 
     [Fact]

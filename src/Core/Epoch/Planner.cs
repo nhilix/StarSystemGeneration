@@ -23,7 +23,11 @@ public static class Planner
         if (view.Capability == null) return StandingPlan.Empty;
         int H = cfg.Sim.GenerationYears;
         if (H <= 0) return StandingPlan.Empty;
-        double capacity = view.Capability.IncomePerYear;
+        // income plus the horizon-spread savings: treasuries exist to be
+        // spent — packing against trailing income alone deadlocks a rich
+        // polity whose receipts are lean real cash flow (contract economy)
+        double capacity = view.Capability.IncomePerYear
+                          + view.Capability.SavingsPerYear;
 
         // committed-cost timeline: each in-flight commitment fills the years
         // to its naive completion (spec §3 step 2)

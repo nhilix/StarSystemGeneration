@@ -91,6 +91,10 @@ public class GovernmentTests
     {
         var (_, state) = EpochTestKit.Seeded();
         new EpochEngine().Run(state);
+        // the invariant is RECOMPUTE's contract: later same-epoch hits
+        // (a lost war, a coup, a nationalization scandal) may leave
+        // legitimacy transiently below cohesion until the next recompute
+        InteriorOps.Recompute(state);
         int checkedCount = 0;
         foreach (var pr in state.Polities)
         {

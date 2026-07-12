@@ -71,11 +71,10 @@ public static class OrderOps
     /// priority. Each fill settles its consequences: transaction tax on the
     /// proceeds to the port's sovereign, the labor share of the seller's net
     /// to the local segments (household income is earned from realized
-    /// revenue), the rest stays with the seller. The reference price
-    /// (Market.Price — the readout every downstream valuation keeps
-    /// reading) updates to the step's volume-weighted prints, falling back
-    /// to the best surviving ask. Returns the fills for the caller to route
-    /// the goods. Pure ordered math — no rolls.</summary>
+    /// revenue), the rest stays with the seller. Returns the fills for the
+    /// caller to route the goods. Pure ordered math — no rolls; the
+    /// reference price moves separately, on the book's imbalance
+    /// (MarketEngine.MatchAndClear).</summary>
     public static List<OrderFill> MatchPort(SimState state, int portId)
     {
         var fills = new List<OrderFill>();
@@ -96,7 +95,6 @@ public static class OrderOps
 
         for (int good = 0; good < Substrate.Goods.All.Count; good++)
         {
-            double printedQty = 0, printedValue = 0;
             int bi = 0, si = 0;
             while (true)
             {
@@ -113,19 +111,7 @@ public static class OrderOps
                 if (qty <= 0) break;
                 SettleSale(state, portId, sellerId, paid);
                 market.LastCleared[good] += qty;
-                printedQty += qty;
-                printedValue += paid;
                 fills.Add(new OrderFill(buy, good, qty, grade));
-            }
-            if (printedQty > 0)
-                market.Price[good] = printedValue / printedQty;
-            else
-            {
-                // no prints: the best surviving ask is the reference — a
-                // glutted seller's decaying quote drags the readout down
-                for (int i = 0; i < sells.Count; i++)
-                    if (sells[i].Good == good && sells[i].QtyRemaining > 0)
-                    { market.Price[good] = sells[i].LimitPrice; break; }
             }
         }
         return fills;

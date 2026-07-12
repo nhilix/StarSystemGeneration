@@ -16,7 +16,9 @@ public sealed class MarketOrder
 {
     public int Id { get; }
     public OrderSide Side { get; }
-    public int OwnerActorId { get; }
+    /// <summary>Settable: estates pass — dissolution abandons a corp's
+    /// resting sells to the port's sovereign, nationalization seizes them.</summary>
+    public int OwnerActorId { get; set; }
     public int PortId { get; }
     public int Good { get; }
     /// <summary>Ask for sells, bid for buys — per unit. Settable: sellers

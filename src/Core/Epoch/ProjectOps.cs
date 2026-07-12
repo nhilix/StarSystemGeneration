@@ -218,13 +218,13 @@ public static class ProjectOps
         return completions;
     }
 
-    /// <summary>Draw needYears of the basket LOCALLY (spec §4b): the site
-    /// market first, then the site port's own stockpile when the funder
-    /// owns it — nothing teleports in; remote goods arrive as shipments
-    /// that land in the local larder before this draw. The met fraction
-    /// (min across goods AND the wage stream) scales progress, consumption,
-    /// and wages alike: a starved project neither hoards goods nor pays
-    /// idle crews.</summary>
+    /// <summary>Draw needYears of the basket from the works' own supplies
+    /// (contract-economy spec §2): the laydown yard (goods the project's
+    /// posted bids bought) plus the site port's stockpile when the funder
+    /// owns it — nothing teleports in; remote goods arrive as shipments or
+    /// bid fills before this draw. The met fraction (min across goods AND
+    /// the wage stream) scales progress, consumption, and wages alike: a
+    /// starved project neither hoards goods nor pays idle crews.</summary>
     private static void Feed(SimState state, Project p, double needYears)
     {
         // travel kinds carry no basket and pay no wages: they skip the goods
@@ -244,26 +244,19 @@ public static class ProjectOps
             }
             return;
         }
-        // a gate pair draws per end (spec §5): each gate at its own market
-        // and larder, the scarcer end pacing the pair — a half-built
-        // highway opens no lane
-        if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
-        {
-            FeedGatePair(state, p, needYears);
-            return;
-        }
-        var market = state.Markets[p.PortId];
+        // a gate pair's bids pull toward both ends, but the works share one
+        // laydown yard; the funder-owned larder check runs per end below
         var site = state.Ports[p.PortId];
         // the local larder feeds the state's own works: stock belongs to
-        // the port's owner, so a corp building on a host port buys from
-        // the market like anyone else
+        // the port's owner, so a corp building on a host port lives off
+        // its bid fills alone
         bool ownStock = site.OwnerActorId == p.FunderActorId;
         double fraction = 1.0;
         for (int g = 0; g < p.PerYearBasket.Length; g++)
         {
             double want = p.PerYearBasket[g] * needYears;
             if (want <= 0) continue;
-            double have = market.Inventory[g]
+            double have = p.DeliveredQty[g]
                 + (ownStock ? site.StockQty[g] : 0.0);
             fraction = Math.Min(fraction, Math.Min(1.0, have / want));
         }
@@ -279,21 +272,22 @@ public static class ProjectOps
             {
                 double take = p.PerYearBasket[g] * needYears * fraction;
                 if (take <= 0) continue;
-                double marketGrade = market.InventoryGrade[g];
-                double drawn = market.Draw(g, take);
-                market.LastCleared[g] += drawn;
-                double grade = marketGrade;
-                double shortfall = take - drawn;
+                double fromYard = Math.Min(take, p.DeliveredQty[g]);
+                double yardGrade = p.DeliveredGrade[g];
+                p.DeliveredQty[g] -= fromYard;
+                if (p.DeliveredQty[g] <= 0) p.DeliveredGrade[g] = 0;
+                double grade = yardGrade;
+                double shortfall = take - fromYard;
                 if (shortfall > 0 && ownStock)
                 {
-                    // blend, don't replace: the market units already drawn
-                    // carry their own grade — a shortfall topped up from
-                    // the port's stock is a quantity-weighted mix (F8)
+                    // blend, don't replace: yard units carry their own
+                    // grade — a shortfall topped up from the port's stock
+                    // is a quantity-weighted mix (F8)
                     double stockGrade = site.StockGrade[g];
                     double fromStock = site.DrawStock(g, shortfall);
-                    double total = drawn + fromStock;
+                    double total = fromYard + fromStock;
                     if (total > 0)
-                        grade = (marketGrade * drawn
+                        grade = (yardGrade * fromYard
                             + stockGrade * fromStock) / total;
                 }
                 if (g == (int)GoodId.ShipComponents && take > 0)
@@ -306,7 +300,17 @@ public static class ProjectOps
         if (wages > 0 && fraction > 0)
         {
             SpendTreasury(state, p, wages * fraction);
-            MarketEngine.PayWages(state, p.PortId, wages * fraction);
+            if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+            {
+                // the crews split the stream: half to each end's households
+                var lane = state.Lanes[p.TargetId];
+                MarketEngine.PayWages(state, lane.PortAId,
+                                      0.5 * wages * fraction);
+                MarketEngine.PayWages(state, lane.PortBId,
+                                      0.5 * wages * fraction);
+            }
+            else
+                MarketEngine.PayWages(state, p.PortId, wages * fraction);
         }
         p.YearsDelivered = Math.Min(p.YearsRequired,
             p.YearsDelivered + fraction * needYears);
@@ -316,75 +320,10 @@ public static class ProjectOps
             mob.Mobilization = Math.Max(mob.Mobilization, p.Progress);
     }
 
-    /// <summary>Per-end gate-pair feeding (spec §5): the basket is the
-    /// PAIR's per-year rate — each end draws its half at its own market
-    /// plus its own funder-owned larder; the met fraction is the minimum
-    /// across BOTH ends' goods and the wage stream, so the scarcer end
-    /// paces the pair. Shipments cover shortfalls by landing stock at the
-    /// starved end before this draw.</summary>
-    private static void FeedGatePair(SimState state, Project p,
-                                     double needYears)
-    {
-        var lane = state.Lanes[p.TargetId];
-        Span<int> ends = stackalloc int[2] { lane.PortAId, lane.PortBId };
-        double fraction = 1.0;
-        foreach (int end in ends)
-        {
-            var market = state.Markets[end];
-            var port = state.Ports[end];
-            bool ownStock = port.OwnerActorId == p.FunderActorId;
-            for (int g = 0; g < p.PerYearBasket.Length; g++)
-            {
-                double want = 0.5 * p.PerYearBasket[g] * needYears;
-                if (want <= 0) continue;
-                double have = market.Inventory[g]
-                    + (ownStock ? port.StockQty[g] : 0.0);
-                fraction = Math.Min(fraction, Math.Min(1.0, have / want));
-            }
-        }
-        double wages = p.WagesPerYear * needYears;
-        if (wages > 0)
-        {
-            double treasury = TreasuryAvailable(state, p);
-            fraction = Math.Min(fraction, Math.Min(1.0, treasury / wages));
-        }
-        if (fraction > 0)
-        {
-            foreach (int end in ends)
-            {
-                var market = state.Markets[end];
-                var port = state.Ports[end];
-                bool ownStock = port.OwnerActorId == p.FunderActorId;
-                for (int g = 0; g < p.PerYearBasket.Length; g++)
-                {
-                    double take = 0.5 * p.PerYearBasket[g] * needYears
-                                  * fraction;
-                    if (take <= 0) continue;
-                    double drawn = market.Draw(g, take);
-                    market.LastCleared[g] += drawn;
-                    if (take - drawn > 0 && ownStock)
-                        port.DrawStock(g, take - drawn);
-                }
-            }
-            if (wages > 0)
-            {
-                SpendTreasury(state, p, wages * fraction);
-                // the crews split the stream: half to each end's households
-                MarketEngine.PayWages(state, lane.PortAId,
-                                      0.5 * wages * fraction);
-                MarketEngine.PayWages(state, lane.PortBId,
-                                      0.5 * wages * fraction);
-            }
-        }
-        p.YearsDelivered = Math.Min(p.YearsRequired,
-            p.YearsDelivered + fraction * needYears);
-        p.LastFedFraction = fraction;
-    }
-
     /// <summary>The treasury a kind streams wages from: development for
     /// civil works, military for hulls and mobilization, corp credits for
     /// corporate funders. Expeditions charged at the act, no stream.</summary>
-    private static double TreasuryAvailable(SimState state, Project p)
+    internal static double TreasuryAvailable(SimState state, Project p)
     {
         var corp = state.CorporationOf(p.FunderActorId);
         if (corp != null) return Math.Max(0, corp.Credits);
@@ -398,7 +337,7 @@ public static class ProjectOps
         };
     }
 
-    private static void SpendTreasury(SimState state, Project p, double amount)
+    internal static void SpendTreasury(SimState state, Project p, double amount)
     {
         var corp = state.CorporationOf(p.FunderActorId);
         if (corp != null) { corp.Credits -= amount; return; }
@@ -411,6 +350,12 @@ public static class ProjectOps
             default: pr.DevelopmentPoints -= amount; break;
         }
     }
+
+    /// <summary>Return unspent bid escrow to the pool it came from — the
+    /// reverse of SpendTreasury (contract-economy spec §2).</summary>
+    internal static void RefundTreasury(SimState state, Project p,
+                                        double amount)
+        => SpendTreasury(state, p, -amount);
 
     private static PolityRecord? FunderPolity(SimState state, int actorId)
     {
@@ -429,6 +374,19 @@ public static class ProjectOps
     {
         if (completionYear == int.MinValue) completionYear = state.WorldYear;
         p.Completed = true;
+        // surplus in the laydown yard banks at the site (P4): the works
+        // over-bought against a starved future that never came
+        if (p.Kind != ProjectKind.ColonyExpedition)
+        {
+            var yard = state.Ports[p.PortId];
+            for (int g = 0; g < p.DeliveredQty.Length; g++)
+            {
+                if (p.DeliveredQty[g] <= 0) continue;
+                yard.DepositStock(g, p.DeliveredQty[g], p.DeliveredGrade[g]);
+                p.DeliveredQty[g] = 0;
+                p.DeliveredGrade[g] = 0;
+            }
+        }
         switch (p.Kind)
         {
             case ProjectKind.FacilityConstruction:
@@ -525,7 +483,6 @@ public static class ProjectOps
                 // to the shelf; the draw's grade blend is long gone, so the
                 // system's neutral midpoint carries it
                 var home = state.Ports[p.PortId];
-                var homeMarket = state.Markets[p.PortId];
                 for (int g = 0; g < p.PerYearBasket.Length; g++)
                 {
                     if (p.PerYearBasket[g] <= 0) continue;
@@ -535,8 +492,10 @@ public static class ProjectOps
                     double banked = Math.Min(room, p.PerYearBasket[g]);
                     home.DepositStock(g, banked, 0.5);
                     if (p.PerYearBasket[g] - banked > 0)
-                        homeMarket.Deposit(g, p.PerYearBasket[g] - banked,
-                                           0.5);
+                        // larder overflow goes up for sale as the owner's
+                        // ask — the shelf is gone (contract economy)
+                        BookOps.PostSupply(state, p.PortId, p.OwnerActorId,
+                            g, p.PerYearBasket[g] - banked, 0.5);
                     p.PerYearBasket[g] = 0;
                 }
                 if (convoy != null)
@@ -642,5 +601,16 @@ public static class ProjectOps
     public static void Cancel(SimState state, Project p)
     {
         p.Cancelled = true;
+        // the laydown yard doesn't evaporate (P4): abandoned materials bank
+        // in the site port's larder — salvage goes to whoever holds the
+        // ground, part of the abandoned-works residue (P1)
+        var site = state.Ports[p.PortId];
+        for (int g = 0; g < p.DeliveredQty.Length; g++)
+        {
+            if (p.DeliveredQty[g] <= 0) continue;
+            site.DepositStock(g, p.DeliveredQty[g], p.DeliveredGrade[g]);
+            p.DeliveredQty[g] = 0;
+            p.DeliveredGrade[g] = 0;
+        }
     }
 }

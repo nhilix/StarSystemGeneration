@@ -40,7 +40,7 @@ public class CapabilityTests
     }
 
     [Fact]
-    public void ConstructionPull_ReadsInFlightProjects()
+    public void ProjectBids_ReadInFlightProjects()
     {
         var (_, state) = EpochTestKit.Seeded();
         ProjectOpsTests.RunHistory(state);
@@ -50,11 +50,16 @@ public class CapabilityTests
             port, state.Ports[port].Hex, 5.0, ProjectPriority.Core, 0);
         p.TargetId = port;
         p.PerYearBasket[(int)GoodId.Machinery] = 2.0;
+        state.PolityOf(actor).DevelopmentPoints += 10000;
         var scratch = new MarketStepScratch(state);
-        MarketEngine.AddConstructionPull(state, scratch);
-        // stage 2: the pull tapers to the remaining work — a 5-year raise
-        // pulls its 5 years of basket, never the whole 25-year span's
-        Assert.True(scratch.Demand[port][(int)GoodId.Machinery]
-                    >= 2.0 * p.YearsRequired);
+        MarketEngine.PostProjectBids(state, scratch);
+        // the construction pull is literal now: the bid tapers to the
+        // remaining work — a 5-year raise bids its 5 years of basket,
+        // never the whole 25-year span's
+        double bid = 0;
+        foreach (var (order, project) in scratch.ProjectBids)
+            if (project == p && order.Good == (int)GoodId.Machinery)
+                bid += order.QtyRemaining;
+        Assert.Equal(2.0 * p.YearsRequired, bid, 6);
     }
 }

@@ -175,19 +175,14 @@ public static class ShipmentOps
                     Rng.RollChannel.ShipmentPiracy, state.EpochIndex,
                     s.OwnerActorId, s.Id) < p)
             {
-                // taken: the loot lands at the haven (the fence pays the
-                // pirates — conserved, P4)
-                var havenMarket = state.Markets[hunter.HomePortId];
+                // taken: the loot goes up for sale at the haven as the
+                // band's own asks — the fence pays the pirates at the
+                // fill, conserved (P4; the old scratch-less plain-deposit
+                // seam is closed — the book needs no attribution pool)
                 for (int g = 0; g < s.Qty.Length; g++)
-                {
-                    if (s.Qty[g] <= 0) continue;
-                    if (scratch != null)
-                        MarketEngine.Deposit(state, scratch,
-                            hunter.HomePortId, hunter.ActorId, g, s.Qty[g],
-                            s.Grade[g]);
-                    else
-                        havenMarket.Deposit(g, s.Qty[g], s.Grade[g]);
-                }
+                    if (s.Qty[g] > 0)
+                        BookOps.PostSupply(state, hunter.HomePortId,
+                            hunter.ActorId, g, s.Qty[g], s.Grade[g]);
                 return SailOutcome.Lost;
             }
         }
@@ -244,14 +239,16 @@ public static class ShipmentOps
                 // a site whose port fell to someone else gets the market
                 // channel only (review fix 3)
                 if (site.OwnerActorId != pr.ActorId) continue;
-                var market = state.Markets[end];
                 bool any = false;
                 for (int g = 0; g < want.Length; g++)
                 {
                     want[g] = 0;
                     if (p.PerYearBasket[g] <= 0) continue;
+                    // coverage = larder + the works' laydown yard + inbound
+                    // (the anonymous shelf is gone — bid fills land in the
+                    // yard, requisitions in the larder)
                     double need = share * p.PerYearBasket[g] * cover
-                        - site.StockQty[g] - market.Inventory[g]
+                        - site.StockQty[g] - share * p.DeliveredQty[g]
                         - Inbound(state, pr.ActorId, end, g);
                     if (need > 1e-6) { want[g] = need; any = true; }
                 }
@@ -284,14 +281,12 @@ public static class ShipmentOps
                     state.Ports[entry.PortId].Tier, role, size, basket);
                 double cover = Math.Min(duration, window);
                 var site = state.Ports[entry.PortId];
-                var market = state.Markets[entry.PortId];
                 bool any = false;
                 for (int g = 0; g < want.Length; g++)
                 {
                     want[g] = 0;
                     if (basket[g] <= 0) continue;
                     double need = basket[g] * cover - site.StockQty[g]
-                        - market.Inventory[g]
                         - Inbound(state, pr.ActorId, entry.PortId, g);
                     if (need > 1e-6) { want[g] = need; any = true; }
                 }
@@ -428,16 +423,14 @@ public static class ShipmentOps
     }
 
     /// <summary>Land the cargo: a requisition banks into the destination
-    /// port's stockpile (capacity overflow spills onto the market shelf —
-    /// goods conserve); freight deposits into the destination market with
-    /// the owner credited as its supplier (paid at distribution, the
-    /// Arbitrage convention). Without a scratch (a mid-phase dispatch has
-    /// one; unit paths may not) freight falls back to a plain deposit.</summary>
+    /// port's stockpile (capacity overflow posts as the owner's sell
+    /// orders — goods conserve); freight posts on the destination book as
+    /// the owner's asks and sells into whatever bids exist (the spread-run
+    /// rule — no reservation, contract-economy spec §2).</summary>
     private static void Deliver(SimState state, MarketStepScratch? scratch,
                                 Shipment s)
     {
         var port = state.Ports[s.DestPortId];
-        var market = state.Markets[s.DestPortId];
         for (int g = 0; g < s.Qty.Length; g++)
         {
             if (s.Qty[g] <= 0) continue;
@@ -448,13 +441,12 @@ public static class ShipmentOps
                 double banked = Math.Min(room, s.Qty[g]);
                 port.DepositStock(g, banked, s.Grade[g]);
                 if (s.Qty[g] - banked > 0)
-                    market.Deposit(g, s.Qty[g] - banked, s.Grade[g]);
+                    BookOps.PostSupply(state, s.DestPortId, s.OwnerActorId,
+                        g, s.Qty[g] - banked, s.Grade[g]);
             }
-            else if (scratch != null)
-                MarketEngine.Deposit(state, scratch, s.DestPortId,
-                    s.OwnerActorId, g, s.Qty[g], s.Grade[g]);
             else
-                market.Deposit(g, s.Qty[g], s.Grade[g]);
+                BookOps.PostSupply(state, s.DestPortId, s.OwnerActorId,
+                    g, s.Qty[g], s.Grade[g]);
         }
     }
 }
