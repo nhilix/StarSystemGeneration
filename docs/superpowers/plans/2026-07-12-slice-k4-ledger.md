@@ -94,11 +94,15 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
       while dragging — only the marker moves; full rebuild on release) ·
       axis y0 / live / end labels. TopBar keeps the year/era readout
       (shared, not duplicated).
-- [ ] **T5 — EditMode tests where they pay** (strip builds, host wiring,
-      no second guard).
-- [ ] **T6 — Gates**: `dotnet test` green ×3 · golden untouched ·
-      determinism untouched · EditMode green · AtlasSmoke renders every
-      lens.
+- [x] **T5 — EditMode tests**: SimHostTimeTests — loads the golden,
+      steps, scrubs headlessly; step/scrub raise TimeChanged and never
+      Loaded; keyframes accrue; scrub restores the base clock.
+      **11/11 EditMode** (K3's 10 + this).
+- [x] **T6 — Gates**: `dotnet test` **799/799 ×3** (determinism suites
+      in the count) · goldens dir untouched (`git status` clean) ·
+      EditMode 11/11 · scene rebuilt w/ strip · AtlasSmoke renders
+      every lens (14 captures; 191 fleets, 106 POIs, 297 projects,
+      16 shipments, 597 pulses, 5 plagues — the K3 census).
 - [ ] **T7 — Fresh-eyes whole-branch review** + one fix wave.
 - [ ] **T8 — USER: timeline eyeball** — watch 40 epochs animate on the
       domains lens; scrub back to a mid-war year; step fine.
