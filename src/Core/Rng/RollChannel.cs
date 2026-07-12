@@ -110,4 +110,7 @@ public enum RollChannel : ulong
 
     // --- Located logistics (slice T2). ---
     ShipmentPiracy = 75,       // in-transit loss to a hunting band: step = epoch, actor = shipment owner, subIndex = shipment id
+
+    // --- Contract economy / front supply lines (slice CE). ---
+    ShipmentInterdiction = 76, // wartime seizure on a contested leg: step = epoch, actor = shipment owner, subIndex = shipment id
 }

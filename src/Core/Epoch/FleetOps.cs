@@ -282,6 +282,22 @@ public static class FleetOps
         return severed;
     }
 
+    /// <summary>The actor's port nearest a hex, ties to the lower id — the
+    /// forward-depot pick (contract-economy spec §4) and the interdictor's
+    /// prize port. −1 when the actor holds no ports.</summary>
+    public static int NearestOwnedPortId(SimState state, int actorId,
+                                         HexCoordinate hex)
+    {
+        int best = -1, bestDist = int.MaxValue;
+        foreach (var port in state.Ports)                 // id order (P6)
+        {
+            if (port.OwnerActorId != actorId) continue;
+            int d = HexGrid.Distance(port.Hex, hex);
+            if (d < bestDist) { bestDist = d; best = port.Id; }
+        }
+        return best;
+    }
+
     /// <summary>Fleet supply (fleets/ships-and-fleets.md §Movement and
     /// supply), run by Allocation after postures: every fleet draws upkeep
     /// from its home-port market — fuel plus armaments for warship hulls,
@@ -302,7 +318,13 @@ public static class FleetOps
         {
             if (fleet.OwnerActorId != pr.ActorId || fleet.TotalHulls == 0)
                 continue;
-            int mIx = fleet.HomePortId;
+            // the front is a demander (contract-economy spec §4): a
+            // war-stationed force victuals at the nearest owned port — its
+            // forward depot — not the home port a sector behind the line
+            int mIx = fleet.Posture is FleetPosture.Blockade
+                          or FleetPosture.Expedition
+                ? NearestOwnedPortId(state, pr.ActorId, fleet.Hex)
+                : fleet.HomePortId;
             if (mIx < 0 || mIx >= state.Markets.Count) continue;
             var market = state.Markets[mIx];
 

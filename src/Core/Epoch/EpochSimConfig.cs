@@ -238,6 +238,17 @@ public sealed class WarKnobs
     /// <summary>Armaments a Mobilization project draws per world-year —
     /// the ramp's war-materiel basket.</summary>
     public double MobilizationArmamentsPerYear { get; set; } = 3.0;
+    /// <summary>Hexes from a war-stationed enemy fleet within which a
+    /// lane leg counts CONTESTED for its foes' shipments (front supply
+    /// lines, slice CE).</summary>
+    public int InterdictionReachHexes { get; set; } = 4;
+    /// <summary>Seizure probability per world-year sailed on a contested
+    /// leg — the piracy pattern, channel 76.</summary>
+    public double InterdictionLossPerContestedYear { get; set; } = 0.12;
+    /// <summary>Each friendly war-stationed warship hull near the leg
+    /// damps the seizure odds by 1/(1 + this × hulls) — escorts are the
+    /// counter, deterministic (no second roll).</summary>
+    public double EscortDampPerHull { get; set; } = 0.15;
     /// <summary>Fuel a Mobilization project draws per world-year — the
     /// ramp's war-materiel basket.</summary>
     public double MobilizationFuelPerYear { get; set; } = 4.0;
