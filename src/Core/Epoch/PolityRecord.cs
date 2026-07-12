@@ -50,6 +50,14 @@ public sealed class PolityRecord : ICreditLedger
     /// design intent) — latecomers are behind, not hopeless.</summary>
     public double EntryGradeBonus { get; set; }
 
+    /// <summary>Last step's realized receipts per world-year — the trailing
+    /// income rate the capability brief plans against (spec §2, P3:
+    /// deliberately hindsight, never clairvoyance).</summary>
+    public double LastIncomePerYear { get; set; }
+    /// <summary>War-economy readiness 0..1: raised by fed Mobilization
+    /// projects, decays at peace (spec §5).</summary>
+    public double Mobilization { get; set; }
+
     /// <summary>Per-domain tech tier, indexed by <see cref="TechDomain"/> —
     /// the qualitative ladder (slice G). Seeded at entry; ceilings and
     /// regions derive via <see cref="Tech"/>.</summary>

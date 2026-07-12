@@ -53,6 +53,8 @@ public sealed class Corporation : ICreditLedger
     /// chest, moved only by market flows, dividends, and seizure.</summary>
     public double Credits { get; set; }
     public double Receipts { get; set; }
+    /// <summary>Last step's receipts per world-year (spec §2).</summary>
+    public double LastIncomePerYear { get; set; }
     /// <summary>The executive suite — a character id (characters.md roles).</summary>
     public int ExecutiveCharacterId { get; set; } = -1;
     /// <summary>Hull conservation ledger, like the polity's (P4).</summary>

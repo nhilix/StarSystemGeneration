@@ -414,21 +414,7 @@ public static class WarConduct
     private static void Capture(SimState state, War war,
                                 WarObjective objective, Port port)
     {
-        foreach (var facility in state.Facilities)            // id order (P6)
-            if (facility.OwnerActorId == war.DefenderId
-                && MarketEngine.AttachedMarketIndex(state, facility) == port.Id)
-                facility.OwnerActorId = war.AttackerId;
-        // defender fleets stationed there scatter home (the capital)
-        int fallback = CapitalPort(state, war.DefenderId);
-        foreach (var fleet in state.Fleets)                   // id order (P6)
-            if (fleet.OwnerActorId == war.DefenderId
-                && fleet.HomePortId == port.Id && fallback >= 0
-                && fallback != port.Id)
-            {
-                fleet.HomePortId = fallback;
-                fleet.Hex = state.Ports[fallback].Hex;
-            }
-        port.OwnerActorId = war.AttackerId;
+        TransferPort(state, port.Id, war.AttackerId);
         objective.Status = ObjectiveStatus.Taken;
         objective.SiegeYears = 0;
         state.Staged.Add(new StagedEvent(
@@ -438,6 +424,50 @@ public static class WarConduct
             new PortCapturedPayload(war.Id, war.Name, port.Id,
                 state.Actors[war.AttackerId].Name,
                 state.Actors[war.DefenderId].Name)));
+    }
+
+    /// <summary>The capture seam: a port's domain transfers whole to a new
+    /// owner — sovereignty, facilities still standing there, defender
+    /// fleets stationed there scattering home, and any in-flight project
+    /// anchored at the site carrying its progress over intact (spec §1,
+    /// mirrors facilities). A colony convoy is a fleet, not a site, so
+    /// ColonyExpedition projects don't transfer with the port.</summary>
+    public static void TransferPort(SimState state, int portId,
+                                    int newOwnerActorId)
+    {
+        var port = state.Ports[portId];
+        int oldOwnerActorId = port.OwnerActorId;
+        foreach (var facility in state.Facilities)            // id order (P6)
+            if (facility.OwnerActorId == oldOwnerActorId
+                && MarketEngine.AttachedMarketIndex(state, facility) == portId)
+                facility.OwnerActorId = newOwnerActorId;
+        // defender fleets stationed there scatter home (the capital)
+        int fallback = CapitalPort(state, oldOwnerActorId);
+        foreach (var fleet in state.Fleets)                   // id order (P6)
+            if (fleet.OwnerActorId == oldOwnerActorId
+                && fleet.HomePortId == portId && fallback >= 0
+                && fallback != portId)
+            {
+                fleet.HomePortId = fallback;
+                fleet.Hex = state.Ports[fallback].Hex;
+            }
+        foreach (var p in state.Projects)                     // id order (P6)
+        {
+            if (!p.InFlight || p.PortId != portId
+                || p.Kind == ProjectKind.ColonyExpedition) continue;
+            // Mobilization is polity state, not site-anchored work: the war
+            // ramp belongs to the losing polity, not the captured port —
+            // a captured port cannot deliver the enemy's mobilization, so it
+            // cancels (the attacker's own mobilization is untouched). F1
+            if (p.Kind == ProjectKind.Mobilization)
+            {
+                ProjectOps.Cancel(state, p);
+                continue;
+            }
+            p.OwnerActorId = newOwnerActorId;
+            p.FunderActorId = newOwnerActorId;
+        }
+        port.OwnerActorId = newOwnerActorId;
     }
 
     // ---- the modifiers ----

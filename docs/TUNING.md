@@ -336,8 +336,6 @@ set how fast the built world thickens (slice D).
 | `Infrastructure.MaxPortTier` | 3 | (With catalog growth) taller hierarchies. | Flat port ranks. |
 | `Infrastructure.HomeworldPortTier` | 2 | Homeworlds start as hubs. | Everyone starts as an outpost. |
 | `Infrastructure.FacilitiesPerPortTier` | 5 | Denser industrial districts per port. | Development spreads thin or stalls — this was the mid-chain bottleneck once. |
-| `Infrastructure.ConstructionDevGate` | 25 | Materials only haul toward genuinely funded projects. | Speculative alloy shipments everywhere. |
-| `Infrastructure.ConstructionPullAlloys/Machinery/Composites` | 12/8/6 | Stronger frontier pull on build materials (freight fills colonial depots faster). | Colonies wait for gluts to trickle out. |
 | `Infrastructure.ConstructionScoreFloor` | 0.12 | Only prime sites develop. | Junk facilities on marginal rock. |
 | `Infrastructure.FoodSecurityPremium` | 1.25 | Colonies farm unless extraction is overwhelming (safe, boring). | Every belt colony mines and gambles on food imports. |
 
@@ -350,6 +348,10 @@ set how fast the built world thickens (slice D).
 | `Expansion.ColonizationReachHexes` | 24 | Bolder leaps into the dark (further from lane relief). | Tight incremental sprawl. |
 | `Expansion.LaneCost` | 25 | Sparser networks; more isolated famine pockets. | Everything connects fast; blockades matter less each. |
 | `Expansion.PortUpgradeCostBase` | 40 | Rarer nexuses; flatter hierarchy. | Tier inflation. |
+| `Expansion.PortUpgradeYears` | 5 | Tier raises are multi-generation works — a raise begun late in a reign finishes under an heir. | Ports leap tiers within a step (near-instant, pre-Task-7 feel). |
+| `Expansion.PortUpgradeAlloysPerYearPerTier` | 2 | Raises pull harder on the alloy market each year (higher tiers cost more per year). | Cheaper raises; the market barely feels them. |
+| `Expansion.PortUpgradeMachineryPerYearPerTier` | 1 | (as above, machinery) | — |
+| `Expansion.PortUpgradeExoticsPerYearPerTier` | 0.25 | Raises want refined exotics — exotics-poor realms stall their nexuses. | Raises ignore the exotics chain. |
 | `Expansion.HomeworldSegmentSize` / `ColonySegmentSize` | 3 / 0.5 | Bigger founding populations (more labor, more mouths). | Thin seeds; slower starts. |
 | `Expansion.SegmentGrowthPerYear` | 0.01 | Faster natural increase — caps bind sooner, migration pressure builds. | Population is precious; losses take centuries to heal. |
 | `Expansion.SegmentCapPerTier` | 2 | Ports carry more people per tier (development = population). | Tier raises become the only growth path. |
@@ -378,6 +380,13 @@ player, P2) replace the AI and bring their own numbers.
 | Knob | Default | Raise it | Lower it |
 |---|---|---|---|
 | `Controller.BaseTariffRate` | 0.15 | Insular societies wall off trade (pact cuts matter more). | Free trade everywhere; trade-pact teeth bite nothing. |
+
+### Controller additions (slice t1 — the planner)
+
+| Knob | Default | Raise it | Lower it |
+|---|---|---|---|
+| `Controller.MaxPlanEntries` | 16 | Longer standing schedules — a realm queues more concurrent works (packing still caps spend by income). | Short horizons; only the top-scoring few projects get scheduled. |
+| `Controller.PortRaisePlanScore` | 0.5 | Port raises out-compete new facilities for the income rate — realms deepen hubs over spreading industry. | Facilities crowd port raises out of the plan; ports stay shallow. |
 
 ## Tech — ladder costs, research, diffusion (slice G)
 
@@ -411,9 +420,11 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.YardHullsPerTierPerYear` | 0.2 | Bigger navies and merchant marines per yard tier (components permitting). | Hulls trickle; expansion and freight both thin. |
 | `Fleet.HullComponentsBase` | 3 | Dearer hulls: yards drain components and treasuries faster, fleets stay small. | Cheap hulls; the components market barely notices a navy. |
 | `Fleet.HullArmamentsBase` | 1.5 | Warships bid up armaments — arsenals pay (H inherits armed yards). | Guns nearly free at the slip. |
+| `Fleet.HullBuildYearsBase` | 1.5 | Hull batches take longer to build (scaled by size) — the planner reserves more of the income rate per batch. | Near-instant hulls; yards spit out batches each step. |
 | `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
 | `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
 | `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |
+| `Fleet.ExpeditionHexesPerYear` | 6 | Faster off-lane convoys: colony expeditions arrive sooner, founding lags less behind the decision. | Slower: distant colonies take many years to found, expansion feels sluggish. |
 | `Fleet.UpkeepUnitsPerPointPerYear` | 0.025 | Fleets eat harder into fuel/armaments/components — treasuries drain, navies compete with merchants for fuel. | Upkeep cosmetic; military treasuries pile up. |
 | `Fleet.UpkeepFuelShare` | 0.4 | Supply tilts toward fuel (refinery-driven readiness). | Tilts toward armaments/components (industry-driven readiness). |
 | `Fleet.ReserveUpkeepFactor` | 0.25 | Mothballs cost real money. | Docked fleets nearly free (reserves become the default posture). |
@@ -439,8 +450,8 @@ and the incident freshness window (2 epochs) are structural.
 |---|---|---|---|
 | `War.IncidentRatePerEpoch` | 0.25 | Contested borders spark constantly (chronicle noise, more powder lit). | Quiet frontiers; wars need standing causes. |
 | `War.IncidentTensionBump` | 0.08 | Incidents themselves load the gauge (escalation spirals). | Sparks without heat. |
-| `War.WarTensionFloor` | 0.55 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
-| `War.WarAppetiteThreshold` | 0.60 | Doves need overwhelming tension; hawks still march. **The war-frequency dial** (seed 42: 11 declarations / 40 epochs). | Everyone fights at the first grievance. |
+| `War.WarTensionFloor` | 0.35 | Only truly loaded borders ignite (rarer wars). | Skirmishes escalate readily. |
+| `War.WarAppetiteThreshold` | 0.38 | Doves need overwhelming tension; hawks still march. **The war-frequency dial** (seed 42: 7 declarations, 3 settlements, 4 live / 40 epochs). | Everyone fights at the first grievance. |
 | `War.AttackStrengthRatio` | 0.60 | Attackers need near-parity with the coalition (alliances truly deter). | Hopeless wars of principle. |
 | `War.PriceShockMultiple` | 2.0 | Only famine-grade shocks justify seizure wars. | Every price spike is a casus belli. |
 | `War.CrusadeThreshold` | 0.30 | Crusades need zealot thrones over deep doctrine gaps. | Ideology alone marches armies. |
@@ -465,8 +476,29 @@ and the incident freshness window (2 epochs) are structural.
 | `War.VictoryLegitimacy` / `DefeatLegitimacy` | 0.08 / 0.12 | War outcomes make and break governments (defeat → graduation risk). | Thrones indifferent to the front. |
 | `War.AnnihilationHatred` | 0.75 | Only saturated hatred with stacked claims turns total (wars of annihilation rare). | Every grudge is a war of extermination. |
 | `War.MobilizationFactor` | 3.0 | Wartime economies pivot hard to the front (fabricators boom, stockpiles corner markets). | War is fought from peacetime stocks. |
+| `War.MobilizationYears` | 3.0 | The war-economy surge takes longer to build (early battles fight at a lower ramp). | Mobilization is nearly instant; fronts fight at full strength from day one. |
+| `War.MobilizationArmamentsPerYear` / `MobilizationFuelPerYear` | 3.0 / 4.0 | Raising readiness draws harder on the war-materiel markets (mobilization competes with the front's own upkeep). | The ramp is cheap; mobilizing costs nothing real. |
+| `War.DemobilizationPerYear` | 0.15 | Standing forces stand down faster once the fighting stops. | Peacetime mobilization lingers for generations. |
 | `War.WarBudgetMilitaryShift` | 0.20 | Guns before butter: development and expansion starve at war. | The exchequer ignores the front. |
 | `War.RationsPerHullPerYear` | 0.04 | Armies eat: extended war means rationing at home (**the SoL-cost dial**); unfed fleets rot. | Navies march on nothing. |
+
+**Ignition recalibration (slice t1 — the world-time economy).** `WarTensionFloor`
+0.55 → 0.35 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy
+(multi-year hull batches, per-year treasury streaming, world-time colony
+expeditions) expands the map more slowly, so contested-overlap tension — the
+war engine — builds later and to a lower ceiling: a seed-42 40-epoch history
+now tops out around 0.55 and sustains only 0.42–0.51 on its hottest borders,
+where the old 0.55 floor meant *zero* declarations. War strength itself was
+never suppressed (17 live polities, avg war strength ~11, 288 hulls at the
+default run) — the blocker was purely that the ignition thresholds were
+calibrated for the old, higher tension regime. Dropping the two dials
+proportionally to the new ceiling restores believable dynamics: 7 declarations,
+3 settlements, 4 wars still live at year 1000 (≈ main's pre-slice ~10/5). The
+appetite gate `tension × (0.5 + militancy)` still gates by temperament —
+doves effectively never march (their `(0.5 + M)` can't clear 0.38 below the
+floor), hawks fight at the floor, moderates need the hotter borders. No
+assertion was weakened and no seed-specific behavior was hard-coded; this is a
+recalibration of a calibration constant to a changed emergent regime.
 
 ## Structural constants (code, not knobs — deliberately)
 

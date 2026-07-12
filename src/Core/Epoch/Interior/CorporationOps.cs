@@ -740,29 +740,18 @@ public static class CorporationOps
     {
         if (!WantsFacility(state, corp)) return;
         var port = state.Ports[corp.HomePortId];
-        var market = state.Markets[port.Id];
         var type = PlannedFacility(state, corp);
         var build = Infrastructure.Get(type);
         double value = 0;
         foreach (var q in build.BuildCost)
-        {
-            if (market.Inventory[(int)q.Good] < q.Quantity) return;
             value += q.Quantity * Market.InitialPrice(state.Config.Economy, q.Good);
-        }
         if (corp.Credits * policies.Investment.Facilities < value) return;
-        foreach (var q in build.BuildCost)
-        {
-            double drawn = market.Draw((int)q.Good, q.Quantity);
-            market.LastCleared[(int)q.Good] += drawn;
-        }
-        corp.Credits -= value;
-        MarketEngine.PayWages(state, port.Id, value);
-        state.Facilities.Add(new Facility(state.Facilities.Count, (int)type,
-            tier: 1, port.Hex, corp.ActorId, state.WorldYear));
-        state.Staged.Add(new StagedEvent(ClockStratum.Generational,
-            WorldEventType.FacilityBuilt, new[] { corp.ActorId }, port.Hex,
-            Magnitude: 1.0, Valence: 0.5, EventVisibility.Regional,
-            new FacilityBuiltPayload(state.Facilities.Count - 1, (int)type, 1)));
+        // the build is a construction project now: the facility row exists
+        // uncommissioned, its basket and wages stream from corp credits over
+        // the build years (Task 9 — no upfront debit, no instant commission)
+        ProjectOps.SpawnFacilityConstruction(state, corp.ActorId, corp.ActorId,
+            new ConstructionCandidate((int)type, port.Hex, port.Id, 0.0),
+            ProjectPriority.Growth, 0);
     }
 
     /// <summary>The freight line's founding act (lane-economics spec §4):
@@ -816,8 +805,6 @@ public static class CorporationOps
                 double cost = 2.0 * AllocationPhase.GateValue(cfg, tier);
                 if (corp.Credits * policies.Investment.Facilities < cost)
                     continue;
-                if (!GatePairStocked(state, state.Markets[a.Id],
-                        state.Markets[b.Id], tier)) continue;
                 if (cost < bestCost || (cost == bestCost && (dist < bestDist
                     || (dist == bestDist && (bestA == null || a.Id < bestA.Id
                         || (a.Id == bestA.Id && b.Id < bestB!.Id))))))
@@ -826,34 +813,12 @@ public static class CorporationOps
             }
         }
         if (bestA == null) return;
-        corp.Credits -= bestCost;
-        int gateA = AllocationPhase.BuildGate(state, corp.ActorId, bestA,
-            bestTier, funderReserves: null, state.Markets[bestB!.Id]);
-        int gateB = AllocationPhase.BuildGate(state, corp.ActorId, bestB,
-            bestTier, funderReserves: null, state.Markets[bestA.Id]);
-        var lane = new Lane(state.Lanes.Count, bestA.Id, bestB!.Id,
-                            state.WorldYear)
-        { GateAId = gateA, GateBId = gateB };
-        state.Lanes.Add(lane);
-        int foreignPolity = bestB.OwnerActorId == corp.HostPolityId
-            ? bestA.OwnerActorId : bestB.OwnerActorId;
-        state.Staged.Add(new StagedEvent(
-            ClockStratum.Generational, WorldEventType.LaneOpened,
-            new[] { corp.ActorId, corp.HostPolityId, foreignPolity },
-            bestA.Hex, Magnitude: bestTier, Valence: 1.0,
-            EventVisibility.Regional,
-            new LaneOpenedPayload(bestA.Id, bestB.Id)));
-    }
-
-    private static bool GatePairStocked(SimState state, Market a, Market b,
-                                        int tier)
-    {
-        var def = Infrastructure.Get(InfraTypeId.Gate);
-        foreach (var q in def.BuildCost)
-            if (a.Inventory[(int)q.Good] + b.Inventory[(int)q.Good]
-                < 2.0 * q.Quantity * Production.TierCostFactor(tier))
-                return false;
-        return true;
+        // the pair is a construction project now: both gates and the Lane
+        // row exist uncommissioned, the basket and wages stream from corp
+        // credits over the gate's build years, the lane opens on commission
+        // (Task 9 — no upfront debit, no instant lane)
+        ProjectOps.SpawnGatePair(state, corp.ActorId, corp.ActorId, bestA,
+            bestB!, bestTier, ProjectPriority.Growth, 0);
     }
 
     private static bool GateLaneExists(SimState state, int aId, int bId)
@@ -1035,6 +1000,13 @@ public static class CorporationOps
                                  WorldEventType cause)
     {
         corp.Active = false;
+        // in-flight work dies with the corp: leaving projects live would
+        // strip gate/facility-cap slots and pull phantom construction demand
+        // forever (nothing advances an un-entered funder, nothing cancels
+        // them) — cancel them as P1 residue in id order (F2)
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.InFlight && p.FunderActorId == corp.ActorId)
+                ProjectOps.Cancel(state, p);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId)
             {
@@ -1103,6 +1075,14 @@ public static class CorporationOps
         var pr = state.PolityOf(polityId);
         foreach (var f in state.Facilities)
             if (f.OwnerActorId == corp.ActorId) f.OwnerActorId = polityId;
+        // seized work continues under the state: owner AND funder pass to the
+        // polity so AdvanceAll keeps feeding it (no corp mobilizations) (F2)
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.InFlight && p.FunderActorId == corp.ActorId)
+            {
+                p.OwnerActorId = polityId;
+                p.FunderActorId = polityId;
+            }
         int hullsMoved = 0;
         foreach (var fleet in state.Fleets)
             if (fleet.OwnerActorId == corp.ActorId)

@@ -26,14 +26,16 @@ public class PoiLiveEffectsTests
         foreach (var poi in state.Pois) poi.Depleted = true;
         foreach (var lane in state.Lanes)
         {
+            if (!LaneMath.IsLive(state, lane)) continue;   // a dead lane carries no cargo
             int owner = state.Ports[lane.PortAId].OwnerActorId;
             if (owner < 0 || !state.Actors[owner].Entered) continue;
             if (state.PolityOf(owner).Interior == null) continue;
             return (state, lane, owner);
         }
-        // gate economics can defer history's first lane past this short
-        // run — manufacture the raid target the niche scan expects (the
-        // scan keys on the LOWER-id port's owner)
+        // gate economics (and now gate CONSTRUCTION TIME — Task 9) can defer
+        // history's first LIVE lane past this short run — manufacture the raid
+        // target the niche scan expects (the scan keys on the LOWER-id port's
+        // owner)
         foreach (var port in state.Ports)
         {
             int owner = port.OwnerActorId;

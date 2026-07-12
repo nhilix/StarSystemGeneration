@@ -53,12 +53,17 @@ epoch:
 drain from markets; war loans finance deficits and leave overhang; **weariness is
 the interior responding** — losses and SoL decline shift population ideology,
 feed peace factions, erode legitimacy. A polity breaks when its politics break.
-**Mobilization is total**: a belligerent shifts its budget from development and
-expansion into the military line, its yards turn from haulers to warships, its
-quartermasters corner armaments, ship parts, and fuel (the fabricators boom),
-and its warships **eat** — rations drawn from the same markets the households
-eat from. Extended war means rationing at home; an unfed fleet loses readiness
-like an unfueled one, so sieges and blockades starve navies too.
+**Mobilization is a ramp, not a switch**: declaring war (or a doctrine shift)
+spawns mobilization projects that raise a belligerent's readiness over world-years,
+consuming military goods per year at war priority — so a polity fights its **early
+battles at its standing readiness** and grows stronger as the ramp delivers, its
+effective war strength scaling with how far mobilization has climbed. Across the
+ramp a belligerent shifts its budget from development and expansion into the
+military line, its yards turn from haulers to warships, its quartermasters corner
+armaments, ship parts, and fuel (the fabricators boom), and its warships **eat** —
+rations drawn from the same markets the households eat from. Peace lets readiness
+decay back down. Extended war means rationing at home; an unfed fleet loses
+readiness like an unfueled one, so sieges and blockades starve navies too.
 
 **Allied belligerents**: defense-alliance partners join as supporting
 belligerents under the war leaders (the original attacker and defender);

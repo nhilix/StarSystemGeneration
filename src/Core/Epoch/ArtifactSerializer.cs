@@ -26,11 +26,11 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 5), ("ports", 2), ("lanes", 3), ("facilities", 1),
+        ("actors", 6), ("ports", 2), ("lanes", 3), ("facilities", 2),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 1),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
-        ("corporations", 2), ("relations", 5), ("wars", 2), ("belief", 1),
-        ("pulses", 1), ("pois", 1), ("plagues", 1),
+        ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
+        ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
     };
 
     public static string ToText(SimState state)
@@ -118,12 +118,27 @@ public static class ArtifactSerializer
                     // actors v4 (slice G): the research split rides along
                     R(pp.Research.Industrial), R(pp.Research.Military),
                     R(pp.Research.Astrogation), R(pp.Research.Life)));
+            // actors v6 (slice t1): the standing plan's entries follow the
+            // actor's POLICY line, in plan order (Load rebuilds them)
+            if (a.Policies is PolityPolicies withPlan)
+                for (int ix = 0; ix < withPlan.Plan.Entries.Count; ix++)
+                {
+                    var e = withPlan.Plan.Entries[ix];
+                    w.WriteLine(Join("PLANE", a.Id.ToString(Inv),
+                        ix.ToString(Inv), ((int)e.Kind).ToString(Inv),
+                        ((int)e.Priority).ToString(Inv),
+                        e.StartYear.ToString(Inv), e.TypeId.ToString(Inv),
+                        e.PortId.ToString(Inv), e.Hex.Q.ToString(Inv),
+                        e.Hex.R.ToString(Inv), e.Count.ToString(Inv)));
+                }
         }
         foreach (var p in state.Polities)
             w.WriteLine(Join("POLITY", p.ActorId.ToString(Inv),
                 p.SpeciesId.ToString(Inv), R(p.Credits),
                 R(p.ExpansionPoints), R(p.DevelopmentPoints),
-                R(p.EntryGradeBonus)));
+                R(p.EntryGradeBonus),
+                // actors v6 (slice t1): trailing income rate + mobilization
+                R(p.LastIncomePerYear), R(p.Mobilization)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -142,9 +157,11 @@ public static class ArtifactSerializer
 
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
+            // facilities v2 (slice t1): the commissioning clock rides along
             w.WriteLine(Join("FACILITY", f.Id.ToString(Inv), f.TypeId.ToString(Inv),
                 f.Tier.ToString(Inv), f.Hex.Q.ToString(Inv), f.Hex.R.ToString(Inv),
-                f.OwnerActorId.ToString(Inv), R(f.Condition), f.BuiltYear.ToString(Inv)));
+                f.OwnerActorId.ToString(Inv), R(f.Condition), f.BuiltYear.ToString(Inv),
+                f.CommissionedYear.ToString(Inv)));
 
         Layer(w, "fleets");
         // the fleet-side polity record: military treasury + the hull
@@ -297,6 +314,7 @@ public static class ArtifactSerializer
 
         Layer(w, "corporations");
         foreach (var c in state.Corporations)
+            // corporations v3 (slice t1): trailing income rate rides along
             w.WriteLine(Join("CORP", c.Id.ToString(Inv),
                 c.ActorId.ToString(Inv), Name(c.Name),
                 c.HostPolityId.ToString(Inv), ((int)c.Niche).ToString(Inv),
@@ -305,7 +323,7 @@ public static class ArtifactSerializer
                 c.ExecutiveCharacterId.ToString(Inv),
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
                 c.HullsScrapped.ToString(Inv), c.LeanYears.ToString(Inv),
-                c.TargetId.ToString(Inv)));
+                c.TargetId.ToString(Inv), R(c.LastIncomePerYear)));
 
         Layer(w, "relations");
         foreach (var r in state.Relations)
@@ -395,6 +413,26 @@ public static class ArtifactSerializer
                 plague.StartYear.ToString(Inv), B(plague.Active),
                 plague.EndedYear.ToString(Inv), R(plague.TotalDeaths),
                 LongMap(plague.InfectedSince), LongMap(plague.ImmuneUntil)));
+
+        Layer(w, "projects");
+        foreach (var p in state.Projects)
+        {
+            var basket = new List<string>();
+            for (int g = 0; g < p.PerYearBasket.Length; g++)
+                if (p.PerYearBasket[g] != 0)
+                    basket.Add(g.ToString(Inv) + ":" + R(p.PerYearBasket[g]));
+            w.WriteLine(Join("PROJECT", p.Id.ToString(Inv),
+                ((int)p.Kind).ToString(Inv), p.OwnerActorId.ToString(Inv),
+                p.FunderActorId.ToString(Inv), p.PortId.ToString(Inv),
+                p.Hex.Q.ToString(Inv), p.Hex.R.ToString(Inv),
+                ((int)p.Priority).ToString(Inv), p.PlanOrder.ToString(Inv),
+                R(p.WagesPerYear), R(p.YearsRequired), R(p.YearsDelivered),
+                p.StartedYear.ToString(Inv), B(p.Completed), B(p.Cancelled),
+                R(p.LastFedFraction), p.TypeId.ToString(Inv),
+                p.TargetId.ToString(Inv), p.Count.ToString(Inv),
+                R(p.AccumGrade), R(p.AccumGradeWeight),
+                string.Join(";", basket)));
+        }
         w.WriteLine("END");
     }
 
@@ -862,7 +900,32 @@ public static class ArtifactSerializer
                             NativePolicy: (NativePolicy)int.Parse(f[12], Inv),
                             Research: new ResearchSplit(double.Parse(f[18], Inv),
                                 double.Parse(f[19], Inv), double.Parse(f[20], Inv),
-                                double.Parse(f[21], Inv)));
+                                double.Parse(f[21], Inv)),
+                            Plan: StandingPlan.Empty);
+                        break;
+                    case "PLANE":
+                        // actors v6 (slice t1): a plan entry following its
+                        // actor's POLICY line — appended in file (plan) order
+                        var planActor = state!.Actors[int.Parse(f[1], Inv)];
+                        if (planActor.Policies is PolityPolicies planPolicies)
+                        {
+                            var entries = new List<PlanEntry>(
+                                planPolicies.Plan.Entries)
+                            {
+                                new PlanEntry(
+                                    (PlanEntryKind)int.Parse(f[3], Inv),
+                                    (ProjectPriority)int.Parse(f[4], Inv),
+                                    int.Parse(f[5], Inv), int.Parse(f[6], Inv),
+                                    int.Parse(f[7], Inv),
+                                    new HexCoordinate(int.Parse(f[8], Inv),
+                                                      int.Parse(f[9], Inv)),
+                                    int.Parse(f[10], Inv)),
+                            };
+                            planActor.Policies = planPolicies with
+                            {
+                                Plan = new StandingPlan(entries),
+                            };
+                        }
                         break;
                     case "POLITY":
                         state!.Polities.Add(new PolityRecord(int.Parse(f[1], Inv),
@@ -872,6 +935,9 @@ public static class ArtifactSerializer
                             ExpansionPoints = double.Parse(f[4], Inv),
                             DevelopmentPoints = double.Parse(f[5], Inv),
                             EntryGradeBonus = double.Parse(f[6], Inv),
+                            // actors v6 (slice t1): trailing income rate + mobilization
+                            LastIncomePerYear = double.Parse(f[7], Inv),
+                            Mobilization = double.Parse(f[8], Inv),
                         });
                         break;
                     case "PORT":
@@ -903,7 +969,11 @@ public static class ArtifactSerializer
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
-                        { Condition = double.Parse(f[7], Inv) });
+                        {
+                            Condition = double.Parse(f[7], Inv),
+                            // facilities v2 (slice t1): the commissioning clock rides along
+                            CommissionedYear = long.Parse(f[9], Inv),
+                        });
                         break;
                     case "NAVY":
                     {
@@ -1111,6 +1181,8 @@ public static class ArtifactSerializer
                             HullsScrapped = int.Parse(f[13], Inv),
                             LeanYears = int.Parse(f[14], Inv),
                             TargetId = int.Parse(f[15], Inv),
+                            // corporations v3 (slice t1): trailing income rate rides along
+                            LastIncomePerYear = double.Parse(f[16], Inv),
                         });
                         break;
                     case "REL":
@@ -1267,6 +1339,43 @@ public static class ArtifactSerializer
                         state!.Actors[int.Parse(f[1], Inv)].Beliefs.Stances
                             .Add(int.Parse(f[2], Inv), double.Parse(f[3], Inv));
                         break;
+                    case "PROJECT":
+                    {
+                        if (int.Parse(f[1], Inv) != state!.Projects.Count)
+                            throw new InvalidDataException(
+                                "project ids out of order");
+                        var project = new Project(int.Parse(f[1], Inv),
+                            (ProjectKind)int.Parse(f[2], Inv),
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            int.Parse(f[5], Inv),
+                            new HexCoordinate(int.Parse(f[6], Inv),
+                                int.Parse(f[7], Inv)),
+                            double.Parse(f[11], Inv), int.Parse(f[13], Inv))
+                        {
+                            Priority = (ProjectPriority)int.Parse(f[8], Inv),
+                            PlanOrder = int.Parse(f[9], Inv),
+                            WagesPerYear = double.Parse(f[10], Inv),
+                            YearsDelivered = double.Parse(f[12], Inv),
+                            Completed = f[14] == "1",
+                            Cancelled = f[15] == "1",
+                            LastFedFraction = double.Parse(f[16], Inv),
+                            TypeId = int.Parse(f[17], Inv),
+                            TargetId = int.Parse(f[18], Inv),
+                            Count = int.Parse(f[19], Inv),
+                            AccumGrade = double.Parse(f[20], Inv),
+                            AccumGradeWeight = double.Parse(f[21], Inv),
+                        };
+                        if (f[22].Length > 0)
+                            foreach (var part in f[22].Split(';'))
+                            {
+                                int colon = part.IndexOf(':');
+                                project.PerYearBasket[
+                                    int.Parse(part.Substring(0, colon), Inv)] =
+                                    double.Parse(part.Substring(colon + 1), Inv);
+                            }
+                        state.Projects.Add(project);
+                        break;
+                    }
                     case "PULSE":
                     {
                         if (int.Parse(f[1], Inv) != state!.Pulses.Count)

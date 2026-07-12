@@ -81,6 +81,10 @@ public sealed class SimState
     /// <summary>Contagions riding the lanes (slice I) — id order (P6);
     /// burned-out plagues stay as history.</summary>
     public List<Plague> Plagues { get; } = new List<Plague>();
+    /// <summary>In-flight work: every duration in the world is a project
+    /// here (spec 2026-07-11 time-and-logistics §1) — id order (P6);
+    /// completed and cancelled projects stay as history.</summary>
+    public List<Project> Projects { get; } = new List<Project>();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

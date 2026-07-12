@@ -55,9 +55,13 @@ sheet is the ship the player flies (P7: one source of truth, two samplings).
 ## Production
 
 Shipyards convert Ship Components (+ Armaments for warships, + Compute for advanced
-designs) into hulls; throughput from yard tier; queues from Allocation policies.
-Built → assigned to a fleet → lost to attrition/battle or scrapped (partial alloy
-recovery). Every hull traces to an ore field through a 4-node chain.
+designs) into hulls. A lay-down is a **hull-batch project** anchored at a yard: it
+draws the recipe's goods as a per-year basket over the batch's build years and
+commissions the hulls into reserve on completion, at the component grade
+accumulated over the build. Yard tier caps how much batch work runs concurrently;
+the standing plan schedules batches into that capacity, excess entries starting in
+later years. Built → assigned to a fleet → lost to attrition/battle or scrapped
+(partial alloy recovery). Every hull traces to an ore field through a 4-node chain.
 
 ## The fleet object
 
@@ -73,7 +77,7 @@ counts per design (+ mean grade); vectors compute on demand.
 | **Escort** | screening/tracking counters piracy and interdiction on its route/convoy | Markets (risk), war |
 | **Patrol** | legality enforcement in a domain: detection vs smuggler signature | black markets |
 | **Blockade** | stationed at enemy port approaches; interdiction strain; contests lanes | war |
-| **Expedition / Convoy** | the only moving posture: war fleets, colony convoys, ruin expeditions | Resolution |
+| **Expedition / Convoy** | the only moving posture: war fleets, colony convoys, ruin expeditions — travel is a duration (distance ÷ hull speed), so a colony convoy is in transit and interceptable for the world-years its voyage takes, founding on arrival | Resolution |
 | **Reserve** | docked; minimal upkeep; readiness decays | mobilization |
 
 ### Movement and supply

@@ -49,7 +49,8 @@ public sealed record PolityPolicies(
     IReadOnlyDictionary<int, double> StockpileTargets,
     IReadOnlyDictionary<int, DiplomaticPosture> DiplomaticPostures,
     NativePolicy NativePolicy,
-    ResearchSplit Research) : PolicySet
+    ResearchSplit Research,
+    StandingPlan Plan) : PolicySet
 {
     private static readonly IReadOnlyDictionary<int, double> NoWeights =
         new Dictionary<int, double>();
@@ -70,7 +71,8 @@ public sealed record PolityPolicies(
         StockpileTargets: NoWeights,
         DiplomaticPostures: NoPostures,
         NativePolicy: NativePolicy.Protectorate,
-        Research: ResearchSplit.Default);
+        Research: ResearchSplit.Default,
+        Plan: StandingPlan.Empty);
 }
 
 /// <summary>Corporate investment split across asset classes, consumed by Allocation.</summary>

@@ -13,8 +13,11 @@ Per port market, fixed deterministic order:
    grade).
 2. **Demand assembles** — population bands (subsistence near-inelastic,
    standard-of-living moderate, luxury/narcotics elastic), industry inputs, polity
-   procurement, fuel for movement — plus **re-export demand**: bids from
-   arbitrageurs who see outbound gradients, so a transit hub's price is bid up
+   procurement, fuel for movement — plus **construction pull**: every in-flight
+   project sited on the domain adds its per-year basket as standing local demand,
+   so a build boom bids up alloys and machinery for the duration of the works and
+   that price signal sites the next mine (P5) — plus **re-export demand**: bids
+   from arbitrageurs who see outbound gradients, so a transit hub's price is bid up
    even with zero local consumption. Without this term, goods refuse to enter
    markets that don't personally want them; with it, entrepôts emerge.
 3. **Freight moves** — three flow generators, all within lane capacity (the

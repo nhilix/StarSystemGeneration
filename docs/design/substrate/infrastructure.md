@@ -28,9 +28,19 @@ casualties.
 | | Gate | lane terminus: reach, capacity, transit speed by tier — one per lane end; no upkeep draw (sealed once linked, condition moves only by war damage) | port systems only; slot budget = port tier × GateSlotsPerPortTier (frame/space-and-travel.md §Lanes) |
 
 Every facility has: a tier (1–3), a build cost in real goods (Alloys, Machinery,
-Composites) plus construction time, an upkeep draw, and a **hex anchor** — each
+Composites), a **construction time**, an upkeep draw, and a **hex anchor** — each
 facility is a pre-commitment, so the hex a player visits shows the mine the
-simulation built, at the tier it reached, damaged if it was raided (P1, P4).
+simulation built, at the tier it reached, damaged if it was raided (P1, P4). Build
+cost and construction time are load-bearing together: a facility's construction
+project draws `buildCost ÷ constructionYears` as its per-year basket and takes the
+full construction time to commission ([../economy/assets-and-investment.md](../economy/assets-and-investment.md)).
+
+**Raising a port a tier is itself construction**: a multi-year project drawing a
+per-year basket (Alloys, Machinery, Refined Exotics, scaling with the target tier)
+over the port-upgrade span — an exotics-poor realm stalls its nexuses for want of
+the exotics chain, exactly as any construction stalls for want of its scarcest
+input. The per-tier basket and span are knobs (`Expansion.PortUpgrade*` in
+[../TUNING.md](../TUNING.md)).
 
 ## Production
 

@@ -113,9 +113,10 @@ public class MarketSupplyTests
     public void UnderConstruction_ProducesNothing()
     {
         var (state, port) = Fixture();
-        var f = new Facility(0, (int)InfraTypeId.Mine, 1, port.Hex,
-                             port.OwnerActorId, builtYear: state.WorldYear);
-        state.Facilities.Add(f);
+        var candidate = new ConstructionCandidate((int)InfraTypeId.Mine,
+            port.Hex, port.Id, Score: 1.0);
+        ProjectOps.SpawnFacilityConstruction(state, port.OwnerActorId,
+            port.OwnerActorId, candidate, ProjectPriority.Core, planOrder: 0);
         var scratch = new MarketStepScratch(state);
 
         MarketEngine.SupplyLands(state, scratch);

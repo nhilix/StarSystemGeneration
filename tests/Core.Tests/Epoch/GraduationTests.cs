@@ -89,6 +89,12 @@ public class GraduationTests
         foreach (var seg in state.Segments) held += seg.Wealth;
         foreach (var f in state.Factions) held += f.Wealth;
         foreach (var c in state.Corporations) held += c.Credits;
+        // a colony expedition in flight carries the settlers' stake between
+        // treasuries (charged at dispatch, minted into the colony on arrival —
+        // Task 9's world-time founding), so count the in-transit ColonyCost
+        foreach (var p in state.Projects)
+            if (p.InFlight && p.Kind == ProjectKind.ColonyExpedition)
+                held += state.Config.Expansion.ColonyCost;
         Assert.Equal(minted, held, System.Math.Abs(minted) * 1e-9);
     }
 

@@ -56,8 +56,8 @@ public class WarResolutionTests
         PolityRelation? rel = null;
         foreach (var r in state.Relations)
             if (RelationsOps.BothLive(state, r)
-                && WarOps.ActiveWarBetween(state, r.PolityAId, r.PolityBId)
-                   == null)
+                && !WarOps.AtWar(state, r.PolityAId)
+                && !WarOps.AtWar(state, r.PolityBId))
             { rel = r; break; }
         Assert.NotNull(rel);
         double attackerBefore = WarResolution.WarScore(state, rel!.PolityAId);
@@ -91,10 +91,20 @@ public class WarResolutionTests
         target.OwnerActorId = rel.PolityAId;
         war.Objectives[0].Status = ObjectiveStatus.Taken;
         war.AttackerExhaustion = 1.0;
+        // an in-flight project the conqueror broke ground on at the captured
+        // port — its ownership must revert with the port (F6: the revert
+        // routes through WarConduct.TransferPort)
+        var proj = ProjectOps.Spawn(state, ProjectKind.PortRaise,
+            rel.PolityAId, rel.PolityAId, target.Id, target.Hex, 5.0,
+            ProjectPriority.Core, 0);
+        proj.TargetId = target.Id;
         WarResolution.Terminate(state, null);
         Assert.False(war.Active);
         // white peace: status quo ante — the capture returned
         Assert.Equal(rel.PolityBId, target.OwnerActorId);
+        // and its in-flight work reverted with it (F6)
+        Assert.Equal(rel.PolityBId, proj.OwnerActorId);
+        Assert.Equal(rel.PolityBId, proj.FunderActorId);
         Assert.Contains(state.Staged, e =>
             e.Type == WorldEventType.PeaceSettled
             && e.Payload is PeaceSettledPayload p

@@ -45,6 +45,8 @@ public sealed class Repl
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
                     Console.WriteLine("equarantine <laneId> — issue the owner's QuarantineAct by hand (the player's verb, same rules)");
                     Console.WriteLine("elanes — every lane with gate tiers, owners, liveness, saturation");
+                    Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
+                    Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("chronicle [actorId|deep] — the era-annotated event log; one biography; or the deep-time strata only");
                     Console.WriteLine("chronicle place <q> <r> — everything that happened at one hex · eras — the detected eras");
                     Console.WriteLine("poi [id] — the anchored points of interest (battlefields, ruins, memorials, precursor sites)");
@@ -272,6 +274,29 @@ public sealed class Repl
                     break;
                 }
                 case "elanes":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "eprojects" when _sim != null:
+                {
+                    bool includeAll = parts.Length >= 2
+                        && string.Equals(parts[1], "all", StringComparison.OrdinalIgnoreCase);
+                    int funder = -1;
+                    for (int i = 1; i < parts.Length; i++)
+                        if (int.TryParse(parts[i], out var pf)) { funder = pf; break; }
+                    RenderProjects(_sim, funder, includeAll);
+                    break;
+                }
+                case "eprojects":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
+                case "eplan" when parts.Length >= 2 && _sim != null
+                        && int.TryParse(parts[1], out var planActorId):
+                    RenderPlan(_sim, planActorId);
+                    break;
+                case "eplan" when _sim != null:
+                    Console.WriteLine("usage: eplan <actorId> (see `polity` for ids)");
+                    break;
+                case "eplan":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
                 case "emap":
@@ -706,6 +731,88 @@ public sealed class Repl
                 default:
                     Console.WriteLine("unrecognized — try 'help'"); break;
             }
+        }
+    }
+
+    /// <summary>`eprojects` (Task 13): the in-flight-project table — the
+    /// honest ETA under CURRENT starvation, not the naive one. Owner and
+    /// funder can differ (corp-built gates on a host polity's port); the
+    /// filter is by funder, since that's whose treasury is drawn.</summary>
+    private static void RenderProjects(Core.Epoch.SimState sim, int funderFilter, bool includeAll)
+    {
+        var rows = new System.Collections.Generic.List<Core.Epoch.Project>();
+        foreach (var p in sim.Projects)
+        {
+            if (!includeAll && !p.InFlight) continue;
+            if (funderFilter >= 0 && p.FunderActorId != funderFilter) continue;
+            rows.Add(p);
+        }
+        if (rows.Count == 0)
+        {
+            Console.WriteLine("no projects"
+                + (includeAll ? "" : " in flight")
+                + (funderFilter >= 0 ? $" for actor #{funderFilter}" : ""));
+            return;
+        }
+        Console.WriteLine("  id  kind                  owner            port  pri      fed%  delivered/req yrs   eta");
+        foreach (var p in rows)
+        {
+            string owner = p.OwnerActorId >= 0 && p.OwnerActorId < sim.Actors.Count
+                ? sim.Actors[p.OwnerActorId].Name : "—";
+            string status = p.Completed ? " (done)" : p.Cancelled ? " (cancelled)" : "";
+            string eta = p.Completed || p.Cancelled ? "—"
+                : FormattableString.Invariant($"y{sim.WorldYear + (int)Math.Ceiling(
+                    (p.YearsRequired - p.YearsDelivered) / Math.Max(p.LastFedFraction, 0.05))}");
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{p.Id,-3} {p.Kind,-21} {owner,-16} #{p.PortId,-4} {p.Priority,-8} ")
+                + FormattableString.Invariant(
+                $"{p.LastFedFraction * 100,4:0}%  {p.YearsDelivered,6:0.0}/{p.YearsRequired,-6:0.0} ")
+                + eta + status);
+        }
+    }
+
+    /// <summary>`eplan` (Task 13): the actor's standing plan — `*` marks an
+    /// entry already broken ground on (same kind+port+type still in flight),
+    /// so the reader can see what the plan still owes versus what's live.</summary>
+    private static void RenderPlan(Core.Epoch.SimState sim, int actorId)
+    {
+        if (actorId < 0 || actorId >= sim.Actors.Count)
+        { Console.WriteLine($"no actor #{actorId}"); return; }
+        if (sim.Actors[actorId].Policies is not Core.Epoch.PolityPolicies policies)
+        { Console.WriteLine($"actor #{actorId} ({sim.Actors[actorId].Name}) has no standing plan"); return; }
+        var plan = policies.Plan;
+        if (plan.Entries.Count == 0)
+        { Console.WriteLine($"actor #{actorId} ({sim.Actors[actorId].Name}) has no plan entries"); return; }
+        Console.WriteLine("   #  kind        pri      start  type/design               port");
+        for (int i = 0; i < plan.Entries.Count; i++)
+        {
+            var e = plan.Entries[i];
+            bool inFlight = false;
+            var matchKind = e.Kind switch
+            {
+                Core.Epoch.PlanEntryKind.Facility => Core.Epoch.ProjectKind.FacilityConstruction,
+                Core.Epoch.PlanEntryKind.PortRaise => Core.Epoch.ProjectKind.PortRaise,
+                Core.Epoch.PlanEntryKind.HullBatch => Core.Epoch.ProjectKind.HullBatch,
+                _ => (Core.Epoch.ProjectKind)(-1),
+            };
+            foreach (var p in sim.Projects)
+                if (p.InFlight && p.Kind == matchKind && p.PortId == e.PortId
+                    && p.TypeId == e.TypeId)
+                { inFlight = true; break; }
+            string typeDesign = e.Kind switch
+            {
+                Core.Epoch.PlanEntryKind.Facility when e.TypeId >= 0 =>
+                    ((Core.Substrate.InfraTypeId)e.TypeId).ToString(),
+                Core.Epoch.PlanEntryKind.HullBatch when e.TypeId >= 0
+                        && e.TypeId < sim.Designs.Count =>
+                    $"{sim.Designs[e.TypeId].Name} Mk {sim.Designs[e.TypeId].Mark} x{e.Count}",
+                Core.Epoch.PlanEntryKind.PortRaise => "(port raise)",
+                _ => "—",
+            };
+            Console.WriteLine(FormattableString.Invariant(
+                $"  {(inFlight ? "*" : " ")}{i,2}  {e.Kind,-11} {e.Priority,-8} y{e.StartYear,-6} ")
+                + FormattableString.Invariant($"{typeDesign,-25} ")
+                + FormattableString.Invariant($"#{e.PortId}"));
         }
     }
 

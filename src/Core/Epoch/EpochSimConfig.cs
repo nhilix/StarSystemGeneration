@@ -150,10 +150,10 @@ public sealed class WarKnobs
     public double IncidentTensionBump { get; set; } = 0.08;
     /// <summary>Tension below which no war fires whatever the menu says —
     /// low-tension incidents fizzle into demands and apologies.</summary>
-    public double WarTensionFloor { get; set; } = 0.55;
+    public double WarTensionFloor { get; set; } = 0.35;
     /// <summary>Declaration gate: tension × (0.5 + composed militancy)
     /// must clear this — the escalation-∝-tension dial.</summary>
-    public double WarAppetiteThreshold { get; set; } = 0.60;
+    public double WarAppetiteThreshold { get; set; } = 0.38;
     /// <summary>Attackers price allied fleets: own strength must be at
     /// least this share of the defender's coalition to declare.</summary>
     public double AttackStrengthRatio { get; set; } = 0.60;
@@ -232,6 +232,18 @@ public sealed class WarKnobs
     /// fuel stockpile targets — the mobilization surge that diverts an
     /// economy to the front (fabricators boom, households ration).</summary>
     public double MobilizationFactor { get; set; } = 3.0;
+    /// <summary>World-years a belligerent's Mobilization project takes to
+    /// ramp its war economy from 0 to full readiness (spec §5).</summary>
+    public double MobilizationYears { get; set; } = 3.0;
+    /// <summary>Armaments a Mobilization project draws per world-year —
+    /// the ramp's war-materiel basket.</summary>
+    public double MobilizationArmamentsPerYear { get; set; } = 3.0;
+    /// <summary>Fuel a Mobilization project draws per world-year — the
+    /// ramp's war-materiel basket.</summary>
+    public double MobilizationFuelPerYear { get; set; } = 4.0;
+    /// <summary>Mobilization readiness lost per world-year at peace — the
+    /// standing force stands down once the fighting stops (spec §5).</summary>
+    public double DemobilizationPerYear { get; set; } = 0.15;
     /// <summary>Budget share shifted from development and expansion into
     /// the military line while at war — guns before butter.</summary>
     public double WarBudgetMilitaryShift { get; set; } = 0.20;
@@ -793,16 +805,6 @@ public sealed class InfrastructureKnobs
     /// <summary>Facilities a port's domain supports per port tier — the
     /// construction cap (development concentrates before it sprawls).</summary>
     public int FacilitiesPerPortTier { get; set; } = 5;
-    /// <summary>Development treasury below which construction-material pull
-    /// stays quiet (no point hauling alloys nobody can spend).</summary>
-    public double ConstructionDevGate { get; set; } = 25.0;
-    /// <summary>Construction-basket demand registered per under-capacity
-    /// port per epoch: alloys.</summary>
-    public double ConstructionPullAlloys { get; set; } = 12.0;
-    /// <summary>Construction-basket demand: machinery.</summary>
-    public double ConstructionPullMachinery { get; set; } = 8.0;
-    /// <summary>Construction-basket demand: composites.</summary>
-    public double ConstructionPullComposites { get; set; } = 6.0;
     /// <summary>Minimum siting score × price signal before anything gets
     /// built — don't build junk.</summary>
     public double ConstructionScoreFloor { get; set; } = 0.12;
@@ -838,6 +840,17 @@ public sealed class ExpansionKnobs
     public double EncroachmentPenalty { get; set; } = 1.5;
     /// <summary>Development points to raise a port: cost = base × current tier.</summary>
     public double PortUpgradeCostBase { get; set; } = 40.0;
+    /// <summary>World-years to raise a port one tier.</summary>
+    public double PortUpgradeYears { get; set; } = 5.0;
+    /// <summary>Alloys drawn per world-year per current tier while a port
+    /// raise is under construction.</summary>
+    public double PortUpgradeAlloysPerYearPerTier { get; set; } = 2.0;
+    /// <summary>Machinery drawn per world-year per current tier during a
+    /// port raise.</summary>
+    public double PortUpgradeMachineryPerYearPerTier { get; set; } = 1.0;
+    /// <summary>Refined Exotics drawn per world-year per current tier during
+    /// a port raise.</summary>
+    public double PortUpgradeExoticsPerYearPerTier { get; set; } = 0.25;
     public double HomeworldSegmentSize { get; set; } = 3.0;
     public double ColonySegmentSize { get; set; } = 0.5;
     /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>
@@ -872,6 +885,10 @@ public sealed class FleetKnobs
     /// pioneer at ~9 endurance reaches ~27 hexes, just past the default
     /// colonization reach).</summary>
     public double EnduranceHexesPerPoint { get; set; } = 3.0;
+    /// <summary>Off-lane convoy speed, hexes per world-year — an expedition's
+    /// crossing time is its off-lane distance over this rate (a 12-hex leg
+    /// takes two years). Founding runs in world-time, never same-step.</summary>
+    public double ExpeditionHexesPerYear { get; set; } = 6.0;
     /// <summary>Round trips per world-year of a posted hull at transit
     /// speed 1 over one hex — posted capacity = cargo × trips
     /// (× TransitSpeed ÷ distance).</summary>
@@ -922,6 +939,10 @@ public sealed class FleetKnobs
     /// <summary>Hulls a yard lays down per yard tier per world-year,
     /// components permitting.</summary>
     public double YardHullsPerTierPerYear { get; set; } = 0.2;
+    /// <summary>World-years to build one Medium hull — the planner's hull-
+    /// batch duration base, scaled by the design's component draw against
+    /// Medium (spec §3).</summary>
+    public double HullBuildYearsBase { get; set; } = 1.5;
 }
 
 /// <summary>Genesis-AI policy dials (frame/controller-contract.md): the
@@ -963,4 +984,10 @@ public sealed class ControllerKnobs
     public double NarcoticsProhibitBelowOpenness { get; set; } = 0.35;
     /// <summary>Species openness below which narcotics are restricted.</summary>
     public double NarcoticsRestrictBelowOpenness { get; set; } = 0.55;
+    /// <summary>Entries the planner may schedule in one standing plan — the
+    /// horizon's project budget (spec §3).</summary>
+    public int MaxPlanEntries { get; set; } = 16;
+    /// <summary>Base score of a port-raise plan entry, divided by the port's
+    /// current tier — the standing bias toward deepening young ports first.</summary>
+    public double PortRaisePlanScore { get; set; } = 0.5;
 }
