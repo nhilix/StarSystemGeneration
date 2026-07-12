@@ -132,8 +132,8 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
       backlogged for K5) · unbounded keyframe memory during unattended
       play (HANDOFF note) · linear nearest-keyframe scan (fine at K4
       scale).
-- [ ] **T8 — USER: timeline eyeball** — watch 40 epochs animate on the
-      domains lens; scrub back to a mid-war year; step fine.
+- [x] **T8 — USER: timeline eyeball — ACCEPTED** (2026-07-12, "I like
+      this, this gives us a lot of control"), after one fix wave:
   - Eyeball wave 1 (2026-07-12): (1) legend overlapped the strip's
     transport buttons — legend bottom 96→122px (strip is ~105px tall) ·
     (2) RUN SEED gains radius + epochs fields (R/EP, values persist
@@ -146,9 +146,10 @@ Baseline at branch: **790/790** `dotnet test` in the fresh worktree
     NOTE: editor held the project + MCP bridge approval revoked on the
     fresh worktree — compile verified by the user's editor refresh, not
     batch.
-- [ ] **T9 — Wrap-up**: merge · HANDOFF · tick K4 in the K roadmap ·
-      write the K5 kickoff prompt · republish the living diagram if the
-      time model taught us anything · push on say-so.
+- [x] **T9 — Wrap-up**: merged to main locally · HANDOFF · K4 ticked in
+      the K roadmap · K5 kickoff prompt written · diagram §7 SimHost/
+      TimelineStrip rows amended (two-event split, genesis run-seed,
+      pinned-moments) + republished · push on say-so.
 
 ## Decisions / deviations
 
