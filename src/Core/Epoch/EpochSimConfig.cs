@@ -669,6 +669,13 @@ public sealed class EconomyKnobs
     /// <summary>Extra stockpile capacity per good per active Depot tier at
     /// the port — depots are how a polity builds deep larders.</summary>
     public double StockCapPerDepotTier { get; set; } = 400.0;
+    /// <summary>Freight speed on a lane in hexes per world-year, before the
+    /// lane's gate-tier TransitSpeed multiplier (spec §4b: gate tier sets
+    /// speed) — a tier-2 lane moves goods at 2× this base.</summary>
+    public double FreightHexesPerYearBase { get; set; } = 8.0;
+    /// <summary>Freight speed off the lane network — the slow crawl (spec
+    /// §4b): supply that leaves the highways pays for it in years.</summary>
+    public double OffLaneFreightHexesPerYear { get; set; } = 2.0;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

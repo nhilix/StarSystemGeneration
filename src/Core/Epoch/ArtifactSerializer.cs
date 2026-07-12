@@ -31,6 +31,7 @@ public static class ArtifactSerializer
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
+        ("shipments", 1),
     };
 
     public static string ToText(SimState state)
@@ -434,6 +435,31 @@ public static class ArtifactSerializer
                 p.TargetId.ToString(Inv), p.Count.ToString(Inv),
                 R(p.AccumGrade), R(p.AccumGradeWeight),
                 string.Join(";", basket)));
+        }
+
+        Layer(w, "shipments");
+        // in-flight only (arrivals leave the registry); the counter keeps
+        // shipment identity stable across removals (spec §4b)
+        w.WriteLine(Join("SHIPNEXT", state.NextShipmentId.ToString(Inv)));
+        foreach (var s in state.Shipments)
+        {
+            var legs = new List<string>();
+            if (s.RouteLaneIds.Count == 0)
+                legs.Add("-1:" + R(s.LegYears[0]));
+            else
+                for (int i = 0; i < s.RouteLaneIds.Count; i++)
+                    legs.Add(s.RouteLaneIds[i].ToString(Inv) + ":"
+                             + R(s.LegYears[i]));
+            var cargo = new List<string>();
+            for (int g = 0; g < s.Qty.Length; g++)
+                if (s.Qty[g] != 0)
+                    cargo.Add(g.ToString(Inv) + ":" + R(s.Qty[g]) + ":"
+                              + R(s.Grade[g]));
+            w.WriteLine(Join("SHIP", s.Id.ToString(Inv),
+                s.OwnerActorId.ToString(Inv), ((int)s.Channel).ToString(Inv),
+                s.OriginPortId.ToString(Inv), s.DestPortId.ToString(Inv),
+                s.DepartureYear.ToString(Inv), R(s.YearsInTransit),
+                string.Join(";", legs), string.Join(";", cargo)));
         }
         w.WriteLine("END");
     }
@@ -1376,6 +1402,38 @@ public static class ArtifactSerializer
                                     double.Parse(part.Substring(colon + 1), Inv);
                             }
                         state.Projects.Add(project);
+                        break;
+                    }
+                    case "SHIPNEXT":
+                        state!.NextShipmentId = int.Parse(f[1], Inv);
+                        break;
+                    case "SHIP":
+                    {
+                        var laneIds = new List<int>();
+                        var legYears = new List<double>();
+                        foreach (var part in f[8].Split(';'))
+                        {
+                            int colon = part.IndexOf(':');
+                            int laneId = int.Parse(part.Substring(0, colon), Inv);
+                            if (laneId >= 0) laneIds.Add(laneId);
+                            legYears.Add(
+                                double.Parse(part.Substring(colon + 1), Inv));
+                        }
+                        var shipment = new Shipment(int.Parse(f[1], Inv),
+                            int.Parse(f[2], Inv),
+                            (ShipmentChannel)int.Parse(f[3], Inv),
+                            int.Parse(f[4], Inv), int.Parse(f[5], Inv),
+                            int.Parse(f[6], Inv), laneIds, legYears)
+                        { YearsInTransit = double.Parse(f[7], Inv) };
+                        if (f[9].Length > 0)
+                            foreach (var part in f[9].Split(';'))
+                            {
+                                var t = part.Split(':');
+                                int good = int.Parse(t[0], Inv);
+                                shipment.Qty[good] = double.Parse(t[1], Inv);
+                                shipment.Grade[good] = double.Parse(t[2], Inv);
+                            }
+                        state!.Shipments.Add(shipment);
                         break;
                     }
                     case "PULSE":

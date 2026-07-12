@@ -248,6 +248,10 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
+        // in-flight freight sails first (spec §4b): this step's arrivals
+        // land on the shelf and in the larders BEFORE supply, demand, and
+        // the Allocation draws that follow — goods a year out are not here
+        ShipmentOps.Advance(state, scratch);
         MarketEngine.SupplyLands(state, scratch);
         CorporationOps.SalvageLands(state, scratch);   // salvors strip fields
         MarketEngine.AssembleDemand(state, scratch);

@@ -231,9 +231,9 @@ public static class MarketEngine
         Deposit(state, scratch, mIx, f.OwnerActorId, (int)pick.Output, qty, grade);
     }
 
-    private static void Deposit(SimState state, MarketStepScratch scratch,
-                                int mIx, int ownerActorId, int good,
-                                double qty, double grade)
+    internal static void Deposit(SimState state, MarketStepScratch scratch,
+                                 int mIx, int ownerActorId, int good,
+                                 double qty, double grade)
     {
         var market = state.Markets[mIx];
         market.Deposit(good, qty, grade);
