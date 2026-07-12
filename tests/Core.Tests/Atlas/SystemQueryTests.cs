@@ -115,6 +115,27 @@ public class SystemQueryTests
     }
 
     [Fact]
+    public void AnUncommissionedFacilityIsItsSite_NotAFacilityMark()
+    {
+        // the Facility row exists at groundbreaking (CommissionedYear -1)
+        // alongside its InFlight project — the stage must draw ONE mark,
+        // the site (review finding 2: the double-render + false "idle")
+        var (model, state) = Base();
+        var (hex, _) = Hexes(model);
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Refinery, 1,
+            hex, state.Actors[0].Id, 10) { CommissionedYear = -1 });
+        state.Projects.Add(new Project(0, ProjectKind.FacilityConstruction,
+            state.Actors[0].Id, state.Actors[0].Id, 0, hex,
+            yearsRequired: 4, startedYear: 10)
+        { TypeId = (int)InfraTypeId.Refinery });
+
+        var info = SystemQuery.At(model, EyeContext.God(state.WorldYear), hex);
+        Assert.Empty(info.Facilities);
+        var site = Assert.Single(info.Sites);
+        Assert.Equal("Refinery", site.TypeName);
+    }
+
+    [Fact]
     public void InFlightSitesSurface_CompletedOnesDoNot()
     {
         var (model, state) = Base();

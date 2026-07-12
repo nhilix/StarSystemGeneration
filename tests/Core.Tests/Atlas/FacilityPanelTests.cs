@@ -58,6 +58,30 @@ public class FacilityPanelTests
     }
 
     [Fact]
+    public void ACorpOwnerCarriesItsRegistryId_APolityOwnerNone()
+    {
+        var (model, state, hex) = Base();
+        // a corporation whose REGISTRY id differs from its actor id —
+        // the owner link must carry the registry id (review finding 1)
+        int corpActorId = state.Actors.Count;
+        state.Actors.Add(new Actor(corpActorId, ActorKind.Corporation,
+            "Vex Combine", default, state.EpochIndex,
+            new CorporateController(state.Config)) { Entered = true });
+        int host = state.Polities[0].ActorId;
+        state.Corporations.Add(new Corporation(3, corpActorId,
+            "Vex Combine", host, CorporateNiche.Freight, 0,
+            state.WorldYear));
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, 1, hex,
+                                          corpActorId, 10));
+        state.Facilities.Add(new Facility(1, (int)InfraTypeId.Mine, 1, hex,
+                                          state.Actors[0].Id, 10));
+
+        var eye = EyeContext.God(state.WorldYear);
+        Assert.Equal(3, FacilityPanel.Card(model, eye, 0)!.OwnerCorpId);
+        Assert.Equal(-1, FacilityPanel.Card(model, eye, 1)!.OwnerCorpId);
+    }
+
+    [Fact]
     public void AnUncommissionedFacilityReadsInactive()
     {
         var (model, state, hex) = Base();

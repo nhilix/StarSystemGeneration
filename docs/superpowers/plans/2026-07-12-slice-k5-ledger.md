@@ -64,7 +64,8 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       by type affinity: Mine→belt/rocky, Skimmer→gas giant, Agri→best
       biosphere, Excavation→ruins-adjacent else rocky, processing/heavy/
       support→port body; id-order stable). Empty reach → SystemInfo with
-      no stars (stage renders a void placard). DECISION: deterministic
+      no stars (the stage draws nothing but overlays on the deep-space
+      ring — no text on the map). DECISION: deterministic
       layout angles are a pure hash of (hex, slot index) — view-only, no
       RollChannel consumed.
 - [x] **T2 — FacilityPanel, TDD** (Core + PanelViews card, 4 tests):
@@ -113,7 +114,30 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       `dotnet test` green ×3 · goldens untouched (`git status` clean) ·
       determinism suites in the count · EditMode green · AtlasSmoke every
       lens.
-- [ ] **T8 — Fresh-eyes whole-branch review** + one fix wave.
+- [x] **T8 — Fresh-eyes whole-branch review** + one fix wave. Verdict:
+      "NOT READY — 2 confirmed bugs"; every mechanical gate verified
+      holding by running it (Core purity, 283 unique meta guids, goldens/
+      non-Atlas Core untouched, no RollChannel in SystemQuery, id-order,
+      event symmetry, leak-free rebuild path, crossfade math, boundary).
+      Fix wave (all landed, test-first, 851/851):
+      1. Facility owner link opened the wrong CORPORATION — corp panel
+         subjects are registry ids, the card carried the actor id
+         (id spaces differ). FacilityCard gains OwnerCorpId; PanelViews
+         routes with it (pinned by ACorpOwnerCarriesItsRegistryId test).
+      2. Under-construction facilities rendered TWICE (registry row
+         exists at groundbreaking) with an always-false "idle" label —
+         SystemQuery now folds uncommissioned rows into their sites
+         (one thing, one mark; pinned by AnUncommissionedFacility test);
+         dead idle arms removed stage- and panel-side (Active ≡
+         Commissioned today).
+      3. (plausible→fixed) Port lost click ties to its own body at the
+         shared center — StagePick gains Priority; near-ties go
+         port-first (the map's priority order, kept).
+      4. "1 moons" tooltip plural; ledger void-placard overstatement
+         corrected.
+      Declined-as-noted: additive starlight fades as fade² through the
+      crossfade (cosmetic, reads fine) · EditMode/smoke re-ran post-fix
+      instead of in-review.
 - [ ] **T9 — USER: the K taste gate** — seed 42, watch 40 epochs, click
       the Alloys War siege hex, drill to its system, open the threads
       panel. (The whole-K acceptance, not just K5's.)

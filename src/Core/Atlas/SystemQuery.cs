@@ -103,6 +103,10 @@ public static class SystemQuery
         foreach (var f in state.Facilities)               // id order (P6)
         {
             if (!f.Hex.Equals(hex)) continue;
+            // a facility row exists at groundbreaking; until commissioned
+            // its InFlight project is the mark (sites below) — one thing,
+            // one mark
+            if (f.CommissionedYear < 0) continue;
             var def = Infrastructure.Get((InfraTypeId)f.TypeId);
             facilities.Add(new StageFacilityRow(f.Id, def.Name, def.Family,
                 f.Tier, MarketEngine.IsActive(state, f), f.Condition,

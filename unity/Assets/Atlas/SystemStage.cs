@@ -18,15 +18,19 @@ namespace StarGen.AtlasView
         public readonly Vector3 WorldPos;
         public readonly float Radius;
         public readonly string Label;
+        /// <summary>Tie-break when picks overlap (the port ring wraps its
+        /// own body): higher wins — the map's priority order, kept.</summary>
+        public readonly int Priority;
 
         public StagePick(SelectionKind kind, int id, Vector3 worldPos,
-                         float radius, string label)
+                         float radius, string label, int priority = 0)
         {
             Kind = kind;
             Id = id;
             WorldPos = worldPos;
             Radius = radius;
             Label = label;
+            Priority = priority;
         }
     }
 
@@ -342,8 +346,12 @@ namespace StarGen.AtlasView
             string settled = row.Settlement != Settlement.None
                 ? " · " + row.Settlement.ToString().ToLowerInvariant()
                 : "";
-            string moons = row.SatelliteCount > 0
-                ? DockKit.Inv($" · {row.SatelliteCount} moons") : "";
+            string moons = row.SatelliteCount switch
+            {
+                0 => "",
+                1 => " · 1 moon",
+                _ => DockKit.Inv($" · {row.SatelliteCount} moons"),
+            };
             return name + kind + settled + moons;
         }
 
@@ -367,7 +375,8 @@ namespace StarGen.AtlasView
                                PortColor(info.PortId)));
                 _pickables.Add(new StagePick(SelectionKind.Port, info.PortId,
                     transform.position + pos, body * 1.8f + 0.06f,
-                    DockKit.Inv($"port · tier {info.PortTier} · {info.PortOwnerName}")));
+                    DockKit.Inv($"port · tier {info.PortTier} · {info.PortOwnerName}"),
+                    priority: 2));
             }
             SetBillboards(_portMarks, portQuads);
 
@@ -390,18 +399,17 @@ namespace StarGen.AtlasView
                     orbit * (float)System.Math.Sin(a), 0f);
                 quads.Add((pos, world, 9f, tint));
                 _pickables.Add(new StagePick(kind, id,
-                    transform.position + pos, 0.075f, label));
+                    transform.position + pos, 0.075f, label, priority: 1));
             }
 
+            // every surfaced facility is commissioned — SystemQuery folds
+            // groundbreaking-only rows into their sites (review finding 2)
             foreach (var f in info.Facilities)
             {
-                var tint = FacilityColor;
-                if (!f.Active) tint.a = 110;
-                Mark(f.At, 1 + f.Id, tint, 0.058f,
+                Mark(f.At, 1 + f.Id, FacilityColor, 0.058f,
                      SelectionKind.Facility, f.Id,
                      f.TypeName.ToLowerInvariant()
-                     + DockKit.Inv($" t{f.Tier} · {f.OwnerName}")
-                     + (f.Active ? "" : " · idle"));
+                     + DockKit.Inv($" t{f.Tier} · {f.OwnerName}"));
             }
             foreach (var s in info.Sites)
             {

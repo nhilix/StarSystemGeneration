@@ -303,20 +303,24 @@ namespace StarGen.AtlasView
                 return ("FACILITY", Missing(body, "no such facility"));
             Line(body, Inv($"{card.TypeName} · tier {card.Tier}"));
             Kv(body, "family", card.Family.ToString().ToLowerInvariant());
+            // a corp's panel subject is its registry id (OwnerCorpId),
+            // never its actor id — the id spaces differ (review finding)
+            bool corpOwner =
+                card.OwnerKind == Core.Epoch.ActorKind.Corporation;
             var owner = Row(body, () => ctx.Open(new PanelRequest(
-                card.OwnerKind == Core.Epoch.ActorKind.Corporation
-                    ? PanelType.Corporations : PanelType.Polity,
-                card.OwnerActorId)));
+                corpOwner ? PanelType.Corporations : PanelType.Polity,
+                corpOwner ? card.OwnerCorpId : card.OwnerActorId)));
             Line(owner, "owner: " + card.OwnerName
                 + Inv($" ({card.OwnerKind.ToString().ToLowerInvariant()})"));
             Meter(body, "condition", card.Condition,
                   Inv($"{card.Condition:0.00}"),
                   card.Condition < 0.35 ? "bad"
                   : card.Condition < 0.7 ? "warn" : null);
+            // Active ≡ Commissioned today (MarketEngine.IsActive) — no
+            // third state exists
             if (!card.Commissioned)
                 Kv(body, "status", "under construction", "warn");
-            else Kv(body, "status", card.Active ? "active" : "idle",
-                    card.Active ? "good" : "warn");
+            else Kv(body, "status", "active", "good");
             Kv(body, "built", Inv($"y{card.BuiltYear}"));
             Sect(body, "produces");
             if (card.Produces.Count == 0)

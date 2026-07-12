@@ -12,6 +12,7 @@ namespace StarGen.Core.Atlas;
 public sealed record FacilityCard(
     int Id, string TypeName, InfraFamily Family, int Tier, HexCoordinate Hex,
     int OwnerActorId, string OwnerName, ActorKind OwnerKind,
+    int OwnerCorpId,
     double Condition, bool Active, bool Commissioned, int BuiltYear,
     int MarketPortId, IReadOnlyList<string> Produces);
 
@@ -32,8 +33,20 @@ public static class FacilityPanel
         foreach (var good in def.Produces)
             produces.Add(Goods.Get(good).Name);
 
+        // a corp owner's panel subject is its REGISTRY id, not its actor
+        // id — the Corporations panel filters on CorpRow.Id
+        int ownerCorpId = -1;
+        if (owner.Kind == ActorKind.Corporation)
+            foreach (var corp in state.Corporations)      // id order (P6)
+                if (corp.ActorId == f.OwnerActorId)
+                {
+                    ownerCorpId = corp.Id;
+                    break;
+                }
+
         return new FacilityCard(f.Id, def.Name, def.Family, f.Tier, f.Hex,
-            f.OwnerActorId, owner.Name, owner.Kind, f.Condition,
+            f.OwnerActorId, owner.Name, owner.Kind, ownerCorpId,
+            f.Condition,
             MarketEngine.IsActive(state, f), f.CommissionedYear >= 0,
             f.BuiltYear, MarketEngine.AttachedMarketIndex(state, f),
             produces);

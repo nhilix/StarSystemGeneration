@@ -191,9 +191,17 @@ namespace StarGen.AtlasView
                 var d = new Vector2(p.x - pick.WorldPos.x,
                                     p.y - pick.WorldPos.y).magnitude;
                 float reach = Mathf.Max(pick.Radius, grace);
-                if (d > reach || d >= bestDist) continue;
-                bestDist = d;
-                best = pick;
+                if (d > reach) continue;
+                // near-ties go to the higher priority — the port ring
+                // wraps its own body and must win the shared center (the
+                // map's port-first order, kept)
+                bool tie = best != null
+                    && Mathf.Abs(d - bestDist) <= grace * 0.5f;
+                if (tie ? pick.Priority > best.Value.Priority : d < bestDist)
+                {
+                    bestDist = d;
+                    best = pick;
+                }
             }
             return best;
         }
