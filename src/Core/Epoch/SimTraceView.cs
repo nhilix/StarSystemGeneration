@@ -317,6 +317,12 @@ public static class SimTraceView
                 (DynasticInstrument)p.Instrument == DynasticInstrument.Marriage
                     ? $"the houses of {p.FromName} and {p.ToName} marry"
                     : $"{p.FromName} sends a ward to the court of {p.ToName}",
+            ProjectAbandonedPayload p =>
+                Invariant($"works at project #{p.ProjectId} are abandoned ")
+                + "half-built — the supply line never came",
+            CargoSeizedPayload p =>
+                Invariant($"a convoy is seized on a contested lane — ")
+                + Invariant($"{p.Units:0} units taken as prize"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();

@@ -38,7 +38,8 @@ public static class ShipmentOps
             fromPortId, toPortId, state.WorldYear, laneIds, legYears);
         Fill(s, basket);
         var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
-        outcome = Sail(state, scratch, severed, HunterMap(state), s,
+        outcome = Sail(state, scratch, severed, HunterMap(state),
+                       WarPresenceMap(state), s,
                        state.Config.Sim.YearsPerEpoch);
         if (outcome != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
@@ -58,7 +59,8 @@ public static class ShipmentOps
             fromPortId, toPortId, state.WorldYear, laneIds, legYears);
         Fill(s, basket);
         var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
-        if (Sail(state, scratch, severed, HunterMap(state), s,
+        if (Sail(state, scratch, severed, HunterMap(state),
+                WarPresenceMap(state), s,
                 state.Config.Sim.YearsPerEpoch) != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
         state.Shipments.Add(s);
@@ -120,11 +122,12 @@ public static class ShipmentOps
         if (state.Shipments.Count == 0) return;
         int span = state.Config.Sim.YearsPerEpoch;
         var hunters = HunterMap(state);
+        var presence = WarPresenceMap(state);
         List<int>? resolved = null;                       // indexes done
         for (int i = 0; i < state.Shipments.Count; i++)   // id order (P6)
         {
             var outcome = Sail(state, scratch, scratch.Severed, hunters,
-                               state.Shipments[i], span);
+                               presence, state.Shipments[i], span);
             if (outcome == SailOutcome.InTransit) continue;
             (resolved ??= new List<int>()).Add(i);
             // a courier's cargo resolved with its shipment: delivery pays
@@ -155,20 +158,77 @@ public static class ShipmentOps
         return hunters;
     }
 
+    /// <summary>Warships bearing on each lane: war-stationed squadrons
+    /// (Blockade, Expedition) within InterdictionReachHexes of either
+    /// endpoint, plus Escort fleets riding the lane itself — the presence
+    /// that contests an enemy's legs and screens a friend's (contract-
+    /// economy spec §4). Fleet-id order per lane (P6). Lookup-only.</summary>
+    private static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
+        WarPresenceMap(SimState state)
+    {
+        Dictionary<int, List<(FleetRecord, int)>>? map = null;
+        int reach = state.Config.War.InterdictionReachHexes;
+        foreach (var fleet in state.Fleets)               // id order (P6)
+        {
+            bool stationed = fleet.Posture is FleetPosture.Blockade
+                or FleetPosture.Expedition;
+            bool riding = fleet.Posture == FleetPosture.Escort
+                && fleet.TargetId >= 0;
+            if (!stationed && !riding) continue;
+            int warships = 0;
+            foreach (var g in fleet.Hulls)                // design-id order
+                if (ShipCatalog.IsWarship(state.Designs[g.DesignId].Role))
+                    warships += g.Count;
+            if (warships == 0) continue;
+            if (riding)
+            {
+                map ??= new Dictionary<int, List<(FleetRecord, int)>>();
+                (map.TryGetValue(fleet.TargetId, out var lst)
+                    ? lst
+                    : map[fleet.TargetId] = new List<(FleetRecord, int)>())
+                    .Add((fleet, warships));
+                continue;
+            }
+            foreach (var lane in state.Lanes)             // id order (P6)
+            {
+                if (Math.Min(
+                        HexGrid.Distance(fleet.Hex,
+                            state.Ports[lane.PortAId].Hex),
+                        HexGrid.Distance(fleet.Hex,
+                            state.Ports[lane.PortBId].Hex)) > reach)
+                    continue;
+                map ??= new Dictionary<int, List<(FleetRecord, int)>>();
+                (map.TryGetValue(lane.Id, out var lst)
+                    ? lst
+                    : map[lane.Id] = new List<(FleetRecord, int)>())
+                    .Add((fleet, warships));
+            }
+        }
+        return map;
+    }
+
     /// <summary>The one sailing rule (review fixes 1–2: dispatch and
     /// Advance share it): walk the legs for the span, stalling at a
     /// closed one; roll piracy (channel 75) once for the years sailed
     /// under a hunting band's guns — the loot lands at its haven, the
     /// band credited as supplier where a scratch exists (a plain deposit
     /// otherwise; Allocation-time dispatches have no pool to attribute);
-    /// deliver on arrival. Returns what became of the cargo.</summary>
+    /// roll war interdiction (channel 76) once for the years sailed on
+    /// legs contested by an enemy of the owner, friendly escorts damping
+    /// the odds deterministically; deliver on arrival. Returns what
+    /// became of the cargo.</summary>
     private static SailOutcome Sail(SimState state,
         MarketStepScratch? scratch, HashSet<int> severed,
-        Dictionary<int, Corporation>? hunters, Shipment s, double span)
+        Dictionary<int, Corporation>? hunters,
+        Dictionary<int, List<(FleetRecord Fleet, int Warships)>>? presence,
+        Shipment s, double span)
     {
         double budget = span;
         double huntedYears = 0;
         Corporation? hunter = null;
+        double contestedYears = 0;
+        FleetRecord? interdictor = null;
+        int escortHulls = 0;
         while (budget > 1e-9 && s.YearsInTransit < s.TotalYears - 1e-9)
         {
             int leg = CurrentLeg(s);
@@ -187,6 +247,25 @@ public static class ShipmentOps
             if (hunters != null && leg < s.RouteLaneIds.Count
                 && hunters.TryGetValue(s.RouteLaneIds[leg], out var band))
             { huntedYears += sail; hunter ??= band; }
+            if (presence != null && leg < s.RouteLaneIds.Count
+                && presence.TryGetValue(s.RouteLaneIds[leg], out var squadrons))
+            {
+                bool contested = false;
+                int friendly = 0;
+                foreach (var (fleet, warships) in squadrons) // fleet-id order
+                {
+                    if (fleet.OwnerActorId == s.OwnerActorId)
+                        friendly += warships;
+                    else if (WarOps.ActiveWarBetween(state,
+                                 fleet.OwnerActorId, s.OwnerActorId) != null)
+                    { contested = true; interdictor ??= fleet; }
+                }
+                if (contested)
+                {
+                    contestedYears += sail;
+                    escortHulls = Math.Max(escortHulls, friendly);
+                }
+            }
             s.YearsInTransit += sail;
             budget -= sail;
         }
@@ -207,6 +286,44 @@ public static class ShipmentOps
                     if (s.Qty[g] > 0)
                         BookOps.PostSupply(state, hunter.HomePortId,
                             hunter.ActorId, g, s.Qty[g], s.Grade[g]);
+                return SailOutcome.Lost;
+            }
+        }
+        // war interdiction (contract-economy spec §4), rolled after piracy
+        // took its chance: the seizure probability compounds per contested
+        // world-year, friendly warships screening the leg damp it as a
+        // deterministic modifier — never a second roll. The prize lands at
+        // the interdictor's nearest own port as its asks (P4 conserved); a
+        // portless interdictor has nowhere to land one and takes nothing.
+        if (interdictor != null && contestedYears > 0)
+        {
+            int prizePort = FleetOps.NearestOwnedPortId(state,
+                interdictor.OwnerActorId, interdictor.Hex);
+            var war = state.Config.War;
+            double p = (1.0 - Math.Pow(
+                    1.0 - war.InterdictionLossPerContestedYear,
+                    contestedYears))
+                / (1.0 + war.EscortDampPerHull * escortHulls);
+            if (prizePort >= 0
+                && EpochRolls.NextDouble(state.Config.MasterSeed,
+                    Rng.RollChannel.ShipmentInterdiction, state.EpochIndex,
+                    s.OwnerActorId, s.Id) < p)
+            {
+                double units = 0;
+                for (int g = 0; g < s.Qty.Length; g++)
+                {
+                    if (s.Qty[g] <= 0) continue;
+                    units += s.Qty[g];
+                    BookOps.PostSupply(state, prizePort,
+                        interdictor.OwnerActorId, g, s.Qty[g], s.Grade[g]);
+                }
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.CargoSeized,
+                    new[] { interdictor.OwnerActorId, s.OwnerActorId },
+                    interdictor.Hex, Magnitude: units, Valence: -0.6,
+                    EventVisibility.Regional,
+                    new CargoSeizedPayload(s.Id, interdictor.OwnerActorId,
+                                           units)));
                 return SailOutcome.Lost;
             }
         }

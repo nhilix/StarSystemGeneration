@@ -121,6 +121,71 @@ public class FrontSupplyTests
         Assert.Empty(state.Couriers);
     }
 
+    /// <summary>The interdiction stage: a lane between actor 0's ports, an
+    /// active war with actor 1, and actor 1's prize port for seized cargo.</summary>
+    private static (SimState State, PolityRecord Pr, Port Home, Port Fwd,
+                    Port Prize) ContestedLane()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        var a1 = state.Actors[1];
+        a1.Entered = true;
+        var prize = new Port(2, a1.Id,
+            new HexCoordinate(home.Hex.Q + 5, home.Hex.R + 6), tier: 2,
+            foundedYear: 0);
+        state.Ports.Add(prize);
+        state.Markets.Add(new Market(2, state.Config.Economy));
+        EpochTestKit.AddLane(state, home.Id, fwd.Id);
+        state.Wars.Add(new War(0, "The Supply War", a1.Id, pr.ActorId,
+            CasusBelli.BorderIncident, -1, WarDemand.Reparations,
+            state.WorldYear));
+        // enemy squadron on station within reach of the lane's far end
+        Deploy(state, a1.Id, new HexCoordinate(fwd.Hex.Q + 2, fwd.Hex.R),
+               prize.Id);
+        return (state, pr, home, fwd, prize);
+    }
+
+    [Fact]
+    public void ContestedLeg_SeizesCargo_ToTheInterdictorsPort()
+    {
+        var (state, pr, home, fwd, prize) = ContestedLane();
+        state.Config.War.InterdictionLossPerContestedYear = 1.0;  // certain
+
+        var basket = new List<(int Good, double Qty, double Grade)>
+            { ((int)GoodId.Provisions, 100.0, 0.5) };
+        var s = ShipmentOps.Dispatch(state, pr.ActorId,
+            ShipmentChannel.Requisition, home.Id, fwd.Id, basket);
+
+        Assert.Null(s);                        // taken inside the sail
+        Assert.Equal(0.0, fwd.StockQty[(int)GoodId.Provisions], 6);
+        Assert.Equal(100.0, BookOps.AskQty(state, prize.Id,
+            (int)GoodId.Provisions), 6);
+        Assert.Contains(state.Staged,
+            e => e.Type == WorldEventType.CargoSeized);
+    }
+
+    [Fact]
+    public void Escorts_DampInterdiction_Deterministically()
+    {
+        var (state, pr, home, fwd, prize) = ContestedLane();
+        state.Config.War.InterdictionLossPerContestedYear = 1.0;
+        state.Config.War.EscortDampPerHull = 1e9;   // overwhelming screen
+        // the convoy's own warships ride within reach of the same leg
+        Deploy(state, pr.ActorId,
+               new HexCoordinate(fwd.Hex.Q + 1, fwd.Hex.R), home.Id);
+
+        var basket = new List<(int Good, double Qty, double Grade)>
+            { ((int)GoodId.Provisions, 100.0, 0.5) };
+        var s = ShipmentOps.Dispatch(state, pr.ActorId,
+            ShipmentChannel.Requisition, home.Id, fwd.Id, basket);
+
+        Assert.Equal(0.0, BookOps.AskQty(state, prize.Id,
+            (int)GoodId.Provisions), 6);
+        // the cargo made it through — delivered or still sailing
+        Assert.True(s != null
+            || fwd.StockQty[(int)GoodId.Provisions] > 0,
+            "an escorted convoy should survive the contested leg");
+    }
+
     [Fact]
     public void StationedFleet_StillDrawsItsHomePort()
     {

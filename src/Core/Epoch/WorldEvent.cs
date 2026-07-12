@@ -69,6 +69,7 @@ public enum WorldEventType
     SiegeBegun = 406,
     PortCaptured = 407,
     BattlefieldMarked = 408,
+    CargoSeized = 409,
     FirstContact = 500,
     ClaimRaised = 501,
     ClaimReleased = 502,
@@ -170,6 +171,12 @@ public sealed record FacilityBuiltPayload(int FacilityId, int TypeId, int Tier) 
 /// kickoff's carried chronicle gap, closed in slice CE.</summary>
 public sealed record ProjectAbandonedPayload(int ProjectId, int Kind,
     double YearsDelivered) : EventPayload;
+
+/// <summary>A convoy taken on a contested leg (contract-economy spec §4):
+/// war interdiction, channel 76 — the prize lands at the interdictor's
+/// nearest port as its own asks.</summary>
+public sealed record CargoSeizedPayload(int ShipmentId,
+    int InterdictorActorId, double Units) : EventPayload;
 
 public sealed record LoanIssuedPayload(
     int LoanId, int LenderActorId, int BorrowerActorId, double Principal) : EventPayload;

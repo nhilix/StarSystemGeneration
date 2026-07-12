@@ -1640,6 +1640,9 @@ public static class ArtifactSerializer
         ProjectAbandonedPayload e => Join("projectAbandoned",
             e.ProjectId.ToString(Inv), e.Kind.ToString(Inv),
             R(e.YearsDelivered)),
+        CargoSeizedPayload e => Join("cargoSeized",
+            e.ShipmentId.ToString(Inv), e.InterdictorActorId.ToString(Inv),
+            R(e.Units)),
         LoanIssuedPayload e => Join("loanIssued", e.LoanId.ToString(Inv),
             e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv),
             R(e.Principal)),
@@ -1813,6 +1816,8 @@ public static class ArtifactSerializer
         "projectAbandoned" => new ProjectAbandonedPayload(
             int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
             double.Parse(f[at + 3], Inv)),
+        "cargoSeized" => new CargoSeizedPayload(int.Parse(f[at + 1], Inv),
+            int.Parse(f[at + 2], Inv), double.Parse(f[at + 3], Inv)),
         "loanIssued" => new LoanIssuedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             double.Parse(f[at + 4], Inv)),
