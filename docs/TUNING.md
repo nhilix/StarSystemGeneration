@@ -127,6 +127,9 @@ shape how demand bends under price.
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
 | `Economy.ConditionRecoveryPerYear` | 0.05 | Repairs snap back. | Long scars from every shortage/war. |
 | `Economy.StockpileDecayPerYear` | 0.002 | Reserves cost more to hold (provisions ×10, organics ×5, medicine ×3 in code). | Cheap insurance; sieges (H) get longer. |
+| `Economy.DepotDecayFactor` | 0.5 | (Toward 1) depots barely slow the rot — dedicated storage stops paying. | Depots near-freeze decay; one depot makes an eternal larder. |
+| `Economy.StockCapPerPortTier` | 100 | (Raise) ports bank deep larders without depots. | Tiny caps: reserve policy impossible without depots everywhere. |
+| `Economy.StockCapPerDepotTier` | 400 | (Raise) one depot holds a war economy's stores. | Depot storage stops mattering next to the port's own floor. |
 | `Economy.WarWearinessPerYear` | 0.003 | (Inert until H.) | — |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
@@ -524,7 +527,8 @@ day one of them *does* need to move.
   grade system's defined midpoint.
 - **Terrain potentials** — the richness formulas: `src/Core/Substrate/Potentials.cs`.
 - **Perishability multiples** — provisions ×10, organics ×5, medicine ×3
-  over `StockpileDecayPerYear`: `AllocationPhase.DecayReserves`.
+  over `StockpileDecayPerYear`: `AllocationPhase.DecayStockpiles` (per-port
+  since stage 2; each active depot tier multiplies by `DepotDecayFactor`).
 - **Budget weights & policy defaults** — `PolityPolicies.Default`
   (`Policies.cs`): the six-way budget split, default tax rate 0.10. These
   are *standing policies* — Intent-phase outputs, the controller's to

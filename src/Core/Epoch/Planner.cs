@@ -58,21 +58,25 @@ public static class Planner
         }
 
         // hull batches: D'Hondt over the ShipbuildingPriorities-weighted own
-        // designs. Slot count mirrors the old instant-laydown throughput
-        // (yard tier × Fleet.YardHullsPerTierPerYear × the epoch's years) so
-        // apportionment keeps its old shape — a low-priority role (colony
-        // ships once the reserve is empty) still wins a slot every so many
-        // picks instead of a single-slot yard handing everything to freight
-        // forever. Slots won by the same design collapse into one batch
-        // (Count = slots won) — one project per design, not per hull.
+        // designs. Slots accrue in WORLD-TIME (stage 2, P7): the cumulative
+        // throughput clock floor(rate·year) grants each step exactly the
+        // slots that matured inside its span — consecutive fine steps
+        // telescope to the coarse total, so a 1y clock builds the same navy
+        // per century as a 25y clock (the old Max(1,·) per-step floor fired
+        // a unit batch every step at fine tick). Slots won by the same
+        // design collapse into one batch (Count = slots won) — one project
+        // per design, not per hull.
         double hullBase = 0.2 + 0.6 * militancy;
         double warFactor = atWar ? 2.0 : 1.0;
         var hullPriority = atWar ? ProjectPriority.War : ProjectPriority.Growth;
         foreach (var port in view.OwnPorts)                // id order (P6)
         {
             if (port.YardTiers <= 0) continue;
-            int slots = Math.Max(1, (int)(port.YardTiers
-                * cfg.Fleet.YardHullsPerTierPerYear * cfg.Sim.YearsPerEpoch));
+            double rate = port.YardTiers * cfg.Fleet.YardHullsPerTierPerYear;
+            int slots = (int)Math.Floor(rate
+                            * (view.WorldYear + cfg.Sim.YearsPerEpoch))
+                        - (int)Math.Floor(rate * view.WorldYear);
+            if (slots <= 0) continue;
             var granted = new Dictionary<int, int>();
             var bestClaimOf = new Dictionary<int, double>();
             for (int b = 0; b < slots; b++)

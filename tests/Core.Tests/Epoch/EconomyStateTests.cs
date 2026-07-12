@@ -84,12 +84,12 @@ public class EconomyStateTests
     }
 
     [Fact]
-    public void PolityRecord_CarriesCreditsAndReserves()
+    public void PolityRecord_CarriesCredits_ReservesLiveAtPorts()
     {
+        // stage 2 (spec §4b): the polity record banks credits only — goods
+        // reserves are located state on Port (StockpileTests)
         var pr = new PolityRecord(actorId: 0, speciesId: 1);
         Assert.Equal(0.0, pr.Credits);
-        Assert.Equal(Goods.All.Count, pr.ReserveQty.Length);
-        Assert.Equal(Goods.All.Count, pr.ReserveGrade.Length);
     }
 
     [Fact]

@@ -359,7 +359,6 @@ public sealed class AllocationPhase : ISimPhase
             FleetOps.ManagePostures(state, pr, ownPorts);
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
-            DecayReserves(state, pr);
             DecayStockpiles(state, pr, ownPorts);
         }
         // corporations run their portfolios on the same markets (slice G)
@@ -447,29 +446,6 @@ public sealed class AllocationPhase : ISimPhase
             else
                 f.Condition = Math.Max(target,
                     f.Condition - eco.ConditionDecayPerYear * years);
-        }
-    }
-
-    /// <summary>Perishability: provisions rot, medicine ages, durables keep —
-    /// reserves are a real cost, not free insurance.</summary>
-    private static void DecayReserves(SimState state, PolityRecord pr)
-    {
-        var eco = state.Config.Economy;
-        int years = state.Config.Sim.YearsPerEpoch;
-        for (int g = 0; g < pr.ReserveQty.Length; g++)
-        {
-            if (pr.ReserveQty[g] <= 0) continue;
-            double perish = (Substrate.GoodId)g switch
-            {
-                Substrate.GoodId.Provisions => 10.0,
-                Substrate.GoodId.Organics => 5.0,
-                Substrate.GoodId.Medicine => 3.0,
-                _ => 1.0,
-            };
-            double keep = Math.Max(0.0,
-                1.0 - eco.StockpileDecayPerYear * perish * years);
-            pr.ReserveQty[g] *= keep;
-            if (pr.ReserveQty[g] <= 0) pr.ReserveGrade[g] = 0;
         }
     }
 

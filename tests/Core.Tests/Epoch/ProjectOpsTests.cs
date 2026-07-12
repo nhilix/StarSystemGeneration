@@ -24,9 +24,9 @@ public class ProjectOpsTests
         p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
         p.WagesPerYear = 0.0;
         int years = state.Config.Sim.YearsPerEpoch;              // 25
-        // stock exactly 60% of the span's need, wipe reserves
+        // stock exactly 60% of the span's need; the site larder stays bare
         market.Inventory[(int)GoodId.Alloys] = 0.6 * years;
-        pr.ReserveQty[(int)GoodId.Alloys] = 0;
+        state.Ports[port].StockQty[(int)GoodId.Alloys] = 0;
         double stockBefore = market.Inventory[(int)GoodId.Alloys];
         ProjectOps.AdvanceAll(state);
         Assert.Equal(0.6 * years, p.YearsDelivered, 6);
@@ -42,6 +42,35 @@ public class ProjectOpsTests
             p.PerYearBasket[(int)GoodId.Alloys] * p.YearsDelivered, 6);
     }
 
+    /// <summary>Stage 2 (spec §4b): Pass-1 draws are local-only — the site
+    /// market first, then the SITE port's own stockpile; a shortfall met
+    /// from the local larder feeds the work, nothing teleports in.</summary>
+    [Fact]
+    public void Advance_DrawsFromTheSitePortStockpile()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int port = OwnPort(state, pr.ActorId);
+        var market = state.Markets[port];
+        var site = state.Ports[port];
+        var p = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
+            pr.ActorId, port, site.Hex, yearsRequired: 50.0,
+            ProjectPriority.Core, planOrder: 0);
+        p.TargetId = port;
+        p.PerYearBasket[(int)GoodId.Alloys] = 1.0;
+        p.WagesPerYear = 0.0;
+        int years = state.Config.Sim.YearsPerEpoch;              // 25
+        // 40% on the market shelf, 60% in the port's own larder
+        market.Inventory[(int)GoodId.Alloys] = 0.4 * years;
+        site.StockQty[(int)GoodId.Alloys] = 0.6 * years;
+        site.StockGrade[(int)GoodId.Alloys] = 0.5;
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(years, p.YearsDelivered, 6);        // fully fed, locally
+        Assert.Equal(0.0, market.Inventory[(int)GoodId.Alloys], 6);
+        Assert.Equal(0.0, site.StockQty[(int)GoodId.Alloys], 6);
+    }
+
     /// <summary>Priority order: the War-class project drinks the shared
     /// market dry before the Growth-class one sees a unit (spec §4).</summary>
     [Fact]
@@ -54,7 +83,7 @@ public class ProjectOpsTests
         int years = state.Config.Sim.YearsPerEpoch;
         var market = state.Markets[port];
         market.Inventory[(int)GoodId.Fuel] = 1.0 * years;   // one project's worth
-        pr.ReserveQty[(int)GoodId.Fuel] = 0;
+        state.Ports[port].StockQty[(int)GoodId.Fuel] = 0;
         var growth = ProjectOps.Spawn(state, ProjectKind.PortRaise, pr.ActorId,
             pr.ActorId, port, state.Ports[port].Hex, 50.0,
             ProjectPriority.Growth, 0);

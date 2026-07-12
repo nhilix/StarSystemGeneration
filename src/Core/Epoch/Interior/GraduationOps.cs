@@ -197,12 +197,8 @@ public static class GraduationOps
         old.DevelopmentPoints -= young.DevelopmentPoints;
         young.MilitaryPoints = old.MilitaryPoints * share;
         old.MilitaryPoints -= young.MilitaryPoints;
-        for (int g = 0; g < old.ReserveQty.Length; g++)
-        {
-            young.ReserveQty[g] = old.ReserveQty[g] * share;
-            old.ReserveQty[g] -= young.ReserveQty[g];
-            young.ReserveGrade[g] = old.ReserveGrade[g];
-        }
+        // located stockpiles need no split (spec §4b): the seceding ports
+        // change owner below and carry their own banked stock with them
 
         foreach (var port in state.Ports)
             if (seceding.Contains(port.Id)) port.OwnerActorId = newId;

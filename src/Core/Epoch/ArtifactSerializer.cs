@@ -15,7 +15,7 @@ namespace StarGen.Core.Epoch;
 /// (perception views, staged events, decisions, the phase trace) are not
 /// state. Controllers reattach on load. Slice D: config/actors/segments at
 /// v2 (knob families, standing policies + credits, identity layers) and the
-/// appended markets layer (markets, cultures, reserves, loans).</summary>
+/// appended markets layer (markets, cultures, located stockpiles, loans).</summary>
 public static class ArtifactSerializer
 {
     private const string Header = "STARGEN-EPOCH|1";
@@ -219,13 +219,8 @@ public static class ArtifactSerializer
                     R(m.Price[g]), R(m.Inventory[g]), R(m.InventoryGrade[g]),
                     R(m.LastCleared[g]), R(m.BlackBookDemand[g]),
                     R(m.BlackBookPrice[g])));
-        foreach (var p in state.Polities)
-            for (int g = 0; g < p.ReserveQty.Length; g++)
-                if (p.ReserveQty[g] != 0)
-                    w.WriteLine(Join("RESERVE", p.ActorId.ToString(Inv),
-                        g.ToString(Inv), R(p.ReserveQty[g]), R(p.ReserveGrade[g])));
-        // markets v2 (stage 2, spec §4b): located stockpiles — per port,
-        // per good, banked where they physically sit
+        // markets v2 (stage 2, spec §4b): located stockpiles replace the
+        // RESERVE pool — per port, per good, banked where they physically sit
         foreach (var p in state.Ports)
             for (int g = 0; g < p.StockQty.Length; g++)
                 if (p.StockQty[g] != 0)
@@ -1073,14 +1068,6 @@ public static class ArtifactSerializer
                         market.LastCleared[good] = double.Parse(f[6], Inv);
                         market.BlackBookDemand[good] = double.Parse(f[7], Inv);
                         market.BlackBookPrice[good] = double.Parse(f[8], Inv);
-                        break;
-                    }
-                    case "RESERVE":
-                    {
-                        var pr = state!.PolityOf(int.Parse(f[1], Inv));
-                        int good = int.Parse(f[2], Inv);
-                        pr.ReserveQty[good] = double.Parse(f[3], Inv);
-                        pr.ReserveGrade[good] = double.Parse(f[4], Inv);
                         break;
                     }
                     case "STOCK":

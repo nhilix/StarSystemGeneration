@@ -382,19 +382,15 @@ public static class WarConduct
     }
 
     /// <summary>World-years the port can hold: a floor, plus what its
-    /// larders carry (local market provisions plus the polity reserve's
-    /// pro-rata share against its population's hunger), plus the fortress
-    /// tiers — all in generations, returned as years (P7).</summary>
+    /// larders carry (local market provisions plus the port's OWN stockpile
+    /// against its population's hunger — located per spec §4b), plus the
+    /// fortress tiers — all in generations, returned as years (P7).</summary>
     public static int SiegeThreshold(SimState state, War war, Port port)
     {
         var knobs = state.Config.War;
-        var defender = state.PolityOf(war.DefenderId);
-        int ownPorts = 0;
-        foreach (var p in state.Ports)
-            if (p.OwnerActorId == war.DefenderId) ownPorts++;
         double provisions =
             state.Markets[port.Id].Inventory[(int)GoodId.Provisions]
-            + defender.ReserveQty[(int)GoodId.Provisions] / Math.Max(1, ownPorts);
+            + port.StockQty[(int)GoodId.Provisions];
         double population = 0;
         foreach (var s in state.Segments)
             if (s.PortId == port.Id) population += s.Size;

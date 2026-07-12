@@ -209,11 +209,13 @@ public static class ProjectOps
         return completions;
     }
 
-    /// <summary>Draw needYears of the basket from the site market, then
-    /// the funder's banked reserves (Stage-1 interim — Stage 2 locates
-    /// them); the met fraction (min across goods AND the wage stream)
-    /// scales progress, consumption, and wages alike: a starved project
-    /// neither hoards goods nor pays idle crews.</summary>
+    /// <summary>Draw needYears of the basket LOCALLY (spec §4b): the site
+    /// market first, then the site port's own stockpile when the funder
+    /// owns it — nothing teleports in; remote goods arrive as shipments
+    /// that land in the local larder before this draw. The met fraction
+    /// (min across goods AND the wage stream) scales progress, consumption,
+    /// and wages alike: a starved project neither hoards goods nor pays
+    /// idle crews.</summary>
     private static void Feed(SimState state, Project p, double needYears)
     {
         // travel kinds carry no basket and pay no wages: they skip the goods
@@ -234,14 +236,18 @@ public static class ProjectOps
             return;
         }
         var market = state.Markets[p.PortId];
-        var funderPolity = FunderPolity(state, p.FunderActorId);
+        var site = state.Ports[p.PortId];
+        // the local larder feeds the state's own works: stock belongs to
+        // the port's owner, so a corp building on a host port buys from
+        // the market like anyone else
+        bool ownStock = site.OwnerActorId == p.FunderActorId;
         double fraction = 1.0;
         for (int g = 0; g < p.PerYearBasket.Length; g++)
         {
             double want = p.PerYearBasket[g] * needYears;
             if (want <= 0) continue;
             double have = market.Inventory[g]
-                + (funderPolity != null ? funderPolity.ReserveQty[g] : 0.0);
+                + (ownStock ? site.StockQty[g] : 0.0);
             fraction = Math.Min(fraction, Math.Min(1.0, have / want));
         }
         double wages = p.WagesPerYear * needYears;
@@ -261,20 +267,17 @@ public static class ProjectOps
                 market.LastCleared[g] += drawn;
                 double grade = marketGrade;
                 double shortfall = take - drawn;
-                if (shortfall > 0 && funderPolity != null)
+                if (shortfall > 0 && ownStock)
                 {
-                    double fromReserve = Math.Min(shortfall,
-                        funderPolity.ReserveQty[g]);
                     // blend, don't replace: the market units already drawn
                     // carry their own grade — a shortfall topped up from
-                    // reserves is a quantity-weighted mix of both (F8)
-                    double total = drawn + fromReserve;
+                    // the port's stock is a quantity-weighted mix (F8)
+                    double stockGrade = site.StockGrade[g];
+                    double fromStock = site.DrawStock(g, shortfall);
+                    double total = drawn + fromStock;
                     if (total > 0)
                         grade = (marketGrade * drawn
-                            + funderPolity.ReserveGrade[g] * fromReserve) / total;
-                    funderPolity.ReserveQty[g] -= fromReserve;
-                    if (funderPolity.ReserveQty[g] <= 0)
-                        funderPolity.ReserveGrade[g] = 0;
+                            + stockGrade * fromStock) / total;
                 }
                 if (g == (int)GoodId.ShipComponents && take > 0)
                 {

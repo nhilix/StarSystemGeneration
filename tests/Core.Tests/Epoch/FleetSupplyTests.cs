@@ -48,6 +48,28 @@ public class FleetSupplyTests
             "upkeep is bought from the treasury");
     }
 
+    /// <summary>Stage 2 (spec §4b): the quartermaster's stores are the HOME
+    /// PORT's stockpile — a bare market with a stocked larder still feeds
+    /// the fleet, and the draw is local, never a polity pool.</summary>
+    [Fact]
+    public void FleetSupply_FallsBackOnTheHomePortStockpile()
+    {
+        var (state, pr, port) = Entered();
+        pr.MilitaryPoints = 0;                 // can't buy from the market
+        port.StockQty[(int)GoodId.Fuel] = 500;
+        port.StockQty[(int)GoodId.Armaments] = 500;
+        port.StockQty[(int)GoodId.ShipComponents] = 500;
+        var home = FleetOps.HomeFleet(state, pr.ActorId, port);
+        Assert.True(home.TotalHulls > 0);
+
+        int lost = FleetOps.SupplyFleets(state, pr);
+
+        Assert.Equal(0, lost);
+        Assert.Equal(1.0, home.Readiness, 6);
+        Assert.True(port.StockQty[(int)GoodId.Fuel] < 500,
+            "supply should draw the home port's stock");
+    }
+
     [Fact]
     public void UnsuppliedFleet_LosesReadiness_ThenHulls_IntoWreckage()
     {

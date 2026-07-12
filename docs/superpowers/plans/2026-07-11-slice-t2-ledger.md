@@ -36,7 +36,24 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
 
 ## Tasks
 
-- [ ] **T1 — located stockpile substrate.** `Port.StockQty/StockGrade`;
+- [x] **T1 — located stockpile substrate.** COMPLETE. Suite 663/664 ×(golden
+  = the sanctioned red window; re-freeze at T12). All reserve sites migrated
+  (MarketEngine target-demand/release/procure per port; FleetOps home-port
+  stock; WarConduct defender-port larder; Federation/Graduation blocks
+  DELETED — stock moves with the port; ProjectOps Feed local-only with
+  owner-gated stock draw; RESERVE lines dead, STOCK lines live, markets v2).
+  `PolityRecord.ReserveQty/Grade` deleted. Knobs: DepotDecayFactor,
+  StockCapPerPortTier/PerDepotTier (+TUNING.md).
+  **T7's hull-slot fix pulled forward**: located yard stock fed the fine-tick
+  slot-floor inflation (fine completed 10 batch records vs coarse 1 — root-
+  caused via a main-worktree A/B diagnostic: coarse was identical on main;
+  fine batches newly complete because per-port larders protect the yard's
+  components from remote drains). Fixed with a STATELESS world-time slot
+  clock in Planner (floor(rate·year) telescopes exactly across tick sizes —
+  no persistent accumulator needed); FineTick completions test amended to
+  count UNITS (hulls per batch), since batch-record granularity is cadence-
+  dependent by design. Coarse 5 units vs fine 4 — honest. T7 still owes the
+  founding-cadence normalization + band tightening review. `Port.StockQty/StockGrade`;
   Depot mechanism (capacity per port tier + depot tiers; decay cut); per-port
   `DecayReserves` at Allocation close; migrate ALL reserve sites:
   `MarketEngine` stockpile-target demand (per port) / `ReleaseReserves` (port
@@ -96,4 +113,9 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
 
 ## Carried / flagged (running)
 
-- (none yet)
+- Golden red (sanctioned window) — re-freeze once at T12 after the fix wave.
+- T7 scope now: founding-cadence world-time gate + FineTick hulls-band
+  tightening (the slot floor itself landed in T1).
+- Coarse-tick built-world output is thin galaxy-wide (1 facility groundbreak
+  per 50y in the seed-42 continuation — PRE-EXISTING on main, verified by
+  A/B). Watch it at the T12 eyeball; may fold into the dotted-domains tuning.
