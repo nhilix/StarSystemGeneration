@@ -114,10 +114,20 @@ public static class Planner
             {
                 if (!granted.TryGetValue(d.DesignId, out int count) || count <= 0)
                     continue;
+                double score = hullBase * warFactor
+                               * bestClaimOf[d.DesignId];
+                // stranded settlers outrank routine shipbuilding: a polity
+                // holding a colony's worth of expansion points with no
+                // colony hull in reserve NEEDS the convoy first (slice CE —
+                // the book economy packs fuller plans, and low-weighted
+                // colony batches otherwise slide past the horizon forever)
+                if (d.Role == ShipRole.Colony
+                    && view.ColonyHullsAvailable == 0
+                    && view.ExpansionPoints >= cfg.Expansion.ColonyCost)
+                    score *= cfg.Controller.ColonyNeedBoost;
                 desired.Add((new PlanEntry(PlanEntryKind.HullBatch,
                     hullPriority, 0, d.DesignId, port.PortId,
-                    new HexCoordinate(0, 0), count),
-                    hullBase * warFactor * bestClaimOf[d.DesignId]));
+                    new HexCoordinate(0, 0), count), score));
             }
         }
 

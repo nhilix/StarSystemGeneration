@@ -738,6 +738,10 @@ public sealed class EconomyKnobs
     /// this many world-years (contract economy: receipts are lean real
     /// cash flow; savings exist to be spent at build pace).</summary>
     public double PlanSavingsDrawdownYears { get; set; } = 5.0;
+    /// <summary>A project essentially unfed for this many consecutive
+    /// world-years is abandoned at the next Advance (spec §3: hopeless
+    /// work gets cancelled — it must not blockade slots forever).</summary>
+    public double ProjectAbandonYears { get; set; } = 30.0;
     /// <summary>Absolute price floor — gluts bottom out, never reach zero.</summary>
     public double PriceFloor { get; set; } = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes
@@ -1043,6 +1047,10 @@ public sealed class ControllerKnobs
     /// <summary>Base score of a port-raise plan entry, divided by the port's
     /// current tier — the standing bias toward deepening young ports first.</summary>
     public double PortRaisePlanScore { get; set; } = 0.5;
+    /// <summary>Colony-batch score multiplier when expansion points sit
+    /// ready with no colony hull in reserve — stranded settlers outrank
+    /// routine shipbuilding (slice CE).</summary>
+    public double ColonyNeedBoost { get; set; } = 6.0;
     /// <summary>How hard the scheduler leans toward supplied sites (stage 2,
     /// spec §4b "Planner consequence"): entry scores scale by
     /// 1 − w + w·coverage, coverage = the site larder's share of the whole

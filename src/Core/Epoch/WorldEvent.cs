@@ -45,6 +45,7 @@ public enum WorldEventType
     PrecursorSiteCharted = 208,
     PlagueOutbreak = 209,
     PlagueBurnedOut = 210,
+    ProjectAbandoned = 211,
     PolityEmerged = 300,
     PortEstablished = 301,
     SchismDeclared = 302,
@@ -163,6 +164,12 @@ public sealed record PortTierRaisedPayload(int PortId, int NewTier) : EventPaylo
 public sealed record FamineStruckPayload(int PortId, double Shortfall) : EventPayload;
 
 public sealed record FacilityBuiltPayload(int FacilityId, int TypeId, int Tier) : EventPayload;
+
+/// <summary>In-flight work abandoned after starving too long (spec §3:
+/// "the next replan cancels hopeless work") — the ruin is P1 residue; the
+/// kickoff's carried chronicle gap, closed in slice CE.</summary>
+public sealed record ProjectAbandonedPayload(int ProjectId, int Kind,
+    double YearsDelivered) : EventPayload;
 
 public sealed record LoanIssuedPayload(
     int LoanId, int LenderActorId, int BorrowerActorId, double Principal) : EventPayload;

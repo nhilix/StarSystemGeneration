@@ -68,6 +68,11 @@ public sealed class Project
     /// <summary>Fraction of the year-scaled basket met last Advance —
     /// the REPL's starvation readout.</summary>
     public double LastFedFraction { get; set; } = 1.0;
+    /// <summary>Consecutive world-years essentially unfed — the abandon
+    /// clock (spec §3: "the next replan cancels hopeless work"; slice CE
+    /// implements it — a starving batch must not blockade its yard slot
+    /// forever). Any real feeding resets it.</summary>
+    public double StarvedYears { get; set; }
 
     // Completion payload, sparse by kind:
     /// <summary>FacilityConstruction/GatePair: InfraTypeId. HullBatch:

@@ -447,7 +447,8 @@ public static class ArtifactSerializer
                 R(p.LastFedFraction), p.TypeId.ToString(Inv),
                 p.TargetId.ToString(Inv), p.Count.ToString(Inv),
                 R(p.AccumGrade), R(p.AccumGradeWeight),
-                string.Join(";", basket), string.Join(";", yard)));
+                string.Join(";", basket), string.Join(";", yard),
+                R(p.StarvedYears)));
         }
 
         Layer(w, "shipments");
@@ -1435,6 +1436,8 @@ public static class ArtifactSerializer
                                 project.DeliveredGrade[good] =
                                     double.Parse(t[2], Inv);
                             }
+                        if (f.Length > 24)
+                            project.StarvedYears = double.Parse(f[24], Inv);
                         state.Projects.Add(project);
                         break;
                     }
@@ -1570,6 +1573,9 @@ public static class ArtifactSerializer
             R(e.Shortfall)),
         FacilityBuiltPayload e => Join("facilityBuilt", e.FacilityId.ToString(Inv),
             e.TypeId.ToString(Inv), e.Tier.ToString(Inv)),
+        ProjectAbandonedPayload e => Join("projectAbandoned",
+            e.ProjectId.ToString(Inv), e.Kind.ToString(Inv),
+            R(e.YearsDelivered)),
         LoanIssuedPayload e => Join("loanIssued", e.LoanId.ToString(Inv),
             e.LenderActorId.ToString(Inv), e.BorrowerActorId.ToString(Inv),
             R(e.Principal)),
@@ -1740,6 +1746,9 @@ public static class ArtifactSerializer
             double.Parse(f[at + 2], Inv)),
         "facilityBuilt" => new FacilityBuiltPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv)),
+        "projectAbandoned" => new ProjectAbandonedPayload(
+            int.Parse(f[at + 1], Inv), int.Parse(f[at + 2], Inv),
+            double.Parse(f[at + 3], Inv)),
         "loanIssued" => new LoanIssuedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv), int.Parse(f[at + 3], Inv),
             double.Parse(f[at + 4], Inv)),

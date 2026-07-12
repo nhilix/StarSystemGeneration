@@ -939,7 +939,7 @@ public static class MarketEngine
         {
             double refund = OrderOps.CancelBuy(state, order);
             if (refund > 0)
-                state.PolityOf(order.OwnerActorId).Credits += refund;
+                state.LedgerOf(order.OwnerActorId).Credits += refund;
         }
 
         // consequences: famine arithmetic and the SoL drift

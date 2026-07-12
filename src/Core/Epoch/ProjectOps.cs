@@ -200,6 +200,24 @@ public static class ProjectOps
                 double need = Math.Min(span,
                     p.YearsRequired - p.YearsDelivered);
                 if (need > 0) Feed(state, p, need);
+                // hopeless work is cancelled, not carried forever: a
+                // project starved past the abandon window releases its
+                // slots and chronicles the ruin (spec §3; P1 residue)
+                if (p.InFlight && p.StarvedYears
+                        >= state.Config.Economy.ProjectAbandonYears
+                    && p.Kind != ProjectKind.ColonyExpedition)
+                {
+                    Cancel(state, p);
+                    state.Staged.Add(new StagedEvent(
+                        ClockStratum.Generational,
+                        WorldEventType.ProjectAbandoned,
+                        new[] { p.OwnerActorId }, p.Hex,
+                        Magnitude: p.Progress, Valence: -0.4,
+                        EventVisibility.Regional,
+                        new ProjectAbandonedPayload(p.Id, (int)p.Kind,
+                                                    p.YearsDelivered)));
+                    continue;
+                }
                 if (p.YearsDelivered >= p.YearsRequired - 1e-9)
                 {
                     // the true delivery year sits inside the span: the
@@ -315,6 +333,10 @@ public static class ProjectOps
         p.YearsDelivered = Math.Min(p.YearsRequired,
             p.YearsDelivered + fraction * needYears);
         p.LastFedFraction = fraction;
+        // the abandon clock: essentially-unfed spans accumulate, real
+        // feeding resets (spec §3 — hopeless work gets cancelled)
+        if (fraction < 0.05) p.StarvedYears += needYears;
+        else p.StarvedYears = 0;
         if (p.Kind == ProjectKind.Mobilization && FunderPolity(state,
                 p.OwnerActorId) is PolityRecord mob)
             mob.Mobilization = Math.Max(mob.Mobilization, p.Progress);
@@ -507,13 +529,16 @@ public static class ProjectOps
                 return;
             }
         var actor = state.Actors[p.OwnerActorId];
-        // the colony ship becomes the colony
+        // the colony ship becomes the colony — the scrap counter follows
+        // the CONVOY's owner: a staging-port conquest can transfer the
+        // project while the fleet keeps its flag, and crediting the
+        // conqueror double-books both ledgers (hull-ledger fix, slice CE)
         if (convoy != null)
             foreach (var g in convoy.Hulls)              // design-id order
                 if (state.Designs[g.DesignId].Role == ShipRole.Colony)
                 {
                     convoy.RemoveHulls(g.DesignId, 1);
-                    record.HullsScrapped++;
+                    state.PolityOf(convoy.OwnerActorId).HullsScrapped++;
                     break;
                 }
         // the founding stamps carry the interpolated ARRIVAL year (review
