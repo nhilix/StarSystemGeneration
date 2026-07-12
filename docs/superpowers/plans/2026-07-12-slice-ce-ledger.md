@@ -88,9 +88,26 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   (colonization pace ~24 ports vs main 44, port-raise completions, CivilWar
   4-port fixtures, FineTick completions band, GenesisShape) — the C6 gate's
   tuning work, tracked below.
-- [ ] **C6 — B1 gate.** Conservation sweeps (credits incl. escrows; goods
-  incl. orders); FineTick honesty (1y vs 25y cleared totals in bands);
-  shape check vs main; REPL `ebook <port> [good]`; determinism ×2.
+- [x] **C6 — B1 gate: suite 738/739 (GOLDEN-only red).** The shape
+  recovery, in order: colony-need boost (Planner score ×
+  `Controller.ColonyNeedBoost` + yard weight 0.6→1.5 when settlers wait —
+  hull famine was THE colonization throttle, funnel-measured);
+  expedition-contention closed BOTH ways (perception filters convoy-
+  contested candidates; TryFound blocks same-step races in actor order —
+  the T2 turn-back flag closed); `RealmHungerGate` 0.8→0.7 (bands pay for
+  food now; the realm-subsistence equilibrium is structurally leaner);
+  tier-1 port raises drop the RefinedExotics term (basket × (tier−1) —
+  frontier raises could never source exotics and starved to abandonment;
+  design-doc amendment due at C19); CivilWar fixtures run 32 epochs (works
+  buy goods → the 4-port polity arrives later); the ports-vs-actors shape
+  bars count POLITY actors only (corps inflated the old proxy).
+  Conservation sweeps green (credits incl. escrow, hull ledger); FineTick
+  honesty green; determinism ×2 green (FullRun s1==s2 + FineTick suite).
+  CARRIED to C18 tuning: capital-goods chains (Composites/RefinedExotics)
+  run anemic — uniform-scarcity ceilings kill relay gradients and B1's
+  bridge can't route industrial feedstock multi-hop; B2's resting corp
+  bids/spread runs are the designed fix. Port raises complete rarely
+  (tier-2+ still exotics-gated) — watch at the eyeball.
 
 ### B2 — actors close the spreads
 

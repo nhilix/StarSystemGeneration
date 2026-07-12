@@ -101,9 +101,15 @@ public class GenesisShapeTests
 
         // entered on schedule — or retired since (slice H: mergers)
         Assert.All(state.Actors, a => Assert.True(a.Entered || a.Retired));
-        Assert.True(state.Ports.Count > state.Actors.Count,
+        // polity actors only: corporations are actors without homeworlds,
+        // and counting them let a lively corporate sector raise the bar
+        // against colonization (slice CE fixed the sloppy proxy)
+        int polities = 0;
+        foreach (var a in state.Actors)
+            if (a.Kind == ActorKind.Polity) polities++;
+        Assert.True(state.Ports.Count > polities,
             $"colonization should outrun the homeworlds "
-            + $"({state.Ports.Count} ports, {state.Actors.Count} polities)");
+            + $"({state.Ports.Count} ports, {polities} polities)");
         Assert.True(state.Lanes.Count > 0, "lane networks should build");
         Assert.True(state.Fleets.Count > 0, "navies should exist");
         // the deep chronicle stays the floor; the generational story stacks on it

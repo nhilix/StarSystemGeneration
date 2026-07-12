@@ -1008,8 +1008,12 @@ public sealed class FleetKnobs
 public sealed class ControllerKnobs
 {
     /// <summary>No expeditions while realm mean subsistence sits below this —
-    /// consolidation before expansion.</summary>
-    public double RealmHungerGate { get; set; } = 0.8;
+    /// consolidation before expansion. Recalibrated 0.8 → 0.7 for the
+    /// contract economy (slice CE): bands PAY for food now, so the realm
+    /// subsistence equilibrium sits structurally leaner — the old gate held
+    /// half the galaxy's colonization hostage to frontier hunger it could
+    /// only fix by colonizing.</summary>
+    public double RealmHungerGate { get; set; } = 0.7;
     /// <summary>Provisions reserve target per owned port — famine and siege
     /// buffering by standing policy (economy/markets.md §Stockpiles).</summary>
     public double ProvisionsReservePerPort { get; set; } = 3.0;

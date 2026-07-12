@@ -921,8 +921,12 @@ public sealed class AllocationPhase : ISimPhase
             ex.PortUpgradeAlloysPerYearPerTier * port.Tier;
         proj.PerYearBasket[(int)Substrate.GoodId.Machinery] =
             ex.PortUpgradeMachineryPerYearPerTier * port.Tier;
+        // exotics enter at tier 2+: a frontier port's first raise is
+        // conventional engineering — refined exotics are deep-space-tier
+        // infrastructure (slice CE amendment; a tier-1 colony could never
+        // source them and every frontier raise starved to abandonment)
         proj.PerYearBasket[(int)Substrate.GoodId.RefinedExotics] =
-            ex.PortUpgradeExoticsPerYearPerTier * port.Tier;
+            ex.PortUpgradeExoticsPerYearPerTier * (port.Tier - 1);
         proj.WagesPerYear = baseCost / years;
     }
 
@@ -1063,6 +1067,14 @@ public sealed class ResolutionPhase : ISimPhase
             || cell.IsVoid) return false;
         foreach (var p in state.Ports)
             if (p.Hex.Equals(act.Target)) return false;   // hex taken (or lost the collision)
+        // a rival convoy already sailing for the hex wins the race here,
+        // not two years out at a turn-back: perception's contention filter
+        // can't see same-step spawns, but Resolution runs in actor order —
+        // the earlier actor's expedition exists by now (slice CE, closing
+        // the T2 turn-back-contention flag)
+        foreach (var p in state.Projects)                 // id order (P6)
+            if (p.InFlight && p.Kind == ProjectKind.ColonyExpedition
+                && p.Hex.Equals(act.Target)) return false;
         bool inReach = false;
         foreach (var p in state.Ports)
             if (p.OwnerActorId == act.ActorId

@@ -12,7 +12,11 @@ public class ExpansionTests
     {
         var (_, state) = EpochTestKit.Seeded();
         new EpochEngine().Run(state);
-        int homeworlds = state.Actors.Count;
+        // homeworlds belong to POLITIES: corporations are actors too, and
+        // counting them let a lively corporate sector raise the bar against
+        // colonization (slice CE fixed the sloppy proxy)
+        int homeworlds = state.Actors.Count(
+            a => a.Kind == ActorKind.Polity);
         Assert.True(state.Ports.Count > homeworlds,
             $"expected colonies beyond {homeworlds} homeworld ports, got {state.Ports.Count}");
         Assert.Contains(state.Log.Events, e => e.Type == WorldEventType.PortEstablished);

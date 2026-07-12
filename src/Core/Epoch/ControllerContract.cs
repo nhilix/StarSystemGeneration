@@ -520,8 +520,12 @@ public sealed class GenesisController : IController
                         builds[brief.DesignId] = atWar ? 0.3 : 1.0;
                         break;
                     case ShipRole.Colony:
+                        // stranded settlers outrank the haulers at the yard
+                        // (slice CE: the funnel showed hull famine as THE
+                        // colonization throttle — 0.6 won too few D'Hondt
+                        // slots against freight's 1.0)
                         builds[brief.DesignId] = atWar ? 0.02
-                            : perceived.ColonyHullsAvailable == 0 ? 0.6 : 0.05;
+                            : perceived.ColonyHullsAvailable == 0 ? 1.5 : 0.05;
                         break;
                     case ShipRole.Scout:
                         builds[brief.DesignId] = 0.1;
