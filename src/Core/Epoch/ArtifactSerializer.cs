@@ -31,7 +31,7 @@ public static class ArtifactSerializer
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 1),
-        ("shipments", 1),
+        ("shipments", 1), ("orders", 1),
     };
 
     public static string ToText(SimState state)
@@ -465,6 +465,18 @@ public static class ArtifactSerializer
                 s.DepartureYear.ToString(Inv), R(s.YearsInTransit),
                 string.Join(";", legs), string.Join(";", cargo)));
         }
+
+        Layer(w, "orders");
+        // live orders only (fills and cancels leave the registry); the
+        // counter keeps order identity stable (contract-economy spec §1)
+        w.WriteLine(Join("ORDNEXT", state.NextOrderId.ToString(Inv)));
+        foreach (var o in state.Orders)
+            w.WriteLine(Join("ORDER", o.Id.ToString(Inv),
+                ((int)o.Side).ToString(Inv), o.OwnerActorId.ToString(Inv),
+                o.PortId.ToString(Inv), o.Good.ToString(Inv),
+                R(o.LimitPrice), R(o.QtyRemaining), R(o.Grade),
+                R(o.EscrowCredits), o.PostedYear.ToString(Inv),
+                o.ExpiryYear.ToString(Inv)));
         w.WriteLine("END");
     }
 
@@ -1411,6 +1423,19 @@ public static class ArtifactSerializer
                     }
                     case "SHIPNEXT":
                         state!.NextShipmentId = int.Parse(f[1], Inv);
+                        break;
+                    case "ORDNEXT":
+                        state!.NextOrderId = int.Parse(f[1], Inv);
+                        break;
+                    case "ORDER":
+                        state!.Orders.Add(new MarketOrder(
+                            int.Parse(f[1], Inv),
+                            (OrderSide)int.Parse(f[2], Inv),
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            int.Parse(f[5], Inv), double.Parse(f[6], Inv),
+                            double.Parse(f[7], Inv), double.Parse(f[8], Inv),
+                            double.Parse(f[9], Inv), int.Parse(f[10], Inv),
+                            int.Parse(f[11], Inv)));
                         break;
                     case "SHIP":
                     {

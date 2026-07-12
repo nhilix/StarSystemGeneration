@@ -31,10 +31,17 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
 
 ### B1 — order-book substrate
 
-- [ ] **C1 — MarketOrder record + escrow primitives.** `MarketOrder`,
-  `SimState.Orders`, post/fill/cancel/expire with physical escrow; `ORDERS`
-  serialization layer. Tests: credit+goods conservation through post/fill/
-  refund, expiry refund, id-order iteration, serializer round-trip.
+- [x] **C1 — MarketOrder record + escrow primitives.** COMPLETE.
+  `MarketOrder` (physical escrow: sells hold qty+grade, buys hold credits;
+  bid-limit surplus stays escrowed until cancel so refunds return where the
+  escrow came from — segments have no ledger), `OrderOps`
+  (PostSell/PostBuy/Fill/CancelSell/CancelBuy; fill at maker price = the
+  earlier id's limit; dead orders prune from the registry, `NextOrderId`
+  keeps identity), `SimState.Orders`, `orders` serializer layer v1
+  (ORDNEXT/ORDER). 5 tests green; suite 731/732 — the one red is the
+  GOLDEN byte-comparison, the sanctioned window now OPEN (re-freeze at
+  C18). Expiry sweep deliberately deferred to C3 (owner-specific landing:
+  polity sells → port stock, corp sells → reprice in place).
 - [ ] **C2 — matching.** Book views in scratch; per-(port, good) cross
   while best bid ≥ best ask at maker price; ties (price, order id);
   transaction tax per fill to port sovereign; labor share of facility
