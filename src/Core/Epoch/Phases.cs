@@ -474,24 +474,13 @@ public sealed class AllocationPhase : ISimPhase
         int years = state.Config.Sim.YearsPerEpoch;
         foreach (var port in ownPorts)                        // id order (P6)
         {
-            int depotTiers = 0;
-            foreach (var f in state.Facilities)               // id order (P6)
-                if (f.TypeId == (int)Substrate.InfraTypeId.Depot
-                    && f.OwnerActorId == pr.ActorId
-                    && MarketEngine.IsActive(state, f)
-                    && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
-                    depotTiers += f.Tier;
-            double cut = Math.Pow(eco.DepotDecayFactor, depotTiers);
+            double cut = Math.Pow(eco.DepotDecayFactor,
+                MarketEngine.ActiveDepotTiersAt(state, port));
             for (int g = 0; g < port.StockQty.Length; g++)
             {
                 if (port.StockQty[g] <= 0) continue;
-                double perish = (Substrate.GoodId)g switch
-                {
-                    Substrate.GoodId.Provisions => 10.0,
-                    Substrate.GoodId.Organics => 5.0,
-                    Substrate.GoodId.Medicine => 3.0,
-                    _ => 1.0,
-                };
+                double perish =
+                    MarketEngine.StockPerishFactor((Substrate.GoodId)g);
                 // compounded per world-year (P7, review fix 4): a 25-year
                 // step rots exactly what twenty-five 1-year steps rot
                 double keep = Math.Pow(Math.Max(0.0,
