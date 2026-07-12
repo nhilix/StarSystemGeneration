@@ -72,17 +72,29 @@ Core.Tests never references Inspector.
       onto classes (year readout retired, ActiveLegendKey/LensChanged
       exposed for T7) · scene setup builds one AtlasChrome GO ·
       EditMode 8/8, zero compile errors
-- [ ] **T3 — SelectionModel + picking + hover tooltip** (plane
-      intersection → `HexGrid.WorldToHex`/`CellOf`, no colliders; tooltip:
-      system summary, owner, port tier, live POI)
-- [ ] **T4 — InspectorDock + typed panels** (right side, pinnable;
-      AtlasPointerGuard extended, not duplicated)
-- [ ] **T5 — Open Threads opening screen** (opens on load; rows jump the
-      camera to their subjects)
-- [ ] **T6 — Top bar + registry drawer** (eye chip god/controller-reserved ·
-      world-year + epoch + era · config stamp · artifact load box; rail year
-      readout retires; drawer behind top-bar search)
-- [ ] **T7 — Per-lens LEGEND UI** (rail/dock chrome, LegendQuery-driven)
+- [x] **T3 — SelectionModel + picking + hover tooltip**: plane
+      intersection → WorldToHex, no colliders; click-vs-drag by pointer
+      wander; priority port → site → freight → fleet → live POI → hex;
+      selection ring quad; HexTooltip rides AtlasChrome's picking-ignored
+      layer (HexQuery: system summary · owners · port tier · live POI)
+- [x] **T4 — InspectorDock + typed panels**: pinnable (PIN keeps for
+      comparison, unpinned replaced), X closes; PanelViews builds every
+      §9 panel over the T1 queries (Polity w/ plan+reserves, Market w/
+      larder, Project, Shipment, Fleet+Designs, Wars/War, Relations,
+      Character, Corporations w/ funded links, POI, Beliefs, News+journey,
+      Stances, Chronicle/Place/Eras, Find, Goods, Knobs, Stats); port
+      click opens Market AND owner Polity (the eyeball line); guard owned
+      by AtlasChrome alone; dock ScrollView chain picking-ignored
+- [x] **T5 — Open Threads opening screen**: opens on SimHost.Loaded;
+      each row jumps the camera to its subject hex (HandoffQueries)
+- [x] **T6 — Top bar + registry drawer**: GOD ▮ eye chip (controller
+      reserved) · y/epoch + era name (EraQueries) · config stamp (seed,
+      radius, artifact) · THREADS/STATS/GOODS/KNOBS drawer buttons ·
+      find search (Enter → Find panel w/ jump+open) · artifact load box
+- [x] **T7 — Per-lens LEGEND UI**: LegendPanel over LegendQuery keyed by
+      LensRail.ActiveLegendKey; glyph swatches sprite-crop the authored
+      atlas by enum cell; EditMode LegendDriftTests pin GlyphKey↔AtlasGlyph
+      (10/10 EditMode)
 - [ ] **T8 — Acceptance tooling**: panel capture in AtlasSmoke or gate on
       in-editor eyeball (UI Toolkit doesn't render via cam.Render());
       EditMode tests where they pay

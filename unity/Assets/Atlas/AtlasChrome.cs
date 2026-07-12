@@ -65,8 +65,11 @@ namespace StarGen.AtlasView
 
             _dock = new ScrollView(ScrollViewMode.Vertical);
             _dock.AddToClassList("ssg-dock");
-            // an empty dock must not eat map clicks down its whole column
+            // an empty dock must not eat map clicks down its whole column —
+            // the ScrollView's own chain (root, viewport, container) all
+            // ignore; only the panels inside pick
             _dock.pickingMode = PickingMode.Ignore;
+            _dock.contentViewport.pickingMode = PickingMode.Ignore;
             _dock.contentContainer.pickingMode = PickingMode.Ignore;
 
             _legend = new VisualElement();
