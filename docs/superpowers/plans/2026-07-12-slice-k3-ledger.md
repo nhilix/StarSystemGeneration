@@ -122,6 +122,14 @@ Core.Tests never references Inspector.
 - [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
       numbers incl. larder; click site → starvation readout; threads rows
       jump camera; menu scene eyeball folded in)
+  - Eyeball wave 1 (2026-07-12): (1) atlas PanelSettings was
+    ConstantPhysicalSize — tiny on big displays; now ScaleWithScreenSize
+    @1920x1080, match height (the menu builder already did this) ·
+    (2) panels earn more space: dock 340->470px, panel max-height
+    46%->60%, body type 11->13px, chips 22->27px, rail 200->236px, all
+    chrome type up 2px · (3) scroll bars HIDDEN everywhere (wheel
+    scrolling stays — ScrollerVisibility.Hidden on rail, dock, panel
+    bodies; AtlasChrome.HideScrollers is the one place)
 - [ ] **T12 — Wrap-up**: merge · HANDOFF · tick K3 in roadmap · write K4
       kickoff (timeline) · republish diagram (§9 Project/Shipment rows +
       larder/plan additions) · push on say-so

@@ -62,6 +62,7 @@ namespace StarGen.AtlasView
 
             _rail = new ScrollView(ScrollViewMode.Vertical);
             _rail.AddToClassList("ssg-rail");
+            HideScrollers(_rail);
 
             _dock = new ScrollView(ScrollViewMode.Vertical);
             _dock.AddToClassList("ssg-dock");
@@ -71,6 +72,7 @@ namespace StarGen.AtlasView
             _dock.pickingMode = PickingMode.Ignore;
             _dock.contentViewport.pickingMode = PickingMode.Ignore;
             _dock.contentContainer.pickingMode = PickingMode.Ignore;
+            HideScrollers(_dock);
 
             _legend = new VisualElement();
             _legend.AddToClassList("ssg-legend");
@@ -92,6 +94,14 @@ namespace StarGen.AtlasView
             root.Add(_legend);
             root.Add(_tooltipLayer);
             _built = true;
+        }
+
+        /// <summary>Chrome never shows scroll bars (the eyeball note):
+        /// scrolling is a natural result of the wheel, not a widget.</summary>
+        public static void HideScrollers(ScrollView scroll)
+        {
+            scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
         }
 
         /// <summary>True when the screen position (input-system coords,

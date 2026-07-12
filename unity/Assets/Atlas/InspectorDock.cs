@@ -198,6 +198,7 @@ namespace StarGen.AtlasView
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("ssg-panel__body");
+            AtlasChrome.HideScrollers(scroll);
             scroll.Add(body);
             panel.Add(scroll);
 
