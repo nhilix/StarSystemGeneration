@@ -187,6 +187,71 @@ public class FrontSupplyTests
     }
 
     [Fact]
+    public void WarCouriers_OutrankCommerce_AtTheJobBoard()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        EpochTestKit.AddLane(state, home.Id, fwd.Id);
+        EpochTestKit.PostFreight(state, pr.ActorId, 0, 4);
+        // slow boats: the crossing outlasts the step, so both contracts
+        // ride REGISTERED shipments and the dispatch order is observable
+        state.Config.Economy.FreightHexesPerYearBase = 0.1;
+        home.StockQty[(int)GoodId.Provisions] = 1000;
+        home.StockQty[(int)GoodId.Armaments] = 1000;
+        pr.Credits = 10000;
+        // commerce posts first (lower contract id), the war order second
+        var trade = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
+            new[] { ((int)GoodId.Provisions, 100.0) }, fee: 10,
+            CourierPriority.Normal);
+        var war = CourierOps.Post(state, pr.ActorId, home.Id, fwd.Id,
+            new[] { ((int)GoodId.Armaments, 100.0) }, fee: 10,
+            CourierPriority.War);
+        Assert.NotNull(trade);
+        Assert.NotNull(war);
+
+        CourierOps.AcceptOpen(state);
+
+        // the quartermaster's convoy sailed FIRST: its shipment id is the
+        // lower one even though its contract came second
+        Assert.Equal(CourierStatus.InTransit, war!.Status);
+        Assert.Equal(CourierStatus.InTransit, trade!.Status);
+        Assert.True(war.ShipmentId < trade.ShipmentId,
+            "War priority dispatches ahead of Normal");
+    }
+
+    [Fact]
+    public void ReadinessStarves_OnACutSupplyLine()
+    {
+        var (state, pr, home, fwd) = TwoPortRealm();
+        EpochTestKit.AddLane(state, home.Id, fwd.Id);
+        EpochTestKit.PostFreight(state, pr.ActorId, 0, 4);
+        var fleet = Deploy(state, pr.ActorId,
+            new HexCoordinate(fwd.Hex.Q + 2, fwd.Hex.R), home.Id);
+        // deep rear stores, bare depot, credits for fees — but the enemy
+        // sits on the only lane: convoys stall, the depot never fills
+        home.StockQty[(int)GoodId.Fuel] = 5000;
+        home.StockQty[(int)GoodId.Armaments] = 5000;
+        pr.Credits = 10000;
+        pr.MilitaryPoints = 10000;
+        var a1 = state.Actors[1];
+        a1.Entered = true;
+        EpochTestKit.BlockadePort(state, a1.Id, fwd.Id);
+
+        double before = fleet.Readiness;
+        for (int i = 0; i < 3; i++)
+        {
+            ShipmentOps.StockDepots(state, pr);
+            CourierOps.AcceptOpen(state);
+            var scratch = new MarketStepScratch(state);
+            ShipmentOps.Advance(state, scratch);
+            FleetOps.SupplyFleets(state, pr);
+        }
+
+        Assert.True(fleet.Readiness < before,
+            "a cut supply line should bleed the front's readiness");
+        Assert.Equal(0.0, fwd.StockQty[(int)GoodId.Fuel], 6);
+    }
+
+    [Fact]
     public void StationedFleet_StillDrawsItsHomePort()
     {
         var (state, pr, home, fwd) = TwoPortRealm();

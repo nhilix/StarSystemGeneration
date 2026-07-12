@@ -90,9 +90,18 @@ public class DynasticInstrumentTests
         var claim = rel.Claims.FirstOrDefault(c =>
             c.Type == ClaimType.Succession && !c.Released);
         Assert.NotNull(claim);
-        // the claim names a reigning house of its holder
-        Assert.Equal(claim!.SubjectId,
-            RelationsOps.RulingDynasty(state, claim.HolderPolityId));
+        // the claim names a house of its holder — the one reigning at the
+        // lapse. The ruler can die LATER in this same step; releasing a
+        // claim whose line lost the throne is the NEXT Relations step's
+        // job (eventually consistent by design), so live-claim ⇒
+        // currently-reigning is too strong to assert here.
+        Assert.True(claim!.SubjectId >= 0);
+        Assert.True(
+            claim.SubjectId
+                == RelationsOps.RulingDynasty(state, claim.HolderPolityId)
+            || state.Dynasties[claim.SubjectId].PolityId
+                == claim.HolderPolityId,
+            "the claim should name a house of its holder");
     }
 
     [Fact]
