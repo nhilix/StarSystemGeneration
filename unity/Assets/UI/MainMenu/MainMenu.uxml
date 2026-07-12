@@ -1,0 +1,53 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="MainMenu.uss" />
+    <ui:VisualElement name="menu-root" class="ssg-menu">
+        <ui:VisualElement name="crt" class="ssg-menu__crt">
+            <ui:VisualElement name="crt-head" class="ssg-menu__strip ssg-menu__strip--head">
+                <ui:Label text="SSG/OS 0.K — SURVEY CONTROL" class="ssg-menu__strip-label" />
+                <ui:VisualElement class="ssg-spacer" />
+                <ui:Label text="RDY" class="ssg-menu__strip-label" />
+                <ui:Label name="cursor-status" text="▮" class="ssg-menu__cursor ssg-menu__cursor--strip" />
+            </ui:VisualElement>
+            <ui:VisualElement name="crt-body" class="ssg-menu__body">
+                <ui:VisualElement name="starfield" class="ssg-menu__starfield" picking-mode="Ignore" />
+                <ui:VisualElement name="scanlines" class="ssg-menu__scanlines" picking-mode="Ignore" />
+                <ui:Label text="STAR SYSTEM" class="ssg-menu__title" />
+                <ui:Label text="GENERATION" class="ssg-menu__title" />
+                <ui:Label text="DETERMINISTIC GALAXY SURVEY" class="ssg-menu__sub" />
+                <ui:VisualElement class="ssg-menu__prompt-row">
+                    <ui:Label text="&gt; SELECT FUNCTION" class="ssg-menu__prompt" />
+                    <ui:Label name="cursor-prompt" text="▮" class="ssg-menu__cursor" />
+                </ui:VisualElement>
+                <ui:VisualElement class="ssg-menu__list">
+                    <ui:VisualElement name="row-new" class="ssg-menu__row">
+                        <ui:Label text="F1" class="ssg-menu__fkey" />
+                        <ui:Label text="NEW GALAXY" class="ssg-menu__row-label" />
+                        <ui:TextField name="seed" value="ORION-772" class="ssg-menu__seed" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="row-continue" class="ssg-menu__row">
+                        <ui:Label text="F2" class="ssg-menu__fkey" />
+                        <ui:Label text="CONTINUE" class="ssg-menu__row-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="row-load" class="ssg-menu__row">
+                        <ui:Label text="F3" class="ssg-menu__fkey" />
+                        <ui:Label text="LOAD GALAXY" class="ssg-menu__row-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="row-settings" class="ssg-menu__row">
+                        <ui:Label text="F4" class="ssg-menu__fkey" />
+                        <ui:Label text="SETTINGS" class="ssg-menu__row-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="row-quit" class="ssg-menu__row ssg-menu__row--quit">
+                        <ui:Label text="F5" class="ssg-menu__fkey" />
+                        <ui:Label text="QUIT" class="ssg-menu__row-label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="ssg-spacer" />
+            </ui:VisualElement>
+            <ui:VisualElement name="crt-foot" class="ssg-menu__strip ssg-menu__strip--foot">
+                <ui:Label text="DETERMINISTIC KERNEL // SAME SEED, SAME SKY" class="ssg-menu__strip-label ssg-menu__strip-label--dim" />
+                <ui:VisualElement class="ssg-spacer" />
+                <ui:Label text="SSG · BUILD 0.K" class="ssg-menu__strip-label ssg-menu__strip-label--dim" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
