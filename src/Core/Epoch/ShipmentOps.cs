@@ -23,10 +23,27 @@ public static class ShipmentOps
         ShipmentChannel channel, int fromPortId, int toPortId,
         IReadOnlyList<(int Good, double Qty, double Grade)> basket,
         MarketStepScratch? scratch = null)
+        => Dispatch(state, ownerActorId, channel, fromPortId, toPortId,
+                    basket, scratch, out _);
+
+    /// <summary>Dispatch reporting what became of a sub-step resolution —
+    /// couriers need delivered vs pirated (slice CE).</summary>
+    internal static Shipment? Dispatch(SimState state, int ownerActorId,
+        ShipmentChannel channel, int fromPortId, int toPortId,
+        IReadOnlyList<(int Good, double Qty, double Grade)> basket,
+        MarketStepScratch? scratch, out SailOutcome outcome)
     {
         var (laneIds, legYears) = PlanRoute(state, fromPortId, toPortId);
-        return DispatchVia(state, ownerActorId, channel, fromPortId,
-            toPortId, laneIds, legYears, basket, scratch);
+        var s = new Shipment(state.NextShipmentId++, ownerActorId, channel,
+            fromPortId, toPortId, state.WorldYear, laneIds, legYears);
+        Fill(s, basket);
+        var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
+        outcome = Sail(state, scratch, severed, HunterMap(state), s,
+                       state.Config.Sim.YearsPerEpoch);
+        if (outcome != SailOutcome.InTransit)
+            return null;                     // delivered or taken this step
+        state.Shipments.Add(s);
+        return s;
     }
 
     /// <summary>Dispatch over an already-chosen route — arbitrage moves on
@@ -105,15 +122,22 @@ public static class ShipmentOps
         var hunters = HunterMap(state);
         List<int>? resolved = null;                       // indexes done
         for (int i = 0; i < state.Shipments.Count; i++)   // id order (P6)
-            if (Sail(state, scratch, scratch.Severed, hunters,
-                    state.Shipments[i], span) != SailOutcome.InTransit)
-                (resolved ??= new List<int>()).Add(i);
+        {
+            var outcome = Sail(state, scratch, scratch.Severed, hunters,
+                               state.Shipments[i], span);
+            if (outcome == SailOutcome.InTransit) continue;
+            (resolved ??= new List<int>()).Add(i);
+            // a courier's cargo resolved with its shipment: delivery pays
+            // the fee, a loss refunds it (slice CE)
+            var courier = CourierOps.OfShipment(state, state.Shipments[i].Id);
+            if (courier != null) CourierOps.Resolve(state, courier, outcome);
+        }
         if (resolved != null)
             for (int i = resolved.Count - 1; i >= 0; i--)
                 state.Shipments.RemoveAt(resolved[i]);
     }
 
-    private enum SailOutcome { InTransit = 0, Arrived = 1, Lost = 2 }
+    internal enum SailOutcome { InTransit = 0, Arrived = 1, Lost = 2 }
 
     /// <summary>Hunted lanes: active raiding bands, first band by corp id
     /// claims a lane (P6). Lookup-only — iteration never touches it.</summary>
@@ -253,7 +277,9 @@ public static class ShipmentOps
                     if (need > 1e-6) { want[g] = need; any = true; }
                 }
                 if (!any) continue;
-                raised += OrderFromOwnPorts(state, pr, end, want);
+                raised += OrderFromOwnPorts(state, pr, end, want,
+                    p.Priority == ProjectPriority.War
+                        ? CourierPriority.War : CourierPriority.Normal);
             }
         }
         // pre-positioning (spec §4b "Planner consequence"): due-soon plan
@@ -291,7 +317,8 @@ public static class ShipmentOps
                     if (need > 1e-6) { want[g] = need; any = true; }
                 }
                 if (!any) continue;
-                raised += OrderFromOwnPorts(state, pr, entry.PortId, want);
+                raised += OrderFromOwnPorts(state, pr, entry.PortId, want,
+                                            CourierPriority.Normal);
             }
         }
         return raised;
@@ -326,35 +353,54 @@ public static class ShipmentOps
         return false;
     }
 
-    /// <summary>Fill the site's want from own ports' stock, port-id order
-    /// (P6; nearest-first sourcing is the contract economy's refinement).
-    /// A source keeps its share of the standing stockpile target — those
-    /// stores exist for fleets, sieges, and famines; requisitions move
-    /// only the excess above policy.</summary>
+    /// <summary>Fill the site's want from own ports' stock as POSTED
+    /// COURIER CONTRACTS (contract economy, spec §3): sources rank by
+    /// DELIVERED TIME (route transit years, then port id) — nearest-first
+    /// replaced the old port-id order — and the state's hauling now costs
+    /// freight fees paid to whoever's hulls take the job. A source keeps
+    /// its share of the standing stockpile target — those stores exist for
+    /// fleets, sieges, and famines; requisitions move only the excess
+    /// above policy.</summary>
     private static int OrderFromOwnPorts(SimState state, PolityRecord pr,
-                                         int sitePortId, double[] want)
+        int sitePortId, double[] want, CourierPriority priority)
     {
+        var eco = state.Config.Economy;
         var targets = (state.Actors[pr.ActorId].Policies as PolityPolicies
                        ?? PolityPolicies.Default).StockpileTargets;
         int ownPorts = 0;
         foreach (var port in state.Ports)
             if (port.OwnerActorId == pr.ActorId) ownPorts++;
-        int raised = 0;
-        var basket = new List<(int Good, double Qty, double Grade)>();
+        // delivered-time sourcing: transit years ascending, port id tiebreak
+        var sources = new List<(Port Port, double Years,
+                                IReadOnlyList<int> LaneIds)>();
         foreach (var src in state.Ports)                  // id order (P6)
         {
             if (src.OwnerActorId != pr.ActorId || src.Id == sitePortId)
                 continue;
-            basket.Clear();
             var (laneIds, legYears) = PlanRoute(state, src.Id, sitePortId);
+            double years = 0;
+            foreach (var y in legYears) years += y;
+            sources.Add((src, years, laneIds));
+        }
+        sources.Sort((x, y) =>
+        {
+            int c = x.Years.CompareTo(y.Years);
+            return c != 0 ? c : x.Port.Id.CompareTo(y.Port.Id);
+        });
+        int raised = 0;
+        var basket = new List<(int Good, double Qty)>();
+        foreach (var (src, _, laneIds) in sources)
+        {
+            basket.Clear();
             // capacity honesty: the order can't exceed what the route's
             // weakest lane carries over the provisioning window
             double window = state.Config.Sim.YearsPerEpoch
-                            + state.Config.Economy.RequisitionLeadYears;
+                            + eco.RequisitionLeadYears;
             double cap = double.MaxValue;
             foreach (var laneId in laneIds)
                 cap = Math.Min(cap,
                     LaneMath.Capacity(state, state.Lanes[laneId]) * window);
+            double units = 0;
             foreach (var g in OrderedGoods(want))
             {
                 if (cap <= 1e-9) break;
@@ -367,15 +413,19 @@ public static class ShipmentOps
                 double spare = src.StockQty[g] - keep;
                 double qty = Math.Min(Math.Min(want[g], spare), cap);
                 if (qty <= 1e-9) continue;
-                double grade = src.StockGrade[g];
-                basket.Add((g, src.DrawStock(g, qty), grade));
+                basket.Add((g, qty));
                 want[g] -= qty;
                 cap -= qty;
+                units += qty;
             }
             if (basket.Count == 0) continue;
-            DispatchVia(state, pr.ActorId, ShipmentChannel.Requisition,
-                src.Id, sitePortId, laneIds, legYears, basket);
-            raised++;
+            // the state's hauling costs freight rates now: the fee prices
+            // the whole route's distance and pays whoever takes the job
+            double fee = units * eco.CourierFeePerUnitPerHex
+                * HexGrid.Distance(src.Hex, state.Ports[sitePortId].Hex);
+            if (CourierOps.Post(state, pr.ActorId, src.Id, sitePortId,
+                                basket, fee, priority) != null)
+                raised++;
         }
         return raised;
     }
@@ -397,7 +447,8 @@ public static class ShipmentOps
     }
 
     /// <summary>Requisition cargo already sailing toward the port for this
-    /// owner — counted so replans don't double-order.</summary>
+    /// owner — plus cargo escrowed on still-open couriers headed there —
+    /// counted so replans don't double-order.</summary>
     public static double Inbound(SimState state, int ownerActorId,
                                  int destPortId, int good)
     {
@@ -407,6 +458,11 @@ public static class ShipmentOps
                 && s.OwnerActorId == ownerActorId
                 && s.DestPortId == destPortId)
                 sum += s.Qty[good];
+        foreach (var c in state.Couriers)                 // id order (P6)
+            if (c.Status == CourierStatus.Open
+                && c.PosterActorId == ownerActorId
+                && c.DestPortId == destPortId)
+                sum += c.Qty[good];
         return sum;
     }
 

@@ -742,6 +742,10 @@ public sealed class EconomyKnobs
     /// world-years is abandoned at the next Advance (spec §3: hopeless
     /// work gets cancelled — it must not blockade slots forever).</summary>
     public double ProjectAbandonYears { get; set; } = 30.0;
+    /// <summary>Courier fee per unit of cargo per hex of straight-line
+    /// distance — what the state's hauling costs now that a fulfiller is
+    /// paid (contract economy).</summary>
+    public double CourierFeePerUnitPerHex { get; set; } = 0.02;
     /// <summary>Absolute price floor — gluts bottom out, never reach zero.</summary>
     public double PriceFloor { get; set; } = 0.01;
     /// <summary>Absolute ceiling as a multiple of the founding price — spikes

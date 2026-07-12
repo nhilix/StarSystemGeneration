@@ -253,6 +253,8 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         var scratch = new MarketStepScratch(state);
+        // stale job postings clear the board before anything sails
+        CourierOps.ExpireOpen(state);
         // in-flight freight sails first (spec §4b): this step's arrivals
         // post on the books and land in the larders BEFORE supply, demand,
         // and the Allocation draws that follow
@@ -383,6 +385,10 @@ public sealed class AllocationPhase : ISimPhase
             RunUpkeep(state, pr);
             DecayStockpiles(state, pr, ownPorts);
         }
+        // the job board clears: open couriers meet whoever's hulls sit on
+        // their first leg — the poster's own marine self-fulfills at cost
+        // (contract-economy spec §3)
+        CourierOps.AcceptOpen(state);
         // corporations run their portfolios on the same markets (slice G)
         int corporationsActive = CorporationOps.Operate(state);
         // laggards learn from the goods they buy and the wrecks they find
@@ -652,11 +658,13 @@ public sealed class AllocationPhase : ISimPhase
                 if (tier < 0) continue;                        // out of reach
                 if (!LaneNetwork.HasFreeGateSlot(state, a)
                     || !LaneNetwork.HasFreeGateSlot(state, b)) continue;
-                double cost = 2.0 * GateValue(cfg, tier);
+                // founding links are goods-free (the expedition shipped the
+                // pair's basket) — they only stream wages, so the
+                // affordability gate is HALF the pair value (slice CE: dev
+                // treasuries buy project goods now, and the full-pair gate
+                // left every tenth colony stranded off the network)
+                double cost = GateValue(cfg, tier);
                 if (pr.DevelopmentPoints < cost) continue;
-                // no stock-on-hand gate: the expedition shipped the founding
-                // pair's basket at departure (spec §4) — the project here
-                // streams wages only, and the lane opens on commission
                 bool otherOn = connected.Contains(other.Id);
                 if (pick == null || (otherOn && !pickConnected)
                     || (otherOn == pickConnected && (dist < pickDist

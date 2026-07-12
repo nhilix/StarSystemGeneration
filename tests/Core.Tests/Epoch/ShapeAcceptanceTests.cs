@@ -99,6 +99,9 @@ public class ShapeAcceptanceTests
         foreach (var p in state.Projects)
             if (p.InFlight && p.Kind == StarGen.Core.Epoch.ProjectKind.ColonyExpedition)
                 held += state.Config.Expansion.ColonyCost;
+        // courier fees are escrowed credits in flight (slice CE)
+        foreach (var c in state.Couriers)
+            held += c.FeeEscrow;
         Assert.True(minted > 0);
         Assert.Equal(minted, held, minted * 1e-9);
     }

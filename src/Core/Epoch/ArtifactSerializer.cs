@@ -31,7 +31,7 @@ public static class ArtifactSerializer
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
-        ("shipments", 1), ("orders", 1),
+        ("shipments", 1), ("orders", 1), ("couriers", 1),
     };
 
     public static string ToText(SimState state)
@@ -487,6 +487,26 @@ public static class ArtifactSerializer
                 R(o.LimitPrice), R(o.QtyRemaining), R(o.Grade),
                 R(o.EscrowCredits), o.PostedYear.ToString(Inv),
                 o.ExpiryYear.ToString(Inv)));
+
+        Layer(w, "couriers");
+        // open + in-transit only (resolutions retire the record); the
+        // counter keeps identity stable (contract-economy spec §1)
+        w.WriteLine(Join("COURNEXT", state.NextCourierId.ToString(Inv)));
+        foreach (var c in state.Couriers)
+        {
+            var cargo = new List<string>();
+            for (int g = 0; g < c.Qty.Length; g++)
+                if (c.Qty[g] != 0)
+                    cargo.Add(g.ToString(Inv) + ":" + R(c.Qty[g]) + ":"
+                              + R(c.Grade[g]));
+            w.WriteLine(Join("COURIER", c.Id.ToString(Inv),
+                c.PosterActorId.ToString(Inv), c.OriginPortId.ToString(Inv),
+                c.DestPortId.ToString(Inv), R(c.FeeEscrow),
+                ((int)c.Priority).ToString(Inv), c.PostedYear.ToString(Inv),
+                c.ExpiryYear.ToString(Inv), ((int)c.Status).ToString(Inv),
+                c.FulfillerActorId.ToString(Inv),
+                c.ShipmentId.ToString(Inv), string.Join(";", cargo)));
+        }
         w.WriteLine("END");
     }
 
@@ -1447,6 +1467,33 @@ public static class ArtifactSerializer
                     case "ORDNEXT":
                         state!.NextOrderId = int.Parse(f[1], Inv);
                         break;
+                    case "COURNEXT":
+                        state!.NextCourierId = int.Parse(f[1], Inv);
+                        break;
+                    case "COURIER":
+                    {
+                        var courier = new CourierContract(
+                            int.Parse(f[1], Inv), int.Parse(f[2], Inv),
+                            int.Parse(f[3], Inv), int.Parse(f[4], Inv),
+                            double.Parse(f[5], Inv),
+                            (CourierPriority)int.Parse(f[6], Inv),
+                            int.Parse(f[7], Inv), int.Parse(f[8], Inv))
+                        {
+                            Status = (CourierStatus)int.Parse(f[9], Inv),
+                            FulfillerActorId = int.Parse(f[10], Inv),
+                            ShipmentId = int.Parse(f[11], Inv),
+                        };
+                        if (f[12].Length > 0)
+                            foreach (var part in f[12].Split(';'))
+                            {
+                                var t = part.Split(':');
+                                int good = int.Parse(t[0], Inv);
+                                courier.Qty[good] = double.Parse(t[1], Inv);
+                                courier.Grade[good] = double.Parse(t[2], Inv);
+                            }
+                        state!.Couriers.Add(courier);
+                        break;
+                    }
                     case "ORDER":
                         state!.Orders.Add(new MarketOrder(
                             int.Parse(f[1], Inv),

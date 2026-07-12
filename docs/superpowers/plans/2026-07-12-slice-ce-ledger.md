@@ -117,12 +117,24 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
   perceived books, buy with own credits, haul, sell into arrival book (no
   reservation — stale-book loss posts sells); DELETE bridge + `PayHaulers`.
   Tests: margin booked; stale-book loss; engine routes nothing.
-- [ ] **C9 — courier contracts.** Record + `COURIER` layer + lifecycle
-  (Open→Accepted→Shipment→Delivered/Expired; cargo+fee escrow; refunds).
-- [ ] **C10 — requisitions → couriers.** `RaiseRequisitions` posts courier
-  contracts; delivered-cost sourcing (closes port-id-order + capacity
-  seams); quartermaster stores keep target share; polity posted hulls
-  self-fulfill at cost before the fee goes to market.
+- [x] **C9 — courier contracts.** COMPLETE. `CourierContract` (cargo +
+  fee physically escrowed; Priority War/Normal) + `CourierOps`
+  (Post/Accept/Resolve/ExpireOpen/AcceptOpen) + `couriers` layer v1;
+  shipments resolve their carried contract in `ShipmentOps.Advance`
+  (delivery pays the fee, piracy refunds it — nobody's paid for cargo at
+  the bottom of the sea). `Dispatch` gained an out-outcome overload.
+- [x] **C10 — requisitions → couriers.** COMPLETE. `RaiseRequisitions`
+  posts couriers; sourcing = DELIVERED TIME (route transit years, port-id
+  tiebreak — the port-id-order seam closed); fee = units × hexes ×
+  `CourierFeePerUnitPerHex` (new knob) escrowed from the poster; the job
+  board (`AcceptOpen`, Allocation) hands each contract to the deepest
+  first-leg carrier — the poster's own marine self-fulfills at cost, no
+  hulls means the contract WAITS (real logistics scarcity); off-lane
+  routes self-haul as before. `Inbound` counts open courier cargo so
+  replans don't double-order. Founding links' affordability gate halved
+  (goods-free, wages only — dev treasuries buy project goods now).
+  Escrow terms added to both conservation tests. Suite 743/744
+  (golden-only).
 - [ ] **C11 — corp standing plans.** `CorporationPolicies.Plan` via the
   polity scheduler at corp scope (hull batches, route commitments,
   gate pairs) packed against trailing income; `InvestFacilities`

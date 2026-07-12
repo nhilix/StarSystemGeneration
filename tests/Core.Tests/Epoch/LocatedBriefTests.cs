@@ -111,8 +111,10 @@ public class LocatedBriefTests
 
         Assert.True(raised > 0,
             "a due-soon remote entry should pre-position its basket");
-        Assert.Contains(state.Shipments,
-            s => s.DestPortId == frontier.Id
-                 && s.Qty[(int)GoodId.Alloys] > 0);
+        // requisitions are posted couriers now (contract economy): the
+        // cargo escrows on the contract until a carrier takes the job
+        Assert.Contains(state.Couriers,
+            c => c.DestPortId == frontier.Id
+                 && c.Qty[(int)GoodId.Alloys] > 0);
     }
 }

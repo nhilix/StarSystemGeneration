@@ -95,6 +95,11 @@ public sealed class SimState
     /// book is ambient, not history); NextOrderId keeps identity stable.</summary>
     public List<MarketOrder> Orders { get; } = new List<MarketOrder>();
     public int NextOrderId { get; set; }
+    /// <summary>Open and in-transit courier contracts (spec §1) — id order
+    /// (P6). Live only: delivered/lost/expired retire from the registry;
+    /// NextCourierId keeps identity stable.</summary>
+    public List<CourierContract> Couriers { get; } = new List<CourierContract>();
+    public int NextCourierId { get; set; }
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>
