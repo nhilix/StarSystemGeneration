@@ -65,6 +65,33 @@ rations drawn from the same markets the households eat from. Peace lets readines
 decay back down. Extended war means rationing at home; an unfed fleet loses
 readiness like an unfueled one, so sieges and blockades starve navies too.
 
+## Front supply lines — the front is a demander
+
+A war-stationed force (blockade squadrons, expedition fleets) fighting
+away from home draws upkeep from the **nearest owned port to the front** —
+its forward depot — not the home port a sector behind the line; its
+consumption prices scarcity there too. **The quartermaster stocks the
+depot**: each Allocation it forecasts the deployed burn (fuel, armaments,
+components, wartime rations) over the step plus a lead window against the
+depot's stores, book, and inbound cargo — capped by the warehouse — and
+posts **courier contracts at War priority** from rear stockpiles. War
+convoys are ordinary shipments: map-visible, blockade-stalled,
+pirate-hunted, interdictable.
+
+**War interdiction**: a shipment sailing a leg contested by an enemy of
+its owner — enemy warships stationed within interdiction reach of the
+lane's ends, or riding the lane as escorts — rolls seizure once per sail,
+compounding per contested world-year (the piracy pattern, its own
+channel). **Escorts damp it deterministically**: friendly warship strength
+on the leg divides the odds — one modifier, never a second roll. Seized
+cargo posts as the interdictor's asks at its nearest own port (a portless
+interdictor takes nothing — conservation); the loss is a chronicle event.
+**Starvation bites readiness**: an under-stocked depot feeds the front
+fractionally and readiness slides through the existing recovery/decay
+machinery — a cut supply line loses the war slowly and legibly (P4).
+Sieges have both halves now: the defender's larder and the attacker's
+corridor.
+
 **Allied belligerents**: defense-alliance partners join as supporting
 belligerents under the war leaders (the original attacker and defender);
 settlements are negotiated between the leaders, and allied-held objectives are

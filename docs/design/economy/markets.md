@@ -5,76 +5,124 @@ moves. Runs in the Markets phase at every port market
 ([../substrate/market-geography.md](../substrate/market-geography.md)), on the goods
 and Grade system of [../substrate/commodities.md](../substrate/commodities.md).
 
+## The market is the order book
+
+**A market IS the set of open buy and sell orders at its port** (the EVE
+model). There is no anonymous shelf: goods for sale live on named sellers'
+resting orders, wants live on escrowed bids, and every fill has two named
+parties. Escrow is physical (P4): a sell order HOLDS its goods (quantity +
+grade), a buy order HOLDS its credits, drawn whole at post — a fill can
+never bounce. Orders past their expiry refund: buys return the escrow to
+their owner, a sell's abandoned goods escheat to the port's stockpile
+(dock storage lapsed). What remains on the `Market` record per good is the
+**reference price** — the persistent readout every valuation, elasticity,
+and controller keeps reading — plus last-cleared volume and the black book.
+
 ## The market step
 
 Per port market, fixed deterministic order:
 
-1. **Supply lands** — facilities sell output into their domain market (stocks carry
-   grade).
-2. **Demand assembles** — population bands (subsistence near-inelastic,
-   standard-of-living moderate, luxury/narcotics elastic), industry inputs, polity
-   procurement, fuel for movement — plus **construction pull**: every in-flight
-   project sited on the domain adds its per-year basket as standing local demand,
-   so a build boom bids up alloys and machinery for the duration of the works and
-   that price signal sites the next mine (P5) — plus **re-export demand**: bids
-   from arbitrageurs who see outbound gradients, so a transit hub's price is bid up
-   even with zero local consumption. Without this term, goods refuse to enter
-   markets that don't personally want them; with it, entrepôts emerge.
-3. **Freight moves** — three flow generators, all within lane capacity (the
-   fleet-capacity interface), all requiring legality at both ends and
-   non-sanctioned relations. Freight plans against the prices the previous
-   drift posted; the drift then reads what freight actually delivered — an
-   import-fed port prices its arrivals, a blockaded one their absence:
-   - **Arbitrage freight**: shipments plan by expected profit against
-     **perceived prices** (P3 — fresh at one hop, freshness-discounted with
-     distance): end-to-end gap × freshness confidence − Σ(fuel + tariffs + risk
-     per leg). Single-hop trades dominate, but **bounded multi-hop expeditions**
-     emerge wherever a large gradient clears the per-leg costs despite stale
-     information — the reach horizon is emergent, not a rule.
-   - **Contracts**: concentrated demanders (a shipyard project, a mobilizing
-     polity, a besieged reserve) post **procurement contracts** — deliver good G
-     to port Z at premium P, escrowed (P4). Contracts propagate over the news
-     graph as public events, so directed demand arrives at news speed instead of
-     diffusing one market-step per hop. Freight lines live on fulfilling them; at
-     play scope they are literally the job board.
-   - **Internal logistics**: corporations and polities move goods within their
-     own networks at cost — no market transaction at intermediate ports; markets
-     see only net buys and sells at the endpoints. Vertical integration and
-     military supply lines are this mechanism under different flags. The polity
-     half is the **requisition channel**: every Allocation the quartermaster
-     compares each project site's coverage (larder + shelf + inbound cargo)
-     against its basket over the step plus a lead window, and raises shipping
-     orders from the polity's own port stockpiles toward the shortfall —
-     bypassing price, never time, route, or capacity. Consumption stores
-     (provisions, fuel, ship parts, armaments) keep their target share at the
-     source; construction materials were banked to be shipped.
-   **Routed goods take transit time.** A haul is a `Shipment` record: origin,
-   destination, cargo, and a route over the lane network whose leg years are
-   priced at departure (lane speed = a freight base × the gate-tier transit
-   multiplier; off-lane legs at slow crawl). Dispatch and each Markets step
-   sail the same rule: a closed leg — blockade, quarantine, a dead gate —
-   stalls the freight where it floats (the fortress starves at the pace of its
-   last delivery), a leg hunted by a raiding band rolls piracy for the years
-   sailed under its guns (the loot lands at the band's haven), and arrival
-   puts the cargo on the destination shelf — or, for a requisition, in the
-   destination larder. A transit that fits inside the current step on an open,
-   unhunted-or-lucky route is sub-step blur and delivers within the step.
-   In-transit cargo is conserved, visible state (P1).
-   Freight is what drags connected markets together; interdiction is what splits
-   price zones.
-4. **Price adjusts locally** — each (market, good) price is persistent state that
-   drifts toward clearing over the step's realized supply: excess demand pushes
-   up, glut pushes down, rate-limited. Elasticity derives from the band mix.
-   Markets never perfectly clear — persistent gradients *are* the trade
-   opportunities.
-5. **Clearing & consequences** — consumption satisfies band priority; unmet
-   subsistence → famine; unmet standard-of-living → SoL decline (growth,
-   legitimacy, migration pressure); unmet industry inputs → facilities
+1. **Expiry sweeps** — lapsed orders refund/escheat; stale open couriers
+   return cargo and fee.
+2. **In-flight freight sails** — arrivals post on the destination book as
+   the owner's asks (freight) or land in the owner's larder (requisitions
+   — re-checked at the dock: a port that fell in transit gets asks, never
+   a stocked enemy larder).
+3. **Quotes re-anchor** — resting sells reprice to the current reference
+   (nobody quotes yesterday's market). *Deviation, flagged: the spec's
+   per-owner quote decay — sold-out sellers raising, glutted ones cutting —
+   collapsed FineTick honesty in implementation; discovery lives entirely
+   in the reference drift until a per-owner scheme earns its keep.*
+4. **Supply lands** — facilities sell output as their owner's resting
+   sells (one rolling order per owner/port/good, restock refreshes its
+   expiry); salvage and piracy loot post the same way.
+5. **Demand posts as escrowed bids** — everything is an order:
+   - **Band tranches**: the port posts aggregate bids on behalf of its
+     population bands, escrowed from segment wealth (one purse per band —
+     poverty caps the want). Priority is expressed through PRICE, not code
+     order: subsistence bids at a premium, comfort at reference, luxury
+     under it.
+   - **Project bids**: every in-flight project bids at a premium for its
+     per-year basket, escrowed from the funder's treasuries; fills land in
+     the project's **laydown yard** (delivered materials are the project's,
+     not the market's).
+   - **Procurement**: the sovereign bids toward its stockpile targets from
+     the reserve treasury.
+   - **Relay bids**: wherever a live, hulled lane shows a price gradient,
+     the cheap end's sovereign bids at its own reference to stage goods for
+     re-export — hop-by-hop diffusion; without it goods refuse to cross
+     more than one hop and every frontier project starves; with it,
+     entrepôts emerge. (Kept past B2, flagged: retires when multi-hop
+     actor runs land.)
+   - **Consumption signal**: lift-only consumers (recipes, fleet upkeep,
+     research, military pull) register their want for the price drift —
+     they buy off the book directly, but the scarcity they cause must
+     still price.
+6. **Spread runs** — every posted freight fleet's owner (corporation or
+   the sovereign's merchant marine) trades its lane's price gradient with
+   its OWN capital: lift cheap asks, sail, post as its asks at the dear
+   end — no reservation; the unsold surplus is what disciplines a cut-off
+   price. Absorption reads the dear end's real resting bids above
+   delivered break-even (base price + fuel + tolls + tax/labor wedge); a
+   speculative term sails when the dear reference clears delivered cost.
+   Corps front runs from free capital only; the sovereign marine draws on
+   the treasury's intra-step credit line (its cash sits escrowed in its
+   own bids until the clear).
+7. **Matching** — per (port, good): price-time priority (price, then order
+   id), fills at MAKER price (the earlier order's limit). Per-fill
+   settlement: transaction tax to the port's sovereign, a labor share of
+   the net to the staffing segments, the rest to the seller. Unfilled
+   band/project/procurement/relay bids cancel and refund at the step's
+   end — standing state bids do not linger.
+8. **The reference price drifts** — rate-clamped, on the pre-match
+   imbalance snapshot: posted bids + consumption signal (generation-
+   normalized, P7) versus resting asks. Markets never perfectly clear —
+   persistent gradients *are* the trade opportunities.
+9. **Clearing consequences** — band fill fractions drive the old truths:
+   unmet subsistence → famine; unmet standard-of-living → SoL decline
+   (growth, legitimacy, migration pressure); unmet inputs → facilities
    underproduce.
 
-At the play clock the same state drifts continuously between clearings; an
-agent-order-matching layer can later trade against posted prices without changing
-this machinery.
+**Routed goods take transit time.** A haul is a `Shipment` record: origin,
+destination, cargo, and a route over the lane network whose leg years are
+priced at departure (lane speed = a freight base × the gate-tier transit
+multiplier; off-lane legs at slow crawl). Dispatch and each Markets step
+sail the same rule: a closed leg — blockade, quarantine, a dead gate —
+stalls the freight where it floats (the fortress starves at the pace of its
+last delivery); a leg hunted by a raiding band rolls piracy for the years
+sailed under its guns (the loot posts as the band's asks at its haven); a
+leg contested by an enemy of the owner rolls war interdiction, escorts
+damping ([../interpolity/war.md](../interpolity/war.md)). A transit that
+fits inside the current step on an open, lucky route is sub-step blur and
+delivers within the step. In-transit cargo is conserved, visible state
+(P1). Freight is what drags connected markets together; interdiction is
+what splits price zones.
+
+## Courier contracts — internal logistics as a market
+
+Moving YOUR OWN goods is a contract too: a **courier** posts (origin,
+destination, cargo escrowed from the origin larder, fee escrowed from the
+ledger) — move my goods A→B for the fee. The job board clears in
+(priority, id) order: **War priority outbids commerce for hulls** —
+acceptance charges the carrier's real posted step lift, so an exhausted
+board makes commerce wait. The fulfiller is the deepest free carrier on
+the route's first lane — the poster itself when its own marine is deepest
+(self-fulfillment at cost). Delivery pays the fee to the fulfiller;
+piracy/interdiction loss refunds it to the poster; expiry returns both.
+State requisitions, corp internal moves, and war-front convoys are all
+this one record at different priorities. The **requisition channel**
+rides it: every Allocation the quartermaster compares each project site's
+coverage (larder + laydown yard + inbound) against its basket over the
+step plus a lead window, and posts couriers from the polity's own port
+stockpiles — sources ranked by delivered time — toward the shortfall.
+Consumption stores keep their target share at the source; construction
+materials were banked to be shipped. *Deviation, flagged: the spec ranked
+open contracts by fee-over-distance; the implementation ranks (priority,
+id) and the fee only prices the poster's cost — revisit when carriers
+compete.*
+
+At the play clock the same state drifts continuously between clearings; the
+player trades against the same books the actors do.
 
 ## Household income — how populations afford anything
 
@@ -112,9 +160,9 @@ surplus.
 
 ## Stockpiles
 
-**Stock has an address.** Every unit of every good is on a market shelf, in a
-port's located stockpile, or in transit on a shipment — there is no polity-wide
-pool. Stockpiles live per port, per good, banked by procurement toward the
+**Stock has an address.** Every unit of every good is held by a resting
+sell order, in a port's located stockpile, in a project's laydown yard, or
+in transit on a shipment or courier — there is no polity-wide pool. Stockpiles live per port, per good, banked by procurement toward the
 standing targets: each own port buys toward its share of the target from its
 own market, paid from the **reserve treasury** (the Budget.Reserves share of
 the income split — procurement never competes with the deficit-financed credit
@@ -163,9 +211,11 @@ ladder.
 
 ## Provided interface
 
-- **Contracts** (open procurement orders per port per good) — consumed by freight
-  planning, corporate route bids, and the play-clock job board.
-- **Prices** (per market per good, with mean grade) — the universal value signal
+- **Order books** (resting asks/bids per port per good, with owners) — what
+  spread runs, upkeep lifts, and the play-clock trading screen consume.
+- **Courier contracts** (open/in-transit, with fees and priorities) — the
+  job board freight lines live on.
+- **Reference prices** (per market per good) — the universal value signal
   (frame cross-cutting interface 2): expansion attractiveness, war-goal value,
   migration pull, and investment siting all read price-derived valuations.
 - Polity income streams and true-wealth readout.

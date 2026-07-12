@@ -18,27 +18,39 @@ treasury covers the administered value, slots open).
 
 A project carries a **rate contract**, not a lump: its catalog `BuildCost` spread
 across its `ConstructionYears` as a per-year basket of real goods (Alloys,
-Machinery, Composites) plus a wage stream to the site's labor. Each Allocation the
-project draws that basket **locally only**: the site's market shelf first, then
-the site port's own larder where the funder owns the port — nothing teleports
-in; remote goods arrive as shipments that land in the larder before the draw,
-and a remote site starves at the pace of its last delivery. A gate pair draws
-per end, half the pair's basket at each gate's own market and larder, the
-scarcer end pacing the pair — half a highway opens no lane. It advances by
-the fraction its scarcest input meets — a project fed 60% of its basket delivers
-0.6 of a year's progress — so a starved work does not hoard, and its completion
-year simply slides. Draws are **priority-ordered** against shared local inventory:
-the war front and the flagship yard drink before the luxury starport, and the
-starvation cascade falls out with no extra rule. A conserved-goods invariant holds
-across the run — per-year basket × years-required equals the lump the work would
-have cost as a single charge.
+Machinery, Composites) plus a wage stream to the site's labor. **The
+project is a market participant** (contract economy): each Markets step it
+posts escrowed buy orders at a premium for its basket, funded from the
+funder's treasuries; fills land in its **laydown yard** — delivered
+materials belong to the works, not the market. Each Allocation it feeds
+from the yard plus the site port's own larder where the funder owns the
+port — nothing teleports in; remote goods arrive as courier cargo that
+lands in the larder before the draw, and a remote site starves at the pace
+of its last delivery. A gate pair bids per end, half the pair's basket at
+each gate's own market, the scarcer end pacing the pair — half a highway
+opens no lane. It advances by the fraction its scarcest input meets — a
+project fed 60% of its basket delivers 0.6 of a year's progress — so a
+starved work does not hoard, and its completion year simply slides. Feeds
+are **priority-ordered**: the war front and the flagship yard drink before
+the luxury starport, and the starvation cascade falls out with no extra
+rule. A conserved-goods invariant holds across the run — per-year basket ×
+years-required equals the lump the work would have cost as a single charge.
+
+The **plan is packed against real capability**: income per year plus a
+savings drawdown (treasuries amortized over a drawdown horizon) — a rich
+but low-income realm still builds, a poor one doesn't over-commit. A realm
+sitting on expansion points with no colony hull boosts colony batches to
+the front of the plan.
 
 Completion fires the payload — the facility commissions and begins producing, the
 port tier increments, the lane opens, hulls enter reserve, the colony founds — and
-stages a chronicle event at its world-year. A project cancelled or abandoned
-mid-work leaves its sunk goods sunk and its site an abandoned-works ruin (below).
-Capture transfers a project at its current progress, like the facility it would
-have become; the conqueror's next plan keeps or cancels it.
+stages a chronicle event at its world-year; the yard's remainder banks to
+the site's larder. A project cancelled or abandoned mid-work leaves its
+sunk goods sunk and its site an abandoned-works ruin (below). **The abandon
+clock**: a project starved near-zero for a generation-scale span cancels
+itself with a chronicle event — hopeless work does not squat on yard slots
+forever. Capture transfers a project at its current progress, like the
+facility it would have become; the conqueror's next plan keeps or cancels it.
 
 ## Condition
 

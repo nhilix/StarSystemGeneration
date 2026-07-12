@@ -13,7 +13,7 @@ list.
 | Policy | Consumed by |
 |---|---|
 | budget weights: development · military · research (per tech domain) · expansion · appeasement · reserves | Allocation |
-| standing plan: a prioritized schedule of projects (sited facility, port raise, gate pair, hull batch, mobilization) with target start years, packed against perceived free capability | Allocation → groundbreaking |
+| standing plan: a prioritized schedule of projects (sited facility, port raise, gate pair, hull batch, mobilization) with target start years, packed against perceived capability — income per year plus a savings drawdown; colony batches boost to the front when expansion points sit hull-less | Allocation → groundbreaking |
 | tax rate, tariff schedule (per polity/good) | Markets |
 | law code: legality per good (legal/restricted/prohibited) | Markets, patrol enforcement |
 | charter openness | corporate founding |
@@ -28,18 +28,19 @@ list.
 found colony (target + convoy) · declare war (casus belli + objectives + demand) ·
 offer/accept/break treaty rung · sanction · settlement accept/reject ·
 nationalize · grant/revoke charter · dynastic marriage/wardship · vassalage
-offer/demand · quarantine (self-imposed lane closure) · post procurement contract
-(good, destination, premium — escrowed).
+offer/demand · quarantine (self-imposed lane closure) · post courier contract
+(cargo, route, fee — both escrowed).
 
 ## Corporation
 
-**Policies**: investment allocation (facilities, fleet, depots) · standing plan
-(a scheduled portfolio of investment projects packed against perceived free
-capability) · route bids · dividend rate · lobby targets · risk appetite
-(legality margin — how far into black books it operates).
+**Policies**: standing plan (a scheduled portfolio of facility investments
+packed against perceived income plus savings drawdown — the polity
+planner's machinery at corporate scope; route commitments and hull
+purchases stay opportunistic, flagged) · dividend rate · lobby targets ·
+risk appetite (legality margin — how far into black books it operates).
 
 **Acts**: charter application · major acquisition or abandonment · headquarters
-relocation · post procurement contract.
+relocation · post courier contract.
 
 ## Character (role-scoped + personal)
 
