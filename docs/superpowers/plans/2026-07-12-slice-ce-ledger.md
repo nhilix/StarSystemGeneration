@@ -201,7 +201,36 @@ takes RollChannel 76; 75 stays shipment piracy; 73 retired, never reuse.
 
 ### Wrap
 
-- [ ] **C17 — fresh-eyes whole-branch review + ONE fix wave.**
+- [x] **C17 — fresh-eyes whole-branch review + ONE fix wave.** Reviewer
+  (post main-merge, K3's MarketPanel ported to the book first) returned
+  2 critical + 5 high + 8 medium + 5 low. FIXED this wave: (1) band-bid
+  escrow is one purse per band, not per-good — machine populations
+  overdrafted; (2+13a) SweepEstate on Dissolve/Nationalize — resting buys
+  refund into the settling books, sells/shipments/courier-fulfiller roles
+  pass to the successor; (3) corp spread runs capped by the corp's free
+  capital (the sovereign marine keeps its intra-step credit line: its
+  treasury sits escrowed in its own procurement/relay bids until the
+  clear — probed and proven); (4) OrderOps.ExpireOrders — buys refund,
+  sells escheat to the port; PostSupply's blend refreshes expiry so
+  active producers never escheat; default OrderExpiryYears 30→100 (an
+  expiry inside ~2 coarse steps broke FineTick honesty — probed); (5)
+  courier acceptance charges FleetOps.PostedLift per fleet — War
+  genuinely takes the hulls, commerce waits; (6) depot forecast counts
+  book coverage and caps at StockCapacityAt — reorder loop closed; (8)
+  WarPresenceMap early-outs in peacetime; (9) requisitions re-check port
+  ownership at the dock — a captor gets asks, not a stocked larder; (10)
+  war-stationed consumption signals at the depot; (11a) courier FeeEscrow
+  in the credit sweep; (15/18) stale comments corrected. CARRIED (flagged
+  debt / C19 amendments): (7) RepriceAsks re-anchors ALL quotes vs the
+  spec's per-owner decay — deliberate B1 stabilization, needs the
+  markets.md amendment + user flag; (11b) no global goods-conservation
+  sweep (production/consumption make it nontrivial); (12) an InTransit
+  courier on a permanently dead lane locks fee+cargo — rare, needs a
+  stall-expiry design; (13b) RouteFill untracked-buy fallback deposits to
+  the port owner; (13c) corp plans still facilities-only; (14) courier
+  allocation ranks (priority, id), fee level prices nothing — spec §3
+  deviation to amend or revisit; (16) Prune's 1e-12 residue + O(n)
+  removals; (20) RouteFill linear scans. Suite 821/822 (golden only).
 - [ ] **C18 — tuning + golden re-freeze ONCE.** `emap trade` spread lens;
   knobs registered + TUNING.md swept.
 - [ ] **C19 — wrap-up docs.** Design-tree amendments (markets,
