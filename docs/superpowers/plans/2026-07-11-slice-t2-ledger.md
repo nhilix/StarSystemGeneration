@@ -116,16 +116,24 @@ final review's fix wave. Hex-tier suite never breaks. Determinism ×2 at gates.
   `Planner.EntryBasketPerYear` shared with the quartermaster; requisitions
   pre-position due-soon plan entries (GroundBroken guard against
   double-cover). Suite 676/679 (golden window + 2 carried shape reds).
-- [ ] **T7 — fine-tick cadence normalizations** (carried Stage-1 gaps):
-  founding cadence world-time gate (via latest own expedition StartedYear);
-  hull-batch fractional-throughput accumulator replacing the Max(1,·) floor;
-  tighten the FineTick ×2 hulls band; update the honesty-test flag comments.
-- [ ] **T8 — white-peace project revert + review residue.** Settlement revert
-  routed through `WarConduct.TransferPort` (ColonyExpedition excluded);
-  founding-link kit tier-scaled (`TierCostFactor` at dispatch); failed
-  expedition's kit comes home (deposited to staging-port stockpile on
-  turn-back); completion events stamp the interpolated (mid-span) year;
-  `AddConstructionPull` tapers to remaining years.
+- [x] **T7 — fine-tick cadence normalizations.** COMPLETE. Founding cadence:
+  `Expansion.FoundingCadenceYears` (25) enforced in `TryFound` from the
+  owner's latest ColonyExpedition StartedYear — no new state, coarse behavior
+  unchanged, fine founds at the same world pace (also throttles turn-back
+  contention). Hull slot floor landed in T1 (stateless world-time clock);
+  band tightening deferred to T12 with the tuning wave.
+- [x] **T8 — residue quartet.** COMPLETE. White-peace revert verified ALREADY
+  CLOSED by the stage-1 fix wave (F6 routes through TransferPort). Founding
+  kit tier-scaled (`RequiredGateTier` at dispatch, mirrors BuildLanes; −1 →
+  tier-3 kit) and recorded as CARGO on the expedition project (PerYearBasket
+  doubles as the hold for travel kinds — excluded from construction pull and
+  commitment briefs); turn-back banks the kit at the staging larder (neutral
+  0.5 grade — the draw's blend isn't stored; reviewer note). Completion
+  STATE stamps interpolated (CommissionedYear at windowStart +
+  remaining/fedFraction; staged events still take Chronicle's step year —
+  flagged, not built). Construction pull tapers to remaining years.
+  **The taper + kit fixes recovered both carried shape reds** — suite
+  683/684, golden window only.
 - [ ] **T9 — corp standing plans (scoped minimal).** `CorporationOps.Operate`
   builds through Planner/StandingPlan against `BriefFor` so corps stagger and
   pack against income. If it fights the slice, flag + carry with user note.

@@ -746,6 +746,16 @@ public static class CorporationOps
         foreach (var q in build.BuildCost)
             value += q.Quantity * Market.InitialPrice(state.Config.Economy, q.Good);
         if (corp.Credits * policies.Investment.Facilities < value) return;
+        // stage 2 (carried residue): corps pack against income like
+        // polities — the new build's rate (goods + wages per year) must
+        // fit beside every rate already committed under the trailing
+        // income, floored at one build so a young corp's founding
+        // investment never deadlocks. A boom staggers, never floods.
+        double years = Math.Max(1.0, build.ConstructionYears);
+        double ratePerYear = 2.0 * value / years;      // goods + wages
+        var brief = CapabilityOps.BriefFor(state, corp.ActorId);
+        if (brief.CommittedCostPerYear + ratePerYear
+            > Math.Max(brief.IncomePerYear, ratePerYear)) return;
         // the build is a construction project now: the facility row exists
         // uncommissioned, its basket and wages stream from corp credits over
         // the build years (Task 9 — no upfront debit, no instant commission)
