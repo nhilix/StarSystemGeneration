@@ -75,7 +75,6 @@ namespace StarGen.AtlasView
 
             var search = new TextField();
             search.AddToClassList("ssg-topbar__search");
-            var input = search.Q("unity-text-input");
             search.RegisterCallback<KeyDownEvent>(e =>
             {
                 if (e.keyCode != KeyCode.Return

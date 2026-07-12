@@ -93,7 +93,7 @@ namespace StarGen.AtlasView
             {
                 Model = root.SimHost.Model,
                 Eye = EyeContext.God(state.WorldYear),
-                Open = Show,
+                Open = request => Show(request),
                 JumpTo = hex =>
                 {
                     var world = AtlasGeometry.HexToWorld(hex);
@@ -108,12 +108,15 @@ namespace StarGen.AtlasView
             {
                 case SelectionKind.Port:
                     // the port click populates market AND its owner's
-                    // polity panel (the K3 eyeball line)
+                    // polity panel (the K3 eyeball line) — one clear, two
+                    // panels (review finding 1: a second clearing Show
+                    // would destroy the polity panel it just opened)
                     var state = root.SimHost.State;
                     if (sel.Id >= 0 && sel.Id < state.Ports.Count)
                         Show(new PanelRequest(PanelType.Polity,
                             state.Ports[sel.Id].OwnerActorId));
-                    Show(new PanelRequest(PanelType.Market, sel.Id));
+                    Show(new PanelRequest(PanelType.Market, sel.Id),
+                         clearUnpinned: false);
                     break;
                 case SelectionKind.Project:
                     Show(new PanelRequest(PanelType.Project, sel.Id));
@@ -133,20 +136,22 @@ namespace StarGen.AtlasView
             }
         }
 
-        /// <summary>Open a panel: unpinned panels of any type make way;
-        /// pinned ones stay for comparison.</summary>
-        public void Show(PanelRequest request)
+        /// <summary>Open a panel: unpinned panels of any type make way
+        /// (pass clearUnpinned: false to stack a second panel in the same
+        /// interaction); pinned ones stay for comparison.</summary>
+        public void Show(PanelRequest request, bool clearUnpinned = true)
         {
             if (root == null || root.SimHost?.Model == null) return;
             var chrome = GetComponent<AtlasChrome>();
             var dock = chrome.Dock;
 
-            for (int i = _open.Count - 1; i >= 0; i--)
-                if (!_open[i].Pinned)
-                {
-                    _open[i].Element.RemoveFromHierarchy();
-                    _open.RemoveAt(i);
-                }
+            if (clearUnpinned)
+                for (int i = _open.Count - 1; i >= 0; i--)
+                    if (!_open[i].Pinned)
+                    {
+                        _open[i].Element.RemoveFromHierarchy();
+                        _open.RemoveAt(i);
+                    }
 
             var context = Context();
             var (title, body) = PanelViews.Build(request, context);

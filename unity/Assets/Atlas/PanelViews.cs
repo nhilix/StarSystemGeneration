@@ -417,7 +417,8 @@ namespace StarGen.AtlasView
                 {
                     Core.Epoch.WarObjectiveType.CapturePort =>
                         Inv($"capture port #{o.TargetId}")
-                        + (o.FallsAtYears != null
+                        // siege text only once the clock runs (REPL parity)
+                        + (o.SiegeYears > 0 && o.FallsAtYears != null
                             ? Inv($" — under siege ({o.SiegeYears}y, falls at {o.FallsAtYears})")
                             : ""),
                     Core.Epoch.WarObjectiveType.BlockadeLane =>

@@ -186,5 +186,15 @@ namespace StarGen.AtlasView
         {
             if (_marker != null) _marker.SetActive(false);
         }
+
+        private void OnDestroy()
+        {
+            if (_marker == null) return;
+            var renderer = _marker.GetComponent<MeshRenderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+                Destroy(renderer.sharedMaterial);   // HideAndDontSave leaks
+            Destroy(_marker);
+            _marker = null;
+        }
     }
 }

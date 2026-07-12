@@ -95,12 +95,30 @@ Core.Tests never references Inspector.
       LensRail.ActiveLegendKey; glyph swatches sprite-crop the authored
       atlas by enum cell; EditMode LegendDriftTests pin GlyphKey↔AtlasGlyph
       (10/10 EditMode)
-- [ ] **T8 — Acceptance tooling**: panel capture in AtlasSmoke or gate on
-      in-editor eyeball (UI Toolkit doesn't render via cam.Render());
-      EditMode tests where they pay
-- [ ] **T9 — Fresh-eyes whole-branch review** + one fix wave
-- [ ] **T10 — Gates**: `dotnet test` green ×2 · golden untouched ·
-      determinism untouched · EditMode green · smoke renders every lens
+- [x] **T8 — Acceptance tooling**: DECISION — panel capture stays on the
+      in-editor eyeball (the kickoff's sanctioned alternative: UI Toolkit
+      renders in play mode only; batch cam.Render() can never include it;
+      PlayMode-test screenshotting is K4+ if ever wanted). EditMode grew
+      LegendDriftTests (GlyphKey↔AtlasGlyph + non-empty legends per rail
+      key). AtlasSmoke unchanged and still green (renders every lens:
+      191 fleets, 106 POIs, 297 projects, 16 shipments, 5 plagues).
+- [x] **T9 — Fresh-eyes whole-branch review** + one fix wave. Verdict:
+      "NOT READY — one confirmed bug", hard rules verified holding (Core
+      purity, meta guids unique, Phases refactor provably identical,
+      id-order iteration, all six parity spot-checks exact, one pointer
+      guard, USS var()-only + theme-swap-clean, boundary clean). Fixed
+      all four findings: **port click destroyed its own Polity panel**
+      (Show's clear-unpinned ran twice — clearUnpinned:false for the
+      stacked Market panel), SelectionModel marker material leak
+      (OnDestroy), war panel siege text now gated on SiegeYears > 0
+      (REPL parity), dead TopBar line. Fix wave itself caught one more:
+      optional param broke the `Open = Show` delegate (lambda).
+      Declined-as-noted: synthetic jump-hex tests for tension/succession/
+      corporation threads (verified by inspection + seed-42 sweep);
+      inactive-depot larder case (impossible to drift — shared derivation).
+- [x] **T10 — Gates**: `dotnet test` 790/790 ×3 (determinism suites in
+      the count) · golden untouched · EditMode 10/10 post-fix · smoke
+      renders every lens post-fix
 - [ ] **T11 — USER: panels eyeball** (click port → polity/market w/ REPL
       numbers incl. larder; click site → starvation readout; threads rows
       jump camera; menu scene eyeball folded in)
