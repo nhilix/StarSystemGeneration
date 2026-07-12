@@ -130,8 +130,8 @@ public static class ProjectOps
         var lane = new Lane(state.Lanes.Count, a.Id, b.Id, state.WorldYear)
         { GateAId = gateA.Id, GateBId = gateB.Id };
         state.Lanes.Add(lane);
-        // stage-2: the pair draws its whole basket + funder reserves at the A
-        // end; per-end draws (each gate at its own market) are Stage 2
+        // the basket is the PAIR's rate; Feed draws it per end — each gate
+        // at its own market and larder (spec §5, landed in stage 2)
         var p = Spawn(state, ProjectKind.GatePair, ownerActorId, funderActorId,
                       a.Id, a.Hex, years, priority, planOrder);
         double value = 0;
@@ -235,6 +235,14 @@ public static class ProjectOps
             }
             return;
         }
+        // a gate pair draws per end (spec §5): each gate at its own market
+        // and larder, the scarcer end pacing the pair — a half-built
+        // highway opens no lane
+        if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
+        {
+            FeedGatePair(state, p, needYears);
+            return;
+        }
         var market = state.Markets[p.PortId];
         var site = state.Ports[p.PortId];
         // the local larder feeds the state's own works: stock belongs to
@@ -297,6 +305,71 @@ public static class ProjectOps
         if (p.Kind == ProjectKind.Mobilization && FunderPolity(state,
                 p.OwnerActorId) is PolityRecord mob)
             mob.Mobilization = Math.Max(mob.Mobilization, p.Progress);
+    }
+
+    /// <summary>Per-end gate-pair feeding (spec §5): the basket is the
+    /// PAIR's per-year rate — each end draws its half at its own market
+    /// plus its own funder-owned larder; the met fraction is the minimum
+    /// across BOTH ends' goods and the wage stream, so the scarcer end
+    /// paces the pair. Shipments cover shortfalls by landing stock at the
+    /// starved end before this draw.</summary>
+    private static void FeedGatePair(SimState state, Project p,
+                                     double needYears)
+    {
+        var lane = state.Lanes[p.TargetId];
+        Span<int> ends = stackalloc int[2] { lane.PortAId, lane.PortBId };
+        double fraction = 1.0;
+        foreach (int end in ends)
+        {
+            var market = state.Markets[end];
+            var port = state.Ports[end];
+            bool ownStock = port.OwnerActorId == p.FunderActorId;
+            for (int g = 0; g < p.PerYearBasket.Length; g++)
+            {
+                double want = 0.5 * p.PerYearBasket[g] * needYears;
+                if (want <= 0) continue;
+                double have = market.Inventory[g]
+                    + (ownStock ? port.StockQty[g] : 0.0);
+                fraction = Math.Min(fraction, Math.Min(1.0, have / want));
+            }
+        }
+        double wages = p.WagesPerYear * needYears;
+        if (wages > 0)
+        {
+            double treasury = TreasuryAvailable(state, p);
+            fraction = Math.Min(fraction, Math.Min(1.0, treasury / wages));
+        }
+        if (fraction > 0)
+        {
+            foreach (int end in ends)
+            {
+                var market = state.Markets[end];
+                var port = state.Ports[end];
+                bool ownStock = port.OwnerActorId == p.FunderActorId;
+                for (int g = 0; g < p.PerYearBasket.Length; g++)
+                {
+                    double take = 0.5 * p.PerYearBasket[g] * needYears
+                                  * fraction;
+                    if (take <= 0) continue;
+                    double drawn = market.Draw(g, take);
+                    market.LastCleared[g] += drawn;
+                    if (take - drawn > 0 && ownStock)
+                        port.DrawStock(g, take - drawn);
+                }
+            }
+            if (wages > 0)
+            {
+                SpendTreasury(state, p, wages * fraction);
+                // the crews split the stream: half to each end's households
+                MarketEngine.PayWages(state, lane.PortAId,
+                                      0.5 * wages * fraction);
+                MarketEngine.PayWages(state, lane.PortBId,
+                                      0.5 * wages * fraction);
+            }
+        }
+        p.YearsDelivered = Math.Min(p.YearsRequired,
+            p.YearsDelivered + fraction * needYears);
+        p.LastFedFraction = fraction;
     }
 
     /// <summary>The treasury a kind streams wages from: development for

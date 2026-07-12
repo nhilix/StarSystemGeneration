@@ -224,13 +224,62 @@ public class ProjectOpsTests
             own[0], own[1], tier: 1, ProjectPriority.Core, 0);
         var lane = state.Lanes[p.TargetId];
         Assert.False(LaneMath.IsLive(state, lane));   // half a highway is none
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Alloys] += 100;
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Machinery] += 100;
-        state.Markets[own[0].Id].Inventory[(int)GoodId.Composites] += 100;
+        // stage 2 (spec §5 gate-pairs row): each end draws at ITS OWN
+        // market — both ends get stocked
+        foreach (var end in new[] { own[0].Id, own[1].Id })
+        {
+            state.Markets[end].Inventory[(int)GoodId.Alloys] += 100;
+            state.Markets[end].Inventory[(int)GoodId.Machinery] += 100;
+            state.Markets[end].Inventory[(int)GoodId.Composites] += 100;
+        }
         pr.DevelopmentPoints += 1000;
         ProjectOps.AdvanceAll(state);
         Assert.True(p.Completed);
         Assert.True(LaneMath.IsLive(state, lane));
+    }
+
+    /// <summary>Stage 2 (spec §5): the pair draws per end — a mountain of
+    /// alloys at the A end builds no gate at a bare B end; the scarcer end
+    /// paces the whole project (half a highway opens no lane). Shipments
+    /// cover the shortfall once the B end is supplied.</summary>
+    [Fact]
+    public void GatePair_EachEndDrawsLocally_TheScarcerEndPaces()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        var own = new System.Collections.Generic.List<Port>();
+        foreach (var port in state.Ports)
+            if (port.OwnerActorId == pr.ActorId) own.Add(port);
+        if (own.Count < 2)
+        {
+            var home = own[0];
+            var second = new Port(state.Ports.Count, pr.ActorId,
+                new StarGen.Core.Model.HexCoordinate(home.Hex.Q + 6, home.Hex.R),
+                tier: 1, state.WorldYear);
+            state.Ports.Add(second);
+            state.Markets.Add(new Market(second.Id, state.Config.Economy));
+            own.Add(second);
+        }
+        var p = ProjectOps.SpawnGatePair(state, pr.ActorId, pr.ActorId,
+            own[0], own[1], tier: 1, ProjectPriority.Core, 0);
+        // the WHOLE pair basket piled at the A end; the B end is bare
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Alloys] += 200;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Machinery] += 200;
+        state.Markets[own[0].Id].Inventory[(int)GoodId.Composites] += 200;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Alloys] = 0;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Machinery] = 0;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Composites] = 0;
+        pr.DevelopmentPoints += 1000;
+
+        ProjectOps.AdvanceAll(state);
+        Assert.Equal(0.0, p.YearsDelivered, 6);       // the bare end paces
+
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Alloys] += 100;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Machinery] += 100;
+        state.Markets[own[1].Id].Inventory[(int)GoodId.Composites] += 100;
+        ProjectOps.AdvanceAll(state);
+        Assert.True(p.Completed);                     // both ends fed → open
     }
 
     /// <summary>A colony expedition takes world-time: the founding body fires
