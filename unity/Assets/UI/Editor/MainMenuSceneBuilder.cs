@@ -45,26 +45,41 @@ namespace StarGen.MenuView.EditorTools
 
         private static void EnsureScanlineTexture()
         {
-            if (File.Exists(ScanlinePath)) return;
-            var tex = new Texture2D(1, 3, TextureFormat.RGBA32, false);
-            tex.SetPixels(new[]
+            bool created = !File.Exists(ScanlinePath);
+            if (created)
             {
-                new Color(0f, 0f, 0f, 0.30f), // the dark line of the 1×3 tile
-                new Color(0f, 0f, 0f, 0f),
-                new Color(0f, 0f, 0f, 0f),
-            });
-            tex.Apply();
-            File.WriteAllBytes(ScanlinePath, tex.EncodeToPNG());
-            Object.DestroyImmediate(tex);
-            AssetDatabase.ImportAsset(ScanlinePath);
+                var tex = new Texture2D(1, 3, TextureFormat.RGBA32, false);
+                tex.SetPixels(new[]
+                {
+                    new Color(0f, 0f, 0f, 0.30f), // the dark line of the 1×3 tile
+                    new Color(0f, 0f, 0f, 0f),
+                    new Color(0f, 0f, 0f, 0f),
+                });
+                tex.Apply();
+                File.WriteAllBytes(ScanlinePath, tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                AssetDatabase.ImportAsset(ScanlinePath);
+            }
 
             var importer = (TextureImporter)AssetImporter.GetAtPath(ScanlinePath);
+            // Default, not the project's Sprite default: a tiling texture
+            // (alphaIsTransparency dilation garbles a 1×3 tile)
+            importer.textureType = TextureImporterType.Default;
+            importer.alphaIsTransparency = false;
             importer.filterMode = FilterMode.Point;
             importer.wrapMode = TextureWrapMode.Repeat;
             importer.mipmapEnabled = false;
             importer.npotScale = TextureImporterNPOTScale.None;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.SaveAndReimport();
+
+            // On a fresh checkout MainMenu.uss imports BEFORE this texture
+            // exists, so the compiled stylesheet holds a broken url() and
+            // UI Toolkit tiles its missing-image placeholder (the yellow
+            // screen-door of the K3 eyeball). Reimporting rebinds it.
+            if (created)
+                AssetDatabase.ImportAsset(UiDir + "/MainMenu.uss",
+                                          ImportAssetOptions.ForceUpdate);
         }
 
         private static PanelSettings EnsurePanelSettings()

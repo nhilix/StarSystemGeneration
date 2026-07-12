@@ -20,7 +20,7 @@ public static class WarLens
 {
     /// <summary>War stations burn hot regardless of owner — the '!' glyph's
     /// color; the ring/mark shape is the presentation's.</summary>
-    private static readonly Rgba StationBurn = new(235, 75, 55, 240);
+    public static readonly Rgba StationBurn = new(235, 75, 55, 240);
 
     /// <summary>Blockades and expeditions of actively warring owners —
     /// EpochMapView.WarStationCells, addressed.</summary>

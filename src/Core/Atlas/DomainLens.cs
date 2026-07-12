@@ -41,10 +41,10 @@ public static class DomainLens
 
     // Overlap (Venn) relationship shades — what the intersection of two
     // polities' regions says about the pair.
-    private static readonly Rgba WarShade = new(225, 70, 60, 255);
-    private static readonly Rgba TensionShade = new(235, 150, 60, 255);
-    private static readonly Rgba WarmShade = new(80, 210, 160, 255);
-    private static readonly Rgba NeutralShade = new(125, 145, 185, 255);
+    public static readonly Rgba WarShade = new(225, 70, 60, 255);
+    public static readonly Rgba TensionShade = new(235, 150, 60, 255);
+    public static readonly Rgba WarmShade = new(80, 210, 160, 255);
+    public static readonly Rgba NeutralShade = new(125, 145, 185, 255);
 
     /// <summary>Distinct port owners, ascending — the field shader's slot
     /// order (deterministic: registry-derived, id-sorted).</summary>

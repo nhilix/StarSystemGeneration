@@ -848,15 +848,36 @@ public static class MarketEngine
     public static double StockCapacityAt(SimState state, Port port)
     {
         var eco = state.Config.Economy;
-        double cap = port.Tier * eco.StockCapPerPortTier;
+        return port.Tier * eco.StockCapPerPortTier
+               + ActiveDepotTiersAt(state, port) * eco.StockCapPerDepotTier;
+    }
+
+    /// <summary>The port owner's active Depot tiers attached to this port's
+    /// market — the larder's depth (capacity) and preservation (decay cut)
+    /// both key off it. One derivation for the sim and the K3 panel.</summary>
+    public static int ActiveDepotTiersAt(SimState state, Port port)
+    {
+        int tiers = 0;
         foreach (var f in state.Facilities)               // id order (P6)
             if (f.TypeId == (int)InfraTypeId.Depot
                 && f.OwnerActorId == port.OwnerActorId
                 && IsActive(state, f)
                 && AttachedMarketIndex(state, f) == port.Id)
-                cap += f.Tier * eco.StockCapPerDepotTier;
-        return cap;
+                tiers += f.Tier;
+        return tiers;
     }
+
+    /// <summary>Perishability multiplier on the durable stockpile decay
+    /// rate (spec §4b): provisions rot, alloys do not. Extracted at K3 so
+    /// the sim (Phases stockpile decay) and the market panel's larder
+    /// readout share one derivation.</summary>
+    public static double StockPerishFactor(GoodId good) => good switch
+    {
+        GoodId.Provisions => 10.0,
+        GoodId.Organics => 5.0,
+        GoodId.Medicine => 3.0,
+        _ => 1.0,
+    };
 
     private static LegalityLevel LegalityAt(SimState state, int actorId, int good) =>
         (state.Actors[actorId].Policies as PolityPolicies
