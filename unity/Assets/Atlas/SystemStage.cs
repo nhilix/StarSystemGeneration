@@ -49,8 +49,10 @@ namespace StarGen.AtlasView
     {
         /// <summary>The plane every stage mark sits on — SelectionModel
         /// intersects pick rays here (marks bake this z; the component's
-        /// own transform stays at the world origin).</summary>
-        public const float StageZ = -0.30f;   // above every map layer
+        /// own transform stays at the world origin). Coplanar with the
+        /// lattice: draw order rides renderQueue, not depth — a lifted
+        /// stage parallaxes against the grid (eyeball wave 2).</summary>
+        public const float StageZ = -0.02f;
         private const int RingSegments = 96;
         /// <summary>Outermost ring must stay inside the hex (inradius
         /// ≈ 0.866 world) — systems never bleed onto neighbours.</summary>
@@ -354,9 +356,9 @@ namespace StarGen.AtlasView
                     : CompanionRingRadius(ring.SlotIndex)) * s;
                 var center = Center(origin, starCenter, ring.StarIndex, s);
                 if (ring.IsBelt)
-                    AddRing(center, radius, 0.016f, BeltColor, dashed: true);
+                    AddRing(center, radius, 0.010f, BeltColor, dashed: true);
                 else
-                    AddRing(center, radius, 0.008f, RingColor, dashed: false);
+                    AddRing(center, radius, 0.0045f, RingColor, dashed: false);
                 if (ring.Band == OrbitBand.Habitable)
                 {
                     int k = ring.StarIndex;
@@ -433,13 +435,17 @@ namespace StarGen.AtlasView
                 int moons = Mathf.Min(row.SatelliteCount, 4);
                 for (int m = 0; m < moons; m++)
                 {
+                    // hugging the body: just off the dot's rim ('world'
+                    // is the billboard's full size, so radius is half) —
+                    // the old 1.8× offset scattered gas-giant moons a
+                    // ring-gap away (eyeball wave 2)
                     double ma = SystemQuery.OrbitAngle(hex, 61 + m,
                                                        row.SlotIndex);
-                    float mr = world * 1.8f + 0.012f;
+                    float mr = world * 0.68f + 0.008f;
                     _dotQuads.Add((pos + new Vector3(
                         mr * (float)System.Math.Cos(ma),
                         mr * (float)System.Math.Sin(ma), 0f),
-                        0.012f, 2.5f, MoonColor));
+                        0.011f, 2.2f, MoonColor));
                 }
                 _pickables.Add(new StagePick(SelectionKind.System, -1, hex,
                     pos, Mathf.Max(world * 1.7f, 0.07f), BodyLabel(row)));
@@ -574,8 +580,9 @@ namespace StarGen.AtlasView
                 _ringColors.Add(linear);
                 _ringColors.Add(linear);
                 if (i == RingSegments) continue;
-                // the option-A belt dash (2 on, 7 off) — skip gap segments
-                if (dashed && i % 9 >= 2) continue;
+                // fine-grained dashing (2 on, 1 off of 96 segments) — the
+                // belt reads as a grainy ring, not scattered ticks
+                if (dashed && i % 3 == 2) continue;
                 int v = baseIndex + i * 2;
                 _ringTris.Add(v); _ringTris.Add(v + 2); _ringTris.Add(v + 1);
                 _ringTris.Add(v + 1); _ringTris.Add(v + 2); _ringTris.Add(v + 3);
