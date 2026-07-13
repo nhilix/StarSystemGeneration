@@ -191,7 +191,81 @@
   </div>
 
   <div class="views">
-    <section id="view-flow" class="stack"></section>
+    <section id="view-flow" class="stack">
+
+  <section class="tier">
+    <div class="tier-head"><span class="tier-tag">Frame</span><h2>The Four Clocks</h2>
+      <span class="nature">each hands the next a finished board + latent story material (frame/time.md)</span></div>
+    <div class="chain-scroll"><div class="chain">
+      <div class="node done clock"><div class="node-head"><span class="name">Cosmic</span><span class="chip done">IMPL</span></div>
+        <p class="tag">~14 Gyr, ~150 steps. Field stack (gas, star cohorts, metals, remnants) + discrete features. <strong>→ the physical galaxy</strong></p></div>
+      <span class="link">→</span>
+      <div class="node done clock"><div class="node-head"><span class="name">Evolutionary</span><span class="chip done">IMPL</span></div>
+        <p class="tag">~Gyrs, ~Myr steps. Biosphere field → emergence schedule; precursor civ-arc waves → archaeology + living residue. <strong>→ the living galaxy</strong></p></div>
+      <span class="link">→</span>
+      <div class="node done clock"><div class="node-head"><span class="name">Generational</span><span class="chip done">IMPL</span></div>
+        <p class="tag">~1,000y in ~25y epochs (a reign ≈ 1–3 epochs). Polities, economies, wars, culture — the epoch loop below. <strong>→ world-state handoff</strong></p></div>
+      <span class="link">→</span>
+      <div class="node spec clock"><div class="node-head"><span class="name">Play</span><span class="chip spec">SPEC</span></div>
+        <p class="tag">Days–weeks per tick. Same rules, finer sampling; news at ship speed; the player assumes any controller slot.</p></div>
+    </div></div>
+  </section>
+
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">cosmic + evolutionary outputs seed the hex tier</span></div>
+
+  <section class="tier">
+    <div class="tier-head"><span class="tier-tag">Upstream</span><h2>Hex-Generation Pipeline</h2>
+      <span class="nature">pure fn · per-hex · never persisted</span></div>
+    <p class="desc">The Phase-1 generation spine: identity + tuning resolve into a density field, a persisted skeleton, and — on demand — a hex. <strong>hex = f(GalaxyConfig, coordinate)</strong>; the skeleton is the one memoized, persisted intermediate.</p>
+    <div class="chain-scroll"><div class="pills">
+      <span class="pill">GalaxyConfig</span><span class="link">→</span>
+      <span class="pill">density field</span><span class="link">→</span>
+      <span class="pill">galaxy skeleton</span><span class="link">→</span>
+      <span class="pill">seeding passes</span><span class="link">→</span>
+      <span class="pill">per-hex generation (never persisted)</span>
+    </div></div>
+  </section>
+
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">the settled board enters the epoch loop</span></div>
+
+  <section class="tier">
+    <div class="tier-head"><span class="tier-tag">Epoch loop</span><h2>Seven Phases per Step</h2>
+      <span class="nature">frame/simulation-flow.md · one controller touchpoint (Intent) · decisions on belief, consequences on truth</span></div>
+
+    <div class="subgroup" id="phase-pc"><h3>1 · Perception</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-mk"><h3>2 · Markets</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-al"><h3>3 · Allocation</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-in"><h3>4 · Intent</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-rs"><h3>5 · Resolution</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-id"><h3>6 · Interior &amp; Demographics</h3><div class="grid"></div></div>
+    <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
+    <div class="subgroup" id="phase-ch"><h3>7 · Chronicle</h3><div class="grid"></div></div>
+
+    <div class="arrow"><span class="stem"></span><span class="head">↺</span><span class="lbl">Chronicle → next step's Perception (news arriving is next step's history)</span></div>
+  </section>
+
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">underlying every phase, owned by none of them</span></div>
+
+  <section class="tier">
+    <div class="tier-head"><span class="tier-tag">Structural</span><h2>Cross-Cutting &amp; Structural</h2>
+      <span class="nature">standing vocabulary, architecture, and discipline the loop runs on — no single phase fires these</span></div>
+    <div class="grid" id="flow-crosscut"></div>
+  </section>
+
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">the artifact is read by the consuming surfaces</span></div>
+
+  <section class="tier">
+    <div class="tier-head"><span class="tier-tag">Surfaces</span><h2>Inspection &amp; Rendering</h2>
+      <span class="nature">downstream consumers of the artifact</span></div>
+    <div class="grid" id="flow-inspection"></div>
+  </section>
+
+</section>
     <section id="view-blocks" class="stack"></section>
   </div>
 
