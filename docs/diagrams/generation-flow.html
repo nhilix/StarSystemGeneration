@@ -316,13 +316,111 @@
   <p class="tag">shipyards convert Ship Components (+Armaments/+Compute) into hulls; hull-batch project anchored at a yard; yard tier caps concurrent batch work</p></div>
 </div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-in"><h3>4 · Intent</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-in"><h3>4 · Intent</h3><div class="grid">
+<div class="node mech done"><div class="node-head"><span class="name">Plan packing</span><span class="chip done">IMPL</span></div>
+  <p class="tag">standing plan packed against real capability: income/yr + savings drawdown; colony batches boosted to front when expansion points sit hull-less</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Corporate controller</span><span class="chip gap">GAP</span></div>
+  <p class="tag">standing plan (polity planner machinery at corp scope) packed against income + savings drawdown; dividend rate; lobby targets; risk appetite</p>
+  <ul class="subs"><li class="gap-item">plan scope — "Scoped, flagged" (corporations.md §controller): plans cover facilities; routes/gates opportunistic, hulls immediate</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Temperament composition</span><span class="chip done">IMPL</span></div>
+  <p class="tag">Intent-AI personality = species disposition × official ideology × ruler personality × faction pressure, weighted by government form</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Commanders</span><span class="chip gap">GAP</span></div>
+  <p class="tag">fleets above a threshold take a commander role; personality biases posture AI; renown accrues; age/die/succeed/defect</p>
+  <ul class="subs"><li class="gap-item">boldness bias missing (gap 9)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Native policy</span><span class="chip done">IMPL</span></div>
+  <p class="tag">on covering a pre-spaceflight homeworld: protectorate / integrate / exploit / uplift (Intent act, ideology-weighted, reputation-bearing)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Expansion prices neighbors</span><span class="chip done">IMPL</span></div>
+  <p class="tag">colony valuation discounts a site per entangled foreign domain; founding costs instant tension with each; borders contiguous by choice</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">War causes</span><span class="chip done">IMPL</span></div>
+  <p class="tag">tension discharges through a casus belli menu (economic/ideological/political/spatial/spark); spark rolls in high-friction space; aims scale with hatred → annihilation when saturated</p></div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-rs"><h3>5 · Resolution</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-rs"><h3>5 · Resolution</h3><div class="grid">
+<div class="node mech done"><div class="node-head"><span class="name">Lane / gate model</span><span class="chip done">IMPL</span></div>
+  <p class="tag">a lane = linked gate pair (one per port system); reach = min gate tier; capacity/speed from tiers; anti-web rule; crossing fees by gate owner</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Movement &amp; supply</span><span class="chip done">IMPL</span></div>
+  <p class="tag">three leg types (intra-domain/lane-hop/off-lane); off-lane gated on endurance floor; fleets draw fuel/upkeep from nearest owned port; unsupplied lose readiness then hulls</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Attrition &amp; wreckage</span><span class="chip gap">GAP</span></div>
+  <p class="tag">losses conserve into wreckage at the death hex → salvage sites &amp; battlefield POIs; piracy risk/lane = lawlessness × cargo value − escort vectors</p>
+  <ul class="subs"><li class="gap-item">piracy-risk-into-profit not modeled (gap 10)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Federation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">merge gate (sustained alliance + warmth + ideology compat + openness + cohesion); entangled friendly borders push to fusion; fused polity is NEW (weighted composition, fresh form)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Vassalage</span><span class="chip done">IMPL</span></div>
+  <p class="tag">asymmetric rung: imposed by settlement or chosen under threat; tribute/defense/policy-lock; exits absorption (drift) &amp; secession (bid)</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Dynastic instruments</span><span class="chip gap">GAP</span></div>
+  <p class="tag">marriages/wardships buy warmth &amp; create succession claims (tension pointed the other way); rare personal unions = federation fast-path</p>
+  <ul class="subs"><li class="gap-item">personal unions missing (gap 9)</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">War conduct</span><span class="chip gap">GAP</span></div>
+  <p class="tag">theater/objective model: assignment per doctrine+commander → per-objective engagement on fleet vectors (fortification, supply, competence, rolls) → sieges (reserves, fortress tier, relief); mobilization is a ramp not a switch</p>
+  <ul class="subs"><li class="gap-item">depth — occupation objectives, defensive mirrors, raidable supply objectives missing (gap 9)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Front supply lines</span><span class="chip done">IMPL</span></div>
+  <p class="tag">war force draws upkeep from nearest owned port (forward depot); quartermaster stocks it via War-priority couriers; war interdiction rolls seizure per contested sail, escorts damp deterministically; starvation bites readiness</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Allied belligerents</span><span class="chip done">IMPL</span></div>
+  <p class="tag">defense-alliance partners join as supporters under war leaders; settlements negotiated between leaders; allied gains/grievances flow through the leader's table</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Termination &amp; settlement</span><span class="chip gap">GAP</span></div>
+  <p class="tag">break on political collapse / exhaustion / capital loss / extinction; settlement negotiated from per-objective outcomes (cede/reparations/vassalize/imposed legality/white peace); accept when perceived cost &gt; settlement (stale, so wars overrun)</p>
+  <ul class="subs"><li class="gap-item">imposed-legality settlement missing (gap 9)</li></ul></div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-id"><h3>6 · Interior &amp; Demographics</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-id"><h3>6 · Interior &amp; Demographics</h3><div class="grid">
+<div class="node mech done"><div class="node-head"><span class="name">Corporate founding</span><span class="chip done">IMPL</span></div>
+  <p class="tag">simulation watches persistent profit niches (price gradient / unexploited deposit / unserved route) over consecutive epochs; charter event via graduation; niche stamps character</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Corporate influence</span><span class="chip done">IMPL</span></div>
+  <p class="tag">lobby spending strengthens aligned factions (dividends → elite faction wealth); sanction evasion by re-flagging through subsidiaries</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Corporate death &amp; estates</span><span class="chip done">IMPL</span></div>
+  <p class="tag">bankruptcy (default cascade) / nationalization / niche death; estates-pass settles orders, cargo, jobs, projects, credits, debt conservatively</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Outlaw institutions</span><span class="chip gap">GAP</span></div>
+  <p class="tag">same niche rule founds cartels (black-book) &amp; pirate bands (raiding niche = lawlessness × cargo value); based at ruin/haven POIs</p>
+  <ul class="subs"><li class="gap-item">piracy-risk-pricing not priced into freight profit (gap 10)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Population segments</span><span class="chip done">IMPL</span></div>
+  <p class="tag">(species, culture, size, SoL, ideology distribution); domain-level state (hex is a projection); conserved, identity travels; mixed by conquest/migration/diaspora</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Demographics</span><span class="chip done">IMPL</span></div>
+  <p class="tag">growth = f(SoL, provisions, embodiment); machine populations grow by manufacture (Machinery+Compute), age out when cut off; famine/war shrink</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Culture</span><span class="chip gap">GAP</span></div>
+  <p class="tag">registry entities, species-rooted, syllable flavor names systems/ships/characters; spread by migration/conquest</p>
+  <ul class="subs"><li class="gap-item">drift — mint-at-schism works; separation-split &amp; slow blending undone (gap 7)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Ideology</span><span class="chip done">IMPL</span></div>
+  <p class="tag">4 axes (Authority↔Autonomy · Communal↔Individual · Open↔Insular · Sacral↔Material); segment distributions drift with lived conditions; official = weighted opinion × institutional inertia</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Migration</span><span class="chip done">IMPL</span></div>
+  <p class="tag">per-step segment flows along SoL/safety/affinity/opportunity gradients × distance/lane access; refugees (fast) &amp; diasporas (memory-carrying minorities)</p>
+  <ul class="subs"><li class="spec-item">trafficking — illicit flow unmodeled (gap 5)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Faction formation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">coalesces when a coherent interest diverges from rule; six bases (ideological/cultural/regional/corporate/military/sacral); state = basis, strength, agenda, militancy</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Faction pressure</span><span class="chip done">IMPL</span></div>
+  <p class="tag">policies drift toward strong factions (bounded); appeasement spending buys off; unappeased accumulate grievance</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Graduation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">strength × grievance &gt; legitimacy × enforcement → Schism (polity) / Coup (ruler, → civil war) / Charter (corp) / Revolt (failed)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Legitimacy &amp; cohesion</span><span class="chip done">IMPL</span></div>
+  <p class="tag">legitimacy = f(SoL trend, ideology gap, war outcomes, prestige, cultural accommodation); cohesion = aggregate × structural strain; low cohesion lowers graduation thresholds</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Government forms</span><span class="chip done">IMPL</span></div>
+  <p class="tag">closed catalog of 8 (Autocracy/Collective/Assembly/Syndicate/Theocracy/Hive Unity/Machine Consensus/Steward Dynasty) seated in ideology × species; sets succession, inertia, faction tolerance; changes through graduation</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Characters</span><span class="chip done">IMPL</span></div>
+  <p class="tag">sparse; generated on demand from (institution, culture, species, seed); personality = ideology position + boldness/zeal/competence/ambition; lifespan/succession; dynasties; notables (hero/founder/prophet/pirate-lord/magnate/explorer); derivable biography</p>
+  <ul class="subs"><li class="spec-item">personal acts — 11 unarmed contract acts unbuilt (gap 1)</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Plagues</span><span class="chip gap">GAP</span></div>
+  <p class="tag">outbreak ∝ density × SoL deficit × exposure; propagates the lane graph with traffic; Medicine mitigation; quarantine = self-imposed interdiction; burns out; memorial residue</p>
+  <ul class="subs"><li class="gap-item">depth — excavation-release, Medicine mitigation, memorial POIs, era-signature missing (gap 8)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Contact</span><span class="chip done">IMPL</span></div>
+  <p class="tag">polities meet when reach overlaps (expansion/trade/news); first contact composes stance from temperament × strangeness × pre-arrived reputation</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Late-emergence resolution</span><span class="chip done">IMPL</span></div>
+  <p class="tag">emergence in free space = new polity; inside claimed space resolves by host native policy (vassal/autonomous member/suppressed + liberation casus belli)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Relations state</span><span class="chip done">IMPL</span></div>
+  <p class="tag">per-pair warmth (interdependence) + tension (friction, the war-pressure gauge, decays only when sources resolve); treaty rungs (trade pact / non-aggression / defense alliance / federation-vassalage) at mutual consent</p></div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-ch"><h3>7 · Chronicle</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-ch"><h3>7 · Chronicle</h3><div class="grid">
+<div class="node mech done"><div class="node-head"><span class="name">News pulses</span><span class="chip done">IMPL</span></div>
+  <p class="tag">Chronicle emits pulses for public events above magnitude floors; travel the lane graph at traffic-derived speed, attenuating with distance; couriers/scouts/player are fast paths</p>
+  <ul class="subs"><li class="spec-item">fast paths — couriers/scouts/player unbuilt (gap 12)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Event grammar</span><span class="chip done">IMPL</span></div>
+  <p class="tag">one schema across four clocks: (id, world-year, clock stratum, type, actors[], location, magnitude, valence, visibility, payload); 8 type families; visibility public/regional/secret; indexes are views</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Chronicle views</span><span class="chip done">IMPL</span></div>
+  <p class="tag">queries over the one log at every zoom: galaxy (era detection clusters epochs by signature) / polity (reign arc) / character (biography) / place (hex annotation &amp; archaeology)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">POI compiler</span><span class="chip done">IMPL</span></div>
+  <p class="tag">runs inside Chronicle every epoch, converting qualifying events into anchored POIs immediately (battlefields→salvage, ruins→lawlessness, razed capitals→claim anchors, memorials, precursor sites); live sim effects; one-anchor-per-hex by magnitude; decay as consumed</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">War aftermath</span><span class="chip done">IMPL</span></div>
+  <p class="tag">grudges → standing claims (tomorrow's tension); veterans → military factions; heroes mint; wreckage/razed → POIs; conduct reputation travels the news graph</p></div>
+</div></div>
 
     <div class="arrow"><span class="stem"></span><span class="head">↺</span><span class="lbl">Chronicle → next step's Perception (news arriving is next step's history)</span></div>
   </section>
@@ -332,7 +430,42 @@
   <section class="tier">
     <div class="tier-head"><span class="tier-tag">Structural</span><h2>Cross-Cutting &amp; Structural</h2>
       <span class="nature">standing vocabulary, architecture, and discipline the loop runs on — no single phase fires these</span></div>
-    <div class="grid" id="flow-crosscut"></div>
+    <div class="grid" id="flow-crosscut">
+<div class="node mech done"><div class="node-head"><span class="name">Grade system</span><span class="chip done">IMPL</span></div>
+  <p class="tag">every stock = (quantity, grade∈[0,1]); grade flows terrain→chains; Effective(useCase)=qty×GradeMultiplier; tech tier is the grade ceiling; precursor grade above any ceiling</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Infrastructure catalog</span><span class="chip done">IMPL</span></div>
+  <p class="tag">15 types in 5 families (keystone port + extraction/processing/heavy/support); each tier 1–3, build cost, construction time, upkeep, hex anchor; siting rules</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Port &amp; domain model</span><span class="chip done">IMPL</span></div>
+  <p class="tag">keystone port: local service radius + gate slots (two growth axes); territory = union of port service areas (derived, never stored); domain overlap = contested zone</p></div>
+<div class="node mech spec"><div class="node-head"><span class="name">Retail projection</span><span class="chip spec">SPEC</span></div>
+  <p class="tag">play-clock items are retail instances sampling local (good,grade,qty) stocks; tail-sampled exceptional items</p>
+  <ul class="subs"><li class="spec-item">play-clock, unbuilt</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Chassis grid</span><span class="chip gap">GAP</span></div>
+  <p class="tag">design = role × size cell (Freight/Escort/Line/Carrier/Scout/Colony/Special); instantiated per polity from embodiment × culture × tech × grade</p>
+  <ul class="subs"><li class="gap-item">Carrier role unused (gap 10)</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Design sheet</span><span class="chip gap">GAP</span></div>
+  <p class="tag">two-layer stat model: ~15-stat sheet (Combat/Mobility/Capacity/Operations) + epoch aggregation into vectors; grade/tech act per-stat; refit variants</p>
+  <ul class="subs"><li class="gap-item">refit variants unused (gap 10)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Design lineages</span><span class="chip done">IMPL</span></div>
+  <p class="tag">designs drift along named lineages/marks over epochs — fleet composition reads as cultural history</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">World-state handoff</span><span class="chip done">IMPL</span></div>
+  <p class="tag">final artifact layer: complete registries + deliberately open threads; resumability (same machine at play tick); controller handover; log never closes; delta boundary (save = config + artifact + deltas + log continuation)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Controller contract</span><span class="chip done">IMPL</span></div>
+  <p class="tag">Decide(perceivedState) → (policies, acts) per actor kind (polity/corp/character); the Intent-phase API = the player UI surface</p>
+  <ul class="subs"><li class="spec-item">11 unarmed acts (gap 1); armed: found-colony, declare-war, treaty, settlement-response, nationalize, vassalage, dynastic instrument, quarantine</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Price signal</span><span class="chip done">IMPL</span></div>
+  <p class="tag">market-price-derived valuations in grade-effective units are the one value language: expansion attractiveness, war-goal value, migration pull, investment, siting all read it</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Event grammar (interface)</span><span class="chip done">IMPL</span></div>
+  <p class="tag">every subsystem emits one schema; L4 owns it; emitting well-formed history is a requirement on every mechanic</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Pressure → graduation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">L2 faction machinery is the sole factory for new institutions; L3 consumes schisms, L1 consumes charters; emergence schedule is the one non-faction origin</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Determinism discipline</span><span class="chip done">IMPL</span></div>
+  <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Artifact layers</span><span class="chip done">IMPL</span></div>
+  <p class="tag">~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Four-clock rate model</span><span class="chip done">IMPL</span></div>
+  <p class="tag">all rates in world-years (P7); epoch = 25y integration step, not a unit; durations are world-time state; coarse/fine sample the same durations</p></div>
+</div>
   </section>
 
   <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">the artifact is read by the consuming surfaces</span></div>
@@ -340,7 +473,18 @@
   <section class="tier">
     <div class="tier-head"><span class="tier-tag">Surfaces</span><h2>Inspection &amp; Rendering</h2>
       <span class="nature">downstream consumers of the artifact</span></div>
-    <div class="grid" id="flow-inspection"></div>
+    <div class="grid" id="flow-inspection">
+<div class="node mech done"><div class="node-head"><span class="name">Inspector REPL</span><span class="chip done">IMPL</span></div>
+  <p class="tag">epoch run/save/load (22-layer), watch, emap layers, panels, threads, estep (fine tick), delta saves, belief/news/era/poi queries</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Unity atlas</span><span class="chip done">IMPL</span></div>
+  <p class="tag">rebuilt against the settled model (K1–K5 merged): skeleton → lenses → panels → timeline → system stage; five LOD bands; map/system-stage lenses; typed pickables → panels</p>
+  <ul class="subs"><li class="spec-item" style="color:var(--muted)">was PoC — the key staleness fix in this rebuild</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Sim-health harness</span><span class="chip done">IMPL</span></div>
+  <p class="tag">MetricRegistry + per-phase MoneyRow; conservation residual ≈1e-8; ensemble sweep runner; ehealth; in-memory only, never serialized</p></div>
+<div class="node mech spec"><div class="node-head"><span class="name">Game layer / play clock</span><span class="chip spec">SPEC</span></div>
+  <p class="tag">live game: player verbs, perceived-price trading, news-carrying; the acceptance gap list</p>
+  <ul class="subs"><li class="spec-item">future</li></ul></div>
+</div>
   </section>
 
 </section>
