@@ -142,4 +142,6 @@ NOT K. Espionage stays reserved. Core stays Unity-free.
 6. Wrap-up: merge · HANDOFF (close the roadmap) · flip the box below ·
    push only on user say-so.
 
-- [ ] Slice K complete
+- [x] Slice K complete (K5 merged 2026-07-12 — the taste gate passed:
+      seed 42, 40 epochs watched, the siege hex drilled to its orbit
+      view, threads panel open over it)

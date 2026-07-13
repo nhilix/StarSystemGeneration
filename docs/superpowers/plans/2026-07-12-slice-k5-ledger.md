@@ -138,7 +138,7 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
       Declined-as-noted: additive starlight fades as fade² through the
       crossfade (cosmetic, reads fine) · EditMode/smoke re-ran post-fix
       instead of in-review.
-- [ ] **T9 — USER: the K taste gate** — seed 42, watch 40 epochs, click
+- [x] **T9 — USER: the K taste gate — ACCEPTED** — seed 42, watch 40 epochs, click
       the Alloys War siege hex, drill to its system, open the threads
       panel. (The whole-K acceptance, not just K5's.)
   - Eyeball wave 1 (2026-07-12, five findings):
@@ -175,7 +175,7 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
     and an `echo exit: $?` tail masks the code. Two smoke runs read as
     green that never rendered; verify the LOG SIZE + png mtimes, and
     put the real exit code in the task's failure path.
-- [ ] **T10 — Wrap-up**: merge via scratch worktree · HANDOFF (roadmap
+- [x] **T10 — Wrap-up**: merge via scratch worktree · HANDOFF (roadmap
       CLOSED → gap-list backlog `2026-07-11-design-acceptance.md`; keep
       the CE-chained K6 pointer) · tick K5 + "Slice K complete" ·
       diagram §7/§9 rows + zoom caption amended, republished · push on

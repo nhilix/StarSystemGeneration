@@ -589,7 +589,7 @@
       </div>
       <div class="zoomcell">
         <div class="frame"><canvas id="zoomSystem"></canvas></div>
-        <span class="cap"><b>SYSTEM</b> · a single hex fills the viewport and crossfades to the orbit view: star, bodies, the port, sited facilities. Same selection model, same panels.</span>
+        <span class="cap"><b>SYSTEM</b> · a single hex fills the viewport and crossfades to the orbit view — every visible system renders as the map dissolves (K5 as built: option-A rings, fit-to-hex, no pop-in). Same selection model, same panels.</span>
       </div>
     </div>
   </section>
@@ -754,7 +754,7 @@
           <tr><td class="mono">InspectorDock</td><td>Panel lifecycle: open on select, pin, stack, close; layout of the right dock.</td><td class="mono">SelectionModel, PanelRegistry</td></tr>
           <tr><td class="mono">Typed Panels</td><td>Open Threads, Polity, Market, Fleet, War, Relations, Character/Bio, Corp, POI, Belief, News, Stances — each a view over one PanelQuery.</td><td class="mono">AtlasReadModel</td></tr>
           <tr><td class="mono">TimelineStrip</td><td>Era bands, event sparkline, keyframe ticks, cursor; press/drag scrubs to the nearest keyframe. Transport (play/step ×1/×5), resolution chips (a mid-run change forks — FORK chip shows the branch), run-seed box (seed · radius · epochs). All mutation via SimHost.</td><td class="mono">AtlasReadModel, TimeMachine (via SimHost)</td></tr>
-          <tr><td class="mono">SystemStage</td><td>The orbit-view scene fragment swapped in at system LOD: star, bodies, port, facilities.</td><td class="mono">AtlasReadModel, CameraRig</td></tr>
+          <tr><td class="mono">SystemStage</td><td>The orbit views the map crossfades into at System LOD (as built, K5): EVERY visible system hex renders at once — no pop-in; one system fills the view as the camera closes. Option-A grammar (a thin ring per slot, dashed belts, habitable-band annulus, star core+halo, moons at the rim, settled worlds ringed in accent); each layout scaled to fit inside its own hex; port ring + facility/site marks docked at affinity orbits (SystemQuery — extraction at its substrate, everything else at the port body). Publishes pickables; SelectionModel drives clicks — same panels. No text on the stage: names live in the tooltip and the System panel.</td><td class="mono">AtlasReadModel (SystemQuery), CameraRig (StageFade), SimHost events</td></tr>
         </tbody>
       </table>
     </div>
@@ -803,6 +803,8 @@
           <tr><td>Market</td><td class="mono">market &lt;portId&gt; + the located larder: Port.StockQty/StockGrade per good, capacity (StockCapacityAt), decay (T2)</td><td>Click a port (opens Market + owner Polity)</td></tr>
           <tr><td><b>Project inspector</b> <span class="mono">(NEW, T1)</span></td><td class="mono">eprojects — kind, funder vs owner, per-year basket, LastFedFraction starvation, honest eta</td><td>Click a works-lens site mark</td></tr>
           <tr><td><b>Shipment card</b> <span class="mono">(NEW, T2)</span></td><td class="mono">efreight — route, cargo+grades, sailed/total, live eta, STALLED</td><td>Click a works-lens freight mark</td></tr>
+          <tr><td><b>System</b> <span class="mono">(NEW, K5)</span></td><td class="mono">SystemQuery — designation/name, arrangement, stars, every orbit row (band · kind · size · moons · settlement), port/facility/site links. The hex tier, computed on demand, never persisted</td><td>Click a star or body in the orbit view; the Hex panel's system line</td></tr>
+          <tr><td><b>Facility card</b> <span class="mono">(NEW, K5)</span></td><td class="mono">FacilityPanel — type/family/tier, condition, active (MarketEngine.IsActive, zero drift), owner (corp links by REGISTRY id), produces, trades-at market</td><td>Click a facility mark in the orbit view; System panel links</td></tr>
           <tr><td>Fleet</td><td class="mono">fleet, designs</td><td>Click a fleet glyph</td></tr>
           <tr><td>War</td><td class="mono">wars, war &lt;id&gt;</td><td>Click a front / war lens legend</td></tr>
           <tr><td>Relations</td><td class="mono">relations [id]</td><td>Polity panel → Relations tab</td></tr>

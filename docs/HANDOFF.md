@@ -1,103 +1,100 @@
-# Session Handoff — 2026-07-12 (Slice CE, Contract economy — MERGED)
+# Session Handoff — 2026-07-12 (Slice K5, System stage & closeout — MERGED)
 
-State: `slice-ce-contract-economy` merged to `main` locally (not pushed —
-push on say-so). Gates at merge: **832/832 dotnet** (golden RE-FROZEN once
-at slice end — the diff IS the new economy; the golden-vs-regeneration
-match doubles as determinism ×2) · fresh-eyes whole-branch review
-(2 critical + 5 high, all fixed test-first in ONE wave) · user eyeball +
-merge accepted 2026-07-12. K4 (timeline) merged mid-slice and was folded
-in twice; K3's Atlas MarketPanel was ported to the order book at the
-second fold. ProjectSettings churn stays uncommitted.
+State: `slice-k5-system` merged to `main` locally (not pushed — push on
+say-so). **The 11-slice greenfield roadmap
+(`2026-07-09-implementation-roadmap.md`) is CLOSED**: A–K all merged;
+Slice K's five sub-slices K1–K5 delivered the full atlas (skeleton →
+lenses → panels → timeline → system stage). Gates at merge: **852/852
+dotnet ×3** (goldens untouched — K5 adds no sim behavior, only two
+read-only Core queries) · EditMode 14/14 · AtlasSmoke every lens + two
+system-stage shots · fresh-eyes whole-branch review ("NOT READY — 2
+confirmed bugs", both fixed test-first in one wave) · user eyeball
+accepted 2026-07-12 after two waves ("good enough for now") · merge
+accepted 2026-07-12. ProjectSettings churn stays uncommitted.
 
-## Slice CE — the contract economy (closed)
+## Slice K5 — the system stage (closed)
 
-Spec `docs/superpowers/specs/2026-07-12-contract-economy-design.md`
-(+ its end-of-slice "Implementation amendments" block). Ledger
-`docs/superpowers/plans/2026-07-12-slice-ce-ledger.md` (C1–C19 with
-decisions, the C17 review verdict, and the carried-debt list).
+Kickoff `2026-07-12-slice-k5-kickoff-prompt.md`; ledger
+`2026-07-12-slice-k5-ledger.md` (decisions, the T8 review verdict, two
+eyeball waves, the re-learned batch trap). Living diagram republished
+(§3 zoom caption, §7 SystemStage row as built, §9 System + Facility
+panel rows).
 
-- **B1 — the order book** (`MarketOrder`/`OrderOps`/`BookOps`): a market
-  IS its open orders (EVE model) — physical escrow (sells hold goods,
-  buys hold credits, drawn at post), price-time priority, fills at MAKER
-  price, per-fill settlement (transaction tax → port sovereign, labor
-  share → segments). `Market.Inventory` is DEAD; `Market.Price` survives
-  as the reference readout, drifting rate-clamped on the pre-match book
-  imbalance (posted bids + consumption signal vs resting asks,
-  generation-normalized P7). Band tranches (one purse per band), project
-  bids into **laydown yards** (`Project.DeliveredQty`), procurement,
-  relay staging: all escrowed orders, unfilled state bids cancel/refund
-  at the clear. Order expiry: buys refund, sells escheat to the port;
-  restock refreshes a rolling quote (`OrderExpiryYears` 100 — an expiry
-  inside ~2 coarse steps breaks tick honesty).
-- **B2 — actors fulfill** : **spread runs** (`MoveFreight`) — every
-  posted fleet's owner trades its lane's gradient; corps front runs from
-  FREE capital only, the sovereign marine rides the treasury's
-  intra-step credit line (its cash sits escrowed in its own bids until
-  the clear). **Courier contracts** (`CourierContract`/`CourierOps`) —
-  move-my-goods-A→B for an escrowed fee; requisitions, corp internal
-  moves, war convoys are one record at War/Normal priority; the job
-  board charges real `FleetOps.PostedLift`, so War genuinely takes the
-  hulls. **Corp standing plans** ride the polity Planner (capability =
-  income + savings drawdown; facilities only — routes/hulls stay
-  opportunistic, flagged). Engine Arbitrage/PayHaulers/Deposit/Clear —
-  deleted.
-- **B3 — front supply lines**: war-stationed fleets (Blockade/
-  Expedition) victual at `FleetOps.NearestOwnedPortId` (the forward
-  depot) and signal consumption there; `ShipmentOps.StockDepots` posts
-  War couriers toward depot shortfalls (book + capacity aware);
-  **interdiction on RollChannel 76** — contested legs (enemy
-  war-stationed within `InterdictionReachHexes`, or enemy escorts riding
-  the lane) roll seizure per contested-year, friendly escorts damp
-  `p/(1+damp×hulls)` deterministically, prizes post as the interdictor's
-  asks at its nearest port, `CargoSeized = 409` + `ProjectAbandoned =
-  211` chronicle. Serialization: ORDER/COURIER v1 layers, markets v3,
-  projects v2; `R()` parse-back G17 guard (a real .NET double-format
-  bug).
-- **Design tree amended in-branch**: markets.md REWRITTEN around the
-  book + couriers; war.md front supply lines; corporations.md plans/
-  speculation/estates pass; assets-and-investment.md yards + savings
-  packing + abandon clock; controller-contract, perception-and-news,
-  infrastructure (port-raise exotics enter at tier 2+). TUNING.md swept.
-- **REPL**: `ebook <port> [good]` · `econtracts [actor]` · `emap trade`
-  (per-lane ACTIONABLE spread — asks at the cheap end) · `efreight`
-  purposes (courier / war convoy / spread run / state haul).
+- **Core** (`src/Core/Atlas`, 852-test suite): `SystemQuery.At` — the
+  orbit-view read model: the hex-tier system (stars, a ring row for
+  EVERY slot, occupied orbit rows) computed on demand, never persisted,
+  plus epoch overlays ATTACHED to orbits by deterministic type affinity
+  (mine→belt/rock, skimmer→gas giant, agri→best biosphere,
+  excavation→wreckage, everything else→the port body; port→most-settled
+  body). Uncommissioned facilities fold into their construction sites
+  (one thing, one mark). Layout angles are a pure fnv hash — no
+  RollChannel. `FacilityPanel.Card` — type/family/tier/condition/active
+  (≡ MarketEngine.IsActive, zero drift), owner with the corp REGISTRY id
+  for panel links (id spaces differ from actor ids — review finding).
+- **The fifth LOD band**: `LodBand.System` keys on ABSOLUTE distance
+  (5.0, guarded for toy galaxies); `MapFade`/`StageFade` crossfade
+  curves fold into every map lens (lanes/glyphs/lattice via the shared
+  curves; ports/news/domain/nature/price via new OnZoom hooks;
+  `AtlasBillboard` gained `_Tint`, `DomainField` gained `_MapFade`).
+  Starfield deliberately never fades.
+- **SystemStage** (`unity/Assets/Atlas/SystemStage.cs`): EVERY visible
+  system hex renders while the crossfade is live (world-space meshes,
+  rebuild keyed on the visible-hex set) — zooming magnifies one until
+  it fills the view, no pop-in. Option-A orbit grammar (the
+  `236896d9…` artifact): thin #262C3F rings per slot, dashed belts, a
+  subtle habitable annulus, star core+halo, moons at the body's rim,
+  settled worlds ringed #FFBF4F, layouts scaled to fit inside their hex.
+  Vertex colors LINEARIZED (the washed-palette bug). Stage is coplanar
+  with the lattice; draw order rides renderQueue. No text on the stage.
+- **Same selection, same panels**: stage publishes typed pickables
+  (port>facility/site>body priority on ties); star/body →
+  **System panel** (NEW — the hex's system info: stars, every orbit,
+  overlay links), facility → **Facility card** (NEW), site → Project,
+  port → Market+Polity. Tooltip retitles to the hovered orbit thing.
+  Selection ring is a screen-constant ~3px stroke.
+- **Closeout sweeps**: PoC `unity/Assets/Scripts` remnant deleted;
+  every runtime Mesh/Material/Texture2D in Assets/Atlas carries
+  HideAndDontSave (the flag carried since K2 — closed).
 
 ## Carried / flagged
 
-1. **Credit-loop equilibrium — NOT closed by CE** (probed at merge: all
-   15 entered seed-42 polities negative, worst ≈ −402k). Deficit
-   financing is intentional but Phases.Borrow needs a lender at 2.4× the
-   hole; once all are negative none exists. Needs its own monetary pass.
-2. **CE carried debt** (ledger C17 for the full list): RepriceAsks
-   re-anchors ALL quotes (per-owner decay deviation, amended in
-   markets.md); relay bids KEPT until multi-hop actor runs over
-   perceived books (the designed next economy slice); courier allocation
-   is fee-blind (priority, id); no global goods-conservation sweep;
-   stalled InTransit couriers can lock fee+cargo on a permanently dead
-   lane; capital-goods chains (Composites/RefinedExotics) still anemic —
-   uniform-scarcity ceilings kill relay gradients.
+1. **Credit-loop equilibrium — NOT closed by CE** (all 15 entered
+   seed-42 polities negative, worst ≈ −402k). Deficit financing is
+   intentional but Phases.Borrow needs a lender at 2.4× the hole; once
+   all are negative none exists. Needs its own monetary pass.
+2. **CE carried debt** (CE ledger C17 for the full list): relay bids
+   KEPT until multi-hop actor runs over perceived books; courier
+   allocation fee-blind; stalled InTransit couriers can lock fee+cargo;
+   capital-goods chains anemic.
 3. Timeline branch switch-back UI · unbounded keyframe memory (K4).
-4. Per-lens readability deep-dives — backlog.
-5. Menu F1–F4 stubs; NEW GALAXY → atlas seed handoff (post-K).
+4. Per-lens readability deep-dives + orbit-view polish (labels stayed
+   OFF the stage — a deliberate divergence from the option-A mock;
+   revisit if the System panel isn't enough) — backlog.
+5. Menu F1–F4 stubs; NEW GALAXY → atlas seed handoff (post-roadmap).
+6. SystemQuery runs per visible hex per rebuild (~25–50 at crossfade) —
+   fine today; cache per (hex, epoch) if panning ever janks.
 
-## Worktree / environment traps (verified through K4 — see the K4
-ledger's list)
+## Worktree / environment traps (verified through K5 — see the K4/K5
+ledgers' lists)
 
 Gitignored `unity/Packages/manifest.json` / `packages-lock.json` /
 `src/Core/csc.rsp` must be copied into fresh worktrees before Unity
-batch runs; batchmode vs editor lock; MCP bridge approval is
-per-project; goldens are CRLF on disk; PowerShell mangles piped stdin
-(bash `printf`) and Set-Content regex round-trips mojibake source files
-— use the Write tool.
+batch runs; **batchmode dies in ~2s (exit 1, ~1KB log) while the editor
+holds the project — and a trailing `echo exit: $?` masks the failure;
+verify log size + output mtimes**; MCP bridge approval is per-project;
+goldens are CRLF on disk; PowerShell mangles piped stdin (bash
+`printf`); vertex colors need explicit `.linear` in the linear pipeline.
 
 ## Next up
 
-1. **Slice K5 (System stage & closeout)** — if not already in flight:
-   `docs/superpowers/plans/2026-07-12-slice-k5-kickoff-prompt.md`.
-2. **Slice K6 (The economy surfaces)** — AFTER K5 merges:
+1. **Slice K6 (The economy surfaces)** — the chained kickoff:
    `docs/superpowers/plans/2026-07-12-slice-k6-kickoff-prompt.md` —
    TRADE lens on the rail, order-book + contracts panels, freight
    purposes on the map, war-supply readout; zero sim behavior.
+2. **The gap-list backlog** — the roadmap's designated successor queue:
+   `docs/superpowers/specs/2026-07-11-design-acceptance.md` (13 filed
+   gaps: player verbs, perceived-price trading, sanctions, plague/war/
+   fleet depth…), plus the carried flags above.
 3. **Next economy slice (unscheduled)**: multi-hop actor runs over
    perceived books (retires relay bids; the P3 trader edge) + the
    monetary/credit-equilibrium pass (flag 1).
