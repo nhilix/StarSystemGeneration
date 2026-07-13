@@ -932,7 +932,7 @@ git commit -m "feat(diagram): Flow rosters — Intent/Resolution/Interior/Chroni
 - Consumes: `#view-blocks`, `.tier`, `.tier-head`, `.opr`, `.grid`, `.arrow`, the mech card template + chip/sub classes.
 - Produces: the Blocks container's opening groups with stable ids `#blk-genesis`, `#blk-l0`, `#blk-l1` (each a `.tier` with a `.grid`). Tasks 6–7 append sibling `.tier`/strip sections after `#blk-l1`. Adds 7 + 12 + 17 = 36 mech cards (file total → 125, i.e. 89 Flow + 36 Blocks-so-far).
 
-**Reuse:** Genesis, L0, and L1 mech cards use the **same** name/tag/chip/sub content as their Appendix A rows. Where a node also appears in Flow (any node with `flow ≠ —`), the card text here MUST be byte-identical to the Flow copy — copy it from the Flow section you already wrote. Genesis nodes and the L0/L1 `flow = —` nodes (Grade system, Infrastructure catalog, Port & domain, Retail projection) are new here (Blocks-only).
+**Reuse:** Genesis, L0, and L1 mech cards use the **same** name/tag/chip/sub content as their Appendix A rows. Where a node also appears **anywhere** in Flow view — either a phase card (`flow ≠ —` in the strict phase sense) or the `#flow-crosscut` band (every L0/L1/Fleet/L4/interfaces/determinism node except Genesis, per the crosscut amendment in §Tally) — the card text here MUST be byte-identical to that existing Flow copy. Concretely for this task: Grade system, Infrastructure catalog, Port & domain model, and Retail projection are NOT Blocks-only — they already exist in `#flow-crosscut` (added in Task 4) and must be reconciled against it, same as any phase-carded node. Only Genesis's 7 nodes are genuinely new/Blocks-only here.
 
 - [ ] **Step 1: Structural check (expect fail)**
 
@@ -1075,7 +1075,7 @@ grep -c 'id="blk-genesis"' docs/diagrams/generation-flow.html; \
 grep -c 'id="blk-l0"' docs/diagrams/generation-flow.html; \
 grep -c 'id="blk-l1"' docs/diagrams/generation-flow.html
 ```
-Expected: `110`, `1`, `1`, `1`.
+Expected: `125`, `1`, `1`, `1`.
 
 - [ ] **Step 4: Visual verification**
 
@@ -1085,7 +1085,7 @@ Open the file, click "Blocks · architecture". Confirm: Genesis, L0, L1 render a
 
 ```bash
 git add docs/diagrams/generation-flow.html
-git commit -m "feat(diagram): Blocks view — Genesis, L0 Substrate, L1 Economy (110 cards)"
+git commit -m "feat(diagram): Blocks view — Genesis, L0 Substrate, L1 Economy (125 cards)"
 ```
 
 ---
@@ -1214,13 +1214,13 @@ grep -c 'id="blk-corp"' docs/diagrams/generation-flow.html; \
 grep -c 'id="blk-fleet"' docs/diagrams/generation-flow.html; \
 grep -c 'id="blk-l2"' docs/diagrams/generation-flow.html
 ```
-Expected: `138`, `1`, `1`, `1`.
+Expected: `153`, `1`, `1`, `1`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add docs/diagrams/generation-flow.html
-git commit -m "feat(diagram): Blocks view — Corporations, Fleet, L2 Polity (138 cards)"
+git commit -m "feat(diagram): Blocks view — Corporations, Fleet, L2 Polity (153 cards)"
 ```
 
 ---
