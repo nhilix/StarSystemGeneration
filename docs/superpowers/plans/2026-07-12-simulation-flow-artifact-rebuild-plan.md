@@ -930,7 +930,7 @@ git commit -m "feat(diagram): Flow rosters — Intent/Resolution/Interior/Chroni
 
 **Interfaces:**
 - Consumes: `#view-blocks`, `.tier`, `.tier-head`, `.opr`, `.grid`, `.arrow`, the mech card template + chip/sub classes.
-- Produces: the Blocks container's opening groups with stable ids `#blk-genesis`, `#blk-l0`, `#blk-l1` (each a `.tier` with a `.grid`). Tasks 6–7 append sibling `.tier`/strip sections after `#blk-l1`. Adds 7 + 12 + 17 = 36 mech cards (file total → 110).
+- Produces: the Blocks container's opening groups with stable ids `#blk-genesis`, `#blk-l0`, `#blk-l1` (each a `.tier` with a `.grid`). Tasks 6–7 append sibling `.tier`/strip sections after `#blk-l1`. Adds 7 + 12 + 17 = 36 mech cards (file total → 125, i.e. 89 Flow + 36 Blocks-so-far).
 
 **Reuse:** Genesis, L0, and L1 mech cards use the **same** name/tag/chip/sub content as their Appendix A rows. Where a node also appears in Flow (any node with `flow ≠ —`), the card text here MUST be byte-identical to the Flow copy — copy it from the Flow section you already wrote. Genesis nodes and the L0/L1 `flow = —` nodes (Grade system, Infrastructure catalog, Port & domain, Retail projection) are new here (Blocks-only).
 
@@ -1097,7 +1097,7 @@ git commit -m "feat(diagram): Blocks view — Genesis, L0 Substrate, L1 Economy 
 
 **Interfaces:**
 - Consumes: `#view-blocks`, the tier/opr/grid structure, the mech card template.
-- Produces: `#blk-corp`, `#blk-fleet`, `#blk-l2` tiers. Adds 6 + 9 + 13 = 28 mech cards (file total → 138). Corp/Fleet/L2 nodes with `flow ≠ —` must be byte-identical to their Flow copies (copy from the Flow section).
+- Produces: `#blk-corp`, `#blk-fleet`, `#blk-l2` tiers. Adds 6 + 9 + 13 = 28 mech cards (file total → 153, i.e. 89 Flow + 64 Blocks-so-far). Corp/Fleet/L2 nodes with `flow ≠ —` must be byte-identical to their Flow copies (copy from the Flow section).
 
 - [ ] **Step 1: Structural check (expect fail)**
 
