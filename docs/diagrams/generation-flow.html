@@ -232,11 +232,89 @@
     <div class="tier-head"><span class="tier-tag">Epoch loop</span><h2>Seven Phases per Step</h2>
       <span class="nature">frame/simulation-flow.md · one controller touchpoint (Intent) · decisions on belief, consequences on truth</span></div>
 
-    <div class="subgroup" id="phase-pc"><h3>1 · Perception</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-pc"><h3>1 · Perception</h3><div class="grid">
+<div class="node mech done">
+  <div class="node-head"><span class="name">Perception state</span><span class="chip done">IMPL</span></div>
+  <p class="tag">per-actor compressed beliefs: stance table + belief snapshots per (observer, subject) frozen at last refresh (refresh when elapsed years cover news delay); self-facts fresh; corporate perceives own capability</p>
+  <ul class="subs"><li class="spec-item">perceived-price arbitrage — belief carries no partner prices (gap 2)</li></ul>
+</div>
+<div class="node mech done">
+  <div class="node-head"><span class="name">Stances &amp; reputation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">news arrival updates stance filtered through observer temperament; reputation derived (never stored) as per-audience stance aggregates, consumed as gates</p>
+</div>
+<div class="node mech done">
+  <div class="node-head"><span class="name">Information carriage</span><span class="chip done">IMPL</span></div>
+  <p class="tag">news speed/lane = f(posted traffic frequency); courier/scout fleets are deliberate info assets; player carrying news is this at individual scale</p>
+  <ul class="subs"><li class="spec-item">courier fast-paths — news travels traffic only; couriers/scouts/news-carrying player are play-clock (gap 12)</li></ul>
+</div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-mk"><h3>2 · Markets</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-mk"><h3>2 · Markets</h3><div class="grid">
+<div class="node mech done"><div class="node-head"><span class="name">Commodity vocabulary</span><span class="chip done">IMPL</span></div>
+  <p class="tag">17 goods in raw/processed/capital tiers; recipe chains 1–4 nodes deep; standard (exotics-free) vs advanced (exotics-gated) variants, tech-tier-gated</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Demand model</span><span class="chip done">IMPL</span></div>
+  <p class="tag">priority bands: population (subsistence/SoL/luxury, embodiment-modulated) · industry · movement (Fuel) · military · technology (Refined Exotics × Compute)</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Legality schema</span><span class="chip done">IMPL</span></div>
+  <p class="tag">per-polity law code legal/restricted/prohibited + tariff; prohibition → black-market demand at margin</p></div>
+<div class="node mech spec"><div class="node-head"><span class="name">Sentient trafficking</span><span class="chip spec">SPEC</span></div>
+  <p class="tag">illicit population flow against the gradient toward low-rights polities; crime vs the population substrate</p>
+  <ul class="subs"><li class="spec-item">unmodeled in both commodities and migration (gap 5)</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Production formula</span><span class="chip gap">GAP</span></div>
+  <p class="tag">output = base(type,tier) × terrain × labor × machineryGrade × automation(compute)</p>
+  <ul class="subs"><li class="gap-item">automation term — production formula accepts it; Markets passes 0.0 (gap 11)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Organic baseline</span><span class="chip done">IMPL</span></div>
+  <p class="tag">unserviced settlements subsistence-farm/craft locally; small enough that facilities dominate</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Market geography</span><span class="chip done">IMPL</span></div>
+  <p class="tag">one market per port at service-area∩lane-network; per-good price/last-cleared-qty/mean-grade + black book; connectivity is price structure; wilds have no market</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Order-book market engine</span><span class="chip done">IMPL</span></div>
+  <p class="tag">the market IS the set of open buy/sell orders (EVE model); physical escrow (sells hold goods, buys hold credits); reference price is the persistent readout</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">The market step</span><span class="chip done">IMPL</span></div>
+  <p class="tag">fixed 9-step order: expiry sweep → freight sail → requote → supply lands → escrowed demand bids → spread run → matching (price-time priority, MAKER-price fill) → reference drift → clearing consequences</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Per-owner quote decay</span><span class="chip gap">GAP</span></div>
+  <p class="tag">(design) sold-out sellers raise, glutted cut</p>
+  <ul class="subs"><li class="gap-item">"Deviation, flagged" (markets.md §step 3) — discovery lives in reference drift instead</li></ul></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Relay bids</span><span class="chip gap">GAP</span></div>
+  <p class="tag">cheap-end sovereign bids at own reference to stage re-export; hop-by-hop diffusion; entrepôts emerge</p>
+  <ul class="subs"><li class="gap-item">"Kept past B2, flagged" (markets.md) — hop diffusion stand-in, retires with multi-hop actor runs</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Freight / shipments</span><span class="chip done">IMPL</span></div>
+  <p class="tag">a haul = Shipment (origin, dest, cargo, lane route); leg-years priced at departure; blockade/quarantine/dead-gate stalls it; piracy/war-interdiction rolls per sail</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Spread run</span><span class="chip done">IMPL</span></div>
+  <p class="tag">posted fleet's owner trades its lane gradient with own capital: lift cheap asks, sail, post at dear end; absorption reads real resting bids above delivered break-even</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Courier contracts</span><span class="chip gap">GAP</span></div>
+  <p class="tag">internal logistics as a market: courier posts (origin, dest, escrowed cargo+fee); board clears (priority, id); War priority outbids commerce; requisition channel rides it</p>
+  <ul class="subs"><li class="gap-item">ranking deviation (markets.md §courier) — ranks (priority, id), fee prices poster cost only</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Household income &amp; labor share</span><span class="chip done">IMPL</span></div>
+  <p class="tag">facilities pay a labor share of revenue to staffing segments (shrinks with automation); SoL derives from real wages at local prices</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Wealth &amp; taxation</span><span class="chip done">IMPL</span></div>
+  <p class="tag">transaction tax on sales + tariffs on cross-border freight + state-facility income; true wealth = ledger + asset book (emergent readout)</p></div>
+<div class="node mech gap"><div class="node-head"><span class="name">Stockpiles &amp; procurement</span><span class="chip gap">GAP</span></div>
+  <p class="tag">stock has an address (resting order / larder / laydown yard / in-transit); per-port procurement toward standing targets from reserve treasury; depot tiers bank &amp; slow decay; local siege buffering</p>
+  <ul class="subs"><li class="gap-item">perishability — design says decay compounds; reserves store loss-free (gap 6)</li><li class="gap-item">procurement contract objects — escrowed contracts stand in as mechanical stockpile-target procurement (gap 3)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Interdiction strain</span><span class="chip done">IMPL</span></div>
+  <p class="tag">per-lane realized-vs-potential trade value minus smuggling leakage; measured where it happens</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Sanctions &amp; tariffs</span><span class="chip done">IMPL</span></div>
+  <p class="tag">tariff schedule collected at the entered gate; sanction = non-war lane-legality closure; both evadable at margin, both feed trade→relations hook</p>
+  <ul class="subs"><li class="spec-item">sanctions closure — lane-legality closure machinery absent (gap 4)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Portfolio &amp; operations</span><span class="chip done">IMPL</span></div>
+  <p class="tag">owns facilities/freighters/depots/routes across borders; speculation is the business (spread runs on own capital); internal logistics on courier contracts; vertical integration</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Fleet object &amp; postures</span><span class="chip done">IMPL</span></div>
+  <p class="tag">(id, owner, location, composition, posture, commander, supply); postures Posted/Escort/Patrol/Blockade/Expedition-Convoy/Reserve</p></div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
-    <div class="subgroup" id="phase-al"><h3>3 · Allocation</h3><div class="grid"></div></div>
+    <div class="subgroup" id="phase-al"><h3>3 · Allocation</h3><div class="grid">
+<div class="node mech gap"><div class="node-head"><span class="name">Credit / loans</span><span class="chip gap">GAP</span></div>
+  <p class="tag">loan objects (lender, borrower, principal, rate, term); default → reputation/relations hit, collateral seizure; no banks, lenders are whoever holds surplus</p>
+  <ul class="subs"><li class="gap-item">structural debt spiral (HANDOFF/SH); LoanRatePerYear a dead knob; 2×-lender gate kills the credit market epochs 1–4</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Construction / projects</span><span class="chip done">IMPL</span></div>
+  <p class="tag">every in-flight work = a project with a rate contract: BuildCost ÷ ConstructionYears per-year basket + wages; bids as a market participant into a laydown yard; advances by scarcest-input fraction; priority-ordered feeds; abandon clock</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Condition &amp; ownership</span><span class="chip done">IMPL</span></div>
+  <p class="tag">facilities carry condition (decays w/o upkeep, war-damaged, repaired); ownership transfers by sale/seizure/nationalization/conquest, each a conserved ledger event</p></div>
+<div class="node mech done"><div class="node-head"><span class="name">Technology</span><span class="chip done">IMPL</span></div>
+  <p class="tag">4 per-polity domains (Industrial/Military/Astrogation/Life); geometric tier ladders unlock ceilings/regions; research consumes Refined Exotics × Compute in Allocation; diffusion via trade/salvage/espionage</p>
+  <ul class="subs"><li class="spec-item">espionage diffusion channel reserved by design (gap 13)</li></ul></div>
+<div class="node mech done"><div class="node-head"><span class="name">Hull production</span><span class="chip done">IMPL</span></div>
+  <p class="tag">shipyards convert Ship Components (+Armaments/+Compute) into hulls; hull-batch project anchored at a yard; yard tier caps concurrent batch work</p></div>
+</div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
     <div class="subgroup" id="phase-in"><h3>4 · Intent</h3><div class="grid"></div></div>
     <div class="arrow"><span class="stem"></span><span class="head">▼</span></div>
