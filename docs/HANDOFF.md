@@ -6,8 +6,8 @@ say-so). **The 11-slice greenfield roadmap
 Slice K's five sub-slices K1–K5 delivered the full atlas (skeleton →
 lenses → panels → timeline → system stage). **Slice SH (sim-health
 harness) merged to main in parallel mid-K5** and is folded in — see its
-section below. Gates at the K5 merge: full dotnet suite green ×3 with
-the SH fold-in (goldens untouched — K5 adds no sim behavior, only two
+section below. Gates at the K5 merge: **872/872 dotnet ×3**
+post-fold (852 K5 + 20 SH) (goldens untouched — K5 adds no sim behavior, only two
 read-only Core queries) · EditMode 14/14 · AtlasSmoke every lens + two
 system-stage shots · fresh-eyes whole-branch review ("NOT READY — 2
 confirmed bugs", both fixed test-first in one wave) · user eyeball
