@@ -331,7 +331,7 @@ queries, POIs to the hex tier, the handoff. Reads: everything, via events only.
 
 | Node | Model tag | Phase | Status | Interfaces |
 |---|---|---|---|---|
-| Determinism discipline | stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse & fine ticks | X | Implemented | governs every phase |
+| Determinism discipline | stateless hash rolls keyed (step, actor id, channel 0–76); fixed iteration order; config artifact-stamped; byte-identity at coarse & fine ticks | X | Implemented | governs every phase |
 | Artifact layers | ~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted | X | Implemented | the persisted state |
 | Four-clock rate model | all rates in world-years (P7); epoch = 25y integration step, not a unit; durations are world-time state; coarse/fine sample the same durations | X | Implemented | governs time.md |
 

@@ -173,7 +173,7 @@ Copied verbatim from `docs/superpowers/specs/2026-07-12-simulation-flow-artifact
 
 | id | name | chip | tag (verbatim) |
 |---|---|---|---|
-| d1 | Determinism discipline | done | stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse & fine ticks |
+| d1 | Determinism discipline | done | stateless hash rolls keyed (step, actor id, channel 0–76); fixed iteration order; config artifact-stamped; byte-identity at coarse & fine ticks |
 | d2 | Artifact layers | done | ~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted |
 | d3 | Four-clock rate model | done | all rates in world-years (P7); epoch = 25y integration step, not a unit; durations are world-time state; coarse/fine sample the same durations |
 
@@ -883,7 +883,7 @@ Expected: `29` (from Task 3; this task adds 60 → 89).
 <div class="node mech done"><div class="node-head"><span class="name">Pressure → graduation</span><span class="chip done">IMPL</span></div>
   <p class="tag">L2 faction machinery is the sole factory for new institutions; L3 consumes schisms, L1 consumes charters; emergence schedule is the one non-faction origin</p></div>
 <div class="node mech done"><div class="node-head"><span class="name">Determinism discipline</span><span class="chip done">IMPL</span></div>
-  <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
+  <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–76); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
 <div class="node mech done"><div class="node-head"><span class="name">Artifact layers</span><span class="chip done">IMPL</span></div>
   <p class="tag">~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted</p></div>
 <div class="node mech done"><div class="node-head"><span class="name">Four-clock rate model</span><span class="chip done">IMPL</span></div>
@@ -1346,7 +1346,7 @@ Expected: `0`.
       <span class="nature">frame · P6 · governs every phase</span></div>
     <div class="grid">
       <div class="node mech done"><div class="node-head"><span class="name">Determinism discipline</span><span class="chip done">IMPL</span></div>
-        <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
+        <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–76); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
       <div class="node mech done"><div class="node-head"><span class="name">Artifact layers</span><span class="chip done">IMPL</span></div>
         <p class="tag">~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted</p></div>
       <div class="node mech done"><div class="node-head"><span class="name">Four-clock rate model</span><span class="chip done">IMPL</span></div>
