@@ -704,6 +704,116 @@
     </div>
   </section>
 
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">provides → constraint surfaces (blockades/borders/sanctions), war outcomes, contact events</span></div>
+
+  <section class="tier" id="blk-l3">
+    <div class="tier-head"><span class="tier-tag">L3</span><h2>Inter-polity</h2>
+      <span class="nature">interpolity/ · relations, wars, treaties, fronts</span></div>
+    <div class="opr">
+      <div><b>Owns</b> relations matrix, wars, treaties/federations/vassalage, military postures, fronts, battles</div>
+      <div><b>Reads</b> L4 stances, L1 prices, L2 composition, the fleet model</div>
+      <div><b>Provides →</b> constraint surfaces for L1 (blockades/borders/sanctions), war outcomes for L2, contact events</div>
+    </div>
+    <div class="grid">
+      <div class="node mech done"><div class="node-head"><span class="name">Contact</span><span class="chip done">IMPL</span></div>
+        <p class="tag">polities meet when reach overlaps (expansion/trade/news); first contact composes stance from temperament × strangeness × pre-arrived reputation</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Native policy</span><span class="chip done">IMPL</span></div>
+        <p class="tag">on covering a pre-spaceflight homeworld: protectorate / integrate / exploit / uplift (Intent act, ideology-weighted, reputation-bearing)</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Late-emergence resolution</span><span class="chip done">IMPL</span></div>
+        <p class="tag">emergence in free space = new polity; inside claimed space resolves by host native policy (vassal/autonomous member/suppressed + liberation casus belli)</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Expansion prices neighbors</span><span class="chip done">IMPL</span></div>
+        <p class="tag">colony valuation discounts a site per entangled foreign domain; founding costs instant tension with each; borders contiguous by choice</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Relations state</span><span class="chip done">IMPL</span></div>
+        <p class="tag">per-pair warmth (interdependence) + tension (friction, the war-pressure gauge, decays only when sources resolve); treaty rungs (trade pact / non-aggression / defense alliance / federation-vassalage) at mutual consent</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Federation</span><span class="chip done">IMPL</span></div>
+        <p class="tag">merge gate (sustained alliance + warmth + ideology compat + openness + cohesion); entangled friendly borders push to fusion; fused polity is NEW (weighted composition, fresh form)</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Vassalage</span><span class="chip done">IMPL</span></div>
+        <p class="tag">asymmetric rung: imposed by settlement or chosen under threat; tribute/defense/policy-lock; exits absorption (drift) &amp; secession (bid)</p></div>
+      <div class="node mech gap"><div class="node-head"><span class="name">Dynastic instruments</span><span class="chip gap">GAP</span></div>
+        <p class="tag">marriages/wardships buy warmth &amp; create succession claims (tension pointed the other way); rare personal unions = federation fast-path</p>
+        <ul class="subs"><li class="gap-item">personal unions missing (gap 9)</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">War causes</span><span class="chip done">IMPL</span></div>
+        <p class="tag">tension discharges through a casus belli menu (economic/ideological/political/spatial/spark); spark rolls in high-friction space; aims scale with hatred → annihilation when saturated</p></div>
+      <div class="node mech gap"><div class="node-head"><span class="name">War conduct</span><span class="chip gap">GAP</span></div>
+        <p class="tag">theater/objective model: assignment per doctrine+commander → per-objective engagement on fleet vectors (fortification, supply, competence, rolls) → sieges (reserves, fortress tier, relief); mobilization is a ramp not a switch</p>
+        <ul class="subs"><li class="gap-item">depth — occupation objectives, defensive mirrors, raidable supply objectives missing (gap 9)</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Front supply lines</span><span class="chip done">IMPL</span></div>
+        <p class="tag">war force draws upkeep from nearest owned port (forward depot); quartermaster stocks it via War-priority couriers; war interdiction rolls seizure per contested sail, escorts damp deterministically; starvation bites readiness</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Allied belligerents</span><span class="chip done">IMPL</span></div>
+        <p class="tag">defense-alliance partners join as supporters under war leaders; settlements negotiated between leaders; allied gains/grievances flow through the leader's table</p></div>
+      <div class="node mech gap"><div class="node-head"><span class="name">Termination &amp; settlement</span><span class="chip gap">GAP</span></div>
+        <p class="tag">break on political collapse / exhaustion / capital loss / extinction; settlement negotiated from per-objective outcomes (cede/reparations/vassalize/imposed legality/white peace); accept when perceived cost &gt; settlement (stale, so wars overrun)</p>
+        <ul class="subs"><li class="gap-item">imposed-legality settlement missing (gap 9)</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">War aftermath</span><span class="chip done">IMPL</span></div>
+        <p class="tag">grudges → standing claims (tomorrow's tension); veterans → military factions; heroes mint; wreckage/razed → POIs; conduct reputation travels the news graph</p></div>
+    </div>
+  </section>
+
+  <div class="arrow"><span class="stem"></span><span class="head">▼</span><span class="lbl">provides → perceived state, chronicle queries, POIs to the hex tier, the handoff</span></div>
+
+  <section class="tier" id="blk-l4">
+    <div class="tier-head"><span class="tier-tag">L4</span><h2>Narrative</h2>
+      <span class="nature">narrative/ · event log, news, perception, chronicle, POIs, handoff</span></div>
+    <div class="opr">
+      <div><b>Owns</b> event log, news pulses, per-actor perception, reputation, chronicle/era views, POI compiler, world-state handoff</div>
+      <div><b>Reads</b> everything, via events only</div>
+      <div><b>Provides →</b> perceived state, chronicle queries, POIs to the hex tier, the handoff</div>
+    </div>
+    <div class="grid">
+      <div class="node mech done"><div class="node-head"><span class="name">News pulses</span><span class="chip done">IMPL</span></div>
+        <p class="tag">Chronicle emits pulses for public events above magnitude floors; travel the lane graph at traffic-derived speed, attenuating with distance; couriers/scouts/player are fast paths</p>
+        <ul class="subs"><li class="spec-item">fast paths — couriers/scouts/player unbuilt (gap 12)</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Perception state</span><span class="chip done">IMPL</span></div>
+        <p class="tag">per-actor compressed beliefs: stance table + belief snapshots per (observer, subject) frozen at last refresh (refresh when elapsed years cover news delay); self-facts fresh; corporate perceives own capability</p>
+        <ul class="subs"><li class="spec-item">perceived-price arbitrage — belief carries no partner prices (gap 2)</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Stances &amp; reputation</span><span class="chip done">IMPL</span></div>
+        <p class="tag">news arrival updates stance filtered through observer temperament; reputation derived (never stored) as per-audience stance aggregates, consumed as gates</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Event grammar</span><span class="chip done">IMPL</span></div>
+        <p class="tag">one schema across four clocks: (id, world-year, clock stratum, type, actors[], location, magnitude, valence, visibility, payload); 8 type families; visibility public/regional/secret; indexes are views</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Chronicle views</span><span class="chip done">IMPL</span></div>
+        <p class="tag">queries over the one log at every zoom: galaxy (era detection clusters epochs by signature) / polity (reign arc) / character (biography) / place (hex annotation &amp; archaeology)</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">POI compiler</span><span class="chip done">IMPL</span></div>
+        <p class="tag">runs inside Chronicle every epoch, converting qualifying events into anchored POIs immediately (battlefields→salvage, ruins→lawlessness, razed capitals→claim anchors, memorials, precursor sites); live sim effects; one-anchor-per-hex by magnitude; decay as consumed</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">World-state handoff</span><span class="chip done">IMPL</span></div>
+        <p class="tag">final artifact layer: complete registries + deliberately open threads; resumability (same machine at play tick); controller handover; log never closes; delta boundary (save = config + artifact + deltas + log continuation)</p></div>
+    </div>
+  </section>
+
+  <section class="tier" id="blk-actors">
+    <div class="tier-head"><span class="tier-tag">Cross-cutting</span><h2>Actor Taxonomy</h2>
+      <span class="nature">frame/actors.md · who decides, who responds, what is acted through</span></div>
+    <p class="desc"><b>Polity</b> (territorial sovereign) · <b>Corporation</b> (emergent, non-territorial) · <b>Character</b> (sparse role-holders + notables) decide through the controller contract. <b>Population</b> (species/culture segments) responds — the demand side and legitimacy base. <b>Faction</b> is the semi-actor pressure bloc, the one factory for new institutions via graduation. <b>Assets</b> — infrastructure (ports, mines, shipyards, fortresses) and fleets — are acted through, concrete and conserved.</p>
+  </section>
+
+  <section class="tier" id="blk-interfaces">
+    <div class="tier-head"><span class="tier-tag">Interfaces</span><h2>Frame Cross-cutting Contracts</h2>
+      <span class="nature">frame/system-map.md §cross-cutting · the four shared interfaces</span></div>
+    <div class="grid">
+      <div class="node mech done"><div class="node-head"><span class="name">Controller contract</span><span class="chip done">IMPL</span></div>
+        <p class="tag">Decide(perceivedState) → (policies, acts) per actor kind (polity/corp/character); the Intent-phase API = the player UI surface; enumerated in frame/controller-contract.md</p>
+        <ul class="subs"><li class="spec-item">11 unarmed acts (gap 1); armed: found-colony, declare-war, treaty, settlement-response, nationalize, vassalage, dynastic instrument, quarantine</li></ul></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Price signal</span><span class="chip done">IMPL</span></div>
+        <p class="tag">market-price-derived valuations in grade-effective units are the one value language: expansion attractiveness, war-goal value, migration pull, investment, siting all read it</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Event grammar (interface)</span><span class="chip done">IMPL</span></div>
+        <p class="tag">every subsystem emits one schema; L4 owns it; emitting well-formed history is a requirement on every mechanic</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Pressure → graduation</span><span class="chip done">IMPL</span></div>
+        <p class="tag">L2 faction machinery is the sole factory for new institutions; L3 consumes schisms, L1 consumes charters; emergence schedule is the one non-faction origin</p></div>
+    </div>
+  </section>
+
+  <section class="tier" id="blk-determinism">
+    <div class="tier-head"><span class="tier-tag">Discipline</span><h2>Determinism &amp; Artifact</h2>
+      <span class="nature">frame · P6 · governs every phase</span></div>
+    <div class="grid">
+      <div class="node mech done"><div class="node-head"><span class="name">Determinism discipline</span><span class="chip done">IMPL</span></div>
+        <p class="tag">stateless hash rolls keyed (step, actor id, channel 0–73); fixed iteration order; config artifact-stamped; byte-identity at coarse &amp; fine ticks</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Artifact layers</span><span class="chip done">IMPL</span></div>
+        <p class="tag">~22 versioned registry layers (ports, lanes, facilities, designs, fleets, wreckage, segments, markets, loans, characters, dynasties, factions, corporations, relations, wars, beliefs, pulses, POIs, plagues…); delta saves = base + changed layers + log continuation; hex tier never persisted</p></div>
+      <div class="node mech done"><div class="node-head"><span class="name">Four-clock rate model</span><span class="chip done">IMPL</span></div>
+        <p class="tag">all rates in world-years (P7); epoch = 25y integration step, not a unit; durations are world-time state; coarse/fine sample the same durations</p></div>
+    </div>
+  </section>
+
 </section>
   </div>
 
