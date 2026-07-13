@@ -164,6 +164,17 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
     re-run per hex per rebuild — cache if panning ever janks).
     (5) Selection ring stroke is screen-constant ~3px (the lattice's
     weight) instead of the bulky 0.08+ clamp.
+  - Eyeball wave 2 (2026-07-12): stage now COPLANAR with the lattice
+    (z −0.02, was −0.30 — the lift parallaxed against the grid; draw
+    order rides renderQueue) · belt dashes fine-grained (2-on-1-off of
+    96 segments, was 2-on-7-off scattered ticks) · orbit rings hairline
+    (0.0045, belts 0.010) · moons hug their body's rim (0.68×half-size
+    offset; the old 1.8×full-size offset scattered gas-giant moons a
+    ring-gap away). TRAP RE-LEARNED: a Unity batch launched while the
+    editor holds the project dies in ~2s with exit 1 and a 1KB log —
+    and an `echo exit: $?` tail masks the code. Two smoke runs read as
+    green that never rendered; verify the LOG SIZE + png mtimes, and
+    put the real exit code in the task's failure path.
 - [ ] **T10 — Wrap-up**: merge via scratch worktree · HANDOFF (roadmap
       CLOSED → gap-list backlog `2026-07-11-design-acceptance.md`; keep
       the CE-chained K6 pointer) · tick K5 + "Slice K complete" ·
