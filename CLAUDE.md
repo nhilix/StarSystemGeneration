@@ -28,9 +28,12 @@ One session per slice. Each session:
    reviews first). TDD, frequent commits. Maintain a committed **task ledger**
    (`docs/superpowers/plans/YYYY-MM-DD-slice-<x>-ledger.md`): ordered checklist
    with gates, updated as you work — the resumability record if the session dies.
+   Always routed through subagent-driven-development, never inline orchestrator
+   edits — see **Model usage** below.
 4. **Subagents only where they pay**: genuinely parallel independent lanes
    (e.g., independent catalogs), plus exactly one **fresh-eyes whole-branch
-   review** subagent before merge, followed by one fix wave.
+   review** subagent before merge, followed by one fix wave. The review
+   subagent is pinned to `model: fable` — see **Model usage** below.
 5. **Gates** (all mechanical, all mandatory): `dotnet test` green — the hex-tier
    (Phase-1 generation) suite **never** breaks; determinism byte-identity for
    same config; new goldens frozen once at slice end (red-window inside the
@@ -46,6 +49,31 @@ One session per slice. Each session:
 just landed (real file paths, real interfaces, surprises encountered). Pattern:
 `docs/superpowers/plans/YYYY-MM-DD-slice-<x>-kickoff-prompt.md`, modeled on the
 Slice A one. This chain is how context flows between clean sessions.
+
+## Model usage
+
+Full rationale: `docs/superpowers/specs/2026-07-12-model-usage-guidelines-design.md`.
+
+The main session is the **orchestrator** and stays on Fable (weekly-capped,
+user-driven via `/model` — not something Claude switches itself). Keep the
+orchestrator's own direct spend to low-volume, high-judgment work only: user
+dialogue, brainstorming Q&A, scope/merge decisions, kickoff-prompt authoring,
+HANDOFF.md wrap-up. Delegate everything else to subagents with an explicit
+model per role, so volume work never touches the Fable budget:
+
+| Role | Model |
+|---|---|
+| Spec authoring (brainstorming's design doc) | Opus |
+| Plan authoring (writing-plans' implementation plan) | Opus |
+| Slice implementation tasks (subagent-driven-development) | Sonnet default, Opus escalation |
+| Fresh-eyes whole-branch review (pre-merge) | Fable |
+| Explore/research lookups | Sonnet |
+
+Escalate a single implementation task from Sonnet to Opus when it: touches
+conservation/determinism invariants (money, hash rolls, iteration order);
+spans multiple `src/Core` subsystems in one task; or is itself a design
+judgment call rather than mechanical implementation. Decide this per task at
+dispatch time, not up front for the whole slice.
 
 ## Hard rules
 

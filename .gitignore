@@ -529,3 +529,4 @@ unity-*.log
 unity/Assets/Scenes/MainMenu.unity*
 unity/Assets/UI/MainMenu/MainMenuPanelSettings.asset*
 unity/Assets/UI/MainMenu/scanline.png*
+runs/
