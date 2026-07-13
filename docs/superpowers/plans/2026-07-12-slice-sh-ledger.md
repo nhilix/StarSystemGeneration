@@ -40,11 +40,21 @@ digs deeper. Interacts with `Phases.Borrow`'s 2×-principal lender gate.
       the supply
 - [x] S7 — SIMHEALTH.md + TUNING.md cross-ref (92db73c)
 - [x] S8 — GATE: 852/852, zero golden diffs, REPL surface exercised
-- [ ] S9 — fresh-eyes whole-branch review subagent + one fix wave
-- [ ] S10 — diagnosis: default-knob ensemble (~8 seeds × 40 epochs) via
-      the sweep runner; debt-spiral characterization →
-      `docs/superpowers/plans/2026-07-12-debt-diagnosis.md` + dashboard
-      artifact (EYEBALL GATE)
+- [x] S10 — diagnosis (ran before S9, see Decisions): 32-history
+      ensemble; findings in 2026-07-12-debt-diagnosis.md (a50165f);
+      dashboard artifact published (EYEBALL GATE — pending user);
+      experiment JSON committed beside the doc
+- [x] S9 — fresh-eyes review: 0 critical / 2 high / 6 medium / 7 low;
+      conservation inventory independently verified clean; ONE fix wave
+      applied (H1 ehealth-save crash, H2 reserved 'baseline' variant,
+      M1/M2/L3 SIMHEALTH corrections, M3 JSON refusal, M5 manifest
+      stamps applied values, M6 artifact-based purity witness, L1
+      invariant culture, L2 manifest LF, L5 name sanitation, L7 usage
+      line). DEFERRED: M4 purse-at-current-ColonyCost (needs a Project
+      field = serialization churn; documented in SIMHEALTH.md as a
+      limit, carried to the mid-run-knob slice); L4 O(events²) snapshot
+      scan (trivial at 40 epochs); L6 dot-less-name guard (registry test
+      pins the convention).
 - [ ] S11 — wrap-up: merge decision, HANDOFF, next kickoff prompt
 
 ## Decisions

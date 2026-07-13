@@ -3,8 +3,9 @@
 The first finding of the sim-health harness (HANDOFF flag 1: all 15
 seed-42 polities negative at the CE merge, worst ≈ −402k). Evidence:
 sweep `debt-diagnosis` — 8 seeds × 40 epochs × radius 21, baseline plus
-three credit-relevant variants (32 histories; `runs/sweeps/debt-diagnosis`,
-regenerable from `runs/debt-diagnosis.json`; summary.json beside it).
+three credit-relevant variants (32 histories; output in
+`runs/sweeps/debt-diagnosis`, byte-reproducible from the committed
+experiment `2026-07-12-debt-diagnosis-experiment.json` beside this doc).
 
 ## Findings
 

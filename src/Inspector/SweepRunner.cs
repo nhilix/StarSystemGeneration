@@ -21,29 +21,48 @@ public static class SweepRunner
         if (!File.Exists(experimentPath))
         { Console.Error.WriteLine($"no experiment file at {experimentPath}"); return 1; }
 
-        using var doc = JsonDocument.Parse(File.ReadAllText(experimentPath));
-        var root = doc.RootElement;
-        string name = root.GetProperty("name").GetString()
-            ?? throw new InvalidDataException("experiment needs a name");
-        var seeds = new List<ulong>();
-        foreach (var s in root.GetProperty("seeds").EnumerateArray())
-            seeds.Add(s.GetUInt64());
-        int epochs = root.TryGetProperty("epochs", out var ep)
-            ? ep.GetInt32() : new EpochSimConfig().Sim.EpochCount;
-        int radius = root.TryGetProperty("radius", out var ra)
-            ? ra.GetInt32() : 21;   // the REPL's default galaxy
+        string name;
+        List<ulong> seeds;
+        int epochs, radius;
+        List<(string Name, Dictionary<string, double> Knobs)> variants;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(experimentPath));
+            var root = doc.RootElement;
+            name = root.GetProperty("name").GetString()
+                ?? throw new InvalidDataException("experiment needs a name");
+            seeds = new List<ulong>();
+            foreach (var s in root.GetProperty("seeds").EnumerateArray())
+                seeds.Add(s.GetUInt64());
+            epochs = root.TryGetProperty("epochs", out var ep)
+                ? ep.GetInt32() : new EpochSimConfig().Sim.EpochCount;
+            radius = root.TryGetProperty("radius", out var ra)
+                ? ra.GetInt32() : 21;   // the REPL's default galaxy
 
-        // variant map in file order, baseline always first
-        var variants = new List<(string Name, Dictionary<string, double> Knobs)>
-        { ("baseline", ReadKnobs(root, "baseline")) };
-        if (root.TryGetProperty("variants", out var vs))
-            foreach (var v in vs.EnumerateObject())
-            {
-                var merged = ReadKnobs(root, "baseline");
-                foreach (var k in v.Value.EnumerateObject())
-                    merged[k.Name] = k.Value.GetDouble();
-                variants.Add((v.Name, merged));
-            }
+            // variant map in file order, baseline always first
+            variants = new List<(string, Dictionary<string, double>)>
+            { ("baseline", ReadKnobs(root, "baseline")) };
+            if (root.TryGetProperty("variants", out var vs))
+                foreach (var v in vs.EnumerateObject())
+                {
+                    // a variant named baseline would silently replace the
+                    // control run — refuse, like unknown knobs
+                    if (v.Name == "baseline")
+                    { Console.Error.WriteLine("'baseline' is reserved — the control always runs"); return 1; }
+                    var merged = ReadKnobs(root, "baseline");
+                    foreach (var k in v.Value.EnumerateObject())
+                        merged[k.Name] = k.Value.GetDouble();
+                    variants.Add((v.Name, merged));
+                }
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException
+            or InvalidOperationException or FormatException or InvalidDataException)
+        {
+            Console.Error.WriteLine($"bad experiment file: {ex.Message}");
+            return 1;
+        }
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        { Console.Error.WriteLine($"experiment name '{name}' must be a plain directory name"); return 1; }
 
         // refuse unknown names before any run starts
         foreach (var (_, knobs) in variants)
@@ -67,17 +86,17 @@ public static class SweepRunner
         {
             string dir = Path.Combine(sweepDir, variant);
             Directory.CreateDirectory(dir);
-            // stamp the FULL resolved epoch-knob set (the artifact
-            // discipline: a run's calibration is never implicit)
+            // stamp the FULL resolved knob set as APPLIED (the artifact
+            // discipline: a run's calibration is never implicit, and the
+            // manifest must reflect what Set actually did, not the request)
             var resolved = new SortedDictionary<string, double>(
                 StringComparer.Ordinal);
-            var probeConfig = Configure(seeds.Count > 0 ? seeds[0] : 0,
-                epochs, knobs).Epoch;
+            var (probeGalaxy, probeEpoch) = Configure(
+                seeds.Count > 0 ? seeds[0] : 0, epochs, knobs);
             foreach (var k in KnobRegistry.All)
-                resolved[k.Name] = k.Get(probeConfig);
-            foreach (var kn in knobs.Keys)
-                if (GalaxyKnobRegistry.Find(kn) is { } gk)
-                    resolved[kn] = knobs[kn];
+                resolved[k.Name] = k.Get(probeEpoch);
+            foreach (var gk in GalaxyKnobRegistry.All)
+                resolved[gk.Name] = gk.Get(probeGalaxy);
             ((Dictionary<string, object?>)manifest["variants"]!)[variant]
                 = resolved;
 
@@ -103,7 +122,8 @@ public static class SweepRunner
 
         File.WriteAllText(Path.Combine(sweepDir, "manifest.json"),
             JsonSerializer.Serialize(manifest,
-                new JsonSerializerOptions { WriteIndented = true }));
+                new JsonSerializerOptions { WriteIndented = true })
+                .Replace("\r\n", "\n") + "\n");   // LF like the CSVs
         Console.WriteLine($"sweep '{name}' complete → {sweepDir}");
         return 0;
     }

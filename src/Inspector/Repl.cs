@@ -301,16 +301,29 @@ public sealed class Repl
                         && parts[1] == "save":
                 {
                     var health = _sim.Health;
-                    System.IO.File.WriteAllText(parts[2] + ".csv",
-                        Core.Epoch.MetricCsv.RenderMetrics(health));
-                    System.IO.File.WriteAllText(parts[2] + ".polities.csv",
-                        Core.Epoch.MetricCsv.RenderPolities(health));
-                    System.IO.File.WriteAllText(parts[2] + ".phases.csv",
-                        Core.Epoch.MetricCsv.RenderPhases(health));
-                    Console.WriteLine($"health series → {parts[2]}.csv / "
-                        + $"{parts[2]}.polities.csv / {parts[2]}.phases.csv");
+                    try
+                    {
+                        System.IO.File.WriteAllText(parts[2] + ".csv",
+                            Core.Epoch.MetricCsv.RenderMetrics(health));
+                        System.IO.File.WriteAllText(parts[2] + ".polities.csv",
+                            Core.Epoch.MetricCsv.RenderPolities(health));
+                        System.IO.File.WriteAllText(parts[2] + ".phases.csv",
+                            Core.Epoch.MetricCsv.RenderPhases(health));
+                        Console.WriteLine($"health series → {parts[2]}.csv / "
+                            + $"{parts[2]}.polities.csv / {parts[2]}.phases.csv");
+                    }
+                    catch (Exception ex) when (ex is System.IO.IOException
+                        or UnauthorizedAccessException)
+                    {
+                        Console.WriteLine($"save failed: {ex.Message}");
+                    }
                     break;
                 }
+                case "ehealth" when _sim != null && parts.Length >= 2
+                        && parts[1] == "save":
+                    Console.WriteLine("usage: ehealth save <base> — writes "
+                        + "<base>.csv / <base>.polities.csv / <base>.phases.csv");
+                    break;
                 case "ehealth" when _sim != null && parts.Length >= 2:
                     Console.WriteLine(HealthView.RenderTrend(_sim, parts[1]));
                     break;

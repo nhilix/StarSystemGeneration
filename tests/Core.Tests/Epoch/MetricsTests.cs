@@ -126,10 +126,12 @@ public class MetricsTests
     {
         var (_, state) = EpochTestKit.Seeded();
         new EpochEngine().Step(state);
-        string before = SimTraceView.Render(state);
+        // the artifact pins the ENTIRE state byte-for-byte — a probe
+        // mutation anywhere shows, not just in the trace list
+        string before = ArtifactSerializer.ToText(state);
         MetricsOps.Money(state, "probe");
         MetricsOps.Snapshot(state);
         MetricsOps.PolityRows(state);
-        Assert.Equal(before, SimTraceView.Render(state));
+        Assert.Equal(before, ArtifactSerializer.ToText(state));
     }
 }

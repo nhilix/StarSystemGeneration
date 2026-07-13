@@ -1,0 +1,12 @@
+{
+  "name": "debt-diagnosis",
+  "seeds": [42, 7, 1001, 31337, 555, 2718, 8128, 9091],
+  "epochs": 40,
+  "radius": 21,
+  "baseline": {},
+  "variants": {
+    "flush-start":  { "Economy.InitialCreditsPerPolity": 5000 },
+    "lean-labor":   { "Economy.LaborShare": 0.2 },
+    "cheap-credit": { "Economy.LoanRatePerYear": 0.005 }
+  }
+}

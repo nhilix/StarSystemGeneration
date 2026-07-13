@@ -65,29 +65,36 @@ move credits between ledgers; the principal is memory.
 
 **`Money.ConservationResidual`** is the leak detector: this epoch's supply
 delta minus the epoch's endowments. Anything beyond double-accumulation
-noise (~1e-9 relative) is an unknown mint or leak — find it before
-trusting anything else the run says. `ConservationTests` freezes zero
-residual across the full seed-42 default history.
+noise is an unknown mint or leak — find it before trusting anything else
+the run says. `ConservationTests` freezes the residual within 1e-6 of
+zero (relative to supply) across the full seed-42 default history; in
+practice it sits at ~1e-8.
 
-Known **designed sinks** (will print as negative residual when they fire):
+Known **designed sinks and limits**:
 
 - A **cancelled colony expedition** loses its purse with the convoy
-  (`SpendTreasury`'s expedition case never refunds).
-- A **Lost courier** whose fee never refunds strands escrow on a dead lane
-  (HANDOFF flag: stalled InTransit couriers) — the class keeps counting it
-  while the record stays live, so only registry retirement without payout
-  leaks.
-
-Neither fired on seed 42 × 40 epochs at defaults; if a sweep prints
-residual spikes, chase these first.
+  (`SpendTreasury`'s expedition case never refunds) — prints as negative
+  residual when it fires. It didn't fire on seed 42 × 40 epochs at
+  defaults; if a sweep prints residual dips, chase this first.
+- Couriers do **not** leak: every retirement path (delivery, loss,
+  expiry) pays out or refunds the fee before the record retires. The
+  HANDOFF's stalled-InTransit flag is about *locked* escrow on a dead
+  lane, which the `CourierEscrow` class keeps counting — held, not lost.
+- Expedition purses are valued at the **current** `Expansion.ColonyCost`;
+  changing that knob while expeditions are in flight mis-books the
+  residual by Δcost × in-flight count until they land. Latent today (no
+  path mutates knobs mid-run — the sim's own refund/landfall code shares
+  the assumption); stamp the purse on the `Project` when a mid-run knob
+  surface arrives.
 
 ## Phase attribution (`<seed>.phases.csv`)
 
 Holder-class totals after every phase. Read a treasury mystery by
 differencing consecutive rows inside one epoch: Markets moves sale
 proceeds and taxes; Allocation moves treasury → pools → sellers/factions
-and services loans; Resolution founds and fights. Entry endowments land
-mid-step, so epoch-0 rows before Resolution read all zero.
+and services loans; Resolution founds and fights; **Interior** runs the
+entry loop, migration, and demographics. Entry endowments land in
+Interior, so epoch-0 rows through Resolution read all zero.
 
 ## Healthy vs pathological at defaults
 

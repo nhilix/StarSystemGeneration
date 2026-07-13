@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using StarGen.Core.Epoch;
+using static System.FormattableString;
 
 namespace StarGen.Inspector;
 
@@ -29,7 +30,7 @@ public static class HealthView
                 family = fam;
                 sb.AppendLine($"  [{family}]");
             }
-            sb.AppendLine($"    {m.Name,-32} {m.Get(row),14:G6}  {m.Doc}");
+            sb.AppendLine(Invariant($"    {m.Name,-32} {m.Get(row),14:G6}  {m.Doc}"));
         }
 
         // the debt roster: who is under water, and since when
@@ -48,7 +49,7 @@ public static class HealthView
                     else since = -1;   // recovered — the streak restarts
                 }
             sb.AppendLine($"    #{pr.ActorId} {actor.Name,-24} "
-                + $"{pr.Credits,12:F0} cr"
+                + Invariant($"{pr.Credits,12:F0} cr")
                 + (since >= 0 ? $"  negative since epoch {since}" : ""));
         }
         if (!any) sb.AppendLine("    (every treasury above water)");
@@ -82,7 +83,7 @@ public static class HealthView
             double v = metric.Get(r);
             int bar = span <= 0 ? 0
                 : (int)Math.Round((v - min) / span * 40);
-            sb.AppendLine($"  e{r.Epoch,3} y{r.WorldYear,5} {v,14:G6} "
+            sb.AppendLine(Invariant($"  e{r.Epoch,3} y{r.WorldYear,5} {v,14:G6} ")
                 + new string('#', bar));
         }
         return sb.ToString();
