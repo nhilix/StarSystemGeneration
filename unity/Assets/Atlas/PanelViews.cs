@@ -42,6 +42,7 @@ namespace StarGen.AtlasView
                 case PanelType.Knobs: return Knobs(request, ctx, body);
                 case PanelType.Stats: return Stats(ctx, body);
                 case PanelType.Facility: return Facility(request, ctx, body);
+                case PanelType.System: return SystemCard(request, ctx, body);
                 default: return (null, null);
             }
         }
@@ -82,11 +83,110 @@ namespace StarGen.AtlasView
 
         // ---- selection panels ----
 
+        /// <summary>The system inside a hex (K5 eyeball wave): the orbit
+        /// view's info panel — stars, every orbit row, and the epoch
+        /// overlays as links. One SystemQuery, no derivations here.</summary>
+        private static (string, VisualElement) SystemCard(PanelRequest request,
+            PanelContext ctx, VisualElement body)
+        {
+            var info = StarGen.Core.Atlas.SystemQuery.At(ctx.Model, ctx.Eye,
+                                                         request.Hex);
+            if (!info.HasSystem)
+            {
+                Line(body, "empty reach — the wilds between systems",
+                     dim: true);
+                Kv(body, "hex", Inv($"({request.Hex.Q},{request.Hex.R})"));
+                return ("EMPTY REACH", body);
+            }
+            if (info.GivenName != null) Line(body, "“" + info.GivenName + "”");
+            Kv(body, "hex", Inv($"({request.Hex.Q},{request.Hex.R})"));
+            Kv(body, "arrangement",
+               info.Arrangement.ToString().ToLowerInvariant());
+            if (info.OverlayId != null) Kv(body, "overlay", info.OverlayId, "acc");
+            foreach (var tag in info.Tags) Tag(body, tag);
+
+            Sect(body, "stars");
+            foreach (var star in info.Stars)
+                Kv(body, ((char)('A' + star.Index)).ToString(),
+                   star.TypeName + " · "
+                   + star.Age.ToString().ToLowerInvariant()
+                   + (star.CompanionSlotIndex is int c
+                       ? Inv($" · rides slot {c}") : ""));
+
+            Sect(body, "orbits");
+            if (info.Orbits.Count == 0)
+                Line(body, "every slot rolled empty", dim: true);
+            foreach (var orbit in info.Orbits)
+            {
+                string kind = orbit.Kind switch
+                {
+                    Core.Model.BodyKind.RockyWorld => "rocky world",
+                    Core.Model.BodyKind.IceWorld => "ice world",
+                    Core.Model.BodyKind.GasGiant => "gas giant",
+                    Core.Model.BodyKind.PlanetoidBelt => "planetoid belt",
+                    Core.Model.BodyKind.Wreckage => "wreckage field",
+                    _ => orbit.Kind.ToString().ToLowerInvariant(),
+                };
+                string band = orbit.Band.ToString().ToLowerInvariant();
+                string name = orbit.Name != null ? orbit.Name + " — " : "";
+                string moons = orbit.SatelliteCount switch
+                {
+                    0 => "",
+                    1 => " · 1 moon",
+                    _ => Inv($" · {orbit.SatelliteCount} moons"),
+                };
+                string settled = orbit.Settlement != Core.Model.Settlement.None
+                    ? " · " + orbit.Settlement.ToString().ToLowerInvariant()
+                    : "";
+                Kv(body,
+                   Inv($"{(char)('A' + orbit.StarIndex)}{orbit.SlotIndex}·{band}"),
+                   name + kind + Inv($" s{orbit.Size}") + moons + settled,
+                   orbit.Settlement != Core.Model.Settlement.None ? "acc" : null);
+            }
+
+            if (info.PortId >= 0)
+            {
+                Sect(body, "port");
+                int portId = info.PortId;
+                var row = Row(body, () => ctx.Open(
+                    new PanelRequest(PanelType.Market, portId)));
+                Line(row, Inv($"port #{info.PortId} · tier {info.PortTier} · ")
+                    + info.PortOwnerName);
+            }
+            if (info.Facilities.Count > 0)
+            {
+                Sect(body, "facilities");
+                foreach (var f in info.Facilities)
+                {
+                    var captured = f;
+                    var row = Row(body, () => ctx.Open(
+                        new PanelRequest(PanelType.Facility, captured.Id)));
+                    Line(row, f.TypeName.ToLowerInvariant()
+                        + Inv($" t{f.Tier} · {f.OwnerName}"));
+                }
+            }
+            if (info.Sites.Count > 0)
+            {
+                Sect(body, "under construction");
+                foreach (var s in info.Sites)
+                {
+                    var captured = s;
+                    var row = Row(body, () => ctx.Open(
+                        new PanelRequest(PanelType.Project, captured.ProjectId)));
+                    Line(row, s.TypeName.ToLowerInvariant()
+                        + Inv($" ({s.Progress:0%})"));
+                }
+            }
+            return (info.Designation.ToUpperInvariant(), body);
+        }
+
         private static (string, VisualElement) Hex(PanelRequest request,
             PanelContext ctx, VisualElement body)
         {
             var info = HexQuery.At(ctx.Model, ctx.Eye, request.Hex);
-            Line(body, info.SystemSummary);
+            var system = Row(body, () => ctx.Open(
+                new PanelRequest(PanelType.System, hex: request.Hex)));
+            Line(system, info.SystemSummary);
             if (info.OwnerNames.Count == 0) Line(body, "the wilds", dim: true);
             for (int i = 0; i < info.OwnerNames.Count; i++)
             {

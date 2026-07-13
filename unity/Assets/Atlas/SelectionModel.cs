@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace StarGen.AtlasView
 {
     public enum SelectionKind
-    { None, Hex, Port, Project, Shipment, Fleet, Poi, Facility }
+    { None, Hex, Port, Project, Shipment, Fleet, Poi, Facility, System }
 
     /// <summary>What the user selected: a typed registry id plus the hex
     /// it stands on. The dock routes kinds to panels.</summary>
@@ -92,12 +92,11 @@ namespace StarGen.AtlasView
                 {
                     // the orbit view wins while it is live — same panels,
                     // stage subjects (spec: same selection model)
-                    if (_stageHover is StagePick pick
-                        && stage.BuiltHex is HexCoordinate stageHex)
+                    if (_stageHover is StagePick pick)
                     {
-                        MarkHex(stageHex);
+                        MarkHex(pick.Hex);
                         Selected?.Invoke(new Selection(pick.Kind, pick.Id,
-                                                       stageHex));
+                                                       pick.Hex));
                     }
                     else if (hex != null)
                     {
@@ -157,6 +156,7 @@ namespace StarGen.AtlasView
         {
             if (Nullable.Equals(pick?.Kind, _stageHover?.Kind)
                 && pick?.Id == _stageHover?.Id
+                && Nullable.Equals(pick?.Hex, _stageHover?.Hex)
                 && pick?.Label == _stageHover?.Label) return;
             _stageHover = pick;
             HoverChanged?.Invoke();
@@ -173,8 +173,7 @@ namespace StarGen.AtlasView
                 new Vector3(screenPos.x, screenPos.y, 0f));
             float denom = ray.direction.z;
             if (Mathf.Abs(denom) < 1e-5f) return null;
-            float stageZ = stage.transform.position.z;
-            float t = (stageZ - ray.origin.z) / denom;
+            float t = (SystemStage.StageZ - ray.origin.z) / denom;
             if (t < 0f) return null;
             var p = ray.origin + ray.direction * t;
 
@@ -298,10 +297,10 @@ namespace StarGen.AtlasView
         {
             float distance = root?.CameraRig != null
                 ? root.CameraRig.Distance : 20f;
-            // bold at region zoom, fattening as the camera pulls back so
-            // the marker never vanishes (the no-LOD-out requirement)
-            float thickness = Mathf.Clamp(0.08f + distance * 0.004f,
-                                          0.08f, 0.55f);
+            // screen-constant ~3px stroke (the lattice's weight, eyeball
+            // wave: the old clamp read bulky at system zoom) — world size
+            // still grows with distance, so it never LOD-vanishes
+            float thickness = Mathf.Clamp(distance * 0.0028f, 0.008f, 0.6f);
             if (!force && Mathf.Abs(thickness - _ringThickness)
                     < _ringThickness * 0.15f) return;
             _ringThickness = thickness;

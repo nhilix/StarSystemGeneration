@@ -141,6 +141,29 @@ stay carried · fork switch-back UI stays backlog unless trivially free.
 - [ ] **T9 — USER: the K taste gate** — seed 42, watch 40 epochs, click
       the Alloys War siege hex, drill to its system, open the threads
       panel. (The whole-K acceptance, not just K5's.)
+  - Eyeball wave 1 (2026-07-12, five findings):
+    (1) NEW System info panel — PanelType.System over SystemQuery
+    (designation/name/arrangement/stars/every orbit row/port+facility+
+    site links); stage star/body clicks open it (SelectionKind.System);
+    the Hex panel's system line is now a link to it.
+    (2) Design language re-based on the ORBIT DIAGRAM OPTION A artifact
+    (claude.ai/code/artifact/236896d9-…): a thin #262C3F ring for EVERY
+    slot (SystemInfo grows Rings — all slots, occupied or not; TDD),
+    belts as dashed #9A8F7A rings (no body dot — the belt IS its ring),
+    habitable band as a #3FBF7F @13% annulus, star = core + additive
+    halo, moons as #B9BFD0 dots, settled worlds ringed #FFBF4F, mock
+    body colors (rocky C9A06A / ice A8D8E8 / gas E08840). DIVERGENCE
+    kept deliberately: no text labels on the stage (the mock has them) —
+    names live in the tooltip + the System panel, per the no-map-text
+    grammar. Flagged to the user.
+    (3) Fit-to-hex: each system's layout scales so the outermost ring
+    stays inside its hex (FitRadius 0.78 < inradius) — no bleed.
+    (4) Pop-in killed: the stage renders EVERY visible system hex while
+    the crossfade is live (world-space meshes, rebuild keyed on the
+    visible-hex set, cap 160; StagePick carries its hex; SystemQuery is
+    re-run per hex per rebuild — cache if panning ever janks).
+    (5) Selection ring stroke is screen-constant ~3px (the lattice's
+    weight) instead of the bulky 0.08+ clamp.
 - [ ] **T10 — Wrap-up**: merge via scratch worktree · HANDOFF (roadmap
       CLOSED → gap-list backlog `2026-07-11-design-acceptance.md`; keep
       the CE-chained K6 pointer) · tick K5 + "Slice K complete" ·

@@ -63,6 +63,34 @@ public class SystemQueryTests
     }
 
     [Fact]
+    public void EverySlotGetsARingRow_OccupiedOrNot()
+    {
+        // option A draws a ring per slot, empty ones included; belts are
+        // dashed rings; the habitable band is a tinted annulus — the
+        // stage needs ALL slots, not just occupied orbits (eyeball wave)
+        var (model, state) = Base();
+        var (hex, _) = Hexes(model);
+        var info = SystemQuery.At(model, EyeContext.God(state.WorldYear), hex);
+
+        int slotTotal = 0;
+        var context = new GalaxyContext(model.Skeleton.Config)
+        { Skeleton = model.Skeleton };
+        var system = Core.Generation.Generator.Generate(context, hex).System!;
+        foreach (var star in system.Stars) slotTotal += star.Slots.Count;
+
+        Assert.Equal(slotTotal, info.Rings.Count);
+        Assert.True(info.Rings.Count >= info.Orbits.Count);
+        foreach (var orbit in info.Orbits)
+        {
+            var ring = Assert.Single(info.Rings, r =>
+                r.StarIndex == orbit.StarIndex
+                && r.SlotIndex == orbit.SlotIndex);
+            Assert.Equal(orbit.Band, ring.Band);
+            Assert.Equal(orbit.Kind == BodyKind.PlanetoidBelt, ring.IsBelt);
+        }
+    }
+
+    [Fact]
     public void OrbitRowsExistOnlyForOccupiedSlots()
     {
         var (model, state) = Base();

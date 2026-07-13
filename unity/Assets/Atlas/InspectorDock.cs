@@ -14,7 +14,7 @@ namespace StarGen.AtlasView
         Hex, Polity, Market, Project, Shipment, Fleet, Designs, Wars, War,
         Relations, Character, Corporations, Poi, Beliefs, News, Stances,
         Chronicle, ChroniclePlace, Eras, Threads, Find, Goods, Knobs, Stats,
-        Facility,
+        Facility, System,
     }
 
     /// <summary>What to open: a panel type plus its subject id/hex/text
@@ -194,6 +194,9 @@ namespace StarGen.AtlasView
                     break;
                 case SelectionKind.Facility:
                     Show(new PanelRequest(PanelType.Facility, sel.Id));
+                    break;
+                case SelectionKind.System:
+                    Show(new PanelRequest(PanelType.System, hex: sel.Hex));
                     break;
                 case SelectionKind.Hex:
                     Show(new PanelRequest(PanelType.Hex, hex: sel.Hex));

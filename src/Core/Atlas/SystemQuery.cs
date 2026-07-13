@@ -19,6 +19,12 @@ public readonly record struct OrbitRef(int StarIndex, int SlotIndex)
 public sealed record StageStarRow(int Index, string TypeId, string TypeName,
                                   StarAge Age, int? CompanionSlotIndex);
 
+/// <summary>One orbit ring: every slot of every star, occupied or not —
+/// option A draws them all; belts are dashed; Habitable rings bound the
+/// tinted band annulus.</summary>
+public sealed record StageRingRow(int StarIndex, int SlotIndex,
+                                  OrbitBand Band, bool IsBelt);
+
 /// <summary>One occupied orbit slot: the body the hex tier put there.</summary>
 public sealed record StageOrbitRow(
     int StarIndex, int SlotIndex, OrbitBand Band, BodyKind Kind, int Size,
@@ -43,7 +49,8 @@ public sealed record SystemInfo(
     HexCoordinate Hex, bool HasSystem, string Designation, string? GivenName,
     StarArrangement Arrangement, string? OverlayId,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<StageStarRow> Stars, IReadOnlyList<StageOrbitRow> Orbits,
+    IReadOnlyList<StageStarRow> Stars, IReadOnlyList<StageRingRow> Rings,
+    IReadOnlyList<StageOrbitRow> Orbits,
     int PortId, int PortTier, string? PortOwnerName, OrbitRef PortAt,
     IReadOnlyList<StageFacilityRow> Facilities,
     IReadOnlyList<StageSiteRow> Sites);
@@ -66,6 +73,7 @@ public static class SystemQuery
         var system = Generator.Generate(context, hex).System;
 
         var stars = new List<StageStarRow>();
+        var rings = new List<StageRingRow>();
         var orbits = new List<StageOrbitRow>();
         if (system != null)
         {
@@ -78,6 +86,8 @@ public static class SystemQuery
                 foreach (var slot in star.Slots)
                 {
                     var body = slot.Body;
+                    rings.Add(new StageRingRow(s, slot.Index, slot.Band,
+                        body?.Kind == BodyKind.PlanetoidBelt));
                     if (body == null) continue;
                     orbits.Add(new StageOrbitRow(s, slot.Index, slot.Band,
                         body.Kind, body.Size, body.Name, body.Atmosphere,
@@ -135,11 +145,11 @@ public static class SystemQuery
         return system == null
             ? new SystemInfo(hex, false, "empty reach", null,
                 StarArrangement.Single, null, System.Array.Empty<string>(),
-                stars, orbits, portId, portTier, portOwner, OrbitRef.None,
-                facilities, sites)
+                stars, rings, orbits, portId, portTier, portOwner,
+                OrbitRef.None, facilities, sites)
             : new SystemInfo(hex, true, system.Designation, system.GivenName,
                 system.Arrangement, system.OverlayId, system.Tags,
-                stars, orbits, portId, portTier, portOwner, portAt,
+                stars, rings, orbits, portId, portTier, portOwner, portAt,
                 facilities, sites);
     }
 
