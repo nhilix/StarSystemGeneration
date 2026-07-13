@@ -874,7 +874,7 @@ Expected: `29` (from Task 3; this task adds 60 → 89).
 <div class="node mech done"><div class="node-head"><span class="name">World-state handoff</span><span class="chip done">IMPL</span></div>
   <p class="tag">final artifact layer: complete registries + deliberately open threads; resumability (same machine at play tick); controller handover; log never closes; delta boundary (save = config + artifact + deltas + log continuation)</p></div>
 <div class="node mech done"><div class="node-head"><span class="name">Controller contract</span><span class="chip done">IMPL</span></div>
-  <p class="tag">Decide(perceivedState) → (policies, acts) per actor kind (polity/corp/character); the Intent-phase API = the player UI surface</p>
+  <p class="tag">Decide(perceivedState) → (policies, acts) per actor kind (polity/corp/character); the Intent-phase API = the player UI surface; enumerated in frame/controller-contract.md</p>
   <ul class="subs"><li class="spec-item">11 unarmed acts (gap 1); armed: found-colony, declare-war, treaty, settlement-response, nationalize, vassalage, dynastic instrument, quarantine</li></ul></div>
 <div class="node mech done"><div class="node-head"><span class="name">Price signal</span><span class="chip done">IMPL</span></div>
   <p class="tag">market-price-derived valuations in grade-effective units are the one value language: expansion attractiveness, war-goal value, migration pull, investment, siting all read it</p></div>
