@@ -166,6 +166,27 @@ namespace StarGen.AtlasView.EditorTools
             Capture(cam, "atlas-smoke-works.png");
             works.SetVisible(false);
 
+            // ---- K5: the orbit stage — the map's curves die at this
+            // distance (MapFade 0) and the system view stands alone ----
+            var stage = Object.FindAnyObjectByType<SystemStage>();
+            var portHex = StarGen.Core.Galaxy.HexGrid.WorldToHex(port0.x,
+                                                                 port0.y);
+            View(port0, 3.6f, 60f);
+            stage.RenderAt(model, eye, portHex, 1f);
+            Capture(cam, "atlas-smoke-system.png");
+            Debug.Log($"AtlasSmoke: system stage — band {rig.Band}, "
+                + $"{stage.Pickables.Count} pickables at the port hex");
+
+            // the multi-system field mid-crossfade (every hex renders —
+            // the play-mode no-pop-in behavior, area form)
+            View(port0, 8.5f, 60f);
+            stage.RenderArea(model, eye, portHex, 3,
+                LodBands.StageFade(8.5f, rig.GalaxyExtent));
+            Capture(cam, "atlas-smoke-system-field.png");
+            Debug.Log($"AtlasSmoke: system field — "
+                + $"{stage.Pickables.Count} pickables across the area");
+            stage.RenderAt(model, eye, portHex, 0f);
+
             Debug.Log($"AtlasSmoke: lens suite rendered — "
                 + $"{host.State.Fleets.Count} fleets, {host.State.Pois.Count} POIs, "
                 + $"{host.State.Projects.Count} projects, "
@@ -182,7 +203,8 @@ namespace StarGen.AtlasView.EditorTools
             PlagueLayer plague, WarLayer war)
         {
             // Edit mode: the rig's ZoomChanged fires, but listeners are
-            // wired by AtlasRoot.OnEnable which never ran — style by hand.
+            // wired by AtlasRoot.OnEnable which never ran — style by hand
+            // (mirror AtlasRoot.OnZoomChanged, crossfade hooks included).
             lanes.SetExtent(rig.GalaxyExtent);
             lanes.ViewportPx = Height;
             lanes.OnZoom(rig.Distance);
@@ -193,6 +215,11 @@ namespace StarGen.AtlasView.EditorTools
             works.OnZoom(rig.Distance, extent);
             plague.OnZoom(rig.Distance, extent);
             war.OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<PortLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<NewsLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<DomainFieldLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<NatureFieldLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<PriceFieldLayer>().OnZoom(rig.Distance, extent);
         }
 
         private static void Capture(Camera cam, string fileName)

@@ -104,4 +104,11 @@ K5's wrap-up closes the epoch-sim roadmap itself.
       controls, run-seed re-based on the unstepped genesis world with
       auto-play to target; carried: branch switch-back UI → K5/backlog,
       unbounded keyframe memory on unattended play → note)
-- [ ] K5 — System stage & closeout
+- [x] K5 — System stage & closeout (accepted 2026-07-12, "good enough
+      for now"; two eyeball waves: System info panel + option-A orbit
+      grammar + fit-to-hex + all-visible-systems render + thin selection
+      ring, then coplanar stage/fine belt dashes/hairline rings/moons at
+      the rim; carried: per-lens readability + orbit-view polish → gap
+      list). **Slice K — and the 11-slice greenfield roadmap — is
+      complete.** Post-roadmap extensions continue at the K6 kickoff
+      (economy surfaces) and the design-acceptance gap list.

@@ -30,7 +30,7 @@ merge — the lens rail, legend, and dock are shared chrome.
    `docs/superpowers/plans/2026-07-12-slice-ce-ledger.md` (C17's carried
    debt list — several items are atlas-relevant caveats, e.g. relay bids
    kept, fee-blind courier ranking).
-4. The K5 ledger (`2026-07-12-slice-k5-ledger.md`, once it exists) and
+4. The K5 ledger (`2026-07-12-slice-k5-ledger.md`) and
    the K4 ledger `2026-07-12-slice-k4-ledger.md` — the SimHost two-event
    contract (`Loaded` vs `TimeChanged`) every new surface must ride, and
    the worktree traps.

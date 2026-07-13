@@ -35,7 +35,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("StarGen/DomainField"));
+            _material = new Material(Shader.Find("StarGen/DomainField"))
+            { hideFlags = HideFlags.HideAndDontSave };
             // Explicit values — property-block defaults have proven
             // unreliable for runtime-created materials under URP.
             _material.SetFloat("_FillIntensity", 0.13f);
@@ -65,6 +66,15 @@ namespace StarGen.AtlasView
 
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
+
+        /// <summary>K5 hex→orbit crossfade: the glow field dims to
+        /// nothing as the stage fades up.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.SetFloat("_MapFade",
+                LodBands.MapFade(cameraDistance, galaxyExtent));
+        }
 
         private AtlasReadModel _model;
         private EyeContext _eye;
@@ -161,6 +171,7 @@ namespace StarGen.AtlasView
                 {
                     wrapMode = TextureWrapMode.Clamp,
                     filterMode = FilterMode.Point,
+                    hideFlags = HideFlags.HideAndDontSave,
                 };
             }
             var pixels = new Color32[MaxSlots * MaxSlots];
@@ -179,7 +190,7 @@ namespace StarGen.AtlasView
         private void BuildQuad(Bounds b)
         {
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh();
+            _mesh = new Mesh { hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(new[]
             {
                 new Vector3(b.min.x, b.min.y, Z),

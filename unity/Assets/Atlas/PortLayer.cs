@@ -19,7 +19,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("StarGen/AtlasBillboard"));
+            _material = new Material(Shader.Find("StarGen/AtlasBillboard"))
+            { hideFlags = HideFlags.HideAndDontSave };
             _material.SetTexture("_MainTex", AtlasTextures.SolidDot);
             _material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
             _material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
@@ -46,6 +47,15 @@ namespace StarGen.AtlasView
 
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
+
+        /// <summary>K5 hex→orbit crossfade: port dots dissolve with the
+        /// rest of the map as the stage fades up.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.SetColor("_Tint", new Color(1f, 1f, 1f,
+                LodBands.MapFade(cameraDistance, galaxyExtent)));
+        }
 
         public void Show(AtlasReadModel model, EyeContext eye)
         {
@@ -85,7 +95,8 @@ namespace StarGen.AtlasView
                 triangles[t + 5] = v + 2;
             }
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            _mesh = new Mesh { indexFormat = IndexFormat.UInt32,
+                               hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(vertices);
             _mesh.SetUVs(0, corners);
             _mesh.SetColors(colors);

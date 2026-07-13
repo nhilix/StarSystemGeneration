@@ -129,4 +129,4 @@ forks stays backlog unless trivially cheap while touching the strip.
 6. Wrap-up: merge · HANDOFF (→ gap-list backlog; roadmap CLOSED) ·
    tick K5 · republish the diagram · push only on say-so.
 
-- [ ] Slice K5 complete
+- [x] Slice K5 complete (merged 2026-07-12)

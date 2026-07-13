@@ -26,7 +26,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("Sprites/Default"));
+            _material = new Material(Shader.Find("Sprites/Default"))
+            { hideFlags = HideFlags.HideAndDontSave };
             GetComponent<MeshRenderer>().material = _material;
             GetComponent<MeshRenderer>().enabled = false;
         }
@@ -50,6 +51,15 @@ namespace StarGen.AtlasView
         }
 
         public NatureLayer? Current => _current;
+
+        /// <summary>K5 hex→orbit crossfade (Sprites/Default: the material
+        /// tint multiplies the baked field texture).</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            _material.color = new Color(1f, 1f, 1f,
+                LodBands.MapFade(cameraDistance, galaxyExtent));
+        }
 
         public void Show(AtlasReadModel model, EyeContext eye)
         {
@@ -86,6 +96,7 @@ namespace StarGen.AtlasView
                 {
                     wrapMode = TextureWrapMode.Clamp,
                     filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
                 };
             }
             var pixels = new Color32[TextureSize * TextureSize];
@@ -110,7 +121,7 @@ namespace StarGen.AtlasView
         private void BuildQuad(Bounds b)
         {
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh();
+            _mesh = new Mesh { hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(new[]
             {
                 new Vector3(b.min.x, b.min.y, Z),

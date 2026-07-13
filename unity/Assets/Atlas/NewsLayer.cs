@@ -29,7 +29,8 @@ namespace StarGen.AtlasView
 
         private void Awake()
         {
-            _material = new Material(Shader.Find("StarGen/AtlasBillboard"));
+            _material = new Material(Shader.Find("StarGen/AtlasBillboard"))
+            { hideFlags = HideFlags.HideAndDontSave };
             _material.SetTexture("_MainTex", AtlasTextures.Ring);
             // Additive: overlapping fronts brighten instead of stacking
             // into an opaque wall (the starfield's convention).
@@ -59,6 +60,15 @@ namespace StarGen.AtlasView
 
         public void SetVisible(bool visible) =>
             GetComponent<MeshRenderer>().enabled = visible;
+
+        /// <summary>K5 hex→orbit crossfade: pulse fronts blend additively
+        /// (SrcAlpha/One), so the fade scales the emitted light too.</summary>
+        public void OnZoom(float cameraDistance, float galaxyExtent)
+        {
+            if (_material == null) return;   // edit-mode caller ordering
+            float fade = LodBands.MapFade(cameraDistance, galaxyExtent);
+            _material.SetColor("_Tint", new Color(fade, fade, fade, fade));
+        }
 
         public void Show(AtlasReadModel model, EyeContext eye)
         {
@@ -102,7 +112,8 @@ namespace StarGen.AtlasView
                 triangles[t + 5] = v + 2;
             }
             if (_mesh != null) DestroyResource(_mesh);
-            _mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            _mesh = new Mesh { indexFormat = IndexFormat.UInt32,
+                               hideFlags = HideFlags.HideAndDontSave };
             _mesh.SetVertices(vertices);
             _mesh.SetUVs(0, corners);
             _mesh.SetColors(colors);

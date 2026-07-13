@@ -10,6 +10,7 @@ Shader "StarGen/AtlasBillboard"
     {
         _MainTex ("Sprite", 2D) = "white" {}
         _MaxPx ("Max pixel size", Float) = 64
+        _Tint ("Tint", Color) = (1,1,1,1)
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src blend", Float) = 5
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst blend", Float) = 10
     }
@@ -31,6 +32,7 @@ Shader "StarGen/AtlasBillboard"
             SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
                 float _MaxPx;
+                half4 _Tint;
             CBUFFER_END
             // Explicit view globals (set by CameraRig / capture tooling):
             // the built-in _ScreenParams/P uniforms proved unreliable in
@@ -72,7 +74,7 @@ Shader "StarGen/AtlasBillboard"
             half4 frag(Varyings input) : SV_Target
             {
                 half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
-                return tex * input.color;
+                return tex * input.color * _Tint;
             }
             ENDHLSL
         }
