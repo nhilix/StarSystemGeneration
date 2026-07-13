@@ -100,6 +100,9 @@ public sealed class SimState
     /// NextCourierId keeps identity stable.</summary>
     public List<CourierContract> Couriers { get; } = new List<CourierContract>();
     public int NextCourierId { get; set; }
+    /// <summary>The sim-health series the engine's always-on probe feeds —
+    /// in-memory only, never serialized (sim-health spec §1).</summary>
+    public MetricSeries Health { get; } = new MetricSeries();
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

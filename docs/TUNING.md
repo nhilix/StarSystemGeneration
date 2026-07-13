@@ -28,6 +28,12 @@ Defaults below are current as of slice D. "Raise/Lower" describes the
 first-order consequence; most dials interact, so move one at a time and
 watch `emap price`, `market`, and the famine counts in the phase trace.
 
+**Measuring a dial's macro effect** (slice SH): `docs/SIMHEALTH.md` — the
+metric vocabulary, the `ehealth` readout, and the sweep runner
+(`dotnet run --project src/Inspector -- sweep experiment.json`) that runs
+baseline-vs-variant knob sets across a seed ensemble. A tuning conclusion
+should clear seed personality before it lands in this file.
+
 ---
 
 ## Sim & Genesis (structural clock — ESIM line, not KNOB records)
