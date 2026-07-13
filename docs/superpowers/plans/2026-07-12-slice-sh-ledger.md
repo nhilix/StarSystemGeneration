@@ -55,7 +55,9 @@ digs deeper. Interacts with `Phases.Borrow`'s 2×-principal lender gate.
       limit, carried to the mid-run-knob slice); L4 O(events²) snapshot
       scan (trivial at 40 epochs); L6 dot-less-name guard (registry test
       pins the convention).
-- [ ] S11 — wrap-up: merge decision, HANDOFF, next kickoff prompt
+- [x] S11 — wrap-up: eyeball + merge accepted 2026-07-12 (dashboard
+      artifact 7f691c48); merged to main locally; HANDOFF updated; the
+      monetary-equilibrium kickoff prompt chained.
 
 ## Decisions
 
