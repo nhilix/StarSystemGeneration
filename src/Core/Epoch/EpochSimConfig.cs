@@ -814,7 +814,12 @@ public sealed class EconomyKnobs
 
     // -- Credit --
     public double LoanRatePerYear { get; set; } = 0.02;
-    public int LoanTermYears { get; set; } = 50;
+    /// <summary>Amortization term in world-years — 5 epochs at the default
+    /// 25-year tick, so financed investment (facilities, port raises) has real
+    /// runway to mature and lift Receipts before the balloon payment comes due.
+    /// A 2-epoch term (the old 50) amortized faster than any project could pay
+    /// for itself, capitalizing missed service into a debt spiral.</summary>
+    public int LoanTermYears { get; set; } = 125;
     /// <summary>Unspent Expansion/Development/Military points decay back to
     /// Credits at this rate per world-year — the idle-pool recycle.</summary>
     public double PoolIdleDecayPerYear { get; set; } = 0.05;

@@ -137,7 +137,7 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.RestrictedFriction` | 0.5 | Restricted goods effectively stop moving. | Restriction becomes a paperwork fee. |
 | `Economy.ReserveReleaseTrigger` | 0.9 | Polities open granaries at the first shortfall. | Reserves hoarded for true famines only. |
 | `Economy.LoanRatePerYear` | 0.02 | Debt overhangs bite; defaults (and seizures) multiply. | Nearly free credit. |
-| `Economy.LoanTermYears` | 50 | Gentler amortization, longer debt tails. | Brutal repayment schedules. |
+| `Economy.LoanTermYears` | 125 | Gentler amortization, longer debt tails. | Brutal repayment schedules. |
 | `Economy.PoolIdleDecayPerYear` | 0.05 | Unspent Expansion/Development/Military points recycle back to Credits faster (less stranded accrual ahead of the Planner). | Idle points sit longer before recirculating; the Planner's under-packing bites harder. |
 | `Economy.SovereignIssuanceRate` | 0.5 | Deeper shortfalls get minted away (negative treasuries recover faster) — more fiat chasing the same goods. | Tighter bounded mint; `Polity.NegativeTreasuries` breathes less, stays negative longer. |
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
