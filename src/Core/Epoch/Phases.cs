@@ -364,9 +364,12 @@ public sealed class AllocationPhase : ISimPhase
             // standing weights bend toward strong factions' agendas before
             // they spend — pressure is mechanical, bounded by form tolerance
             var budget = FactionOps.PressedBudget(state, pr, policies.Budget);
-            // budget the epoch's receipts, not the balance: development is
-            // deficit-financed through downturns; credit picks up the slack
-            double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
+            // budget the epoch's receipts, not the balance (monetary-
+            // equilibrium design §1): reading the stock swept a polity's
+            // entire historical treasury into pools every epoch; income alone
+            // makes Credits a real accumulating stock. Development is still
+            // deficit-financed through downturns — that path never read Credits.
+            double allocatable = Math.Max(0.0, pr.Receipts);
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
@@ -412,6 +415,16 @@ public sealed class AllocationPhase : ISimPhase
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayStockpiles(state, pr, ownPorts);
+            // whatever the epoch's works left unspent in the idle pools
+            // recirculates into the treasury (design §3) — a recycle into the
+            // buffer stock, not a leak
+            DecayIdlePools(state, pr);
+            // last in the per-polity loop, so it sees the true end-of-epoch
+            // shortfall after every bill: the bounded second mint (design §5).
+            // ServiceLoans ran before this loop against last epoch's balance,
+            // so issuance never covers loan service — the boundary is by
+            // construction, not a guard
+            IssueSovereignCredit(state, pr);
         }
         // the job board clears: open couriers meet whoever's hulls sit on
         // their first leg — the poster's own marine self-fulfills at cost
@@ -532,6 +545,52 @@ public sealed class AllocationPhase : ISimPhase
                 if (port.StockQty[g] <= 0) port.StockGrade[g] = 0;
             }
         }
+    }
+
+    /// <summary>Idle-pool recycle (monetary-equilibrium design §3): whatever
+    /// the epoch's works left unspent in the Expansion/Development/Military
+    /// pools decays a bounded fraction back into Credits — the Planner accrues
+    /// these ~2x faster than it spends them, so idle points would otherwise
+    /// park forever. ReservePoints is excluded: it funds physical stockpile
+    /// targets with its own perishability decay, not idle cash. Compounded per
+    /// world-year like StockpileDecayPerYear (P7): a 25-year step recirculates
+    /// exactly what twenty-five 1-year steps would. Conserved — the decayed
+    /// points land in Credits, they do not vanish.</summary>
+    private static void DecayIdlePools(SimState state, PolityRecord pr)
+    {
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        double keep = Math.Pow(Math.Max(0.0, 1.0 - eco.PoolIdleDecayPerYear), years);
+        double DecayOne(double points)
+        {
+            double decayed = points * (1.0 - keep);
+            pr.Credits += decayed;
+            return points - decayed;
+        }
+        pr.ExpansionPoints = DecayOne(pr.ExpansionPoints);
+        pr.DevelopmentPoints = DecayOne(pr.DevelopmentPoints);
+        pr.MilitaryPoints = DecayOne(pr.MilitaryPoints);
+    }
+
+    /// <summary>Bounded sovereign issuance — the second declared mint
+    /// (monetary-equilibrium design §5). Run last in the per-polity loop, so it
+    /// sees the true end-of-epoch shortfall after every bill. A negative
+    /// treasury mints up to a fraction of its own real receipts (weight, not
+    /// indebtedness — no moral hazard toward the largest debtor), never the
+    /// whole hole: NegativeTreasuries must still breathe. Issuance never covers
+    /// loan service by construction (ServiceLoans runs before this loop against
+    /// last epoch's balance), so default and collateral seizure stay real.
+    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
+    private static void IssueSovereignCredit(SimState state, PolityRecord pr)
+    {
+        if (pr.Credits >= 0) return;
+        double shortfall = -pr.Credits;
+        double cap = state.Config.Economy.SovereignIssuanceRate
+                     * Math.Max(0.0, pr.Receipts);
+        double issued = Math.Min(shortfall, cap);
+        if (issued <= 0) return;
+        pr.Credits += issued;
+        state.CumulativeFiatIssued += issued;
     }
 
     /// <summary>Interest and amortization flow lender-ward; a borrower who

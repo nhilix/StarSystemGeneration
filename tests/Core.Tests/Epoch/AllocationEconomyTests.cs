@@ -41,8 +41,14 @@ public class AllocationEconomyTests
     [Fact]
     public void Income_SplitsByBudgetWeights_StubGone()
     {
+        // slice ME §1: the base now reads Receipts, not the balance — the
+        // income is the receipts the Markets phase accrued into Credits, so
+        // seed both. Idle-pool decay off to read the raw split (that recycle
+        // has its own coverage in AllocationMonetaryTests).
         var (state, _) = Fixture(credits: 100);
         var pr = state.PolityOf(0);
+        pr.Receipts = 100;
+        state.Config.Economy.PoolIdleDecayPerYear = 0.0;
         new AllocationPhase().Run(state);
 
         var budget = PolityPolicies.Default.Budget;

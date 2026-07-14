@@ -28,6 +28,11 @@ public sealed class SimState
     public GalaxySkeleton Skeleton { get; }
     public int EpochIndex { get; set; }
     public int WorldYear { get; set; }
+    /// <summary>Running total of credits minted by bounded sovereign issuance
+    /// (the second declared mint, monetary-equilibrium design §5) — a level
+    /// across the whole sim, never reset per epoch, mirroring how the endowed
+    /// PolityEmerged count accumulates. The conservation residual subtracts it.</summary>
+    public double CumulativeFiatIssued { get; set; }
     /// <summary>Actor registry in id order — the fixed iteration order.</summary>
     public List<Actor> Actors { get; } = new List<Actor>();
     /// <summary>Polity-specific state beside the actor substrate, actor-id order.</summary>
