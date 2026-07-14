@@ -111,6 +111,19 @@ public class EconomyArtifactTests
     }
 
     [Fact]
+    public void CumulativeFiatIssued_RoundTrips()
+    {
+        var built = Run();
+        // whatever the history minted survives as-is (clock v2 carries it)...
+        Assert.Equal(built.CumulativeFiatIssued,
+                     Reload(built).CumulativeFiatIssued);
+        // ...and an explicit level survives too: the running total has no event
+        // log to recompute from, so the CLOCK line must persist it directly
+        built.CumulativeFiatIssued = 4242.5;
+        Assert.Equal(4242.5, Reload(built).CumulativeFiatIssued);
+    }
+
+    [Fact]
     public void NonDefaultEconomyConfig_RoundTrips()
     {
         var state = EpochTestKit.Seeded(42, 8).State;

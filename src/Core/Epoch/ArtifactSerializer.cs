@@ -25,7 +25,7 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
+        ("config", 6), ("clock", 2), ("raster", 2), ("species", 1),
         ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 3),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
@@ -69,8 +69,11 @@ public static class ArtifactSerializer
             w.WriteLine(Join("KNOB", knob.Name, R(knob.Get(ec))));
 
         Layer(w, "clock");
+        // clock v2 (slice ME): CumulativeFiatIssued rides the CLOCK line so the
+        // second mint's running total survives load — it has no event log to
+        // recompute from (issuance stages no event), unlike the endowment count
         w.WriteLine(Join("CLOCK", state.EpochIndex.ToString(Inv),
-            state.WorldYear.ToString(Inv)));
+            state.WorldYear.ToString(Inv), R(state.CumulativeFiatIssued)));
 
         Layer(w, "raster");
         foreach (var cell in state.Skeleton.Cells)
@@ -831,6 +834,8 @@ public static class ArtifactSerializer
                         {
                             EpochIndex = int.Parse(f[1], Inv),
                             WorldYear = int.Parse(f[2], Inv),
+                            // clock v2 (slice ME): the second mint's running total
+                            CumulativeFiatIssued = double.Parse(f[3], Inv),
                         };
                         break;
                     case "CELL":
