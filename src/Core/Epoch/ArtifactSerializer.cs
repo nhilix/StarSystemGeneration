@@ -26,7 +26,7 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 7), ("ports", 2), ("lanes", 3), ("facilities", 2),
+        ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
         ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 3),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
@@ -118,7 +118,9 @@ public static class ArtifactSerializer
                     DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures),
                     // actors v4 (slice G): the research split rides along
                     R(pp.Research.Industrial), R(pp.Research.Military),
-                    R(pp.Research.Astrogation), R(pp.Research.Life)));
+                    R(pp.Research.Astrogation), R(pp.Research.Life),
+                    // actors v8 (slice ME): the Operations budget share rides along
+                    R(pp.Budget.Operations)));
             // actors v6 (slice t1): the standing plan's entries follow the
             // actor's POLICY line, in plan order (Load rebuilds them).
             // Corp plans ride the same lines (slice CE, C11): Intent runs
@@ -969,7 +971,9 @@ public static class ArtifactSerializer
                             new BudgetWeights(double.Parse(f[2], Inv),
                                 double.Parse(f[3], Inv), double.Parse(f[4], Inv),
                                 double.Parse(f[5], Inv), double.Parse(f[6], Inv),
-                                double.Parse(f[7], Inv)),
+                                double.Parse(f[7], Inv),
+                                // actors v8 (slice ME): the Operations budget share
+                                double.Parse(f[22], Inv)),
                             TaxRate: double.Parse(f[8], Inv),
                             TariffSchedule: ParseDoubleMap(f[13]),
                             LawCode: ParseIntMap<LegalityLevel>(f[14]),

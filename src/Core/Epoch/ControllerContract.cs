@@ -405,7 +405,8 @@ public sealed class GenesisController : IController
                     Research: b.Research,
                     Expansion: b.Expansion - fromExp,
                     Appeasement: b.Appeasement,
-                    Reserves: b.Reserves),
+                    Reserves: b.Reserves,
+                    Operations: b.Operations),
             };
         }
         // the research split follows temperament: hawks fund the arsenal,

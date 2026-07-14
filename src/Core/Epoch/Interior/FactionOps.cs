@@ -88,7 +88,7 @@ public static class FactionOps
         for (int i = 0; i < 6; i++) pressed += w[i];
         if (pressed > 0)
             for (int i = 0; i < 6; i++) w[i] *= sum / pressed;
-        return new BudgetWeights(w[0], w[1], w[2], w[3], w[4], w[5]);
+        return new BudgetWeights(w[0], w[1], w[2], w[3], w[4], w[5], declared.Operations);
     }
 
     /// <summary>Allocation's appeasement line: each faction demands its
