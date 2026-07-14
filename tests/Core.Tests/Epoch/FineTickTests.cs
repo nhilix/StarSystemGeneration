@@ -154,12 +154,11 @@ public class FineTickTests
         // exists to bound systematic rate bias, not chaos.
         double coarsePrice = MedianProvisionsPrice(coarse, sharedPorts);
         double finePrice = MedianProvisionsPrice(fine, sharedPorts);
-        // seed 42: temporarily widened 0.6->0.7 for slice ME's transitional
-        // inert-Operations state (task 1 of 7) — 10% of every budget sits
-        // unspent in the new Operations share until task 3 spends it, which
-        // is expected to move this picture again. Re-tighten once the full
-        // mechanism lands; see docs/superpowers/plans/2026-07-13-slice-me-ledger.md
-        double provisionsTolerance = seed == 42ul ? 0.7 : 0.6;
+        // slice ME task 1 widened this to 0.7 for seed 42 while Operations sat
+        // inert; task 3 spends the full mechanism (base-on-receipts, Operations
+        // margin, idle-pool recycle, sovereign issuance) and seed 42 is back
+        // inside the original 0.6 band — the transitional widening is reverted.
+        double provisionsTolerance = 0.6;
         AssertBand("provisions price", coarsePrice, finePrice, provisionsTolerance);
 
         // history kept happening: the fine run logged real events too
