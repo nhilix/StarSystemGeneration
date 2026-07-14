@@ -402,7 +402,24 @@ public sealed class AllocationPhase : ISimPhase
             // investment pools the same epoch it is drawn — the money already
             // exists (a conserved lender→borrower transfer), so this routes it
             // through the split, it is not a new mint.
-            double allocatable = Math.Max(0.0, pr.Receipts + pr.BorrowedThisEpoch);
+            // the always-on steady mint (Part B / design's third declared channel):
+            // a small fraction of THIS polity's own real receipts, minted fresh
+            // every epoch so the money supply grows in step with real output rather
+            // than only being patched reactively during shortfalls. Recomputed from
+            // Receipts each epoch, it never compounds on itself the way runaway loan
+            // interest did. Like Borrow's principal and IssueSovereignCredit, the
+            // mint lands in Credits (a real holder — that is what makes the supply
+            // grow and keeps the residual netting out) AND enters the base, so the
+            // same budget split routes it into real investment.
+            double steadyIssuance = cfg.Economy.SteadyIssuanceRate
+                                    * Math.Max(0.0, pr.Receipts);
+            if (steadyIssuance > 0)
+            {
+                pr.Credits += steadyIssuance;
+                state.CumulativeSteadyIssuance += steadyIssuance;
+            }
+            double allocatable = Math.Max(0.0,
+                pr.Receipts + pr.BorrowedThisEpoch + steadyIssuance);
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
@@ -697,10 +714,24 @@ public sealed class AllocationPhase : ISimPhase
     private static int Borrow(SimState state)
     {
         var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
         int issued = 0;
         foreach (var pr in state.Polities)                    // actor-id order
         {
             if (!state.Actors[pr.ActorId].Entered || pr.Credits >= 0) continue;
+            // borrower-side creditworthiness (Part A, credit-score gate): a polity
+            // already carrying open-loan principal above a bounded multiple of its
+            // trailing real income (LastIncomePerYear × years ≈ one epoch's
+            // receipts) is locked out of NEW credit until amortization services the
+            // debt down. This touches nothing in ServiceLoans — existing loans keep
+            // accruing/amortizing/defaulting; it only refuses to pile on MORE.
+            double existingPrincipal = 0;
+            foreach (var open in state.Loans)                 // id order (P6)
+                if (open.BorrowerActorId == pr.ActorId && !open.Closed)
+                    existingPrincipal += open.Principal;
+            double debtCeiling = eco.MaxDebtToIncomeRatio
+                * Math.Max(0.0, pr.LastIncomePerYear) * years;
+            if (existingPrincipal > debtCeiling) continue;
             double principal = -pr.Credits * 1.2;
             ICreditLedger? lender = null;
             int lenderActorId = -1;

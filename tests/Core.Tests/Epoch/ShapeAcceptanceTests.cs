@@ -85,6 +85,9 @@ public class ShapeAcceptanceTests
         // slice ME §5: bounded sovereign issuance is the second declared mint —
         // the running total is minted credit, held somewhere in the economy
         minted += state.CumulativeFiatIssued;
+        // Part B: the always-on steady issuance channel is the third declared
+        // mint — its running total is likewise minted credit held in the economy
+        minted += state.CumulativeSteadyIssuance;
         double held = 0;
         foreach (var p in state.Polities)
             held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints

@@ -124,6 +124,19 @@ public class EconomyArtifactTests
     }
 
     [Fact]
+    public void CumulativeSteadyIssuance_RoundTrips()
+    {
+        var built = Run();
+        // whatever the history minted via the steady channel survives (clock v3)...
+        Assert.Equal(built.CumulativeSteadyIssuance,
+                     Reload(built).CumulativeSteadyIssuance);
+        // ...and an explicit level persists on the CLOCK line, no event log to
+        // recompute the third mint's running total from
+        built.CumulativeSteadyIssuance = 1337.25;
+        Assert.Equal(1337.25, Reload(built).CumulativeSteadyIssuance);
+    }
+
+    [Fact]
     public void NonDefaultEconomyConfig_RoundTrips()
     {
         var state = EpochTestKit.Seeded(42, 8).State;

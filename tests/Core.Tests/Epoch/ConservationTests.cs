@@ -4,11 +4,13 @@ using Xunit;
 namespace StarGen.Core.Tests.Epoch;
 
 /// <summary>Money conservation (sim-health spec §2): the supply grows only
-/// through the two declared mints — the entry endowment and bounded sovereign
-/// issuance (monetary-equilibrium design §5) — and every other flow is a move
-/// between holder classes. The residual metric is the leak detector; this test
-/// is the contract that it reads zero (against the widened formula) on a real
-/// history.</summary>
+/// through the three declared mints — the entry endowment, bounded reactive
+/// sovereign issuance (monetary-equilibrium design §5), and the always-on
+/// steady issuance channel (Part B) — and every other flow is a move between
+/// holder classes. The residual metric is the leak detector; this test is the
+/// contract that it reads zero (against the widened formula, now netting all
+/// three mints) on a real history — the steady mint fires every epoch, so this
+/// would go red if the residual formula failed to net it.</summary>
 public class ConservationTests
 {
     [Fact]

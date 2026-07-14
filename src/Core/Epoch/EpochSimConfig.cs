@@ -827,6 +827,19 @@ public sealed class EconomyKnobs
     /// this fraction of the epoch's own real receipts when covering an
     /// end-of-epoch shortfall.</summary>
     public double SovereignIssuanceRate { get; set; } = 0.5;
+    /// <summary>A borrower-side creditworthiness ceiling (Part A / credit-score
+    /// gate): a polity's existing open-loan principal may not exceed this
+    /// multiple of its trailing real income (LastIncomePerYear × YearsPerEpoch,
+    /// i.e. one epoch's receipts) before it is locked out of NEW borrowing until
+    /// amortization services the debt down. A lender won't extend fresh credit to
+    /// someone already buried in debt.</summary>
+    public double MaxDebtToIncomeRatio { get; set; } = 3.0;
+    /// <summary>The always-on steady issuance channel (Part B / third declared
+    /// mint): every entered polity mints this fraction of its own real receipts
+    /// each epoch into the allocation base, so the money supply grows roughly in
+    /// step with real output instead of only being patched reactively. Recomputed
+    /// fresh from Receipts each epoch — it never compounds on itself.</summary>
+    public double SteadyIssuanceRate { get; set; } = 0.02;
 
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites

@@ -31,7 +31,7 @@ public sealed record MetricRow(
     double MaxPolityCredits,
     double Population, double MeanSoL,
     int EndowedEntries, double ConservationResidual,
-    double CumulativeFiatIssued);
+    double CumulativeFiatIssued, double CumulativeSteadyIssuance);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -116,14 +116,15 @@ public static class MetricsOps
             sol += s.SoL * s.Size;
         }
 
-        // conservation (spec §2, widened by monetary-equilibrium design §5):
-        // there are now TWO declared mints — the one-time entry endowment and
-        // bounded sovereign issuance — so the supply delta minus the epoch's
-        // endowments AND its issuance must be zero. Both are diffed as levels
-        // against the previous row; every other new flow (pool decay, wealth
-        // levy) is a symmetric transfer between existing holders, not a mint.
-        // A fresh series (a loaded artifact) has no baseline: its first
-        // residual is defined 0.
+        // conservation (spec §2, widened by monetary-equilibrium design §5 and
+        // Part B): there are now THREE declared mints — the one-time entry
+        // endowment, reactive/backstop sovereign issuance (CumulativeFiatIssued),
+        // and the always-on steady issuance channel (CumulativeSteadyIssuance) —
+        // so the supply delta minus the epoch's endowments AND both issuance
+        // deltas must be zero. All are diffed as levels against the previous row;
+        // every other new flow (pool decay, wealth levy) is a symmetric transfer
+        // between existing holders, not a mint. A fresh series (a loaded artifact)
+        // has no baseline: its first residual is defined 0.
         int endowed = 0;
         foreach (var e in state.Log.Events)
             if (e.Type == WorldEventType.PolityEmerged) endowed++;
@@ -137,13 +138,15 @@ public static class MetricsOps
                   * state.Config.Economy.InitialWealthPerPop;
             residual = money.Supply - prev.Money.Supply
                 - (endowed - prev.EndowedEntries) * endowment
-                - (state.CumulativeFiatIssued - prev.CumulativeFiatIssued);
+                - (state.CumulativeFiatIssued - prev.CumulativeFiatIssued)
+                - (state.CumulativeSteadyIssuance - prev.CumulativeSteadyIssuance);
         }
 
         return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
             pop, pop <= 0 ? 0.0 : sol / pop,
-            endowed, residual, state.CumulativeFiatIssued);
+            endowed, residual, state.CumulativeFiatIssued,
+            state.CumulativeSteadyIssuance);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

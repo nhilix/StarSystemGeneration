@@ -49,6 +49,9 @@ public class AllocationEconomyTests
         var pr = state.PolityOf(0);
         pr.Receipts = 100;
         state.Config.Economy.PoolIdleDecayPerYear = 0.0;
+        // the steady mint (Part B) would widen the base past raw Receipts; it has
+        // its own coverage in AllocationMonetaryTests, so read the pure split here
+        state.Config.Economy.SteadyIssuanceRate = 0.0;
         new AllocationPhase().Run(state);
 
         var budget = PolityPolicies.Default.Budget;

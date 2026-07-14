@@ -55,8 +55,10 @@ public class AllocationMonetaryTests
     public void Operations_StaysInTheTreasury_AsMargin()
     {
         var state = Fixture(credits: 1000, receipts: 1000);
-        // isolate the subtraction: no pool decay, no research/appeasement spend
+        // isolate the subtraction: no pool decay, no research/appeasement spend,
+        // and no steady mint widening the base (Part B has its own tests)
         state.Config.Economy.PoolIdleDecayPerYear = 0.0;
+        state.Config.Economy.SteadyIssuanceRate = 0.0;
         var pr = state.PolityOf(0);
         var b = PolityPolicies.Default.Budget;
 
@@ -149,9 +151,10 @@ public class AllocationMonetaryTests
     public void IssueSovereignCredit_MintsShortfallBound_WhenShortfallUnderCap()
     {
         var state = Fixture(credits: 25, receipts: 100);
-        // no decay-back, no research/appeasement spend: the only motion is the
-        // four-share subtraction, so the end-of-loop shortfall is exact
+        // no decay-back, no research/appeasement spend, no steady mint: the only
+        // motion is the four-share subtraction, so the end-of-loop shortfall is exact
         state.Config.Economy.PoolIdleDecayPerYear = 0.0;
+        state.Config.Economy.SteadyIssuanceRate = 0.0;
         var pr = state.PolityOf(0);
         var b = PolityPolicies.Default.Budget;
         double moved = 100.0 * (b.Expansion + b.Development + b.Military + b.Reserves);
@@ -179,6 +182,7 @@ public class AllocationMonetaryTests
         // carried a -500 balance into this epoch; a qualifying lender is present
         var state = Fixture(credits: -500, receipts: 100);
         state.Config.Economy.PoolIdleDecayPerYear = 0.0;   // read the raw split
+        state.Config.Economy.SteadyIssuanceRate = 0.0;     // Part B has its own tests
         state.Actors[1].Entered = true;
         state.PolityOf(1).Credits = 10000;
         var pr = state.PolityOf(0);
@@ -288,5 +292,145 @@ public class AllocationMonetaryTests
         // linear rate*years diverged here by ~100 credits (coarse 500 vs fine
         // ~603); compounding lands both on 1000*0.98^25 to floating tolerance
         Assert.Equal(fine, coarse, 4);
+    }
+
+    // Borrow is private and runs mid-phase after ServiceLoans (which would
+    // default any open loan a negative borrower carries) — reflection invokes it
+    // in isolation so the borrower-side debt-to-income gate can be exercised
+    // against a state that still holds an open loan.
+    private static int InvokeBorrow(SimState state)
+    {
+        var m = typeof(AllocationPhase).GetMethod("Borrow",
+            System.Reflection.BindingFlags.NonPublic
+            | System.Reflection.BindingFlags.Static)!;
+        return (int)m.Invoke(null, new object[] { state })!;
+    }
+
+    // Part A — the borrower-side credit-score gate: a polity already carrying
+    // open-loan principal above MaxDebtToIncomeRatio × one-epoch-income is refused
+    // NEW credit even though a flush lender is standing right there. RED before
+    // the gate existed: the old Borrow gated only the lender, so this state issued
+    // a second loan; the gate now correctly refuses.
+    [Fact]
+    public void Borrow_DeniesNewLoan_WhenExistingDebtExceedsIncomeRatio()
+    {
+        var state = Fixture(credits: -100, receipts: 0);
+        var pr = state.PolityOf(0);
+        pr.LastIncomePerYear = 4.0;   // ceiling = 3.0 × 4 × 25 years = 300
+        // a qualifying lender: entered, flush enough to front 1.2×100 twice over
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 10000;
+        // existing open debt of 500 already exceeds the 300 ceiling
+        state.Loans.Add(new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: 500, ratePerYear: 0.02, termYears: 125, issuedYear: 0));
+
+        int issued = InvokeBorrow(state);
+
+        Assert.Equal(0, issued);              // locked out of new credit
+        Assert.Single(state.Loans);           // no second loan piled on
+        Assert.Equal(0.0, pr.BorrowedThisEpoch, 9);
+    }
+
+    // Part A — the same polity, same lender, but existing debt UNDER the ceiling:
+    // the gate opens and a new loan issues. This is the discriminator proving the
+    // refusal above is the debt ratio, not a missing lender.
+    [Fact]
+    public void Borrow_IssuesNewLoan_WhenExistingDebtIsUnderIncomeRatio()
+    {
+        var state = Fixture(credits: -100, receipts: 0);
+        var pr = state.PolityOf(0);
+        pr.LastIncomePerYear = 4.0;   // ceiling = 300
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 10000;
+        // existing open debt of 100 stays under the 300 ceiling
+        state.Loans.Add(new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: 100, ratePerYear: 0.02, termYears: 125, issuedYear: 0));
+
+        int issued = InvokeBorrow(state);
+
+        Assert.Equal(1, issued);
+        Assert.Equal(2, state.Loans.Count);   // the fresh loan joined
+        Assert.Equal(120.0, state.Loans[1].Principal, 6);   // 1.2 × the -100
+    }
+
+    // Part A — closed/defaulted loans do not count toward the debt load: a polity
+    // whose old debt already defaulted is a clean slate for new credit.
+    [Fact]
+    public void Borrow_IgnoresClosedLoans_WhenSummingDebtLoad()
+    {
+        var state = Fixture(credits: -100, receipts: 0);
+        var pr = state.PolityOf(0);
+        pr.LastIncomePerYear = 4.0;   // ceiling = 300
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 10000;
+        // a huge but CLOSED loan — its principal is history, not a live burden
+        state.Loans.Add(new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: 100000, ratePerYear: 0.02, termYears: 125, issuedYear: 0)
+            { Closed = true });
+
+        int issued = InvokeBorrow(state);
+
+        Assert.Equal(1, issued);              // the closed loan does not gate
+        Assert.Equal(2, state.Loans.Count);
+    }
+
+    // Part B — the always-on steady issuance channel fires for a SOLVENT polity,
+    // distinguishing it from the reactive backstop: a polity that ends the epoch
+    // in the black still mints SteadyIssuanceRate × its own receipts, while the
+    // reactive IssueSovereignCredit stays silent (Credits never went negative).
+    // The running total is a separate stock from CumulativeFiatIssued and grows
+    // by the SAME amount each epoch — recomputed fresh from Receipts, never
+    // compounding on itself.
+    [Fact]
+    public void SteadyIssuance_FiresForSolventPolity_DistinctFromReactiveBackstop()
+    {
+        // a fat cushion so the budget split can't drive the treasury negative
+        var state = Fixture(credits: 5000, receipts: 1000);
+        double rate = state.Config.Economy.SteadyIssuanceRate;
+        var pr = state.PolityOf(0);
+
+        new AllocationPhase().Run(state);
+
+        Assert.True(pr.Credits > 0, "the polity stayed solvent all epoch");
+        Assert.Equal(rate * 1000, state.CumulativeSteadyIssuance, 6);   // steady fired
+        Assert.Equal(0.0, state.CumulativeFiatIssued, 9);              // backstop silent
+
+        // second epoch, same receipts: the level grows by the SAME mint again —
+        // proof it reads Receipts fresh, never accumulating a growing balance
+        pr.Receipts = 1000;
+        new AllocationPhase().Run(state);
+        Assert.Equal(2 * rate * 1000, state.CumulativeSteadyIssuance, 6);
+    }
+
+    // Part B — steady issuance flows through allocatable (like BorrowedThisEpoch),
+    // not into idle Credits: the budget pools read Receipts + steady, so the mint
+    // funds real investment via the normal split.
+    [Fact]
+    public void SteadyIssuance_FlowsIntoTheBudgetSplit_NotIdleCash()
+    {
+        var state = Fixture(credits: 5000, receipts: 1000);
+        state.Config.Economy.PoolIdleDecayPerYear = 0.0;   // read the raw split
+        double rate = state.Config.Economy.SteadyIssuanceRate;
+        var pr = state.PolityOf(0);
+        var b = PolityPolicies.Default.Budget;
+
+        new AllocationPhase().Run(state);
+
+        // base = Receipts(1000) + steady(rate*1000); ExpansionPoints only accrues
+        // in Allocation, so it reads the split exactly
+        double allocatable = 1000.0 + rate * 1000.0;
+        Assert.Equal(allocatable * b.Expansion, pr.ExpansionPoints, 6);
+        Assert.True(pr.ExpansionPoints > 1000.0 * b.Expansion,
+            "the steady mint must reach the budget split, above receipts alone");
+    }
+
+    // Part B — the no-op guard: zero receipts mint nothing (a nonnegative fraction
+    // of nonnegative receipts), and the running total never moves.
+    [Fact]
+    public void SteadyIssuance_MintsNothing_OnZeroReceipts()
+    {
+        var state = Fixture(credits: 100, receipts: 0);
+        new AllocationPhase().Run(state);
+        Assert.Equal(0.0, state.CumulativeSteadyIssuance, 9);
     }
 }
