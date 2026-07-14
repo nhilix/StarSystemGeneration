@@ -605,7 +605,7 @@ public sealed class AllocationPhase : ISimPhase
         {
             if (loan.Closed || loan.Principal <= 0) continue;
             var borrower = state.PolityOf(loan.BorrowerActorId);
-            var lender = state.PolityOf(loan.LenderActorId);
+            var lender = LedgerOf(state, loan.LenderActorId);
             double interest = loan.Principal * loan.RatePerYear * years;
             double amort = loan.Principal * Math.Min(1.0, (double)years / loan.TermYears);
             double payment = interest + amort;
@@ -645,7 +645,9 @@ public sealed class AllocationPhase : ISimPhase
     }
 
     /// <summary>Insolvent polities borrow from whoever holds surplus — the
-    /// richest entered polity able to front the principal twice over.</summary>
+    /// richest entered candidate, polity or corporation, able to front the
+    /// principal twice over (economy/markets.md §Credit: "lenders are
+    /// whoever holds surplus").</summary>
     private static int Borrow(SimState state)
     {
         var eco = state.Config.Economy;
@@ -654,30 +656,46 @@ public sealed class AllocationPhase : ISimPhase
         {
             if (!state.Actors[pr.ActorId].Entered || pr.Credits >= 0) continue;
             double principal = -pr.Credits * 1.2;
-            PolityRecord? lender = null;
+            ICreditLedger? lender = null;
+            int lenderActorId = -1;
             foreach (var candidate in state.Polities)
                 if (candidate.ActorId != pr.ActorId
                     && state.Actors[candidate.ActorId].Entered
                     && candidate.Credits >= principal * 2
                     && (lender == null || candidate.Credits > lender.Credits))
-                    lender = candidate;
+                { lender = candidate; lenderActorId = candidate.ActorId; }
+            // extends the same actor-id order: corp actors are always minted
+            // after every polity actor, so this second pass keeps the richest-
+            // wins, first-found-wins-ties convention intact across both pools
+            foreach (var candidate in state.Corporations)
+                if (candidate.ActorId != pr.ActorId
+                    && state.Actors[candidate.ActorId].Entered
+                    && candidate.Credits >= principal * 2
+                    && (lender == null || candidate.Credits > lender.Credits))
+                { lender = candidate; lenderActorId = candidate.ActorId; }
             if (lender == null) continue;
             lender.Credits -= principal;
             pr.Credits += principal;
-            var loan = new Loan(state.Loans.Count, lender.ActorId, pr.ActorId,
+            var loan = new Loan(state.Loans.Count, lenderActorId, pr.ActorId,
                 principal, eco.LoanRatePerYear, eco.LoanTermYears, state.WorldYear);
             state.Loans.Add(loan);
             issued++;
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.LoanIssued,
-                new[] { pr.ActorId, lender.ActorId },
+                new[] { pr.ActorId, lenderActorId },
                 state.Actors[pr.ActorId].Seat,
                 Magnitude: principal, Valence: 0.0, EventVisibility.Regional,
-                new LoanIssuedPayload(loan.Id, lender.ActorId, pr.ActorId,
+                new LoanIssuedPayload(loan.Id, lenderActorId, pr.ActorId,
                                       principal)));
         }
         return issued;
     }
+
+    /// <summary>The credit ledger behind an actor id — a polity or a
+    /// corporation, whichever holds it. Loans lend across both pools, so
+    /// servicing must resolve either kind of lender the same way.</summary>
+    private static ICreditLedger LedgerOf(SimState state, int actorId) =>
+        state.CorporationOf(actorId) is Corporation corp ? corp : state.PolityOf(actorId);
 
     /// <summary>Gate-pair lane construction (lane-economics spec §§1–3), two
     /// passes. **Founding links** first: every isolated own port seeks its

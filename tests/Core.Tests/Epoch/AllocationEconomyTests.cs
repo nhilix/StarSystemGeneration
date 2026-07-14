@@ -293,6 +293,43 @@ public class AllocationEconomyTests
         Assert.True(loan.Principal < principalBefore, "principal amortizes");
     }
 
+    // Slice ME task 4 — the lender search widens to corporations: no polity
+    // holds surplus here, only a corporation does, so the loan must find it.
+    [Fact]
+    public void Insolvency_BorrowsFromACorporation_WhenOnlyItHoldsCollateral()
+    {
+        var (state, _) = Fixture(credits: -50);      // underwater
+        int corpActor = state.Actors.Count;
+        state.Actors.Add(new Actor(corpActor, ActorKind.Corporation, "Vex",
+            default, state.EpochIndex,
+            new CorporateController(state.Config)) { Entered = true });
+        var corp = new Corporation(0, corpActor, "Vex", state.Actors[0].Id,
+            CorporateNiche.Freight, homePortId: 0, state.WorldYear)
+        { Credits = 1000 };
+        state.Corporations.Add(corp);
+
+        new AllocationPhase().Run(state);
+
+        Assert.True(state.Loans.Count == 1, "an insolvent polity should borrow from a corp lender");
+        var loan = state.Loans[0];
+        Assert.Equal(corpActor, loan.LenderActorId);
+        Assert.Equal(0, loan.BorrowerActorId);
+        Assert.True(state.PolityOf(0).Credits >= 0, "the loan should cover the hole");
+        Assert.True(corp.Credits < 1000, "corp lender fronts the principal");
+        bool staged = false;
+        foreach (var e in state.Staged)
+            if (e.Type == WorldEventType.LoanIssued) staged = true;
+        Assert.True(staged);
+
+        // servicing: next allocation pays interest+principal to the corp lender
+        state.PolityOf(0).Credits = 500;
+        double lenderBefore = corp.Credits;
+        double principalBefore = loan.Principal;
+        new AllocationPhase().Run(state);
+        Assert.True(corp.Credits > lenderBefore, "interest flows to the corp");
+        Assert.True(loan.Principal < principalBefore, "principal amortizes");
+    }
+
     [Fact]
     public void Default_SeizesAFacility()
     {
