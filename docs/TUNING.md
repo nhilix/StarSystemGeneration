@@ -129,7 +129,7 @@ the shelf — the order book prices imports through delivered cost.*
 |---|---|---|---|
 | `Economy.MinUtilization` | 0.15 | Producers keep running into gluts (bigger inventories, deeper price basements). | Idle mines everywhere prices sag; scarcer, twitchier supply. |
 | `Economy.LaborShare` | 0.4 | Households capture more of every sale: richer segments, poorer polities, faster SoL. | State-heavy economy; households starve amid activity. |
-| `Economy.InitialCreditsPerPolity` | 500 | Bigger monetary base (the only polity mint): everything more liquid. | Tight money: development crawls until trade velocity builds. |
+| `Economy.InitialCreditsPerPolity` | 500 | Bigger monetary base (the entry-endowment mint, alongside bounded sovereign issuance): everything more liquid. | Tight money: development crawls until trade velocity builds. |
 | `Economy.InitialWealthPerPop` | 15 | Homeworld households start richer (first-epoch demand). | Lean start; wages must arrive fast. |
 | `Economy.FreightCostPerUnitPerHex` | 0.02 | Distance matters more: regional price zones, stronger geography. | A flatter, more integrated market. |
 | `Economy.FuelPerUnitPerHex` | 0.005 | Freight pulls harder on fuel markets; refinery-poor regions get cut off. | Movement approaches free (against the design's grain). |
