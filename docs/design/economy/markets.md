@@ -176,8 +176,10 @@ There are no banks as actors, but lenders are no longer the treasury's only
 source of credit: the sovereign is also a bounded **issuer**. At the end of every
 epoch, after every bill (upkeep, loan service, tribute) is paid, a treasury still
 short mints up to a fraction of *that epoch's own real receipts* — weight-scaled,
-not debt-scaled, so the largest debtor holds no special claim on it, and never the
-whole shortfall: a negative treasury must still be able to breathe, not vanish.
+not debt-scaled, so the largest debtor holds no special claim on it. The cap
+bounds the *rate*, not the outcome: a shallow shortfall under the cap gets topped
+up to zero outright, but a deep enough shortfall still outruns it and the treasury
+stays negative — the mint doesn't erase every hole, only what fits the fraction.
 Issuance never covers loan service — service is paid earlier in the step, against
 last epoch's balance, so default and collateral seizure stay real consequences.
 Issued credits enter circulation the ordinary way, spent into upkeep, tribute, and
