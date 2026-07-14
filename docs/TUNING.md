@@ -138,6 +138,8 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.ReserveReleaseTrigger` | 0.9 | Polities open granaries at the first shortfall. | Reserves hoarded for true famines only. |
 | `Economy.LoanRatePerYear` | 0.02 | Debt overhangs bite; defaults (and seizures) multiply. | Nearly free credit. |
 | `Economy.LoanTermYears` | 50 | Gentler amortization, longer debt tails. | Brutal repayment schedules. |
+| `Economy.PoolIdleDecayPerYear` | 0.05 | Unspent Expansion/Development/Military points recycle back to Credits faster (less stranded accrual ahead of the Planner). | Idle points sit longer before recirculating; the Planner's under-packing bites harder. |
+| `Economy.SovereignIssuanceRate` | 0.5 | Deeper shortfalls get minted away (negative treasuries recover faster) — more fiat chasing the same goods. | Tighter bounded mint; `Polity.NegativeTreasuries` breathes less, stays negative longer. |
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
 | `Economy.ConditionRecoveryPerYear` | 0.05 | Repairs snap back. | Long scars from every shortage/war. |
 | `Economy.StockpileDecayPerYear` | 0.002 | Reserves cost more to hold (provisions ×10, organics ×5, medicine ×3 in code). | Cheap insurance; sieges (H) get longer. |
@@ -145,6 +147,8 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.StockCapPerPortTier` | 100 | (Raise) ports bank deep larders without depots. | Tiny caps: reserve policy impossible without depots everywhere. |
 | `Economy.StockCapPerDepotTier` | 400 | (Raise) one depot holds a war economy's stores. | Depot storage stops mattering next to the port's own floor. |
 | `Economy.WarWearinessPerYear` | 0.003 | (Inert until H.) | — |
+| `Economy.WealthTaxFloorPerPop` | 20.0 | Wider per-capita exemption shields more segment wealth (subsistence and mid-tier households untouched). | More wealth is taxable — even modest households get levied. |
+| `Economy.WealthTaxRatePerYear` | 0.02 | Faster drain on wealth above the floor: a stronger inflation-control valve, but poorer elites/segments. | Wealth above the floor sits longer; a weaker sink against sovereign issuance. |
 | `Economy.CourierFeePerUnitPerHex` | 0.02 | State hauling costs real freight rates: fees drain treasuries, self-fulfillment pays back more. | Near-free requisitions (against the contract economy's grain). |
 | `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
 
@@ -556,9 +560,13 @@ day one of them *does* need to move.
   over `StockpileDecayPerYear`: `AllocationPhase.DecayStockpiles` (per-port
   since stage 2; each active depot tier multiplies by `DepotDecayFactor`).
 - **Budget weights & policy defaults** — `PolityPolicies.Default`
-  (`Policies.cs`): the six-way budget split, default tax rate 0.10. These
-  are *standing policies* — Intent-phase outputs, the controller's to
-  change — not world calibration.
+  (`Policies.cs`): the seven-way budget split (Development .25 / Military
+  .20 / Research .15 / Expansion .15 / Appeasement .05 / Reserves .10 /
+  Operations .10), default tax rate 0.10. `BudgetWeights.Operations` is the
+  one share never subtracted from `Credits` at allocation — it stays as the
+  cash margin that pays upkeep, loan service, and tribute (monetary-
+  equilibrium design §2). These are *standing policies* — Intent-phase
+  outputs, the controller's to change — not world calibration.
 - **Siting score weights** — `src/Core/Substrate/Siting.cs`.
 - **Colony founding wealth = `Expansion.ColonyCost`** (recycled, not a
   separate dial) and the **homeworld starter industry** composition
