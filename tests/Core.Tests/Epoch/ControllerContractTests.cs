@@ -46,7 +46,7 @@ public class ControllerContractTests
     {
         var b = PolityPolicies.Default.Budget;
         double sum = b.Development + b.Military + b.Research
-                   + b.Expansion + b.Appeasement + b.Reserves;
+                   + b.Expansion + b.Appeasement + b.Reserves + b.Operations;
         Assert.Equal(1.0, sum, 10);
     }
 
