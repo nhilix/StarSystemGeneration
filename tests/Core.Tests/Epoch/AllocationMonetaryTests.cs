@@ -165,6 +165,35 @@ public class AllocationMonetaryTests
         Assert.Equal(0.0, pr.Credits, 6);                // topped up exactly to zero
     }
 
+    // fix wave 1 (finding 1) — Borrow runs BEFORE sovereign issuance: a
+    // shortfall a solvent lender can cover becomes a LOAN, and the bounded mint
+    // (which now backstops only what stays negative after borrowing) never
+    // fires. The pre-fix ordering minted the shortfall away inside the loop, so
+    // no loan was ever sought — zero loans in 40 epochs on the reference seed.
+    [Fact]
+    public void Borrow_RunsBeforeIssuance_ShortfallBecomesLoanNotMint()
+    {
+        var state = Fixture(credits: 0, receipts: 100);
+        // isolate the end-of-loop shortfall: no pool recirculation muddying it
+        state.Config.Economy.PoolIdleDecayPerYear = 0.0;
+        // a qualifying lender: an entered, portless polity flush enough to front
+        // the principal twice over (Borrow's 2x-collateral gate)
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 10000;
+
+        new AllocationPhase().Run(state);
+
+        // the shortfall was borrowed, not minted
+        Assert.Single(state.Loans);
+        Assert.Equal(0, state.Loans[0].BorrowerActorId);
+        Assert.Equal(1, state.Loans[0].LenderActorId);
+        Assert.Equal(0.0, state.CumulativeFiatIssued, 9);
+        // the loan cleared the borrower back to solvent, so issuance — running
+        // after Borrow — correctly saw nothing left to backstop
+        Assert.True(state.PolityOf(0).Credits >= 0,
+            $"the loan should have restored solvency ({state.PolityOf(0).Credits:0})");
+    }
+
     // §5 — the boundary: issuance never covers loan service. ServiceLoans runs
     // before the per-polity loop against last epoch's balance, so a hopeless
     // borrower still defaults and loses collateral exactly as before — this

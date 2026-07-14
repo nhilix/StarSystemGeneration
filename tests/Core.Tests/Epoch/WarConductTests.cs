@@ -156,11 +156,20 @@ public class WarConductTests
     {
         var state = Run();
         var (war, _, defender, target) = StageWar(state);
-        target.StockQty[(int)StarGen.Core.Substrate.GoodId.Provisions] = 0;
+        int prov = (int)StarGen.Core.Substrate.GoodId.Provisions;
+        // isolate the port's OWN stockpile as the larder: start from an empty
+        // book so `bare` is a true zero-larder floor. Post-slice-ME seed 42
+        // leaves this small port's population low enough that even the
+        // provisions already resting on its book saturate the larder cap on
+        // their own — measuring the stockpile's contribution needs a clean base.
+        foreach (var o in state.Orders.ToArray())
+            if (o.PortId == target.Id && o.Side == OrderSide.Sell && o.Good == prov)
+                OrderOps.CancelSell(state, o);
+        target.StockQty[prov] = 0;
         int bare = WarConduct.SiegeThreshold(state, war, target);
         // the defender port's OWN stockpile is the siege larder (spec §4b —
         // a rich polity pool elsewhere feeds nobody behind these walls)
-        target.StockQty[(int)StarGen.Core.Substrate.GoodId.Provisions] = 5e5;
+        target.StockQty[prov] = 5e5;
         int stocked = WarConduct.SiegeThreshold(state, war, target);
         Assert.True(stocked > bare, "the port's stock must extend the siege");
         // provisions for sale on the local book hold out too

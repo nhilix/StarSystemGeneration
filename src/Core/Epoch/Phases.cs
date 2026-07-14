@@ -318,10 +318,16 @@ public sealed class MarketsPhase : ISimPhase
         {
             double floor = seg.Size * eco.WealthTaxFloorPerPop;
             double taxable = Math.Max(0.0, seg.Wealth - floor);
-            double levy = taxable * eco.WealthTaxRatePerYear * spanYears;
+            // compounded per world-year (P7, fix wave 1): a 25-year step levies
+            // exactly what twenty-five 1-year steps would, and the fraction
+            // stays in [0,1) so the levy can never exceed the taxable excess
+            // (no driving wealth below the floor) — the shape DecayIdlePools uses
+            double levy = taxable
+                * (1.0 - Math.Pow(Math.Max(0.0, 1.0 - eco.WealthTaxRatePerYear),
+                                  spanYears));
             if (levy <= 0) continue;
             seg.Wealth -= levy;
-            var sovereign = state.PolityOf(state.Ports[seg.PortId].OwnerActorId);
+            var sovereign = state.LedgerOf(state.Ports[seg.PortId].OwnerActorId);
             sovereign.Credits += levy;
             sovereign.Receipts += levy;
         }
@@ -435,12 +441,6 @@ public sealed class AllocationPhase : ISimPhase
             // recirculates into the treasury (design §3) — a recycle into the
             // buffer stock, not a leak
             DecayIdlePools(state, pr);
-            // last in the per-polity loop, so it sees the true end-of-epoch
-            // shortfall after every bill: the bounded second mint (design §5).
-            // ServiceLoans ran before this loop against last epoch's balance,
-            // so issuance never covers loan service — the boundary is by
-            // construction, not a guard
-            IssueSovereignCredit(state, pr);
         }
         // the job board clears: open couriers meet whoever's hulls sit on
         // their first leg — the poster's own marine self-fulfills at cost
@@ -458,6 +458,15 @@ public sealed class AllocationPhase : ISimPhase
         foreach (var staged in state.Staged)
             if (staged.Type == WorldEventType.TechAdvanced) advances++;
         int borrowed = Borrow(state);
+        // sovereign issuance runs AFTER Borrow (fix wave 1, finding 1): a
+        // shortfall a solvent lender can cover becomes a loan first; the bounded
+        // second mint (design §5) only backstops whatever stays negative once
+        // peer lending has run — otherwise issuance ate every shortfall before a
+        // loan was ever sought. ServiceLoans ran at the top of the phase against
+        // last epoch's balance, so issuance still never covers loan service
+        foreach (var pr in state.Polities)                    // actor-id order
+            if (state.Actors[pr.ActorId].Entered)
+                IssueSovereignCredit(state, pr);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
@@ -589,13 +598,15 @@ public sealed class AllocationPhase : ISimPhase
     }
 
     /// <summary>Bounded sovereign issuance — the second declared mint
-    /// (monetary-equilibrium design §5). Run last in the per-polity loop, so it
-    /// sees the true end-of-epoch shortfall after every bill. A negative
-    /// treasury mints up to a fraction of its own real receipts (weight, not
-    /// indebtedness — no moral hazard toward the largest debtor), never the
-    /// whole hole: NegativeTreasuries must still breathe. Issuance never covers
-    /// loan service by construction (ServiceLoans runs before this loop against
-    /// last epoch's balance), so default and collateral seizure stay real.
+    /// (monetary-equilibrium design §5). Run in its own pass AFTER Borrow (fix
+    /// wave 1), so peer lending gets first refusal on every shortfall and the
+    /// mint only backstops what stays negative — it sees the true end-of-epoch
+    /// shortfall after every bill and every loan. A negative treasury mints up
+    /// to a fraction of its own real receipts (weight, not indebtedness — no
+    /// moral hazard toward the largest debtor), never the whole hole:
+    /// NegativeTreasuries must still breathe. Issuance never covers loan service
+    /// by construction (ServiceLoans runs at the top of the phase against last
+    /// epoch's balance), so default and collateral seizure stay real.
     /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
     private static void IssueSovereignCredit(SimState state, PolityRecord pr)
     {
@@ -680,9 +691,10 @@ public sealed class AllocationPhase : ISimPhase
                     && candidate.Credits >= principal * 2
                     && (lender == null || candidate.Credits > lender.Credits))
                 { lender = candidate; lenderActorId = candidate.ActorId; }
-            // extends the same actor-id order: corp actors are always minted
-            // after every polity actor, so this second pass keeps the richest-
-            // wins, first-found-wins-ties convention intact across both pools
+            // the corp pass runs after the polity pass, so on an exact-credit
+            // tie a polity lender is kept over a corp one — a stable, seeded
+            // tiebreak that does not depend on actor-id interleaving (schism and
+            // graduation polities can be minted after early corps)
             foreach (var candidate in state.Corporations)
                 if (candidate.ActorId != pr.ActorId
                     && state.Actors[candidate.ActorId].Entered

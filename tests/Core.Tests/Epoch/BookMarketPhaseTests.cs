@@ -82,8 +82,10 @@ public class BookMarketPhaseTests
         double before = seg.Wealth;
         var eco = state.Config.Economy;
         double floor = seg.Size * eco.WealthTaxFloorPerPop;
-        double expectedLevy = (before - floor) * eco.WealthTaxRatePerYear
-            * state.Config.Sim.YearsPerEpoch;
+        // compounded per world-year (fix wave 1), the DecayIdlePools shape
+        double expectedLevy = (before - floor)
+            * (1.0 - System.Math.Pow(1.0 - eco.WealthTaxRatePerYear,
+                                     state.Config.Sim.YearsPerEpoch));
 
         new MarketsPhase().Run(state);
 
