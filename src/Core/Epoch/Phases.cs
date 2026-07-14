@@ -605,7 +605,7 @@ public sealed class AllocationPhase : ISimPhase
         {
             if (loan.Closed || loan.Principal <= 0) continue;
             var borrower = state.PolityOf(loan.BorrowerActorId);
-            var lender = LedgerOf(state, loan.LenderActorId);
+            var lender = state.LedgerOf(loan.LenderActorId);
             double interest = loan.Principal * loan.RatePerYear * years;
             double amort = loan.Principal * Math.Min(1.0, (double)years / loan.TermYears);
             double payment = interest + amort;
@@ -690,12 +690,6 @@ public sealed class AllocationPhase : ISimPhase
         }
         return issued;
     }
-
-    /// <summary>The credit ledger behind an actor id — a polity or a
-    /// corporation, whichever holds it. Loans lend across both pools, so
-    /// servicing must resolve either kind of lender the same way.</summary>
-    private static ICreditLedger LedgerOf(SimState state, int actorId) =>
-        state.CorporationOf(actorId) is Corporation corp ? corp : state.PolityOf(actorId);
 
     /// <summary>Gate-pair lane construction (lane-economics spec §§1–3), two
     /// passes. **Founding links** first: every isolated own port seeks its
