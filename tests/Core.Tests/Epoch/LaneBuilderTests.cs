@@ -66,14 +66,7 @@ public class LaneBuilderTests
                 detail.Append($" #{p.Id}(founded {p.FoundedYear}, "
                     + $"owner {p.OwnerActorId}, tier {p.Tier})");
             }
-        // slice ME transitional (design §6): loans no longer inject
-        // DevelopmentPoints directly (the allocation base stopped reading the
-        // stock), so mid-slice fewer founding links get funded and a few more
-        // old colonies sit unlinked — 11/88 on the reference seed vs the ~10%
-        // the pre-mechanism equilibrium held. Widened 10→14%; re-tighten at
-        // slice end once credit broadening (task 4) and the wealth levy (task
-        // 5) restore development funding. See 2026-07-13-slice-me-ledger.md.
-        Assert.True(isolated <= state.Ports.Count / 7,
+        Assert.True(isolated <= state.Ports.Count / 10,
             $"{isolated} of {state.Ports.Count} settled ports sit off the "
             + $"network:{detail} (worldYear {state.WorldYear})");
     }
