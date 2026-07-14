@@ -840,6 +840,12 @@ public sealed class EconomyKnobs
     /// step with real output instead of only being patched reactively. Recomputed
     /// fresh from Receipts each epoch — it never compounds on itself.</summary>
     public double SteadyIssuanceRate { get; set; } = 0.02;
+    /// <summary>A hard ceiling on how far a loan's principal may capitalize
+    /// before it is forced to default: once the live Principal grows past this
+    /// multiple of the loan's OriginalPrincipal, the loan defaults (collateral
+    /// seized) rather than compounding indefinitely. Default 2.0 — a loan whose
+    /// principal has doubled from its issued size is written off.</summary>
+    public double LoanCapitalizationCeiling { get; set; } = 2.0;
 
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites

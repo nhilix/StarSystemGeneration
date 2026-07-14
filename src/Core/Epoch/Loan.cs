@@ -16,6 +16,11 @@ public sealed class Loan
     /// <summary>Outstanding balance — drawn down by repayment, grown by
     /// capitalized interest.</summary>
     public double Principal { get; set; }
+    /// <summary>The principal at issue — the fixed reference the capitalization
+    /// ceiling measures against. Never mutated after construction: a loan whose
+    /// live Principal has capitalized past a bounded multiple of this is forced
+    /// to default rather than compounding without limit.</summary>
+    public double OriginalPrincipal { get; }
     public double RatePerYear { get; }
     public int TermYears { get; }
     public int IssuedYear { get; }
@@ -30,6 +35,7 @@ public sealed class Loan
         LenderActorId = lenderActorId;
         BorrowerActorId = borrowerActorId;
         Principal = principal;
+        OriginalPrincipal = principal;
         RatePerYear = ratePerYear;
         TermYears = termYears;
         IssuedYear = issuedYear;

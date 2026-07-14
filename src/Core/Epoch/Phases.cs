@@ -685,26 +685,42 @@ public sealed class AllocationPhase : ISimPhase
                 lender.Credits += borrower.Credits;
                 loan.Principal += interest - Math.Min(interest, borrower.Credits);
                 borrower.Credits = 0;
+                // a loan whose principal has capitalized past a bounded multiple
+                // of its issued size is forced to default rather than compounding
+                // toward millions forever — the borrower can still be nominally
+                // solvent (some Credits) yet never service a debt this deep, so
+                // the ceiling is a second default trigger beside the zero-Credits
+                // one, seizing collateral exactly the same way
+                if (loan.Principal > eco.LoanCapitalizationCeiling * loan.OriginalPrincipal)
+                    ForceDefault(state, loan, ref defaults);
             }
             else
-            {
-                loan.Closed = true;
-                defaults++;
-                Facility? seized = null;
-                foreach (var f in state.Facilities)
-                    if (f.OwnerActorId == loan.BorrowerActorId) { seized = f; break; }
-                if (seized != null) seized.OwnerActorId = loan.LenderActorId;
-                state.Staged.Add(new StagedEvent(
-                    ClockStratum.Generational, WorldEventType.LoanDefaulted,
-                    new[] { loan.BorrowerActorId, loan.LenderActorId },
-                    state.Actors[loan.BorrowerActorId].Seat,
-                    Magnitude: loan.Principal, Valence: -1.0,
-                    EventVisibility.Public,
-                    new LoanDefaultedPayload(loan.Id, loan.LenderActorId,
-                                             loan.BorrowerActorId)));
-            }
+                ForceDefault(state, loan, ref defaults);
         }
         return defaults;
+    }
+
+    /// <summary>Close a loan as a default: seize the borrower's first facility
+    /// for the lender and stage the LoanDefaulted event. Shared by both default
+    /// triggers — a borrower with no Credits at all, and one whose principal has
+    /// capitalized past the ceiling — so the two paths move money and collateral
+    /// identically.</summary>
+    private static void ForceDefault(SimState state, Loan loan, ref int defaults)
+    {
+        loan.Closed = true;
+        defaults++;
+        Facility? seized = null;
+        foreach (var f in state.Facilities)
+            if (f.OwnerActorId == loan.BorrowerActorId) { seized = f; break; }
+        if (seized != null) seized.OwnerActorId = loan.LenderActorId;
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.LoanDefaulted,
+            new[] { loan.BorrowerActorId, loan.LenderActorId },
+            state.Actors[loan.BorrowerActorId].Seat,
+            Magnitude: loan.Principal, Valence: -1.0,
+            EventVisibility.Public,
+            new LoanDefaultedPayload(loan.Id, loan.LenderActorId,
+                                     loan.BorrowerActorId)));
     }
 
     /// <summary>Insolvent polities borrow from whoever holds surplus — the

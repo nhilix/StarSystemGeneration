@@ -433,4 +433,85 @@ public class AllocationMonetaryTests
         new AllocationPhase().Run(state);
         Assert.Equal(0.0, state.CumulativeSteadyIssuance, 9);
     }
+
+    // ServiceLoans is private and normally reached through AllocationPhase.Run;
+    // reflection invokes it in isolation so the capitalization-ceiling default
+    // trigger can be exercised on a loan whose principal is set past the ceiling
+    // directly, without the surrounding phase mutating it first.
+    private static int InvokeServiceLoans(SimState state)
+    {
+        var m = typeof(AllocationPhase).GetMethod("ServiceLoans",
+            System.Reflection.BindingFlags.NonPublic
+            | System.Reflection.BindingFlags.Static)!;
+        return (int)m.Invoke(null, new object[] { state })!;
+    }
+
+    // The capitalization-ceiling default — the second, distinct default trigger:
+    // a loan whose live Principal has capitalized past LoanCapitalizationCeiling ×
+    // OriginalPrincipal is force-defaulted even though the borrower still holds
+    // SOME positive Credits (so it is NOT the Credits<=0 trigger). The loan closes,
+    // collateral is seized for the lender, and LoanDefaulted stages — the ceiling
+    // path behaves identically to the zero-Credits path.
+    [Fact]
+    public void ServiceLoans_ForcesDefault_WhenPrincipalCapitalizesPastCeiling()
+    {
+        var state = Fixture(credits: 0, receipts: 0);
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 0;                 // the lender's ledger
+        var mine = new Facility(0, (int)InfraTypeId.Mine, 1,
+            state.Ports[0].Hex, 0, builtYear: 50);
+        state.Facilities.Add(mine);                    // owned by borrower (actor 0)
+        // issued at 100; capitalized to 250 over prior epochs — already past the
+        // 2.0 × 100 = 200 ceiling before this epoch's service runs
+        var loan = new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: 100, ratePerYear: 0.02, termYears: 125, issuedYear: 0);
+        loan.Principal = 250;
+        state.Loans.Add(loan);
+        // the borrower is nominally solvent: SOME Credits, but nowhere near the
+        // ~205-credit payment, so it lands in the partial-payment/capitalize path
+        state.PolityOf(0).Credits = 50;
+
+        int defaults = InvokeServiceLoans(state);
+
+        Assert.Equal(1, defaults);
+        Assert.True(loan.Closed, "the over-ceiling loan is written off");
+        Assert.Equal(1, mine.OwnerActorId);            // collateral seized by lender
+        Assert.Equal(200.0,
+            state.Config.Economy.LoanCapitalizationCeiling * loan.OriginalPrincipal, 9);
+        bool staged = false;
+        foreach (var e in state.Staged)
+            if (e.Type == WorldEventType.LoanDefaulted) staged = true;
+        Assert.True(staged, "the ceiling default stages like any other");
+    }
+
+    // The discriminator: a loan that capitalizes but stays UNDER the ceiling is
+    // NOT force-defaulted — it stays open and its principal keeps growing normally.
+    // Proves the trigger above is the ceiling, not merely the partial-payment path.
+    [Fact]
+    public void ServiceLoans_LeavesLoanOpen_WhenCapitalizationStaysUnderCeiling()
+    {
+        var state = Fixture(credits: 0, receipts: 0);
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 0;
+        var mine = new Facility(0, (int)InfraTypeId.Mine, 1,
+            state.Ports[0].Hex, 0, builtYear: 50);
+        state.Facilities.Add(mine);
+        // issued at 100, currently 110 — post-capitalization it lands near ~180,
+        // still under the 200 ceiling
+        var loan = new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: 100, ratePerYear: 0.02, termYears: 125, issuedYear: 0);
+        loan.Principal = 110;
+        state.Loans.Add(loan);
+        state.PolityOf(0).Credits = 1;                 // partial: capitalizes
+
+        int defaults = InvokeServiceLoans(state);
+
+        Assert.Equal(0, defaults);
+        Assert.False(loan.Closed, "an under-ceiling loan stays open");
+        Assert.True(loan.Principal > 110.0, "and keeps capitalizing normally");
+        Assert.True(loan.Principal
+            < state.Config.Economy.LoanCapitalizationCeiling * loan.OriginalPrincipal,
+            "still below the ceiling");
+        Assert.Equal(0, mine.OwnerActorId);            // collateral not seized
+    }
 }
