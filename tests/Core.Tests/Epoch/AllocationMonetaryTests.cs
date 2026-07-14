@@ -222,4 +222,37 @@ public class AllocationMonetaryTests
             if (e.Type == WorldEventType.LoanDefaulted) staged = true;
         Assert.True(staged, "default still stages, unchanged by issuance");
     }
+
+    // P7 tick honesty (pre-existing ServiceLoans bug, fixed this slice): the
+    // interest/amort formula now compounds per world-year with the
+    // DecayIdlePools shape instead of scaling linearly by rate*years. A loan a
+    // solvent borrower services in one coarse 25-year step must finish with the
+    // same principal as one serviced in twenty-five fine 1-year steps — the
+    // full-payment amort is multiplicative decay of the current principal, so
+    // 25 fine ticks compose into the single coarse (1 - 1/Term)^25 factor. The
+    // old linear amort drew ~half the whole principal due in one epoch and
+    // capitalized the missed interest, driving exponential principal blowup.
+    [Fact]
+    public void ServiceLoans_PrincipalDecay_IsTickHonest()
+    {
+        double PrincipalAfter(int years, int steps)
+        {
+            var state = Fixture(credits: 1e9, receipts: 0);
+            state.Actors[1].Entered = true;
+            state.PolityOf(1).Credits = 1e9;              // a solvent lender
+            state.Loans.Add(new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+                principal: 1000.0, ratePerYear: 0.02, termYears: 50,
+                issuedYear: 0));
+            state.Config.Sim.YearsPerEpoch = years;
+            var phase = new AllocationPhase();
+            for (int i = 0; i < steps; i++) phase.Run(state);
+            return state.Loans[0].Principal;
+        }
+
+        double coarse = PrincipalAfter(years: 25, steps: 1);
+        double fine = PrincipalAfter(years: 1, steps: 25);
+        // linear rate*years diverged here by ~100 credits (coarse 500 vs fine
+        // ~603); compounding lands both on 1000*0.98^25 to floating tolerance
+        Assert.Equal(fine, coarse, 4);
+    }
 }

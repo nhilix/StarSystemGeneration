@@ -633,8 +633,15 @@ public sealed class AllocationPhase : ISimPhase
             if (loan.Closed || loan.Principal <= 0) continue;
             var borrower = state.PolityOf(loan.BorrowerActorId);
             var lender = state.LedgerOf(loan.LenderActorId);
-            double interest = loan.Principal * loan.RatePerYear * years;
-            double amort = loan.Principal * Math.Min(1.0, (double)years / loan.TermYears);
+            // compounded per world-year (P7): a 25-year step accrues exactly
+            // what twenty-five 1-year steps compounding would, not a flat
+            // rate*years multiply. amort decays the principal-owed fraction with
+            // the DecayIdlePools shape, treating 1/TermYears as the annual
+            // paydown rate — so a loan finishes amortizing near TermYears
+            // regardless of tick resolution
+            double interest = loan.Principal * (Math.Pow(1.0 + loan.RatePerYear, years) - 1.0);
+            double amort = loan.Principal
+                * (1.0 - Math.Pow(Math.Max(0.0, 1.0 - 1.0 / loan.TermYears), years));
             double payment = interest + amort;
             if (borrower.Credits >= payment)
             {
