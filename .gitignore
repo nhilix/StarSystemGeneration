@@ -527,6 +527,9 @@ unity-*.log
 
 # menu scene assets are builder-generated (SSG > UI > Create Main Menu Scene) — never committed
 unity/Assets/Scenes/MainMenu.unity*
+
+# slice-session isolated workspaces (using-git-worktrees skill)
+.worktrees/
 unity/Assets/UI/MainMenu/MainMenuPanelSettings.asset*
 unity/Assets/UI/MainMenu/scanline.png*
 runs/
