@@ -815,6 +815,22 @@ public sealed class EconomyKnobs
     // -- Credit --
     public double LoanRatePerYear { get; set; } = 0.02;
     public int LoanTermYears { get; set; } = 50;
+    /// <summary>Unspent Expansion/Development/Military points decay back to
+    /// Credits at this rate per world-year — the idle-pool recycle.</summary>
+    public double PoolIdleDecayPerYear { get; set; } = 0.05;
+    /// <summary>Bounds bounded sovereign issuance (the second declared mint) to
+    /// this fraction of the epoch's own real receipts when covering an
+    /// end-of-epoch shortfall.</summary>
+    public double SovereignIssuanceRate { get; set; } = 0.5;
+
+    // -- Taxation --
+    /// <summary>Per-capita wealth exemption below which the levy never bites
+    /// (subsistence households untouched).</summary>
+    public double WealthTaxFloorPerPop { get; set; } = 20.0;
+    /// <summary>Segment wealth above the exemption floor is levied at this rate
+    /// per world-year, paid to the port owner — the household-wealth
+    /// recirculation valve.</summary>
+    public double WealthTaxRatePerYear { get; set; } = 0.02;
 
     // -- Facility lifecycle --
     /// <summary>Fractional condition decay per world-year toward the unmet

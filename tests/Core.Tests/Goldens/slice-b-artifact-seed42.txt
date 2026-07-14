@@ -97,6 +97,7 @@ KNOB|Economy.OffLaneFreightHexesPerYear|2
 KNOB|Economy.OrderExpiryYears|100
 KNOB|Economy.ParityHeadroom|1.15
 KNOB|Economy.PlanSavingsDrawdownYears|5
+KNOB|Economy.PoolIdleDecayPerYear|0.05
 KNOB|Economy.PriceDriftExponent|0.5
 KNOB|Economy.PriceDriftMaxPerYear|0.04
 KNOB|Economy.PriceFloor|0.01
@@ -109,6 +110,7 @@ KNOB|Economy.RestrictedFriction|0.5
 KNOB|Economy.SoLBidRatio|1
 KNOB|Economy.SoLElasticity|0.5
 KNOB|Economy.SoLUnitsPerPopPerYear|0.4
+KNOB|Economy.SovereignIssuanceRate|0.5
 KNOB|Economy.StockCapPerDepotTier|400
 KNOB|Economy.StockCapPerPortTier|100
 KNOB|Economy.StockpileDecayPerYear|0.002
@@ -116,6 +118,8 @@ KNOB|Economy.SubsistenceBidPremium|1.2
 KNOB|Economy.SubsistenceElasticity|0.1
 KNOB|Economy.SubsistenceUnitsPerPopPerYear|0.6
 KNOB|Economy.WarWearinessPerYear|0.003
+KNOB|Economy.WealthTaxFloorPerPop|20
+KNOB|Economy.WealthTaxRatePerYear|0.02
 KNOB|Expansion.ColonizationReachHexes|24
 KNOB|Expansion.ColonyCost|15
 KNOB|Expansion.ColonySegmentSize|0.5
