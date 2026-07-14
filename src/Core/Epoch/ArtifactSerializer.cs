@@ -27,7 +27,7 @@ public static class ArtifactSerializer
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
         ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 3),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 4),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
@@ -249,11 +249,15 @@ public static class ArtifactSerializer
                 if (p.StockQty[g] != 0)
                     w.WriteLine(Join("STOCK", p.Id.ToString(Inv),
                         g.ToString(Inv), R(p.StockQty[g]), R(p.StockGrade[g])));
+        // markets v4 (slice ME fix): OriginalPrincipal rides the LOAN line so
+        // the capitalization ceiling's fixed reference point survives load —
+        // without it, reload resets the ceiling and lets an already-over-ceiling
+        // loan get a fresh runway every time
         foreach (var l in state.Loans)
             w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
                 l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
                 R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
-                l.IssuedYear.ToString(Inv), B(l.Closed)));
+                l.IssuedYear.ToString(Inv), B(l.Closed), R(l.OriginalPrincipal)));
 
         Layer(w, "features");
         foreach (var feat in state.Skeleton.Features)
@@ -1186,7 +1190,9 @@ public static class ArtifactSerializer
                         state.Loans.Add(new Loan(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             double.Parse(f[4], Inv), double.Parse(f[5], Inv),
-                            int.Parse(f[6], Inv), int.Parse(f[7], Inv))
+                            int.Parse(f[6], Inv), int.Parse(f[7], Inv),
+                            // markets v4 (slice ME fix): OriginalPrincipal
+                            originalPrincipal: double.Parse(f[9], Inv))
                         { Closed = f[8] == "1" });
                         break;
                     case "INTR":

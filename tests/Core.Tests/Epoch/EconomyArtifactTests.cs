@@ -111,6 +111,28 @@ public class EconomyArtifactTests
     }
 
     [Fact]
+    public void Loan_OriginalPrincipal_SurvivesRoundTripAfterCapitalization()
+    {
+        var built = Run();
+        // simulate capitalized interest growing Principal past OriginalPrincipal
+        // (markets v4: OriginalPrincipal rides the LOAN line as its own field so
+        // the capitalization ceiling's fixed reference point isn't reset by a
+        // reload — without it, an already-over-ceiling loan gets fresh runway
+        // every time the artifact round-trips)
+        var loan = new Loan(built.Loans.Count, 0, 1, 77.0, 0.02, 50, 250)
+        { Closed = false };
+        loan.Principal = 140.0;
+        built.Loans.Add(loan);
+
+        var loaded = Reload(built);
+
+        var reloadedLoan = loaded.Loans[loaded.Loans.Count - 1];
+        Assert.Equal(140.0, reloadedLoan.Principal);
+        Assert.Equal(77.0, reloadedLoan.OriginalPrincipal);
+        Assert.NotEqual(reloadedLoan.Principal, reloadedLoan.OriginalPrincipal);
+    }
+
+    [Fact]
     public void CumulativeFiatIssued_RoundTrips()
     {
         var built = Run();

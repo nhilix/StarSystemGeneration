@@ -29,13 +29,14 @@ public sealed class Loan
     public bool Closed { get; set; }
 
     public Loan(int id, int lenderActorId, int borrowerActorId, double principal,
-                double ratePerYear, int termYears, int issuedYear)
+                double ratePerYear, int termYears, int issuedYear,
+                double? originalPrincipal = null)
     {
         Id = id;
         LenderActorId = lenderActorId;
         BorrowerActorId = borrowerActorId;
         Principal = principal;
-        OriginalPrincipal = principal;
+        OriginalPrincipal = originalPrincipal ?? principal;
         RatePerYear = ratePerYear;
         TermYears = termYears;
         IssuedYear = issuedYear;
