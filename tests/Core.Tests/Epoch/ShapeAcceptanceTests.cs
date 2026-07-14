@@ -82,6 +82,9 @@ public class ShapeAcceptanceTests
                 minted += eco.InitialCreditsPerPolity
                           + state.Config.Expansion.HomeworldSegmentSize
                             * eco.InitialWealthPerPop;
+        // slice ME §5: bounded sovereign issuance is the second declared mint —
+        // the running total is minted credit, held somewhere in the economy
+        minted += state.CumulativeFiatIssued;
         double held = 0;
         foreach (var p in state.Polities)
             held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
