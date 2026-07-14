@@ -8,7 +8,10 @@ namespace StarGen.Core.Epoch;
 public sealed class Loan
 {
     public int Id { get; }
-    public int LenderActorId { get; }
+    /// <summary>The creditor. Set once at issue; reassigned only when a dead
+    /// lender's estate transfers the claim to its successor (fix wave 1) —
+    /// the same estate-sweep move that reassigns resting sells and shipments.</summary>
+    public int LenderActorId { get; set; }
     public int BorrowerActorId { get; }
     /// <summary>Outstanding balance — drawn down by repayment, grown by
     /// capitalized interest.</summary>
