@@ -309,6 +309,22 @@ public sealed class MarketsPhase : ISimPhase
                 ? lane.SaturatedYears + state.Config.Sim.YearsPerEpoch : 0;
         int famines = MarketEngine.MatchAndClear(state, scratch);
         int spanYears = state.Config.Sim.YearsPerEpoch;
+        var eco = state.Config.Economy;
+        // household wealth above what demand-band consumption can spend
+        // just piles up otherwise (nothing else drains it) — the levy
+        // recirculates the excess into the sovereign's receipts, mirroring
+        // SettleSale's tax-transfer shape (P4: conserved, not minted)
+        foreach (var seg in state.Segments)
+        {
+            double floor = seg.Size * eco.WealthTaxFloorPerPop;
+            double taxable = Math.Max(0.0, seg.Wealth - floor);
+            double levy = taxable * eco.WealthTaxRatePerYear * spanYears;
+            if (levy <= 0) continue;
+            seg.Wealth -= levy;
+            var sovereign = state.PolityOf(state.Ports[seg.PortId].OwnerActorId);
+            sovereign.Credits += levy;
+            sovereign.Receipts += levy;
+        }
         foreach (var pr in state.Polities)
             pr.LastIncomePerYear = pr.Receipts / spanYears;
         foreach (var corp in state.Corporations)

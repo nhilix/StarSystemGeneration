@@ -80,10 +80,17 @@ public class BookMarketPhaseTests
     {
         var (state, seg) = Fixture(withFarm: false);
         double before = seg.Wealth;
+        var eco = state.Config.Economy;
+        double floor = seg.Size * eco.WealthTaxFloorPerPop;
+        double expectedLevy = (before - floor) * eco.WealthTaxRatePerYear
+            * state.Config.Sim.YearsPerEpoch;
 
         new MarketsPhase().Run(state);
 
-        // nothing to buy: the posted escrow came back to the segment
-        Assert.Equal(before, seg.Wealth, 3);
+        // nothing to buy: the posted escrow came back to the segment — the
+        // only real drain left is the wealth levy on the excess over the
+        // per-capita floor (slice ME task 5), which fires regardless of
+        // whether the book had anything to sell
+        Assert.Equal(before - expectedLevy, seg.Wealth, 3);
     }
 }
