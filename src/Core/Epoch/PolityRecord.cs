@@ -20,6 +20,14 @@ public sealed class PolityRecord : ICreditLedger
     /// as the budget base (development is deficit-financed when the balance
     /// runs negative). Step-transient: never serialized.</summary>
     public double Receipts { get; set; }
+    /// <summary>Principal borrowed THIS epoch specifically — Borrow issues at
+    /// the top of Allocation, and this term joins the same epoch's allocation
+    /// base so a fresh loan can fund the investment pools (raising future
+    /// Receipts) instead of only the non-discretionary bills. Marking just this
+    /// epoch's borrowing keeps the accumulated Credits stock out of the base,
+    /// which is exactly what the receipts-only base was designed to exclude.
+    /// Reset to zero each epoch; step-transient, never serialized.</summary>
+    public double BorrowedThisEpoch { get; set; }
     /// <summary>Accrued expansion budget; colony foundings consume it.</summary>
     public double ExpansionPoints { get; set; }
     /// <summary>Accrued development budget; lanes, port tier raises, and

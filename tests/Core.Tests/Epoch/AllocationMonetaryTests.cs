@@ -165,16 +165,49 @@ public class AllocationMonetaryTests
         Assert.Equal(0.0, pr.Credits, 6);                // topped up exactly to zero
     }
 
-    // fix wave 1 (finding 1) — Borrow runs BEFORE sovereign issuance: a
-    // shortfall a solvent lender can cover becomes a LOAN, and the bounded mint
-    // (which now backstops only what stays negative after borrowing) never
-    // fires. The pre-fix ordering minted the shortfall away inside the loop, so
-    // no loan was ever sought — zero loans in 40 epochs on the reference seed.
+    // loan-financing fix (Part A) — principal borrowed at the top of an epoch
+    // flows through the SAME epoch's budget split: a polity that ended last
+    // epoch negative borrows before its budget is set, and the fresh principal
+    // reaches the Expansion/Development/etc. pools (not just the non-
+    // discretionary bills). Without this the loan could never fund the
+    // investment that raises future receipts, and the deficit compounded into a
+    // debt spiral. RED before the BorrowedThisEpoch base term existed: pools saw
+    // Receipts alone, so ExpansionPoints was 100*Expansion, not 700*Expansion.
     [Fact]
-    public void Borrow_RunsBeforeIssuance_ShortfallBecomesLoanNotMint()
+    public void BorrowedPrincipal_FlowsIntoTheSameEpochsBudgetSplit()
     {
-        var state = Fixture(credits: 0, receipts: 100);
-        // isolate the end-of-loop shortfall: no pool recirculation muddying it
+        // carried a -500 balance into this epoch; a qualifying lender is present
+        var state = Fixture(credits: -500, receipts: 100);
+        state.Config.Economy.PoolIdleDecayPerYear = 0.0;   // read the raw split
+        state.Actors[1].Entered = true;
+        state.PolityOf(1).Credits = 10000;
+        var pr = state.PolityOf(0);
+        var b = PolityPolicies.Default.Budget;
+
+        new AllocationPhase().Run(state);
+
+        // Borrow ran at the top against the carried -500: principal = 1.2*500 =
+        // 600, so the base is Receipts(100) + BorrowedThisEpoch(600) = 700.
+        // ExpansionPoints only accrues in Allocation (foundings spend it in
+        // Resolution), so it reads the split exactly.
+        Assert.Single(state.Loans);
+        Assert.Equal(600.0, state.Loans[0].Principal, 6);
+        Assert.Equal(700.0 * b.Expansion, pr.ExpansionPoints, 6);
+        // strictly more than Receipts alone (100*Expansion) would have funded —
+        // the proof the borrowed principal reached the same epoch's pools
+        Assert.True(pr.ExpansionPoints > 100.0 * b.Expansion,
+            $"borrowed principal must reach the budget split ({pr.ExpansionPoints:0.###})");
+    }
+
+    // Part A boundary — Borrow runs at the TOP of the epoch against the carried
+    // balance, before the budget is set; sovereign issuance still runs LAST and
+    // only backstops the capped residual the loan didn't clear. The loan
+    // principal reads the carried -100 (1.2x = 120), NOT the deeper hole the
+    // budget split later digs — that is the proof Borrow precedes the loop.
+    [Fact]
+    public void Borrow_RunsAtTopOfEpoch_IssuanceBackstopsOnlyResidual()
+    {
+        var state = Fixture(credits: -100, receipts: 100);
         state.Config.Economy.PoolIdleDecayPerYear = 0.0;
         // a qualifying lender: an entered, portless polity flush enough to front
         // the principal twice over (Borrow's 2x-collateral gate)
@@ -183,15 +216,16 @@ public class AllocationMonetaryTests
 
         new AllocationPhase().Run(state);
 
-        // the shortfall was borrowed, not minted
+        // the carried deficit sought financing at the top, before issuance
         Assert.Single(state.Loans);
         Assert.Equal(0, state.Loans[0].BorrowerActorId);
         Assert.Equal(1, state.Loans[0].LenderActorId);
-        Assert.Equal(0.0, state.CumulativeFiatIssued, 9);
-        // the loan cleared the borrower back to solvent, so issuance — running
-        // after Borrow — correctly saw nothing left to backstop
-        Assert.True(state.PolityOf(0).Credits >= 0,
-            $"the loan should have restored solvency ({state.PolityOf(0).Credits:0})");
+        Assert.Equal(120.0, state.Loans[0].Principal, 6);   // 1.2 x the carried -100
+        // the budget split re-spent the borrowed principal into the pools, so the
+        // treasury ends negative; issuance — running after Borrow — mints only the
+        // capped residual (rate*Receipts), never the whole hole
+        double cap = state.Config.Economy.SovereignIssuanceRate * 100;
+        Assert.Equal(cap, state.CumulativeFiatIssued, 6);
     }
 
     // §5 — the boundary: issuance never covers loan service. ServiceLoans runs

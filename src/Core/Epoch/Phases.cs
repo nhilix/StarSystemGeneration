@@ -372,6 +372,14 @@ public sealed class AllocationPhase : ISimPhase
         // tribute ships up before anyone budgets: vassals allocate what
         // remains of their receipts (interpolity/relations.md §Vassalage)
         int tributes = FederationOps.PayTribute(state);
+        // every polity starts the epoch owing nothing to THIS epoch's base;
+        // Borrow then runs at the TOP against each carried-over balance (after
+        // this epoch's ServiceLoans/tribute), so a polity that ended last epoch
+        // negative seeks financing before its budget is set — and the fresh
+        // principal it marks in BorrowedThisEpoch flows through the same epoch's
+        // allocation split, funding real investment rather than only the bills
+        foreach (var pr in state.Polities) pr.BorrowedThisEpoch = 0;
+        int borrowed = Borrow(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
         {
@@ -386,12 +394,15 @@ public sealed class AllocationPhase : ISimPhase
             // standing weights bend toward strong factions' agendas before
             // they spend — pressure is mechanical, bounded by form tolerance
             var budget = FactionOps.PressedBudget(state, pr, policies.Budget);
-            // budget the epoch's receipts, not the balance (monetary-
-            // equilibrium design §1): reading the stock swept a polity's
-            // entire historical treasury into pools every epoch; income alone
-            // makes Credits a real accumulating stock. Development is still
-            // deficit-financed through downturns — that path never read Credits.
-            double allocatable = Math.Max(0.0, pr.Receipts);
+            // budget the epoch's receipts plus any principal borrowed at the
+            // top of THIS epoch, not the balance (monetary-equilibrium design
+            // §1): reading the stock swept a polity's entire historical treasury
+            // into pools every epoch; income alone makes Credits a real
+            // accumulating stock. BorrowedThisEpoch lets a fresh loan fund the
+            // investment pools the same epoch it is drawn — the money already
+            // exists (a conserved lender→borrower transfer), so this routes it
+            // through the split, it is not a new mint.
+            double allocatable = Math.Max(0.0, pr.Receipts + pr.BorrowedThisEpoch);
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
@@ -457,13 +468,14 @@ public sealed class AllocationPhase : ISimPhase
         int advances = 0;
         foreach (var staged in state.Staged)
             if (staged.Type == WorldEventType.TechAdvanced) advances++;
-        int borrowed = Borrow(state);
-        // sovereign issuance runs AFTER Borrow (fix wave 1, finding 1): a
-        // shortfall a solvent lender can cover becomes a loan first; the bounded
-        // second mint (design §5) only backstops whatever stays negative once
-        // peer lending has run — otherwise issuance ate every shortfall before a
-        // loan was ever sought. ServiceLoans ran at the top of the phase against
-        // last epoch's balance, so issuance still never covers loan service
+        // sovereign issuance runs LAST — after top-of-epoch Borrow and the whole
+        // budget/spend loop: peer lending already got first refusal on each
+        // carried deficit (Borrow ran at the top, fix wave 1 finding 1), so the
+        // bounded second mint (design §5) only backstops whatever is STILL
+        // negative at end of epoch — after this epoch's spend, including the
+        // principal a fresh loan routed into the budget split. ServiceLoans ran
+        // at the top against last epoch's balance, so issuance never covers loan
+        // service
         foreach (var pr in state.Polities)                    // actor-id order
             if (state.Actors[pr.ActorId].Entered)
                 IssueSovereignCredit(state, pr);
@@ -711,6 +723,9 @@ public sealed class AllocationPhase : ISimPhase
             if (lender == null) continue;
             lender.Credits -= principal;
             pr.Credits += principal;
+            // mark THIS epoch's borrowing so the same epoch's allocation base
+            // can route the principal into the investment pools (Part A)
+            pr.BorrowedThisEpoch += principal;
             var loan = new Loan(state.Loans.Count, lenderActorId, pr.ActorId,
                 principal, eco.LoanRatePerYear, eco.LoanTermYears, state.WorldYear);
             state.Loans.Add(loan);

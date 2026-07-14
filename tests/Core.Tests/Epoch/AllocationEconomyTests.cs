@@ -277,7 +277,11 @@ public class AllocationEconomyTests
         var loan = state.Loans[0];
         Assert.Equal(1, loan.LenderActorId);
         Assert.Equal(0, loan.BorrowerActorId);
-        Assert.True(state.PolityOf(0).Credits >= 0, "the loan should cover the hole");
+        // Borrow ran at the top against the carried -50: principal = 1.2*50 = 60
+        // covers the hole (the loan-financing fix then routes that principal
+        // into the same epoch's budget split, so Credits itself ends negative
+        // again — the mint backstops only the capped residual, tested elsewhere)
+        Assert.Equal(60.0, loan.Principal, 6);
         Assert.True(state.PolityOf(1).Credits < 1000, "lender fronts the principal");
         bool staged = false;
         foreach (var e in state.Staged)
@@ -314,7 +318,9 @@ public class AllocationEconomyTests
         var loan = state.Loans[0];
         Assert.Equal(corpActor, loan.LenderActorId);
         Assert.Equal(0, loan.BorrowerActorId);
-        Assert.True(state.PolityOf(0).Credits >= 0, "the loan should cover the hole");
+        // Borrow ran at the top against the carried -50: principal = 1.2*50 = 60
+        // covers the hole (the fix then routes it into this epoch's budget split)
+        Assert.Equal(60.0, loan.Principal, 6);
         Assert.True(corp.Credits < 1000, "corp lender fronts the principal");
         bool staged = false;
         foreach (var e in state.Staged)
