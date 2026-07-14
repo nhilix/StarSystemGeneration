@@ -15,6 +15,12 @@ Deterministic procedural galaxy generator + epoch history simulation. C# —
 - `docs/HANDOFF.md` (uppercase!) — current session state and next-up pointer.
 - Governing meta-plan: `docs/superpowers/plans/2026-07-09-implementation-roadmap.md`
   (11 greenfield slices A–K).
+- **Trello** (`StarSystemGeneration` board, MCP server `trello` in
+  `.mcp.json` at project scope — travels into worktrees, needs a one-time
+  OAuth approval per machine) tracks live task/todo status: Backlog →
+  Kickoff Ready → In Progress → Eyeball / Merge Gate → Merged. Advisory,
+  not a gate — HANDOFF.md stays the authoritative resumability record if
+  Trello is ever unreachable.
 
 ## The slice-session workflow (lighter protocol, adopted 2026-07-09)
 
@@ -42,8 +48,9 @@ One session per slice. Each session:
    acceptance** (the taste gate: does it *look right* — user runs/views it),
    merge decision. Don't add approval gates between tasks.
 7. **Wrap-up, in order**: merge to main locally · update `docs/HANDOFF.md` ·
-   **write the next slice's kickoff prompt** (see below) · push only when the
-   user says to.
+   **write the next slice's kickoff prompt** (see below) · sync the Trello
+   board (move the finished card to Merged, file anything new surfaced
+   mid-session) if reachable · push only when the user says to.
 
 **Each session writes the next session's kickoff prompt** — informed by what
 just landed (real file paths, real interfaces, surprises encountered). Pattern:
