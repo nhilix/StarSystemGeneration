@@ -20,7 +20,10 @@ Baseline: 900/900 tests green before any change.
       Commit a8e82e1. All field indices independently re-verified by Opus reviewer, no
       off-by-ones. Minor (not blocking): FLEET/SEGMENT round-trip values and old-format
       truncation only directly tested for FACILITY/PROJECT — carry to final review.
-- [ ] Task 5: `SettledSystems` registry + idempotent commit + serialization (Opus — determinism invariant)
+- [x] Task 5: `SettledSystems` registry + idempotent commit + serialization (Opus —
+      determinism invariant). Commit 63bcb80. Both invariants (memoize-once
+      key-presence semantics; coordinate-only serialization, bodies re-derive)
+      independently traced and confirmed by Opus reviewer.
 - [ ] Task 6: Body-assignment at groundbreaking, claim-aware (Sonnet, touches ProjectOps — watch allocation interplay)
 - [ ] Task 7: Atlas reads decided placement (Sonnet)
 - [ ] Task 8: Extraction reads claimed body's richness — throughline (Sonnet, verify ConservationTests stays green)
