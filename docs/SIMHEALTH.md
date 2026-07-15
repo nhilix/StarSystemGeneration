@@ -166,6 +166,29 @@ Diagnosis: `docs/superpowers/plans/2026-07-12-debt-diagnosis.md`. The fix
 is out of scope for slice SH (the flagged monetary/credit-equilibrium
 pass).
 
+## Settlement (locality — frozen hex-tier state)
+
+`Settlement.SettledHexes` counts `SimState.SettledSystems` — hexes whose
+full star system has been committed (frozen, memoized) because something
+touched them: construction, a population act, an off-lane visit
+(`SystemRegistry.Commit`, locality design). It is the metric that makes
+hex-tier growth visible at the macro level.
+
+**Healthy shape**: monotonic non-decreasing (commits are permanent —
+`SystemRegistry` never evicts), rising as more of the galaxy gets
+developed or visited, and bounded above by the galaxy's total hex count.
+A flat line all run means nothing outside the seeded homeworlds ever got
+touched; a curve that outpaces `Segment.Population`/`Polity.Live` growth
+by a lot may mean visitation (not just settlement) is driving commits
+faster than expected.
+
+**Known open question**: no eviction is proposed for committed systems —
+memory growth here is unbounded by design (locality design §7) and is
+meant to be caught by evidence, not assumed safe. If a long sweep shows
+`Settlement.SettledHexes` growing without bound relative to the galaxy's
+actual developed footprint, that is the signal to revisit eviction, not
+a bug in this metric.
+
 ## Adding a metric
 
 1. Extend `MetricRow` (or `MoneyRow`) in `MetricsOps.cs` — levels and

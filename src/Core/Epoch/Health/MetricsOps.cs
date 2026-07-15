@@ -31,7 +31,8 @@ public sealed record MetricRow(
     double MaxPolityCredits,
     double Population, double MeanSoL,
     int EndowedEntries, double ConservationResidual,
-    double CumulativeFiatIssued, double CumulativeSteadyIssuance);
+    double CumulativeFiatIssued, double CumulativeSteadyIssuance,
+    int SettledHexes);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -146,7 +147,7 @@ public static class MetricsOps
             credits.Count, negative, min, median, max,
             pop, pop <= 0 ? 0.0 : sol / pop,
             endowed, residual, state.CumulativeFiatIssued,
-            state.CumulativeSteadyIssuance);
+            state.CumulativeSteadyIssuance, state.SettledSystems.Count);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

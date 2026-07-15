@@ -46,4 +46,19 @@ public class SettledSystemsTests
         Assert.Equal(text1, text2);
         Assert.True(SystemRegistry.IsSettled(reloaded, hex));
     }
+
+    [Fact]
+    public void SettledHexesMetric_CountsCommittedHexes()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        Assert.NotNull(MetricRegistry.Find("Settlement.SettledHexes"));
+        SystemRegistry.Commit(state, state.Actors[0].Seat);
+        SystemRegistry.Commit(state,
+            new StarGen.Core.Model.HexCoordinate(
+                state.Actors[0].Seat.Q + 3, state.Actors[0].Seat.R));
+        var row = MetricsOps.Snapshot(state);
+        Assert.Equal(2, row.SettledHexes);
+        Assert.Equal(2.0,
+            MetricRegistry.Find("Settlement.SettledHexes")!.Get(row), 9);
+    }
 }

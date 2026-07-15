@@ -79,6 +79,11 @@ public static class MetricRegistry
           r => r.MeanSoL),
         M("Segment.Population", "total population across segments",
           r => r.Population),
+
+        // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.SettledHexes",
+          "committed hexes with a frozen system (grows with visitation, no eviction)",
+          r => r.SettledHexes),
     };
 
     public static IReadOnlyList<MetricDef> All => Table;
