@@ -192,4 +192,134 @@ public class BorrowServiceCurrencyTests
             sum += kv.Value * state.NumeraireRateOf(kv.Key);
         return sum;
     }
+
+    // ---- Task 7c: true lender-currency denomination + FX risk ----
+
+    private static void InvokeService(SimState state)
+    {
+        var m = typeof(AllocationPhase).GetMethod("ServiceLoans",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        m.Invoke(null, new object[] { state });
+    }
+
+    /// <summary>Borrower polity 0 (currency C0 @1.0) owing a loan denominated in
+    /// lender polity 1's currency C1 (<paramref name="lenderRate"/>). The borrower
+    /// is flush so a FULL payment runs; the lender starts empty to read its
+    /// receipt cleanly. The loan's <see cref="Loan.Principal"/> is in C1.</summary>
+    private static SimState TwoPolityLoanStage(
+        double lenderRate, double principal, double borrowerCredits)
+    {
+        var state = EpochTestKit.Seeded().State;
+        AddCurrency(state, 0, 1.0);         // borrower currency, fixed at parity
+        AddCurrency(state, 1, lenderRate);  // lender currency
+        for (int i = 0; i < 2; i++)
+        {
+            state.Actors[i].Entered = true;
+            state.PolityOf(i).CurrencyId = i;
+        }
+        state.WorldYear = 100;
+        state.PolityOf(0).Credits = borrowerCredits;   // borrower solvent
+        state.PolityOf(1).Credits = 0;                  // lender receiver
+        state.Loans.Add(new Loan(0, lenderActorId: 1, borrowerActorId: 0,
+            principal: principal, ratePerYear: 0.02,
+            termYears: 100, issuedYear: 100));
+        return state;
+    }
+
+    /// <summary>The core FX-risk behavior: the loan is denominated in the
+    /// LENDER's currency, so the amortization payment is a fixed lender-currency
+    /// amount. When the lender's currency strengthens (rate 1.0 → 2.0), that same
+    /// fixed payment costs the borrower TWICE as much of its own currency — while
+    /// the lender still banks the identical lender-currency sum. This is the
+    /// design's whole rationale (FX risk sits with the borrower), demonstrated
+    /// end-to-end through ServiceLoans, not inferred from a bare conversion call.</summary>
+    [Fact]
+    public void ServiceLoans_RateDrift_CostsTheBorrowerMoreOfItsOwnCurrency()
+    {
+        var parity = TwoPolityLoanStage(lenderRate: 1.0, principal: 100,
+            borrowerCredits: 1_000_000);
+        double bBefore = parity.PolityOf(0).Credits;
+        double lBefore = parity.PolityOf(1).Credits;
+        InvokeService(parity);
+        double costParity = bBefore - parity.PolityOf(0).Credits;      // C0 spent
+        double lenderGotParity = parity.PolityOf(1).Credits - lBefore; // C1 banked
+
+        var drift = TwoPolityLoanStage(lenderRate: 2.0, principal: 100,
+            borrowerCredits: 1_000_000);
+        double bBefore2 = drift.PolityOf(0).Credits;
+        double lBefore2 = drift.PolityOf(1).Credits;
+        InvokeService(drift);
+        double costDrift = bBefore2 - drift.PolityOf(0).Credits;
+        double lenderGotDrift = drift.PolityOf(1).Credits - lBefore2;
+
+        Assert.True(costParity > 0, "the parity loan actually serviced");
+        // the lender received the IDENTICAL lender-currency payment both times
+        Assert.Equal(lenderGotParity, lenderGotDrift, 9);
+        // but the borrower paid exactly twice as much of its OWN currency after
+        // the lender's currency doubled in strength — FX risk on the borrower
+        Assert.Equal(costParity * 2.0, costDrift, 6);
+    }
+
+    /// <summary>Cross-currency servicing conserves value: the borrower's
+    /// own-currency outflow is booked as C0 converted-out, the lender's payment as
+    /// C1 converted-in, and the numeraire value leaving equals the value entering —
+    /// the conversion transfers, it does not mint or burn.</summary>
+    [Fact]
+    public void ServiceLoans_CrossCurrency_ConservesValue_AndBooksTheConversion()
+    {
+        var state = TwoPolityLoanStage(lenderRate: 2.0, principal: 100,
+            borrowerCredits: 1_000_000);
+        var c0 = state.CurrencyOf(0);
+        var c1 = state.CurrencyOf(1);
+        c0.CumulativeConvertedIn = c0.CumulativeConvertedOut = 0;
+        c1.CumulativeConvertedIn = c1.CumulativeConvertedOut = 0;
+        double bBefore = state.PolityOf(0).Credits;
+        double lBefore = state.PolityOf(1).Credits;
+
+        InvokeService(state);
+
+        double borrowerPaidOwn = bBefore - state.PolityOf(0).Credits;  // C0 out
+        double lenderGot = state.PolityOf(1).Credits - lBefore;         // C1 in
+        Assert.Equal(borrowerPaidOwn, c0.CumulativeConvertedOut, 9);
+        Assert.Equal(lenderGot, c1.CumulativeConvertedIn, 9);
+        // conservation: numeraire value out of C0 == numeraire value into C1
+        Assert.Equal(borrowerPaidOwn * c0.NumeraireRate,
+                     lenderGot * c1.NumeraireRate, 9);
+    }
+
+    /// <summary>At issuance a cross-currency loan denominates its DEBT in the
+    /// lender's currency, while the borrower's CASH lands in its own currency: a
+    /// polity lender fronts the lender-currency principal via Withdraw (the fixed
+    /// polity path, no longer currency-blind arithmetic), the borrower banks the
+    /// full own-currency proceeds via Deposit, and the single cross-currency
+    /// transfer is booked on the paired counters.</summary>
+    [Fact]
+    public void Borrow_PolityLender_DenominatesDebtInLenderCurrency_CashInBorrowerCurrency()
+    {
+        // borrower C0 @1, lender C1 @2 (lender currency the stronger)
+        var state = ThreePolityStage(r0: 1.0, r1: 2.0, r2: 1.0);
+        state.PolityOf(0).Credits = -100;     // borrowerAmount = 120 (C0)
+        state.PolityOf(1).Credits = 100000;   // rich lender in C1
+        state.PolityOf(2).Credits = 0;
+        var c0 = state.CurrencyOf(0);
+        var c1 = state.CurrencyOf(1);
+        c0.CumulativeConvertedIn = c0.CumulativeConvertedOut = 0;
+        c1.CumulativeConvertedIn = c1.CumulativeConvertedOut = 0;
+        double lenderBefore = state.PolityOf(1).Credits;
+
+        int issued = InvokeBorrow(state);
+
+        Assert.Equal(1, issued);
+        var loan = state.Loans[0];
+        Assert.Equal(1, loan.LenderActorId);
+        // 120 C0 -> C1 at 1/2 = 60: the DEBT is lender-denominated
+        Assert.Equal(60.0, loan.Principal, 9);
+        // the borrower's CASH rose by the full 120 of its OWN currency
+        Assert.Equal(-100 + 120.0, state.PolityOf(0).Credits, 9);
+        // the lender fronted 60 of its OWN currency (Withdraw, same currency)
+        Assert.Equal(lenderBefore - 60.0, state.PolityOf(1).Credits, 9);
+        // one conversion booked: C1 out 60, C0 in 120
+        Assert.Equal(60.0, c1.CumulativeConvertedOut, 9);
+        Assert.Equal(120.0, c0.CumulativeConvertedIn, 9);
+    }
 }
