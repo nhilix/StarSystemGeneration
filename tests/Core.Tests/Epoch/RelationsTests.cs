@@ -164,8 +164,20 @@ public class RelationsTests
         new EpochEngine().Step(state);
         Assert.True(rel.HasLiveClaim(ClaimType.CulturalKin, holder, kinCulture));
 
-        // the kin gone, the claim releases and tension may cool
-        kin.Size = 0.0;
+        // the kin gone, the claim releases and tension may cool. KinClaims
+        // (RelationsOps.cs) sums EVERY live segment of the kin culture under
+        // the foreign polity's ports, not just the one this test injected —
+        // by this point migration has already seeded a second daughter
+        // segment at a different foreign port (confirmed: seed 42 leaves a
+        // ~0.515 segment sitting just above KinClaimSegmentFloor's 0.5), so
+        // zeroing only the original segment leaves the sum above the floor
+        // and the claim correctly stays live. Zero every live segment of the
+        // kin culture under the foreign polity, matching what the mechanism
+        // actually sums, so the release condition genuinely fires.
+        foreach (var s in state.Segments)
+            if (s.CultureId == kinCulture
+                && state.Ports[s.PortId].OwnerActorId == other)
+                s.Size = 0.0;
         new EpochEngine().Step(state);
         Assert.False(rel.HasLiveClaim(ClaimType.CulturalKin, holder, kinCulture));
     }
