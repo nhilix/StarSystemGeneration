@@ -68,9 +68,12 @@ public static class BodySiting
     /// <summary>A per-body extraction multiplier in [0.5, 1.5] from the
     /// SPECIFIC claimed body (locality slice §4 throughline: body-level
     /// richness variance finally reaches the price signal). Size drives the
-    /// extractor bodies; biosphere drives agri. 1.0 (neutral) for a None
-    /// body, a null system, or a missing body — so legacy/unsettled
-    /// facilities are unchanged. Pure, deterministic, no rolls.</summary>
+    /// extractor bodies (divisor 6, matching Size's practical 1-14 range);
+    /// biosphere drives agri (divisor 3, matching Biosphere's 0-3 range) —
+    /// each signal is normalized against its own scale so both sides can
+    /// reach the full [0.5, 1.5] band. 1.0 (neutral) for a None body, a
+    /// null system, or a missing body — so legacy/unsettled facilities are
+    /// unchanged. Pure, deterministic, no rolls.</summary>
     public static double RichnessModifier(StarSystem? system, BodyRef body,
                                           InfraTypeId type)
     {
@@ -81,15 +84,23 @@ public static class BodySiting
         foreach (var slot in system.Stars[body.StarIndex].Slots)
             if (slot.Index == body.SlotIndex) { b = slot.Body; break; }
         if (b == null) return 1.0;
-        // Body.Size is a small integer scale; map it onto [0.5, 1.5] around
-        // a neutral mid so a rich belt out-yields a poor one, an airless
-        // agri world under-yields a lush one — bounded, never a mint.
-        double signal = type switch
+        // Each signal is normalized against its own practical scale so a
+        // rich belt out-yields a poor one, an airless agri world
+        // under-yields a lush one — bounded, never a mint, and neither
+        // side is capped short of the full [0.5, 1.5] band.
+        double signal;
+        double divisor;
+        if (type == InfraTypeId.AgriComplex)
         {
-            InfraTypeId.AgriComplex => (int)b.Biosphere,
-            _ => b.Size,
-        };
-        double norm = System.Math.Max(0.0, System.Math.Min(1.0, signal / 6.0));
+            signal = (int)b.Biosphere;
+            divisor = 3.0;                // Biosphere: Barren(0)..Sapient(3)
+        }
+        else
+        {
+            signal = b.Size;
+            divisor = 6.0;                // Size: practical range ~1-14
+        }
+        double norm = System.Math.Max(0.0, System.Math.Min(1.0, signal / divisor));
         return 0.5 + norm;               // [0.5, 1.5]
     }
 
