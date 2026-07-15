@@ -683,6 +683,16 @@ public sealed class EconomyKnobs
     /// <summary>Extra stockpile capacity per good per active Depot tier at
     /// the port — depots are how a polity builds deep larders.</summary>
     public double StockCapPerDepotTier { get; set; } = 400.0;
+    /// <summary>Expected finite resource stock (units) a new Mine/Excavation
+    /// body is rolled with (body-resource-stock design): expected quantity =
+    /// this × the region's raster richness score. Bigger → deeper deposits
+    /// that outlast more epochs of extraction before a body runs dry.</summary>
+    public double BodyStockOreScale { get; set; } = 5000.0;
+    /// <summary>Fractional ± spread of a body's stock roll around its expected
+    /// quantity (body-resource-stock design): 0 = every body at the same
+    /// richness is identical; 0.4 = ±40% variance, so two belts in one rich
+    /// hex differ.</summary>
+    public double BodyStockVarianceSpread { get; set; } = 0.4;
     /// <summary>Freight speed on a lane in hexes per world-year, before the
     /// lane's gate-tier TransitSpeed multiplier (spec §4b: gate tier sets
     /// speed) — a tier-2 lane moves goods at 2× this base.</summary>
@@ -694,6 +704,14 @@ public sealed class EconomyKnobs
     /// (spec §4b): the quartermaster provisions ahead of the lead time, so
     /// remote sites are pre-positioned rather than fed hand to mouth.</summary>
     public double RequisitionLeadYears { get; set; } = 5.0;
+    /// <summary>The fixed cross-star hop added to OrbitDistance between
+    /// bodies in different stars of a multi-star system (locality slice §2) —
+    /// a discrete constant, not orbital mechanics.</summary>
+    public double CrossStarHopOrbitSteps { get; set; } = 8.0;
+    /// <summary>World-years per unit of OrbitDistance for a local hop
+    /// (intra-system body-to-body movement, locality slice §2). Small: the
+    /// local hop is cheap beside a lane-hop.</summary>
+    public double LocalHopYearsPerOrbitStep { get; set; } = 0.05;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

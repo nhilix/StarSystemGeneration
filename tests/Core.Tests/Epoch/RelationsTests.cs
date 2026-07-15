@@ -135,7 +135,17 @@ public class RelationsTests
     [Fact]
     public void KinClaim_RaisesWhenKinLiveUnderForeignRule()
     {
-        var state = Run();
+        // Locality's body-resource-stock task (BR-4) shifts seed 42's economy
+        // (real bodies/ore instead of riding None), which accelerates the
+        // emergent political timeline: at the default epoch 24, the "other"
+        // polity in FirstLiveRelation gets eliminated (conquest/merger)
+        // between the raise-step and the release-step, freezing the relation
+        // (BothLive false skips the whole KinClaims update, so the claim
+        // never gets the chance to release even after the kin are gone).
+        // Re-tuned to epoch 20, where both sides are confirmed still Entered
+        // through both steps — the clean scenario this test needs; the
+        // release mechanic itself is unchanged.
+        var state = Run(20);
         // manufacture kin: move a big segment of polity 0's founding culture
         // under a related foreign polity's port
         Assert.True(state.Relations.Count > 0);
@@ -154,8 +164,20 @@ public class RelationsTests
         new EpochEngine().Step(state);
         Assert.True(rel.HasLiveClaim(ClaimType.CulturalKin, holder, kinCulture));
 
-        // the kin gone, the claim releases and tension may cool
-        kin.Size = 0.0;
+        // the kin gone, the claim releases and tension may cool. KinClaims
+        // (RelationsOps.cs) sums EVERY live segment of the kin culture under
+        // the foreign polity's ports, not just the one this test injected —
+        // by this point migration has already seeded a second daughter
+        // segment at a different foreign port (confirmed: seed 42 leaves a
+        // ~0.515 segment sitting just above KinClaimSegmentFloor's 0.5), so
+        // zeroing only the original segment leaves the sum above the floor
+        // and the claim correctly stays live. Zero every live segment of the
+        // kin culture under the foreign polity, matching what the mechanism
+        // actually sums, so the release condition genuinely fires.
+        foreach (var s in state.Segments)
+            if (s.CultureId == kinCulture
+                && state.Ports[s.PortId].OwnerActorId == other)
+                s.Size = 0.0;
         new EpochEngine().Step(state);
         Assert.False(rel.HasLiveClaim(ClaimType.CulturalKin, holder, kinCulture));
     }

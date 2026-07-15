@@ -64,7 +64,8 @@ public sealed record MetricRow(
     double Population, double MeanSoL,
     int EndowedEntries, double ConservationResidual,
     double CumulativeFiatIssued, double CumulativeSteadyIssuance,
-    IReadOnlyList<CurrencyResidualRow> Currencies);
+    IReadOnlyList<CurrencyResidualRow> Currencies,
+    int SettledHexes, double BodyStockRemaining);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -194,11 +195,15 @@ public static class MetricsOps
             if (abs > worstResidual) worstResidual = abs;
         }
 
+        double bodyStock = 0;
+        foreach (var s in state.BodyResources.Values) bodyStock += s.Quantity;
+
         return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
             pop, pop <= 0 ? 0.0 : sol / pop,
             endowed, worstResidual, state.CumulativeFiatIssued,
-            state.CumulativeSteadyIssuance, currencyRows);
+            state.CumulativeSteadyIssuance, currencyRows,
+            state.SettledSystems.Count, bodyStock);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

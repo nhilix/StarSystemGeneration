@@ -22,6 +22,11 @@ public static class MetricRegistry
 
     private static readonly MetricDef[] Table =
     {
+        // ---- Extraction (body resource stocks — locality) ----
+        M("Extraction.BodyStockRemaining",
+          "total remaining depletable body-resource stock (falls as bodies deplete)",
+          r => r.BodyStockRemaining),
+
         // ---- Money (the holder classes — conserved credit stores) ----
         M("Money.ConservationResidual",
           "worst per-currency supply delta minus known mints and net of "
@@ -80,6 +85,11 @@ public static class MetricRegistry
           r => r.MeanSoL),
         M("Segment.Population", "total population across segments",
           r => r.Population),
+
+        // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.SettledHexes",
+          "committed hexes with a frozen system (grows with visitation, no eviction)",
+          r => r.SettledHexes),
     };
 
     public static IReadOnlyList<MetricDef> All => Table;

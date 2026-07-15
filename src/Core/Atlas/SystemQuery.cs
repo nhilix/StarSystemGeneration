@@ -4,16 +4,9 @@ using StarGen.Core.Galaxy;
 using StarGen.Core.Generation;
 using StarGen.Core.Model;
 using StarGen.Core.Substrate;
+using OrbitRef = StarGen.Core.Epoch.BodyRef;
 
 namespace StarGen.Core.Atlas;
-
-/// <summary>An orbit address inside the stage: which star, which slot.
-/// None (-1,-1) is the deep-space station orbit — a port or facility with
-/// no body to dock at (bodiless system, empty reach).</summary>
-public readonly record struct OrbitRef(int StarIndex, int SlotIndex)
-{
-    public static readonly OrbitRef None = new(-1, -1);
-}
 
 /// <summary>One star of the system, stage-ready.</summary>
 public sealed record StageStarRow(int Index, string TypeId, string TypeName,
@@ -68,9 +61,15 @@ public static class SystemQuery
                                 HexCoordinate hex)
     {
         var state = model.State;
-        var context = new GalaxyContext(model.Skeleton.Config)
-        { Skeleton = model.Skeleton };
-        var system = Generator.Generate(context, hex).System;
+        StarSystem? system;
+        if (SystemRegistry.IsSettled(state, hex))
+            system = state.SettledSystems[hex];
+        else
+        {
+            var context = new GalaxyContext(model.Skeleton.Config)
+            { Skeleton = model.Skeleton };
+            system = Generator.Generate(context, hex).System;
+        }
 
         var stars = new List<StageStarRow>();
         var rings = new List<StageRingRow>();
@@ -121,9 +120,9 @@ public static class SystemQuery
             facilities.Add(new StageFacilityRow(f.Id, def.Name, def.Family,
                 f.Tier, MarketEngine.IsActive(state, f), f.Condition,
                 state.Actors[f.OwnerActorId].Name,
-                system != null
-                    ? FacilityOrbit(system, (InfraTypeId)f.TypeId, portAt)
-                    : OrbitRef.None));
+                system == null
+                    ? OrbitRef.None
+                    : (!f.Body.IsNone ? f.Body : portAt)));
         }
 
         var sites = new List<StageSiteRow>();
@@ -134,11 +133,9 @@ public static class SystemQuery
                           && p.TypeId >= 0
                 ? Infrastructure.Get((InfraTypeId)p.TypeId).Name
                 : p.Kind.ToString();
-            var at = system != null
-                ? (p.Kind == ProjectKind.FacilityConstruction && p.TypeId >= 0
-                    ? FacilityOrbit(system, (InfraTypeId)p.TypeId, portAt)
-                    : portAt)
-                : OrbitRef.None;
+            var at = system == null
+                ? OrbitRef.None
+                : (!p.Body.IsNone ? p.Body : portAt);
             sites.Add(new StageSiteRow(p.Id, name, p.Progress, at));
         }
 
@@ -188,7 +185,10 @@ public static class SystemQuery
     /// substrate (mine → belt else rock, skimmer → gas giant, agri → the
     /// richest biosphere, excavation → wreckage else rock); processing,
     /// heavy, support, and anything without its substrate ride the port
-    /// body. Deterministic: first match in star/slot order.</summary>
+    /// body. Deterministic: first match in star/slot order.
+    /// Superseded by <see cref="BodySiting.Assign"/> at groundbreaking —
+    /// no longer called by <see cref="At"/>; retained for reference and
+    /// tests.</summary>
     public static OrbitRef FacilityOrbit(StarSystem system, InfraTypeId type,
                                          OrbitRef portAt) =>
         type switch

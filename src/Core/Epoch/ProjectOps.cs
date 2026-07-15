@@ -35,15 +35,24 @@ public static class ProjectOps
     /// hex, uncommissioned (P1 — the construction site is residue); basket
     /// = BuildCost / ConstructionYears (the conservation invariant); wages
     /// = administered value / ConstructionYears.</summary>
-    public static Project SpawnFacilityConstruction(SimState state,
+    public static Project? SpawnFacilityConstruction(SimState state,
         int ownerActorId, int funderActorId, ConstructionCandidate c,
         ProjectPriority priority, int planOrder, int startedYear = int.MinValue)
     {
         var type = (Substrate.InfraTypeId)c.TypeId;
         var def = Substrate.Infrastructure.Get(type);
+        // groundbreaking is the §1 commit trigger: freeze the hex's system,
+        // decide this facility's body once (claim-aware — the two-mines fix),
+        // and roll a depletable stock if it's a Mine/ExcavationSite.
+        var body = PlaceFacilityBody(state, c.Hex, type);
+        // no eligible body for an extraction type: reject the groundbreak
+        // outright — no Facility, no Project (body-resource-stock design). A
+        // None body rolled no stock, so nothing leaks. Support/processing
+        // assets ride the port body (possibly None) and are never rejected.
+        if (body.IsNone && BodySiting.IsExtraction(type)) return null;
         var facility = new Facility(state.Facilities.Count, c.TypeId,
             tier: 1, c.Hex, ownerActorId, state.WorldYear)
-        { CommissionedYear = -1 };
+        { CommissionedYear = -1, Body = body };
         state.Facilities.Add(facility);
         double years = Math.Max(1.0, def.ConstructionYears);
         var p = SpawnAt(state, ProjectKind.FacilityConstruction, ownerActorId,
@@ -60,7 +69,30 @@ public static class ProjectOps
         p.WagesPerYear = value / years;
         p.TypeId = c.TypeId;
         p.TargetId = facility.Id;
+        p.Body = facility.Body;
         return p;
+    }
+
+    /// <summary>Decide a new facility's body at its hex (claim-aware, skipping
+    /// bodies other facilities already hold — the two-mines fix) and, for a
+    /// depletable Mine/ExcavationSite, roll its finite resource stock once
+    /// (idempotent). Commits the hex's system as a side effect. Returns the
+    /// assigned body — None when no substrate-appropriate body exists (an
+    /// extraction caller treats that as a rejected groundbreak; a support
+    /// caller rides None). Shared by groundbreaking, colony founding, and the
+    /// entry starter industry so every extraction body gets its stock.</summary>
+    public static BodyRef PlaceFacilityBody(SimState state, HexCoordinate hex,
+                                            Substrate.InfraTypeId type)
+    {
+        var system = SystemRegistry.Commit(state, hex);
+        var portBody = BodySiting.PortBody(system);
+        var claimed = new List<BodyRef>();
+        foreach (var other in state.Facilities)           // id order (P6)
+            if (other.Hex.Equals(hex) && !other.Body.IsNone)
+                claimed.Add(other.Body);
+        var body = BodySiting.Assign(system, type, portBody, claimed);
+        BodyResourceOps.Commit(state, hex, body, type, system);
+        return body;
     }
 
     /// <summary>Groundbreak a hull batch: the yard commits to <paramref
@@ -617,16 +649,26 @@ public static class ProjectOps
             for (int ax = 0; ax < 4; ax++)
                 colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
         state.Segments.Add(colonySegment);
-        // the expedition ships the equipment for what it came for: the
-        // founding facility matches the site's best extraction potential,
-        // plus a subsistence farm when that isn't farming
+        // the expedition ships the equipment for what it came for: the founding
+        // facility matches the site's best extraction potential, plus a
+        // subsistence farm when that isn't farming. Each founding asset decides
+        // its body and rolls its stock at birth, exactly like a groundbroken
+        // one (body-resource-stock design — a founding Mine is a real depletable
+        // rock, not a bodiless dud). The Mine is added before the farm's body is
+        // placed so the farm's claim scan skips the Mine's body.
         var founding = FoundingIndustry(state, p.Hex);
+        var foundingBody = PlaceFacilityBody(state, p.Hex, founding);
         state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)founding, tier: 1, p.Hex, p.OwnerActorId, completionYear));
+            (int)founding, tier: 1, p.Hex, p.OwnerActorId, completionYear)
+        { Body = foundingBody });
         if (founding != Substrate.InfraTypeId.AgriComplex)
+        {
+            var farmBody = PlaceFacilityBody(state, p.Hex,
+                                             Substrate.InfraTypeId.AgriComplex);
             state.Facilities.Add(new Facility(state.Facilities.Count,
                 (int)Substrate.InfraTypeId.AgriComplex, tier: 1, p.Hex,
-                p.OwnerActorId, completionYear));
+                p.OwnerActorId, completionYear) { Body = farmBody });
+        }
         // the convoy's survivors dock as the colony's first reserve fleet
         if (convoy != null)
         {

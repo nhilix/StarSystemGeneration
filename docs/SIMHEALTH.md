@@ -166,6 +166,49 @@ Diagnosis: `docs/superpowers/plans/2026-07-12-debt-diagnosis.md`. The fix
 is out of scope for slice SH (the flagged monetary/credit-equilibrium
 pass).
 
+## Extraction (locality — body resource stocks)
+
+`Extraction.BodyStockRemaining` sums `SimState.BodyResources[...].Quantity`
+across every depletable body — the remaining stock behind every Mine or
+ExcavationSite facility currently drawing from a body deposit.
+
+**Healthy shape**: rises when new deposits are rolled and groundbroken
+(a fresh Mine/ExcavationSite starts pulling from a body no prior facility
+had touched), falls monotonically between founding waves as active
+facilities dig their bodies out. A mature, mine-heavy galaxy trends down
+between founding waves; a galaxy still expanding into fresh systems shows
+a sawtooth (rises at each wave, falls as it's worked).
+
+**Known open question**: no eviction or relocation is proposed yet for a
+body that runs dry — a facility sitting on a depleted deposit is not
+currently reassigned or torn down. This metric exists to give the
+depletion rate evidence before any relocation mechanic is designed: if a
+long sweep shows most stock exhausted early with facilities idling on
+dead bodies, that's the signal to design relocation, not a bug here.
+
+## Settlement (locality — frozen hex-tier state)
+
+`Settlement.SettledHexes` counts `SimState.SettledSystems` — hexes whose
+full star system has been committed (frozen, memoized) because something
+touched them: construction, a population act, an off-lane visit
+(`SystemRegistry.Commit`, locality design). It is the metric that makes
+hex-tier growth visible at the macro level.
+
+**Healthy shape**: monotonic non-decreasing (commits are permanent —
+`SystemRegistry` never evicts), rising as more of the galaxy gets
+developed or visited, and bounded above by the galaxy's total hex count.
+A flat line all run means nothing outside the seeded homeworlds ever got
+touched; a curve that outpaces `Segment.Population`/`Polity.Live` growth
+by a lot may mean visitation (not just settlement) is driving commits
+faster than expected.
+
+**Known open question**: no eviction is proposed for committed systems —
+memory growth here is unbounded by design (locality design §7) and is
+meant to be caught by evidence, not assumed safe. If a long sweep shows
+`Settlement.SettledHexes` growing without bound relative to the galaxy's
+actual developed footprint, that is the signal to revisit eviction, not
+a bug in this metric.
+
 ## Adding a metric
 
 1. Extend `MetricRow` (or `MoneyRow`) in `MetricsOps.cs` — levels and

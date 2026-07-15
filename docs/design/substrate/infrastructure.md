@@ -52,13 +52,18 @@ basket and span are knobs (`Expansion.PortUpgrade*` in
 Facility output per step:
 
 ```
-output = base(type, tier) × terrain(raster fields at hex)
+output = base(type, tier) × terrain(claimed body: depletable stock or renewable yield)
        × labor(domain population × embodiment affinity)
        × machineryGrade × automation(compute)
 ```
 
-- **Terrain**: extraction reads the genesis fields at its hex — output *and grade*
-  root in geography ([commodities.md](commodities.md)).
+- **Terrain**: extraction roots in the *specific claimed body*, not the hex
+  aggregate. A Mine/Excavation draws down a finite, depletable per-body resource
+  stock (rolled once from regional richness at groundbreaking, then dug out until
+  the rock runs dry); a Skimmer/Agri-complex draws a renewable yield from the
+  claimed body's own attributes (a gas giant's mass, a world's biosphere and
+  water). Output *and grade* still root in geography — now body-native, not the
+  raster aggregate ([commodities.md](commodities.md)).
 - **Labor**: drawn from the domain's population; Compute-driven automation
   substitutes (machine polities run thin-crewed industry; labor-rich low-tech
   polities cannot run advanced recipes at all).

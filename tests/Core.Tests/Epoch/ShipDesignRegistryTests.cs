@@ -98,7 +98,7 @@ public class ShipDesignRegistryTests
         new EpochEngine().Run(state);
         Assert.NotEmpty(state.Designs);
         string text = ArtifactSerializer.ToText(state);
-        Assert.Contains("LAYER|fleets|2", text);
+        Assert.Contains("LAYER|fleets|3", text);
         Assert.Contains("DESIGN|0|", text);
         var loaded = ArtifactSerializer.Load(new System.IO.StringReader(text));
         Assert.Equal(state.Designs.Count, loaded.Designs.Count);

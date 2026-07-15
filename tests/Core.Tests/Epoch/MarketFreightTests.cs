@@ -491,10 +491,26 @@ public class MarketFreightTests
         // A produces provisions and fuel (a homeworld), B only consumes (a
         // colony) — freight burns fuel, so the source needs a fuel chain
         var (state, pa, pb) = TwoPortFixture(sameOwner: true);
+        // extraction now roots in a claimed body (body-resource-stock): seed the
+        // source hex's system with a lush world and a gas giant so the Agri and
+        // Skimmer actually produce (a bodiless extractor now yields nothing).
+        var sys = new StarSystem("A");
+        var st = new Star();
+        st.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Habitable,
+            Body = new Body { Kind = BodyKind.RockyWorld, Size = 6,
+                Biosphere = Biosphere.Sapient, Hydrographics = 70 } });
+        st.Slots.Add(new OrbitSlot { Index = 1, Band = OrbitBand.Outer,
+            Body = new Body { Kind = BodyKind.GasGiant, Size = 13 } });
+        sys.Stars.Add(st);
+        state.SettledSystems[pa.Hex] = sys;
         state.Facilities.Add(new Facility(0, (int)InfraTypeId.AgriComplex, 2,
-            pa.Hex, pa.OwnerActorId, state.WorldYear - 10));
+            pa.Hex, pa.OwnerActorId, state.WorldYear - 10)
+        { Body = ProjectOps.PlaceFacilityBody(state, pa.Hex,
+                                              InfraTypeId.AgriComplex) });
         state.Facilities.Add(new Facility(1, (int)InfraTypeId.Skimmer, 1,
-            pa.Hex, pa.OwnerActorId, state.WorldYear - 10));
+            pa.Hex, pa.OwnerActorId, state.WorldYear - 10)
+        { Body = ProjectOps.PlaceFacilityBody(state, pa.Hex,
+                                              InfraTypeId.Skimmer) });
         state.Facilities.Add(new Facility(2, (int)InfraTypeId.Refinery, 1,
             pa.Hex, pa.OwnerActorId, state.WorldYear - 10));
         var phase = new MarketsPhase();

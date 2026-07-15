@@ -81,7 +81,16 @@ public class WarDeclarationTests
     [Fact]
     public void Declaration_GroundsObjectives_AndAlliesAnswer()
     {
-        var state = Run();
+        // Locality's body-resource-stock task (BR-4) shifts seed 42's
+        // economy (real bodies/ore instead of riding None), which changes
+        // the political landscape by epoch 24: the first live relation's
+        // would-be defense ally there turns out to ALSO be the attacker's
+        // vassal already (a genuine, correctly-excluded conflict — an actor
+        // can't be bound to both sides), so the manufactured ally never
+        // lands in war.DefenderAllies. Re-tuned to epoch 20, where the
+        // manufactured ally has no such collision (confirmed: a real ally id
+        // is found and lands cleanly in DefenderAllies).
+        var state = Run(20);
         var rel = EpochTestKit.FirstLiveRelation(state);
         int attacker = rel.PolityAId, defender = rel.PolityBId;
         // the defender's ally stands ready

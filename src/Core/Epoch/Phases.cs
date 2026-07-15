@@ -1552,8 +1552,20 @@ public sealed class InteriorPhase : ISimPhase
             state.PolityOf(a.Id).Credits +=
                 state.Config.Economy.InitialCreditsPerPolity;
             foreach (var (type, tier) in StarterIndustry)
+            {
+                // founding industry is mandatory civilization furniture, not a
+                // site the sim can reject — it always gets built, but now
+                // carries a real body (and, for the Mine, a rolled depletable
+                // stock) instead of riding None forever (body-resource-stock
+                // design). A homeworld seat is generated with a real inhabited
+                // world, so this resolving None is expected to be vanishingly
+                // rare — and if it ever does, the facility just produces
+                // nothing, same as any other bodiless/depleted asset.
+                var body = ProjectOps.PlaceFacilityBody(state, a.Seat, type);
                 state.Facilities.Add(new Facility(state.Facilities.Count,
-                    (int)type, tier, a.Seat, a.Id, state.WorldYear));
+                    (int)type, tier, a.Seat, a.Id, state.WorldYear)
+                { Body = body });
+            }
             // a spacefaring species arrives with its founding design set and
             // the hulls already flying — genesis furniture like the starter
             // industry, no events

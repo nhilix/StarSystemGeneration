@@ -42,6 +42,10 @@ public sealed class PopulationSegment
     /// next step's reserve release, so it is real cross-step state and the
     /// artifact carries it (segments layer v2).</summary>
     public double LastSubsistence { get; set; } = 1.0;
+    /// <summary>The body within the port's domain this segment settled at —
+    /// assigned at creation (locality slice §3, follow-on plan). None until
+    /// then; the port id remains the administering domain.</summary>
+    public BodyRef Body { get; set; } = BodyRef.None;
 
     public PopulationSegment(int id, int portId, int speciesId, int cultureId,
                              double size)
