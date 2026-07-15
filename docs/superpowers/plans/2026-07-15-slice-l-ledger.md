@@ -164,7 +164,8 @@ construction outright when an extraction type resolves no eligible body
       helper. Independently re-traced determinism/conservation/tick-invariance
       and the riskiest re-tune (KinClaim) against real RelationsOps code — all
       hold. One Important finding (SupplyLands' own doc comment still
-      described the retired hex-aggregate model) — fix wave dispatched.
+      described the retired hex-aggregate model) — fixed, commit 853db05,
+      942/942 green, no golden re-freeze needed (comment-only change).
       Minor items, carried to the next kickoff prompt's deferred list (not
       blocking):
         - Colony founding (`CompleteExpedition`) can still create a bodiless
