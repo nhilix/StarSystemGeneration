@@ -36,7 +36,15 @@ Baseline: 900/900 tests green before any change.
       kickoff prompt and HANDOFF.md.
 - [x] Task 7: Atlas reads decided placement (Sonnet). Commit 90c3ca4. Clean,
       approved first review, no fix wave.
-- [ ] Task 8: Extraction reads claimed body's richness — throughline (Sonnet, verify ConservationTests stays green)
+- [x] Task 8: Extraction reads claimed body's richness — throughline (Sonnet).
+      Commits abfa98f..9124cc0. Fix wave: shared 6.0 divisor capped AgriComplex at
+      neutral (Biosphere max 3 vs Size's 6-14) — split to divisor 3.0 for
+      AgriComplex, 6.0 elsewhere, per user decision. Bounds re-verified both
+      branches, re-reviewed, approved. ConservationTests green throughout.
+      Minor (carry to final review, not blocking): non-extraction facilities also
+      pick up a Size-driven richness multiplier via the port body (incidental,
+      not a deliberate design signal for those types) — pre-existing since the
+      original commit, not introduced by the fix.
 - [ ] Task 9: `Settlement.SettledHexes` sim-health metric (Sonnet)
 
 ## Gates
