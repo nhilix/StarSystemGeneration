@@ -24,7 +24,12 @@ public sealed class PolityRecord : ICreditLedger
     /// <summary>This epoch's market receipts (taxes, payouts, tariffs) —
     /// written by the Markets phase, consumed by the same epoch's Allocation
     /// as the budget base (development is deficit-financed when the balance
-    /// runs negative). Step-transient: never serialized.</summary>
+    /// runs negative). Reads like phase scratch, but it is NOT step-transient:
+    /// <see cref="FxOps.RecomputeRates"/> reads this value at the very START of
+    /// the NEXT epoch, before Markets resets it (currency-and-FX design, "FX
+    /// rate"). Serialized since slice CU-1 task 10 — dropping it on a reload
+    /// corrupts that one epoch's FX rate for any currency with real receipts
+    /// (the FineTickTests/TimeMachineTests LoadThenContinue divergence).</summary>
     public double Receipts { get; set; }
     /// <summary>Principal borrowed THIS epoch specifically — Borrow issues at
     /// the top of Allocation, and this term joins the same epoch's allocation

@@ -26,10 +26,10 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
-        ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 4),
+        ("actors", 9), ("ports", 2), ("lanes", 3), ("facilities", 2),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 5),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
-        ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
+        ("corporations", 4), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
         ("shipments", 1), ("orders", 1), ("couriers", 1),
     };
@@ -159,7 +159,15 @@ public static class ArtifactSerializer
                 // actors v7 (stage 2): the reserve treasury rides along —
                 // Markets spends it before Allocation re-accrues, so a
                 // loaded artifact must resume with the same balance
-                R(p.ReservePoints)));
+                R(p.ReservePoints),
+                // actors v9 (slice CU-1): the assigned currency id rides
+                // along — the pre-genesis sentinel (-1) round-trips too.
+                // Receipts rides too, despite looking step-transient: FxOps.
+                // RecomputeRates reads it at the very START of the NEXT epoch,
+                // before Markets resets it — dropping it on a reload corrupts
+                // that one epoch's FX rate (found chasing FineTickTests/
+                // TimeMachineTests LoadThenContinue divergence).
+                p.CurrencyId.ToString(Inv), R(p.Receipts)));
 
         Layer(w, "ports");
         foreach (var p in state.Ports)
@@ -231,6 +239,16 @@ public static class ArtifactSerializer
         }
 
         Layer(w, "markets");
+        // markets v5 (slice CU-1): the currency registry rides along — every
+        // polity's minted currency plus retired history, id order (P6). Must
+        // precede the corporations layer (a wallet's numeraire read resolves
+        // against this registry).
+        foreach (var cur in state.Currencies)
+            w.WriteLine(Join("CURRENCY", cur.Id.ToString(Inv), Name(cur.Name),
+                cur.FoundingPolityId.ToString(Inv), R(cur.Supply),
+                R(cur.CumulativeFiatIssued), R(cur.CumulativeSteadyIssuance),
+                R(cur.CumulativeConvertedIn), R(cur.CumulativeConvertedOut),
+                R(cur.NumeraireRate), B(cur.Retired)));
         foreach (var c in state.Cultures)
             w.WriteLine(Join("CULTURE", c.Id.ToString(Inv), Name(c.Name),
                 c.SpeciesId.ToString(Inv)));
@@ -343,7 +361,11 @@ public static class ArtifactSerializer
 
         Layer(w, "corporations");
         foreach (var c in state.Corporations)
-            // corporations v3 (slice t1): trailing income rate rides along
+            // corporations v3 (slice t1): trailing income rate rides along.
+            // corporations v4 (slice CU-1 task 10): the multi-currency wallet
+            // rides along too — R(c.Credits) is now just an informational
+            // numeraire snapshot (a pure function of Holdings), the HOLD map
+            // is what Load actually reconstructs the wallet from.
             w.WriteLine(Join("CORP", c.Id.ToString(Inv),
                 c.ActorId.ToString(Inv), Name(c.Name),
                 c.HostPolityId.ToString(Inv), ((int)c.Niche).ToString(Inv),
@@ -352,7 +374,8 @@ public static class ArtifactSerializer
                 c.ExecutiveCharacterId.ToString(Inv),
                 c.HullsBuilt.ToString(Inv), c.HullsWrecked.ToString(Inv),
                 c.HullsScrapped.ToString(Inv), c.LeanYears.ToString(Inv),
-                c.TargetId.ToString(Inv), R(c.LastIncomePerYear)));
+                c.TargetId.ToString(Inv), R(c.LastIncomePerYear),
+                DoubleMap(c.Holdings)));
 
         Layer(w, "relations");
         foreach (var r in state.Relations)
@@ -1048,6 +1071,11 @@ public static class ArtifactSerializer
                             LastIncomePerYear = double.Parse(f[7], Inv),
                             Mobilization = double.Parse(f[8], Inv),
                             ReservePoints = double.Parse(f[9], Inv),
+                            // actors v9 (slice CU-1): the assigned currency id,
+                            // plus Receipts (FxOps reads it across the reload
+                            // boundary — see the write-side comment)
+                            CurrencyId = int.Parse(f[10], Inv),
+                            Receipts = double.Parse(f[11], Inv),
                         });
                         break;
                     case "PORT":
@@ -1161,6 +1189,21 @@ public static class ArtifactSerializer
                         for (int ax = 0; ax < 4; ax++)
                             segment.Ideology[ax] = double.Parse(f[9 + ax], Inv);
                         state!.Segments.Add(segment);
+                        break;
+                    case "CURRENCY":
+                        if (int.Parse(f[1], Inv) != state!.Currencies.Count)
+                            throw new InvalidDataException("currency ids out of order");
+                        state.Currencies.Add(new Currency(int.Parse(f[1], Inv), f[2],
+                            int.Parse(f[3], Inv))
+                        {
+                            Supply = double.Parse(f[4], Inv),
+                            CumulativeFiatIssued = double.Parse(f[5], Inv),
+                            CumulativeSteadyIssuance = double.Parse(f[6], Inv),
+                            CumulativeConvertedIn = double.Parse(f[7], Inv),
+                            CumulativeConvertedOut = double.Parse(f[8], Inv),
+                            NumeraireRate = double.Parse(f[9], Inv),
+                            Retired = f[10] == "1",
+                        });
                         break;
                     case "CULTURE":
                         state!.Cultures.Add(new Culture(int.Parse(f[1], Inv), f[2],
@@ -1293,15 +1336,18 @@ public static class ArtifactSerializer
                             // corporations v3 (slice t1): trailing income rate rides along
                             LastIncomePerYear = double.Parse(f[16], Inv),
                         };
-                        // TODO(CU-1 task 10): serialize the multi-currency wallet
-                        // (Holdings) and the currency table. Until then the artifact
-                        // still carries only the numeraire total (f[9]); restore it
-                        // into a single dormant bucket so Corporation.Credits (now a
-                        // read-only wallet sum, task 7) round-trips its value. The
-                        // per-bucket composition was never persisted by this format.
-                        double corpCredits = double.Parse(f[9], Inv);
-                        if (corpCredits != 0)
-                            corp.Deposit(state, corpCredits, 0);
+                        // corporations v4 (slice CU-1 task 10): reconstruct the
+                        // multi-currency wallet bucket by bucket via Deposit — the
+                        // ledger's only mutation surface (no direct Holdings setter,
+                        // by design). f[9]'s Credits is now write-only informational
+                        // (a pure function of Holdings); the CURRENCY registry this
+                        // depends on already loaded (markets precedes corporations).
+                        var holdings = ParseDoubleMap(f[17]);
+                        var holdingIds = new List<int>(holdings.Keys);
+                        holdingIds.Sort();
+                        foreach (int curId in holdingIds)
+                            if (holdings[curId] != 0)
+                                corp.Deposit(state, holdings[curId], curId);
                         state.Corporations.Add(corp);
                         break;
                     case "REL":
