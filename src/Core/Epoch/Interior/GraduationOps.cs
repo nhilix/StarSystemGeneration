@@ -181,6 +181,12 @@ public static class GraduationOps
             young.TechProgress[d] = old.TechProgress[d];
         }
         state.Polities.Add(young);
+        // the splinter mints its own currency the instant it exists (slice
+        // CU-1 genesis) — SeedTreasury below force-converts the parent's
+        // population share into it, so it must be concrete first. This one
+        // site serves every realm split: schisms AND civil-war loyalist
+        // provisional polities (CivilWarOps reuses FoundSplinter).
+        state.FoundCurrency(newId);
 
         // people decide the split fraction; every ledger moves by it (P4)
         double totalPop = 0, secededPop = 0;

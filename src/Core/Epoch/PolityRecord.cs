@@ -100,7 +100,11 @@ public sealed class PolityRecord : ICreditLedger
     /// this polity's currency gains the converted sum.</summary>
     public double Deposit(SimState state, double amount, int fromCurrencyId)
     {
-        if (fromCurrencyId == CurrencyId) { Credits += amount; return amount; }
+        // same currency, or a pre-genesis sentinel on either side (this polity
+        // not yet minted, or a foreign payer still dormant): no FX is possible,
+        // so bank it raw — the single-currency path, byte-identical to before.
+        if (fromCurrencyId == CurrencyId || fromCurrencyId < 0 || CurrencyId < 0)
+        { Credits += amount; return amount; }
         double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
         Credits += own;
         state.RecordConversion(fromCurrencyId, amount, CurrencyId, own);
@@ -118,7 +122,10 @@ public sealed class PolityRecord : ICreditLedger
     public double Withdraw(SimState state, double amount, int toCurrencyId)
     {
         if (amount <= 0) return 0;
-        if (toCurrencyId == CurrencyId) { Credits -= amount; return amount; }
+        // same currency, or a pre-genesis sentinel on either side: pay raw, the
+        // single-currency path (no FX until both currencies concretely exist).
+        if (toCurrencyId == CurrencyId || toCurrencyId < 0 || CurrencyId < 0)
+        { Credits -= amount; return amount; }
         double ownCost = state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
         Credits -= ownCost;
         state.RecordConversion(CurrencyId, ownCost, toCurrencyId, amount);

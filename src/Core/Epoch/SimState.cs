@@ -167,6 +167,27 @@ public sealed class SimState
         throw new KeyNotFoundException($"no currency {currencyId}");
     }
 
+    /// <summary>Mint a brand-new currency for a freshly founded polity and assign
+    /// it as that polity's own (slice CU-1 genesis). The single chokepoint every
+    /// polity-creation path routes through — entry (<c>InteriorPhase</c>),
+    /// graduation splits (<c>GraduationOps.FoundSplinter</c>, so schisms and civil
+    /// wars alike), and federation fusion (<c>FederationOps.Federate</c>). Registry
+    /// id = list index (dense, id order P6); the currency starts at
+    /// <see cref="Currency.NumeraireRate"/> = 1.0 and is recomputed next epoch by
+    /// <see cref="FxOps"/>. Named after the polity for the REPL/inspection surface;
+    /// the id, not the name, is the key. Must run before anything converts money
+    /// against the new polity's currency (e.g. before a splinter's
+    /// <see cref="GraduationOps.SeedTreasury"/>).</summary>
+    public Currency FoundCurrency(int polityId)
+    {
+        var pr = PolityOf(polityId);
+        int id = Currencies.Count;
+        var currency = new Currency(id, Actors[polityId].Name, polityId);
+        Currencies.Add(currency);
+        pr.CurrencyId = id;
+        return currency;
+    }
+
     /// <summary>The one shared FX primitive (currency-and-FX design): value of
     /// <paramref name="amount"/> of <paramref name="fromCurrencyId"/> expressed
     /// in <paramref name="toCurrencyId"/>, via the numeraire ratio. A conversion
@@ -178,6 +199,12 @@ public sealed class SimState
     public double ConvertCurrency(double amount, int fromCurrencyId, int toCurrencyId)
     {
         if (fromCurrencyId == toCurrencyId) return amount;
+        // pre-genesis sentinel on either side (a not-yet-minted or a loaded-but-
+        // not-yet-deserialized currency, task 10): no rate exists, so a transfer
+        // touching it is dormant 1:1 — the single-currency era, byte-identical to
+        // the old raw path. RecordConversion likewise no-ops on a negative id, so
+        // the pair stays consistent. Once BOTH sides are real, FX applies.
+        if (fromCurrencyId < 0 || toCurrencyId < 0) return amount;
         var from = CurrencyOf(fromCurrencyId);
         var to = CurrencyOf(toCurrencyId);
         return amount * from.NumeraireRate / to.NumeraireRate;

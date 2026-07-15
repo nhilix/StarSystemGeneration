@@ -23,6 +23,21 @@ public class BilateralTransferCurrencyTests
         return cur;
     }
 
+    /// <summary>Point a live polity's already-minted currency (task 6 mints one
+    /// per polity at entry) at a test rate and clear the conversion counters the
+    /// history accrued, so a single transfer's booking is measured in isolation.
+    /// Rides the real currency rather than shadowing it with a duplicate id.</summary>
+    private static void SetRate(SimState state, int polityId, double rate)
+    {
+        var cur = Cur(state, polityId);
+        cur.NumeraireRate = rate;
+        cur.CumulativeConvertedIn = 0;
+        cur.CumulativeConvertedOut = 0;
+    }
+
+    private static Currency Cur(SimState state, int polityId)
+        => state.CurrencyOf(state.PolityOf(polityId).CurrencyId);
+
     // ---- FederationOps.PayTribute ----
 
     private static (SimState State, int Vassal, int Overlord) VassalFixture(
@@ -34,10 +49,11 @@ public class BilateralTransferCurrencyTests
         var rel = EpochTestKit.FirstLiveRelation(state);
         int vassal = rel.PolityAId, overlord = rel.PolityBId;
         FederationOps.Bind(state, rel, vassal);
-        AddCurrency(state, vassal, vassalRate);
-        AddCurrency(state, overlord, overlordRate);
-        state.PolityOf(vassal).CurrencyId = vassal;
-        state.PolityOf(overlord).CurrencyId = overlord;
+        // genesis (task 6) already minted each polity its own currency at entry;
+        // ride those real currencies — set the rates under test and zero the
+        // counters the run accrued so the assertions see only this transfer.
+        SetRate(state, vassal, vassalRate);
+        SetRate(state, overlord, overlordRate);
         // silence any other bound pair a history could carry
         foreach (var p in state.Polities)
             if (p.ActorId != vassal) p.Receipts = 0;
@@ -63,8 +79,8 @@ public class BilateralTransferCurrencyTests
         double tribute = 100 * share;
         Assert.Equal(vc - tribute, vr.Credits, 9);
         Assert.Equal(oc + tribute, or.Credits, 9);
-        Assert.Equal(tribute, state.CurrencyOf(vassal).CumulativeConvertedOut, 9);
-        Assert.Equal(tribute, state.CurrencyOf(overlord).CumulativeConvertedIn, 9);
+        Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
+        Assert.Equal(tribute, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
 
     [Fact]
@@ -83,8 +99,8 @@ public class BilateralTransferCurrencyTests
         double landed = tribute * 1.0 / 2.0;        // cur(vassal) -> cur(overlord)
         Assert.Equal(vc - tribute, vr.Credits, 9);  // the vassal debits its own currency whole
         Assert.Equal(oc + landed, or.Credits, 9);   // the overlord banks the converted sum
-        Assert.Equal(tribute, state.CurrencyOf(vassal).CumulativeConvertedOut, 9);
-        Assert.Equal(landed, state.CurrencyOf(overlord).CumulativeConvertedIn, 9);
+        Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
+        Assert.Equal(landed, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
 
     // ---- WarResolution reparations ----
@@ -107,10 +123,8 @@ public class BilateralTransferCurrencyTests
         var loser = state.PolityOf(rel.PolityBId);
         var winner = state.PolityOf(rel.PolityAId);
         loser.Credits = System.Math.Max(100.0, loser.Credits);
-        AddCurrency(state, loser.ActorId, 1.0);
-        AddCurrency(state, winner.ActorId, 4.0);
-        loser.CurrencyId = loser.ActorId;
-        winner.CurrencyId = winner.ActorId;
+        SetRate(state, loser.ActorId, 1.0);
+        SetRate(state, winner.ActorId, 4.0);
         double loserBefore = loser.Credits, winnerBefore = winner.Credits;
 
         WarResolution.Terminate(state, null);
@@ -122,9 +136,9 @@ public class BilateralTransferCurrencyTests
         Assert.Equal(loserBefore - reparations, loser.Credits, 6);
         Assert.Equal(winnerBefore + landed, winner.Credits, 6);
         Assert.Equal(reparations,
-            state.CurrencyOf(loser.ActorId).CumulativeConvertedOut, 6);
+            Cur(state, loser.ActorId).CumulativeConvertedOut, 6);
         Assert.Equal(landed,
-            state.CurrencyOf(winner.ActorId).CumulativeConvertedIn, 6);
+            Cur(state, winner.ActorId).CumulativeConvertedIn, 6);
     }
 
     // ---- GraduationOps.SeedTreasury ----

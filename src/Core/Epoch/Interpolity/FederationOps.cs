@@ -127,6 +127,12 @@ public static class FederationOps
                                              parentB.TechProgress[d]);
         }
         state.Polities.Add(young);
+        // the union mints a brand-new currency before either parent merges in
+        // (slice CU-1 genesis): the two MergeInto calls below force-convert
+        // each parent's balance into THIS fresh currency (two conversions into
+        // a new currency, not one absorption into a pre-existing one), and both
+        // parent currencies retire when their actors do.
+        state.FoundCurrency(newId);
 
         // parent politics dissolve while their treasuries and ports are
         // still theirs (war chests return to their own segments)
@@ -375,7 +381,12 @@ public static class FederationOps
                 fleet.TargetId = -1;
             }
         }
-        into.Credits += from.Credits;
+        // the absorbed treasury force-converts into the survivor's currency
+        // (slice CU-1, currency-and-FX design): a transfer between the two
+        // currencies' supplies via Deposit, never a raw carry-over. An
+        // insolvent parent (negative Credits) hands its debt over converted;
+        // Deposit has no non-positive guard, so the debt is never swallowed.
+        into.Deposit(state, from.Credits, from.CurrencyId);
         from.Credits = 0;
         into.Receipts += from.Receipts;
         from.Receipts = 0;
@@ -411,8 +422,17 @@ public static class FederationOps
             int newLender = lender ? intoId : loan.LenderActorId;
             int newBorrower = borrower ? intoId : loan.BorrowerActorId;
             if (newLender == newBorrower) continue;   // internal debt cancels
+            // a cross-currency loan denominates in the LENDER's currency
+            // (design, "Loans across currencies"). When the absorbed polity
+            // WAS the lender, the survivor's currency takes over — reprice the
+            // principal into it. A changed borrower leaves the loan
+            // lender-denominated, so its principal carries over untouched.
+            double principal = lender
+                ? state.ConvertCurrency(loan.Principal, from.CurrencyId,
+                                        into.CurrencyId)
+                : loan.Principal;
             state.Loans.Add(new Loan(state.Loans.Count, newLender, newBorrower,
-                loan.Principal, loan.RatePerYear, loan.TermYears,
+                principal, loan.RatePerYear, loan.TermYears,
                 loan.IssuedYear));
         }
     }
@@ -434,6 +454,14 @@ public static class FederationOps
                 rel.VassalSinceYear = -1;
             }
         var pr = state.PolityOf(polityId);
+        // the polity's currency retires with it (slice CU-1): no new money
+        // mints into a dead polity's currency, though the record lives on as
+        // history (and any dangling foreign-held balances resolve through it).
+        // The single death chokepoint — reached from federation fusion (both
+        // parents), vassal absorption, and war submission/annexation — so this
+        // one line retires every absorbed currency, the whole exhaustive list.
+        if (pr.CurrencyId >= 0)
+            state.CurrencyOf(pr.CurrencyId).Retired = true;
         if (pr.Interior is { } interior && interior.RulerCharacterId >= 0)
         {
             var ruler = state.Characters[interior.RulerCharacterId];

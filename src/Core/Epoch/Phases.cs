@@ -1404,6 +1404,11 @@ public sealed class InteriorPhase : ISimPhase
                 continue;
             a.Entered = true;
             entered++;
+            // every polity mints its own currency at founding (slice CU-1
+            // genesis): this is the primary genesis point (original and
+            // native-born polities), wired before the credit endowment below
+            // so the treasury is denominated in a real currency from birth
+            state.FoundCurrency(a.Id);
             var port = new Port(state.Ports.Count, a.Id, a.Seat,
                 state.Config.Infrastructure.HomeworldPortTier, state.WorldYear);
             state.Ports.Add(port);
