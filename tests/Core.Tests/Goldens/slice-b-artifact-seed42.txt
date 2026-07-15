@@ -82,6 +82,8 @@ KNOB|Economy.ExportShare|0.5
 KNOB|Economy.FreightCostPerUnitPerHex|0.02
 KNOB|Economy.FreightHexesPerYearBase|8
 KNOB|Economy.FuelPerUnitPerHex|0.005
+KNOB|Economy.FxReceiptsFloor|1
+KNOB|Economy.FxSensitivity|1
 KNOB|Economy.GateTollRate|0.05
 KNOB|Economy.InitialCreditsPerPolity|500
 KNOB|Economy.InitialWealthPerPop|15

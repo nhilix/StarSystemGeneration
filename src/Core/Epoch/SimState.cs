@@ -42,6 +42,10 @@ public sealed class SimState
     public List<Actor> Actors { get; } = new List<Actor>();
     /// <summary>Polity-specific state beside the actor substrate, actor-id order.</summary>
     public List<PolityRecord> Polities { get; } = new List<PolityRecord>();
+    /// <summary>The currencies in circulation (slice CU-1) — one per living
+    /// polity, id order (P6). Retired currencies stay as history. Empty until
+    /// genesis wiring mints them (a later task).</summary>
+    public List<Currency> Currencies { get; } = new List<Currency>();
     /// <summary>The keystone registry: political geography derives from it.</summary>
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
@@ -149,6 +153,34 @@ public sealed class SimState
         foreach (var r in Relations)
             if (r.PolityAId == a && r.PolityBId == b) return r;
         return null;
+    }
+
+    /// <summary>The currency record for an id (registry is id-ordered and
+    /// dense once genesis mints them; a scan covers any later interleaving).</summary>
+    public Currency CurrencyOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Currencies.Count
+            && Currencies[currencyId].Id == currencyId)
+            return Currencies[currencyId];
+        foreach (var cur in Currencies)
+            if (cur.Id == currencyId) return cur;
+        throw new KeyNotFoundException($"no currency {currencyId}");
+    }
+
+    /// <summary>The one shared FX primitive (currency-and-FX design): value of
+    /// <paramref name="amount"/> of <paramref name="fromCurrencyId"/> expressed
+    /// in <paramref name="toCurrencyId"/>, via the numeraire ratio. A conversion
+    /// is a transfer between two currencies' supplies, not a mint — the
+    /// per-currency conserved-transfer counters
+    /// (<see cref="Currency.CumulativeConvertedIn"/>/<c>Out</c>) are wired by
+    /// the conversion-integration and conservation tasks; this slice keeps the
+    /// primitive pure arithmetic so the ledger draw-down can use it.</summary>
+    public double ConvertCurrency(double amount, int fromCurrencyId, int toCurrencyId)
+    {
+        if (fromCurrencyId == toCurrencyId) return amount;
+        var from = CurrencyOf(fromCurrencyId);
+        var to = CurrencyOf(toCurrencyId);
+        return amount * from.NumeraireRate / to.NumeraireRate;
     }
 
     /// <summary>The corporation record behind an actor id, or null.</summary>

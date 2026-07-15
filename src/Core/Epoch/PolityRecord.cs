@@ -12,8 +12,14 @@ public sealed class PolityRecord : ICreditLedger
 {
     public int ActorId { get; }
     public int SpeciesId { get; }
+    /// <summary>The one currency this polity mints (slice CU-1) — a polity is
+    /// always single-currency. −1 until genesis wiring assigns it (a later
+    /// slice task); <see cref="Segment"/>/<see cref="Faction"/> wealth resolves
+    /// to this at point of use rather than carrying its own id.</summary>
+    public int CurrencyId { get; set; } = -1;
     /// <summary>The credit ledger — conserved (P4): endowed once at entry,
-    /// then moved only by transactions, taxes, and loans.</summary>
+    /// then moved only by transactions, taxes, and loans. Denominated in this
+    /// polity's own <see cref="CurrencyId"/>.</summary>
     public double Credits { get; set; }
     /// <summary>This epoch's market receipts (taxes, payouts, tariffs) —
     /// written by the Markets phase, consumed by the same epoch's Allocation
@@ -84,5 +90,30 @@ public sealed class PolityRecord : ICreditLedger
     {
         ActorId = actorId;
         SpeciesId = speciesId;
+    }
+
+    /// <summary>Credit the treasury with <paramref name="amount"/> denominated
+    /// in <paramref name="fromCurrencyId"/>, auto-converting into this polity's
+    /// own currency on receipt (a polity is single-currency).</summary>
+    public void Deposit(SimState state, double amount, int fromCurrencyId)
+    {
+        Credits += fromCurrencyId == CurrencyId
+            ? amount
+            : state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
+    }
+
+    /// <summary>Debit the treasury to provide <paramref name="amount"/>
+    /// denominated in <paramref name="toCurrencyId"/>. The polity converts the
+    /// needed sum of its own currency out, deducting it from
+    /// <see cref="Credits"/> — which may go negative, the existing insolvency
+    /// path (<c>Borrow</c> answers a negative balance); a polity does not cap.
+    /// Returns the full <paramref name="toCurrencyId"/> amount provided.</summary>
+    public double Withdraw(SimState state, double amount, int toCurrencyId)
+    {
+        if (amount <= 0) return 0;
+        Credits -= toCurrencyId == CurrencyId
+            ? amount
+            : state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
+        return amount;
     }
 }
