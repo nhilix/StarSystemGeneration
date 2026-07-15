@@ -379,7 +379,12 @@ public static class ProjectOps
             // a refund through DebitLocal would silently swallow it and destroy the
             // escrowed credits (a conservation leak). Deposit banks it back
             // symmetrically, the corp mirror of the polity pool's `-= -amount`.
-            int localCurrency = state.LocalCurrencyOf(p.PortId);
+            // Safe, not the throwing LocalCurrencyOf: FunderCurrency resolves this
+            // exact same p.PortId/corp-funder lookup with LocalCurrencySafe, and
+            // this call happens first in the chain (line ~321 above FunderCurrency
+            // at ~329) — an unowned port must degrade to the dormant -1 no-op here
+            // too, not throw before FunderCurrency's defensive path is ever reached.
+            int localCurrency = state.LocalCurrencySafe(p.PortId);
             if (amount >= 0)
                 state.DebitLocal(p.FunderActorId, amount, localCurrency);
             else

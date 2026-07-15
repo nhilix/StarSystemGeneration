@@ -6,8 +6,23 @@ namespace StarGen.Core.Epoch;
 /// <summary>Credit totals by holder class at one instant (sim-health spec
 /// §1) — the money supply decomposed into every conserved store it can sit
 /// in. Captured after every phase, it attributes treasury motion to the
-/// phase that moved it. LoanPrincipal rides beside the classes as a claim,
-/// not a holder: loans move credits between ledgers, the principal is memory.</summary>
+/// phase that moved it. Every column except <c>CorpCredits</c> is a raw
+/// NOMINAL sum in each holder's own native currency — a polity mints its
+/// own currency (<see cref="Currency"/>), and Segment/Faction wealth and
+/// escrow resolve to their owning polity's currency at point of use
+/// (<see cref="SupplyOps.WalkNative"/>), so PolityCredits, PolityPools,
+/// SegmentWealth, FactionWealth, OrderEscrow, CourierEscrow,
+/// ExpeditionPurses, and LoanPrincipal each add together amounts that may
+/// be denominated in different currencies: informative as a trend line,
+/// but NOT commensurable across currencies and NOT an invariant (a
+/// legitimate swing in one weak currency's nominal magnitude moves
+/// LoanPrincipal/SegmentWealth with no real leak — this nearly produced a
+/// false lead in a real investigation). Only CorpCredits is
+/// numeraire-converted (<see cref="Corporation.Credits"/>) and meaningful
+/// as a single galaxy-wide number; the real per-currency invariant is
+/// <see cref="MetricRow.ConservationResidual"/>, not this row. LoanPrincipal
+/// rides beside the classes as a claim, not a holder: loans move credits
+/// between ledgers, the principal is memory.</summary>
 public sealed record MoneyRow(
     int Epoch, string Phase,
     double PolityCredits, double PolityPools, double CorpCredits,
