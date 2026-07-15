@@ -288,6 +288,35 @@ across currencies; existing ME loan-mechanism tests (capitalization ceiling,
 debt-to-income gate) still pass unchanged in behavior for the single-currency
 case.
 
+## Task 7b: Currency-activation Markets settlement leak (Opus)
+
+**Inserted after Task 7's review** — a real conservation leak (−196.967
+residual at epoch 37 on the committed seed-42 history, behind
+`ConservationTests`/`ShapeAcceptanceTests`/the Graduation conserve test
+staying red). Task 7's implementer misdiagnosed this as a pre-existing,
+out-of-slice bug ("Slice-D/CE territory"); the reviewer directly bisected it
+across commits and confirmed it does **not** exist pre-slice or through
+Task 3 — it first appears exactly at Task 6 (currency activation) and is
+unchanged through Tasks 6b/7. This is a genuine CU-1 regression, not
+inherited work, and must be fixed inside this slice before merge.
+
+Rate-independence (it reproduces identically at `NumeraireRate = 1.0`
+everywhere) does not mean it's currency-unrelated — it means a
+currency-integration settlement step fails to conserve even at par: a
+capped `Withdraw`/`DebitLocal` whose shortfall isn't propagated, a
+convert-then-credit pair that double-counts or drops a remainder, or a
+mixed raw/currency-aware debit-credit pair somewhere in the Markets phase
+that Tasks 3/4/6/6b didn't fully migrate. Bisect within Task 6's diff
+specifically (that's where the leak first appears) to find the exact
+mechanism — do not assume it's the same class of bug Task 6b already fixed
+(corp debit-cap) without checking, since Task 6b's own fix didn't close it.
+
+Tests: reproduce the epoch-37 seed-42 residual first (RED), then fix and
+confirm `ConservationTests`/`ShapeAcceptanceTests`/the Graduation conserve
+test are all genuinely green — these three are the acceptance bar, not a
+smaller unit test in isolation. Full `dotnet test` suite must stay green
+otherwise (hex-tier suite never regresses).
+
 ## Task 8: Segment/Faction wealth port-transfer conversion (Sonnet)
 
 Every port-ownership-change site — `FederationOps.MergeInto`'s port loop,
