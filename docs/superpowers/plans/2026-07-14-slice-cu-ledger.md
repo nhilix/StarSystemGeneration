@@ -144,6 +144,17 @@ the corp's largest holding converts correctly.
 
 ## Task 5: Bilateral transfer sites (Sonnet)
 
+**Amended after Task 4** (not in the original design doc's site inventory —
+a real gap surfaced during implementation, not a plan error to silently
+patch around): `CourierOps.cs:38,137,143,173` — a courier's fee is escrowed
+from the poster's ledger at post time (`Withdraw`), then either credited to
+the fulfiller on success or refunded to the poster on failure/expiry
+(`Deposit`). The poster and fulfiller may be different actors with
+different currencies. Use `Withdraw` at post time (poster's currency),
+`Deposit` at resolution (fulfiller's currency, converting from the escrowed
+currency; or the poster's own currency for a refund — no conversion needed
+since it returns to the same actor/currency it left).
+
 `FederationOps.PayTribute`, `WarResolution` reparations, and
 `GraduationOps` parent/child split all convert via `ConvertCurrency` +
 `Deposit`/`Withdraw` at the point money crosses currencies. For
@@ -154,7 +165,9 @@ created — this task assumes it already exists by the time the seed-transfer
 runs, per the ordering Task 6 establishes). Tests: tribute paid in the
 overlord's currency lands correctly on a same- or different-currency vassal;
 reparations likewise; a graduation seed transfer converts at the founding
-rate.
+rate; a courier fee posted and fulfilled across two different currencies
+settles correctly, and a refund (failure/expiry) returns to the poster
+without spurious conversion.
 
 ## Task 6: Genesis & lifecycle (Opus)
 
@@ -192,8 +205,16 @@ specific bucket via `Withdraw`) — this part of ME's mechanism is unchanged in
 shape, only the comparison math is fixed. `ServiceLoans` — confirm (and fix
 if needed) that epoch-to-epoch amortization/interest, already denominated in
 the lender's currency, doesn't re-introduce a cross-currency comparison bug
-of its own. Tests: a borrower with loans from two different-currency lenders
-is correctly gated by the debt ceiling; lender selection picks correctly
+of its own; migrate its remaining raw `corp.Credits +=/-=` interest-crediting
+write (Task 4's implementer found this is one of the two remaining callers
+keeping `Corporation.Credits`'s transitional `_legacyCredits` bridge alive —
+the other was `CourierOps`, migrated in Task 5). After this migration, check
+whether the bridge now has zero remaining write-callers on `Corporation`; if
+so, remove it and make `Credits` the purely computed read-only property the
+design doc specifies (same as Task 4's brief asked, deferred to here since
+this is genuinely the last caller). Tests: a borrower with loans from two
+different-currency lenders is correctly gated by the debt ceiling; lender
+selection picks correctly
 across currencies; existing ME loan-mechanism tests (capitalization ceiling,
 debt-to-income gate) still pass unchanged in behavior for the single-currency
 case.
