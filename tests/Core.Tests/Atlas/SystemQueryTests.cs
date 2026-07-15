@@ -178,6 +178,28 @@ public class SystemQueryTests
     }
 
     [Fact]
+    public void FacilityRow_WithNoBody_FallsBackToThePortBody()
+    {
+        // Genesis-path facilities (entry starter industry, gate pairs, colony
+        // founding) never go through BodySiting.Assign, so their Body stays
+        // None. In a settled (non-null) system the row must dock at the port
+        // body — mirroring the sites loop — not collapse to deep orbit.
+        var (model, state) = Base();
+        var (hex, _) = Hexes(model);
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Refinery, 1,
+            hex, state.Actors[0].Id, 10) { Body = BodyRef.None });
+        var info = SystemQuery.At(model, EyeContext.God(state.WorldYear), hex);
+        var row = Assert.Single(info.Facilities);
+
+        var context = new GalaxyContext(model.Skeleton.Config)
+        { Skeleton = model.Skeleton };
+        var system = Core.Generation.Generator.Generate(context, hex).System!;
+        var portAt = SystemQuery.PortOrbit(system);
+        Assert.Equal(portAt, row.At);
+        Assert.NotEqual(OrbitRef.None, row.At);
+    }
+
+    [Fact]
     public void InFlightSitesSurface_CompletedOnesDoNot()
     {
         var (model, state) = Base();

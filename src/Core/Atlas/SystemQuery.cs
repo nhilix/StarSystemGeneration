@@ -120,7 +120,9 @@ public static class SystemQuery
             facilities.Add(new StageFacilityRow(f.Id, def.Name, def.Family,
                 f.Tier, MarketEngine.IsActive(state, f), f.Condition,
                 state.Actors[f.OwnerActorId].Name,
-                system != null ? f.Body : OrbitRef.None));
+                system == null
+                    ? OrbitRef.None
+                    : (!f.Body.IsNone ? f.Body : portAt)));
         }
 
         var sites = new List<StageSiteRow>();
