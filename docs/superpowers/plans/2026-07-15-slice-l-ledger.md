@@ -6,7 +6,11 @@ Baseline: 900/900 tests green before any change.
 
 ## Tasks
 
-- [ ] Task 1: `BodyRef` — epoch-owned body address (Sonnet)
+- [x] Task 1: `BodyRef` — epoch-owned body address (Sonnet). Commits 97b0a2a..d8b1726
+      (fix wave: Unity `SystemStage.cs` also consumed the deleted `OrbitRef` type via
+      the `Atlas` namespace — added its own alias, mirroring `SystemQuery.cs`'s. Not
+      Unity-compiler-verified in this environment; flag for a real Unity compile pass
+      at slice-end eyeball.)
 - [ ] Task 2: Body-ref fields on Facility/Project/PopulationSegment/FleetRecord (Sonnet)
 - [ ] Task 3: `OrbitGeometry` — discrete OrbitDistance + local-hop knobs (Sonnet)
 - [ ] Task 4: Serializer round-trips the four body-ref fields (Opus — serializer correctness hazard)
