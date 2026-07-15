@@ -32,6 +32,7 @@ public static class ArtifactSerializer
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
         ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
+        ("bodyres", 1),
     };
 
     public static string ToText(SimState state)
@@ -547,6 +548,30 @@ public static class ArtifactSerializer
         });
         foreach (var h in settledHexes)
             w.WriteLine(Join("SETTLED", h.Q.ToString(Inv), h.R.ToString(Inv)));
+
+        Layer(w, "bodyres");
+        // depletable per-body resource stocks — REAL mutable state (a Mine/
+        // Excavation digs its rock down over time), so genuinely serialized,
+        // NOT re-derived like the hex tier. Sorted (q, r, star, slot) for P6.
+        var bodyResKeys =
+            new List<(HexCoordinate Hex, BodyRef Body)>(state.BodyResources.Keys);
+        bodyResKeys.Sort((x, y) =>
+        {
+            int c = x.Hex.Q.CompareTo(y.Hex.Q);
+            if (c != 0) return c;
+            c = x.Hex.R.CompareTo(y.Hex.R);
+            if (c != 0) return c;
+            c = x.Body.StarIndex.CompareTo(y.Body.StarIndex);
+            return c != 0 ? c : x.Body.SlotIndex.CompareTo(y.Body.SlotIndex);
+        });
+        foreach (var k in bodyResKeys)
+        {
+            var stock = state.BodyResources[k];
+            w.WriteLine(Join("BODYRES", k.Hex.Q.ToString(Inv),
+                k.Hex.R.ToString(Inv), k.Body.StarIndex.ToString(Inv),
+                k.Body.SlotIndex.ToString(Inv), ((int)stock.Good).ToString(Inv),
+                R(stock.Quantity), R(stock.Grade)));
+        }
         w.WriteLine("END");
     }
 
@@ -1632,6 +1657,17 @@ public static class ArtifactSerializer
                         SystemRegistry.Commit(state!,
                             new HexCoordinate(int.Parse(f[1], Inv),
                                               int.Parse(f[2], Inv)));
+                        break;
+                    case "BODYRES":
+                        // REAL mutable stock, restored verbatim (not re-rolled).
+                        state!.BodyResources[(
+                            new HexCoordinate(int.Parse(f[1], Inv),
+                                              int.Parse(f[2], Inv)),
+                            new BodyRef(int.Parse(f[3], Inv),
+                                        int.Parse(f[4], Inv)))] =
+                            new StarGen.Core.Substrate.Stock(
+                                (StarGen.Core.Substrate.GoodId)int.Parse(f[5], Inv),
+                                double.Parse(f[6], Inv), double.Parse(f[7], Inv));
                         break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0

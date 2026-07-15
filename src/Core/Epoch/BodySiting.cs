@@ -79,69 +79,6 @@ public static class BodySiting
         return best;
     }
 
-    /// <summary>A per-body extraction multiplier in [0.5, 1.5] from the
-    /// SPECIFIC claimed body (locality slice §4 throughline: body-level
-    /// richness variance finally reaches the price signal). Scoped strictly
-    /// to the four EXTRACTION types — every non-extraction facility (Refinery,
-    /// Fabricator, Shipyard, …) returns a flat 1.0 regardless of the body it
-    /// nominally sits at, so the port-body fallback can never leak a ±50%
-    /// swing onto processing (richness is an extraction-grade signal only).
-    /// Among extractors the signal is chosen per (type, body kind): RockyWorld
-    /// mines/excavations read Size against divisor 6; skimmers map a gas
-    /// giant's Size (10-14 table range) linearly onto the full band; agri
-    /// reads Biosphere against divisor 3 (0-3 range). Belts and wreckage carry
-    /// NO per-body size variance from the generator (Size is always 0 for
-    /// those kinds), so a mine/excavation on one returns an honest neutral 1.0
-    /// rather than a misleading floor. 1.0 (neutral) for a None body, a null
-    /// system, or a missing body. Pure, deterministic, no rolls.</summary>
-    public static double RichnessModifier(StarSystem? system, BodyRef body,
-                                          InfraTypeId type)
-    {
-        // Richness is an extraction-grade signal only — non-extraction types
-        // never touch a body's Size/Biosphere, so the port-body fallback can
-        // never leak a hidden swing onto processing/heavy/support facilities.
-        if (type != InfraTypeId.Mine && type != InfraTypeId.Skimmer
-            && type != InfraTypeId.AgriComplex
-            && type != InfraTypeId.ExcavationSite) return 1.0;
-
-        if (system == null || body.IsNone) return 1.0;
-        if (body.StarIndex < 0 || body.StarIndex >= system.Stars.Count)
-            return 1.0;
-        Body? b = null;
-        foreach (var slot in system.Stars[body.StarIndex].Slots)
-            if (slot.Index == body.SlotIndex) { b = slot.Body; break; }
-        if (b == null) return 1.0;
-
-        // Agri reads the biosphere ladder against its own 0-3 scale.
-        if (type == InfraTypeId.AgriComplex)
-        {
-            double bio = System.Math.Max(0.0,
-                System.Math.Min(1.0, (int)b.Biosphere / 3.0));
-            return 0.5 + bio;            // Biosphere: Barren(0)..Sapient(3)
-        }
-
-        // Skimmers always claim a gas giant; the GasGiantSize table spans
-        // 10-14, every value >= the old Size/6 ceiling, so a flat divisor
-        // saturated every giant to 1.5 with zero variance. Normalize against
-        // the table's actual range so a fat giant out-yields a lean one.
-        if (type == InfraTypeId.Skimmer)
-        {
-            double norm = System.Math.Max(0.0,
-                System.Math.Min(1.0, (b.Size - 10.0) / (14.0 - 10.0)));
-            return 0.5 + norm;          // Size 10 -> 0.5, 14 -> 1.5
-        }
-
-        // Mine / ExcavationSite. Belts and wreckage never get a nonzero Size
-        // from the generator, so there is no per-body signal for those kinds —
-        // return an honest neutral rather than a Size/6 floor of 0.5. Rocky
-        // worlds carry real Size variance (1-9): keep the Size/6 clamp.
-        if (b.Kind == BodyKind.PlanetoidBelt || b.Kind == BodyKind.Wreckage)
-            return 1.0;
-        double sizeNorm = System.Math.Max(0.0,
-            System.Math.Min(1.0, b.Size / 6.0));
-        return 0.5 + sizeNorm;          // Size: rocky practical range ~1-9
-    }
-
     /// <summary>Renewable extraction yield in [0,1] from the claimed body's own
     /// real attributes (body-resource-stock design) — a gas giant's mass for a
     /// Skimmer, a world's biosphere and water for an AgriComplex. No depletion:

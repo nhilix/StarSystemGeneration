@@ -220,11 +220,17 @@ public class MarketDemandTests
     {
         var (state, port, seg) = Fixture(wealth: 0.0);
         state.PolityOf(port.OwnerActorId).Credits = 500;
-        // the refinery buys the mine's ore: real sales → the labor share
+        // the refinery buys the mine's ore: real sales → the labor share.
+        // extraction now roots in a claimed body (body-resource-stock), so the
+        // mine/skimmer get a real body + stock instead of drawing from None.
         state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, 1,
-            port.Hex, port.OwnerActorId, state.WorldYear - 10));
+            port.Hex, port.OwnerActorId, state.WorldYear - 10)
+        { Body = ProjectOps.PlaceFacilityBody(state, port.Hex,
+                                              InfraTypeId.Mine) });
         state.Facilities.Add(new Facility(1, (int)InfraTypeId.Skimmer, 1,
-            port.Hex, port.OwnerActorId, state.WorldYear - 10));
+            port.Hex, port.OwnerActorId, state.WorldYear - 10)
+        { Body = ProjectOps.PlaceFacilityBody(state, port.Hex,
+                                              InfraTypeId.Skimmer) });
         state.Facilities.Add(new Facility(2, (int)InfraTypeId.Refinery, 1,
             port.Hex, port.OwnerActorId, state.WorldYear - 10));
 

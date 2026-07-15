@@ -163,16 +163,38 @@ public static class MarketEngine
                 (int)GoodId.Machinery);
             double share = 1.0 / def.Produces.Count;
 
+            var t = (InfraTypeId)f.TypeId;
             foreach (var good in def.Produces)            // catalog order
             {
-                double terrain = ExtractionPotential((InfraTypeId)f.TypeId,
-                                                     good, fields)
-                    * BodySiting.RichnessModifier(fSystem, f.Body,
-                                                  (InfraTypeId)f.TypeId);
                 double utilization = Math.Min(1.0,
                     Math.Max(cfg.Economy.MinUtilization,
                         market.Price[(int)good]
                         / Market.InitialPrice(cfg.Economy, good)));
+
+                // Mine / ExcavationSite: draw from the body's finite stock,
+                // rated by the platform and capped by what the rock has left
+                // (body-resource-stock design). Output posts at the stock's
+                // grade; at zero the facility simply produces nothing.
+                if (t == InfraTypeId.Mine || t == InfraTypeId.ExcavationSite)
+                {
+                    double rated = Production.Output(def, f.Tier, 1.0,
+                                       laborFactor, machineryGrade)
+                                   * share * years * f.Condition * utilization;
+                    double drawn = BodyResourceOps.Extract(state, f.Hex, f.Body,
+                                       rated, out double stockGrade);
+                    if (drawn > 0)
+                        BookOps.PostSupply(state, mIx, f.OwnerActorId,
+                                           (int)good, drawn, stockGrade);
+                    continue;
+                }
+
+                // Skimmer / AgriComplex: renewable yield from the claimed
+                // body's own real attributes (no depletion). Everything else
+                // (processing) reads neutral terrain and runs its recipe.
+                double terrain = t == InfraTypeId.Skimmer
+                                 || t == InfraTypeId.AgriComplex
+                    ? BodySiting.RenewableYield(fSystem, f.Body, t)
+                    : 1.0;
                 double capacity = Production.Output(def, f.Tier, terrain,
                                      laborFactor, machineryGrade)
                                   * share * years * f.Condition * utilization;
@@ -180,8 +202,14 @@ public static class MarketEngine
 
                 var recipes = Goods.Get(good).Recipes;
                 if (recipes.Count == 0)
+                {
+                    double grade = t == InfraTypeId.Skimmer
+                                   || t == InfraTypeId.AgriComplex
+                        ? BodySiting.RenewableGrade(fSystem, f.Body, t)
+                        : Potentials.RawGrade(terrain);
                     BookOps.PostSupply(state, mIx, f.OwnerActorId, (int)good,
-                                       capacity, Potentials.RawGrade(terrain));
+                                       capacity, grade);
+                }
                 else
                     RunRecipe(state, mIx, f, recipes, capacity);
             }
@@ -1134,18 +1162,6 @@ public static class MarketEngine
     // ------------------------------------------------------------------
     // Shared lookups
     // ------------------------------------------------------------------
-
-    /// <summary>Terrain potential per extraction type at the facility's cell;
-    /// 1.0 for processing (the formula's neutral terrain).</summary>
-    private static double ExtractionPotential(InfraTypeId type, GoodId good,
-                                              CellFields fields) => type switch
-    {
-        InfraTypeId.Mine => Potentials.Ore(fields),
-        InfraTypeId.Skimmer => Potentials.Volatiles(fields),
-        InfraTypeId.AgriComplex => Potentials.Biosphere(fields),
-        InfraTypeId.ExcavationSite => Potentials.Exotics(fields),
-        _ => 1.0,
-    };
 
     /// <summary>Adapt B's cell to C's plain-argument fields at a hex (the
     /// `infra` REPL command's pattern). Void/missing cells read as barren.</summary>
