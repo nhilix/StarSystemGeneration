@@ -528,6 +528,57 @@ pathological (a duplicate-lane loop, an unbounded degree growth) under the
 new threshold — the recalibration should still catch a genuine web, just
 not this specific denser-but-healthy pattern.
 
+## Task 14: Sweep-scale conservation leak (Opus)
+
+**Inserted after running the real committed acceptance sweep** (8 seeds × 4
+variants, `docs/superpowers/plans/2026-07-12-debt-diagnosis-experiment.json`)
+for the first time this slice. Task 8/9's per-currency `ConservationTests`
+only exercise seed 42 in isolation and passed cleanly — but at real sweep
+scale, roughly **15 of 32 runs** show `Money.ConservationResidual` (the
+worst per-currency residual) spike far above ME's `≤1.3e-9` bar, by 5-9
+orders of magnitude, at specific epochs. Directly confirmed in
+`runs/sweeps/debt-diagnosis/cheap-credit/2718.csv`: residual sits at
+`~1e-9`–`~1e-8` for most epochs, then spikes to `0.116` at epoch 36 and
+`1.11` at epoch 39 — coinciding with `Money.SegmentWealth` swinging wildly
+(1.9M → 15.1M → 9.25M across epochs 37-39), a clear event-triggered leak,
+not steady drift or floating-point noise. This is NOT the corp debit-cap
+leak (Task 6b) or the migration/wages/escrow leaks (Task 8) — those are
+confirmed fixed and this is a different, larger-scale trigger.
+
+**A second, likely-related anomaly**: aggregate `Money.LoanPrincipal` peaks
+wildly beyond ME's validated ~37k bound in the SAME runs that show residual
+spikes — `baseline`/seed 42 peaks at **1.92M**, `baseline`/seed 2718 at
+**971k**, `cheap-credit`/seed 1001 at **400k**. The loan capitalization
+ceiling (`Economy.LoanCapitalizationCeiling`) that ME validated to bound
+loan principal is apparently not holding under the cross-currency loan
+mechanism (Task 7c) at real scale, even though the smaller Task 7c unit
+tests passed. The overlap between residual-spike runs and loan-blowout runs
+strongly implicates cross-currency loan/absorption mechanics
+(`Phases.Borrow`/`ServiceLoans`, `FederationOps.MergeInto`'s loan reissue,
+or the interaction between the two under many concurrent loans/currencies
+over 40 epochs) as the shared root cause — but this is a hypothesis to
+verify, not a conclusion to assume.
+
+**Your job**: bisect the actual mechanism at REAL sweep scale, not just
+against the seed-42 unit-test scale that already passed. Re-run the flagged
+seeds specifically (`cheap-credit`/2718, `baseline`/42, `baseline`/2718,
+`lean-labor`/42, `cheap-credit`/1001 at minimum) with finer-grained
+per-epoch/per-phase instrumentation around the spike epochs to isolate
+which specific event (federation formation, war absorption, a loan
+reissue, a servicing cycle under a large/complex loan book) triggers it.
+Check whether the loan-principal blowout and the conservation-residual
+spike share one root cause or are two separate bugs. Fix the actual
+mechanism — this project's hard rule is diagnose first, never widen a
+tolerance to make a real leak disappear.
+
+**Do not declare this slice's conservation story settled until the FULL
+committed acceptance sweep re-runs clean** — every one of the 32 runs'
+final (and ideally every-epoch) `Money.ConservationResidual` at or near
+ME's tolerance, and `Money.LoanPrincipal` back within a sane bound
+consistent with ME's validated behavior. Re-run the full sweep after the
+fix and report the actual numbers, not just "the specific flagged epoch no
+longer spikes."
+
 ## Acceptance (after Task 12, before merge)
 
 `dotnet test` green (hex-tier suite intact); determinism byte-identity for
