@@ -193,6 +193,56 @@ absorbed polity's balance and retires its currency; a federation formation
 retires both parents' currencies into a brand-new one; a reissued loan's
 principal is correctly converted, not carried over raw.
 
+## Task 6b: Corporation debit-cap conservation fix (Opus)
+
+**Inserted after Task 6's review** (not in the original design — Task 6
+turning on real currencies exposed a genuine, pre-existing conservation
+leak in Task 4's corp-wallet migration; the leak is a real bug, not a
+residual-formula artifact, and Task 9's per-currency measurement rewrite
+cannot fix it on its own).
+
+`Corporation.Withdraw` caps at wallet holdings (no overdraft — a deliberate
+Task 1 design choice, unlike a polity, which may go negative). Several corp
+debit sites charge the corp for goods/fees settled to a counterparty at
+**full requested value**, discarding `DebitLocal`/`Withdraw`'s actual
+(possibly-capped) return — so the counterparty is credited more than the
+corp actually paid, a real leak. Confirmed buggy sites: `MarketEngine.cs`
+~811-834 (the freight-spread run — tariff `fee`, friction `burn`, and
+`fuelCost` all lifted/charged at `budget: double.MaxValue` and credited in
+full downstream, uncapped by the corp's actual wallet); `CorporationOps.cs`
+~583-587 (facility upkeep, same pattern — goods lifted at
+`budget: double.MaxValue`, sellers paid full, corp debit capped and
+discarded).
+
+Contrast the CORRECT existing sites, which establish the fix pattern to
+apply everywhere: dividends/lobby (`CorporationOps.cs` ~496-505) capture
+`paid` and credit only that; hull-build and `BuyDraw` (`CorporationOps.cs`
+~874, ~974) pass `budget: corp.Credits` into `LiftAsks` up front, so
+`cost ≤ wallet` by construction and the cap never bites.
+
+Fix every buggy site with the SAME discipline, chosen per site to match
+whichever of the two correct patterns fits more naturally: (a) bound the
+lift/charge to the corp's actual available funds via the existing `budget`
+parameter (matching hull-build/`BuyDraw`) wherever a single upfront amount
+can be computed; (b) where charges are necessarily sequential (goods, then
+tariff, then friction, then fuel, each potentially draining the wallet
+further), cap each subsequent charge to what `Withdraw`/`DebitLocal` actually
+returns and credit the counterparty only that capped amount (matching
+dividends/lobby). Do NOT remove the corp overdraft cap itself (option "let
+corps overdraft like polities") — that reopens Task 1's already-reviewed
+design choice without new justification.
+
+Tests: a corp with insufficient wallet funds attempting a freight run pays
+exactly what it has (capped), and every counterparty (goods seller, tariff
+collector, friction recipient, fuel seller) is credited exactly that capped
+amount, never more — conservation holds end-to-end across the whole
+freight-spread sequence, not just the first debit. Same for facility
+upkeep. Re-run `ConservationTests`/`ShapeAcceptanceTests`/the Graduation
+conserve test from Task 6's red window and confirm they now pass (modulo
+the per-currency residual rewrite still pending in Task 9 — if a residual
+mismatch remains after this fix, it should now be a measurement-shape
+question for Task 9, not a real leak).
+
 ## Task 7: Borrow/ServiceLoans cross-currency fixes (Opus)
 
 `Phases.Borrow` (`Phases.cs:730-779`): `existingPrincipal`
