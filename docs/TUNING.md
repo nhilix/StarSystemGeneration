@@ -143,6 +143,8 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.SovereignIssuanceRate` | 0.5 | Deeper shortfalls get minted away (negative treasuries recover faster) — more fiat chasing the same goods. | Tighter bounded mint; `Polity.NegativeTreasuries` breathes less, stays negative longer. |
 | `Economy.MaxDebtToIncomeRatio` | 3.0 | (Raise) borrowers may stack more open-loan principal (up to N× one epoch's receipts) before the credit-score gate locks them out — deeper debt, more default risk. | (Lower) tighter creditworthiness ceiling; already-indebted polities are cut off from new loans sooner, leaning harder on sovereign issuance. Default 3.0 is a first pass — expect sweep-driven adjustment. |
 | `Economy.SteadyIssuanceRate` | 0.02 | Faster always-on monetary growth: the supply expands more each epoch (a fraction of every polity's receipts), more money chasing goods (inflation). | (Toward 0) the steady channel fades; the money supply grows only through the reactive backstop and entry endowments. |
+| `Economy.BodyStockOreScale` | 5000 | Scales how deep every extraction deposit is: a mine/excavation body's rolled stock grows, so it runs many more epochs before that body depletes. | Deposits exhaust fast, forcing relocation pressure once depletion lands. |
+| `Economy.BodyStockVarianceSpread` | 0.4 | Wider rich-vs-poor rock lottery: two bodies at the same regional richness can differ a lot. | Toward 0: every deposit at a given richness is identical. |
 | `Economy.ConditionDecayPerYear` | 0.01 | Neglect ruins facilities fast (upkeep becomes existential). | Facilities coast through shortages. |
 | `Economy.ConditionRecoveryPerYear` | 0.05 | Repairs snap back. | Long scars from every shortage/war. |
 | `Economy.StockpileDecayPerYear` | 0.002 | Reserves cost more to hold (provisions ×10, organics ×5, medicine ×3 in code). | Cheap insurance; sieges (H) get longer. |
@@ -154,6 +156,8 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.WealthTaxRatePerYear` | 0.02 | Faster drain on wealth above the floor: a stronger inflation-control valve, but poorer elites/segments. | Wealth above the floor sits longer; a weaker sink against sovereign issuance. |
 | `Economy.CourierFeePerUnitPerHex` | 0.02 | State hauling costs real freight rates: fees drain treasuries, self-fulfillment pays back more. | Near-free requisitions (against the contract economy's grain). |
 | `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
+| `Economy.CrossStarHopOrbitSteps` | 8.0 | Multi-star systems effectively widen: every cross-star local hop takes longer. | Companion stars feel almost adjacent to the primary. |
+| `Economy.LocalHopYearsPerOrbitStep` | 0.05 | Intra-system travel gets dearer relative to a lane hop — orbit distance starts to matter. | Local hops approach free; only cross-star and lane geometry matter. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*

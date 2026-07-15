@@ -45,6 +45,10 @@ public sealed class FleetRecord
     public int OwnerActorId { get; set; }
     /// <summary>Current hex address — fleets move.</summary>
     public HexCoordinate Hex { get; set; }
+    /// <summary>The body this fleet is docked at within its hex — load-bearing
+    /// for Patrol orbital coverage and off-lane staging (locality slice §2/§5,
+    /// follow-on plan). None for Expedition/Convoy and until assigned.</summary>
+    public BodyRef Body { get; set; } = BodyRef.None;
     public FleetPosture Posture { get; set; } = FleetPosture.Reserve;
     /// <summary>Posture context: lane id for Posted/Escort, port id for
     /// Patrol/Blockade, −1 otherwise (Expedition journeys resolve within

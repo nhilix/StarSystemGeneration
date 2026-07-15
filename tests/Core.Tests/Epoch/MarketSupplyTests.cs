@@ -37,6 +37,10 @@ public class MarketSupplyTests
         // backdated past every catalog construction time — active now
         var f = new Facility(state.Facilities.Count, (int)type, 1, hex, owner,
                              state.WorldYear - 10) { Condition = condition };
+        // extraction now roots in a specific body: decide it and roll the
+        // depletable stock the same way groundbreaking does, so a Mine built
+        // through this fixture actually has a rock to dig (body-resource-stock).
+        f.Body = ProjectOps.PlaceFacilityBody(state, hex, type);
         state.Facilities.Add(f);
         return f;
     }
@@ -215,5 +219,46 @@ public class MarketSupplyTests
 
         Assert.Equal(state.Config.Economy.InitialCreditsPerPolity,
                      state.PolityOf(0).Credits);
+    }
+
+    [Fact]
+    public void Extraction_DrawsFromTheBodyStock_CappedByWhatRemains()
+    {
+        var (state, port) = Fixture();
+        var mine = Built(state, InfraTypeId.Mine, port.Hex, port.OwnerActorId);
+        // shrink the body's stock to a tiny remainder: the mine can post no
+        // more than what the rock has left this step, then it is dry
+        state.BodyResources[(mine.Hex, mine.Body)] =
+            new StarGen.Core.Substrate.Stock(GoodId.Ore, 3.0, 0.6);
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.SupplyLands(state, scratch);
+
+        Assert.Equal(3.0, BookOps.AskQty(state, 0, (int)GoodId.Ore), 6);
+        Assert.Equal(0.0,
+            state.BodyResources[(mine.Hex, mine.Body)].Quantity, 9);
+    }
+
+    [Fact]
+    public void Skimmer_ProducesFromItsGiant_WithoutRollingAStock()
+    {
+        var (state, port) = Fixture();
+        // pre-seed the port hex's system with a gas giant so the Skimmer has a
+        // real body to draw a renewable yield from
+        var sys = new StarSystem("T");
+        var s0 = new Star();
+        s0.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Outer,
+            Body = new Body { Kind = BodyKind.GasGiant, Size = 13 } });
+        sys.Stars.Add(s0);
+        state.SettledSystems[port.Hex] = sys;
+        var skimmer = Built(state, InfraTypeId.Skimmer, port.Hex,
+                            port.OwnerActorId);
+        var scratch = new MarketStepScratch(state);
+
+        MarketEngine.SupplyLands(state, scratch);
+
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Volatiles) > 0);
+        // renewable: no stock entry was ever created for a Skimmer
+        Assert.False(state.BodyResources.ContainsKey((skimmer.Hex, skimmer.Body)));
     }
 }

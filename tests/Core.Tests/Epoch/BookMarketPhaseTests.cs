@@ -27,9 +27,21 @@ public class BookMarketPhaseTests
         state.Segments.Add(seg);
         if (withFarm)
         {
+            // extraction now roots in a claimed body (body-resource-stock): seed
+            // the seat's system with a lush, watered world so the AgriComplex has
+            // a real biosphere to draw its renewable yield from.
+            var sys = new StarSystem("T");
+            var s0 = new Star();
+            s0.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Habitable,
+                Body = new Body { Kind = BodyKind.RockyWorld, Size = 6,
+                    Biosphere = Biosphere.Sapient, Hydrographics = 70 } });
+            sys.Stars.Add(s0);
+            state.SettledSystems[a0.Seat] = sys;
             var farm = new Facility(0, (int)InfraTypeId.AgriComplex, 2,
                 a0.Seat, a0.Id, builtYear: 0)
-            { Condition = 1.0 };
+            { Condition = 1.0,
+              Body = ProjectOps.PlaceFacilityBody(state, a0.Seat,
+                                                  InfraTypeId.AgriComplex) };
             state.Facilities.Add(farm);
         }
         state.WorldYear = 100;

@@ -39,6 +39,11 @@ public sealed class Project
     public int PortId { get; set; }
     /// <summary>Site or travel-target hex — the P1 residue address.</summary>
     public HexCoordinate Hex { get; }
+    /// <summary>The construction site's specific body — decided at
+    /// groundbreaking alongside the Facility's (locality slice §4); the
+    /// completed facility inherits it. None for travel/hull kinds and
+    /// bodiless systems.</summary>
+    public BodyRef Body { get; set; } = BodyRef.None;
     public ProjectPriority Priority { get; set; }
     /// <summary>Position in the standing plan — the tie-break inside a
     /// priority class. Mechanical spawns use 0.</summary>

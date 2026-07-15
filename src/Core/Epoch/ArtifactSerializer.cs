@@ -26,12 +26,13 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
-        ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 4),
+        ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 3),
+        ("fleets", 3), ("segments", 3), ("events", 1), ("markets", 4),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
-        ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
-        ("shipments", 1), ("orders", 1), ("couriers", 1),
+        ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
+        ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
+        ("bodyresources", 1),
     };
 
     public static string ToText(SimState state)
@@ -179,10 +180,12 @@ public static class ArtifactSerializer
         Layer(w, "facilities");
         foreach (var f in state.Facilities)
             // facilities v2 (slice t1): the commissioning clock rides along
+            // facilities v3 (locality): the two trailing body-ref fields ride along
             w.WriteLine(Join("FACILITY", f.Id.ToString(Inv), f.TypeId.ToString(Inv),
                 f.Tier.ToString(Inv), f.Hex.Q.ToString(Inv), f.Hex.R.ToString(Inv),
                 f.OwnerActorId.ToString(Inv), R(f.Condition), f.BuiltYear.ToString(Inv),
-                f.CommissionedYear.ToString(Inv)));
+                f.CommissionedYear.ToString(Inv),
+                f.Body.StarIndex.ToString(Inv), f.Body.SlotIndex.ToString(Inv)));
 
         Layer(w, "fleets");
         // the fleet-side polity record: military treasury + the hull
@@ -200,11 +203,13 @@ public static class ArtifactSerializer
                 R(d.ComponentGrade), d.TechTier.ToString(Inv),
                 d.DesignedYear.ToString(Inv)));
         foreach (var f in state.Fleets)
+            // fleets v3 (locality): the two trailing body-ref fields ride along
             w.WriteLine(Join("FLEET", f.Id.ToString(Inv), f.OwnerActorId.ToString(Inv),
                 f.Hex.Q.ToString(Inv), f.Hex.R.ToString(Inv),
                 ((int)f.Posture).ToString(Inv), f.TargetId.ToString(Inv),
                 f.HomePortId.ToString(Inv), R(f.Readiness),
-                f.CommanderId.ToString(Inv), HullMap(f)));
+                f.CommanderId.ToString(Inv), HullMap(f),
+                f.Body.StarIndex.ToString(Inv), f.Body.SlotIndex.ToString(Inv)));
         foreach (var wr in state.Wreckage)
             w.WriteLine(Join("WRECK", wr.Id.ToString(Inv), wr.Hex.Q.ToString(Inv),
                 wr.Hex.R.ToString(Inv), wr.DesignId.ToString(Inv),
@@ -212,11 +217,13 @@ public static class ArtifactSerializer
 
         Layer(w, "segments");
         foreach (var s in state.Segments)
+            // segments v3 (locality): the two trailing body-ref fields ride along
             w.WriteLine(Join("SEGMENT", s.Id.ToString(Inv), s.PortId.ToString(Inv),
                 s.SpeciesId.ToString(Inv), s.CultureId.ToString(Inv), R(s.Size),
                 R(s.SoL), R(s.Wealth), R(s.LastSubsistence),
                 R(s.Ideology[0]), R(s.Ideology[1]), R(s.Ideology[2]),
-                R(s.Ideology[3])));
+                R(s.Ideology[3]),
+                s.Body.StarIndex.ToString(Inv), s.Body.SlotIndex.ToString(Inv)));
 
         Layer(w, "events");
         foreach (var e in state.Log.Events)
@@ -468,7 +475,9 @@ public static class ArtifactSerializer
                 p.TargetId.ToString(Inv), p.Count.ToString(Inv),
                 R(p.AccumGrade), R(p.AccumGradeWeight),
                 string.Join(";", basket), string.Join(";", yard),
-                R(p.StarvedYears)));
+                R(p.StarvedYears),
+                // projects v3 (locality): the two trailing body-ref fields ride along
+                p.Body.StarIndex.ToString(Inv), p.Body.SlotIndex.ToString(Inv)));
         }
 
         Layer(w, "shipments");
@@ -526,6 +535,42 @@ public static class ArtifactSerializer
                 c.ExpiryYear.ToString(Inv), ((int)c.Status).ToString(Inv),
                 c.FulfillerActorId.ToString(Inv),
                 c.ShipmentId.ToString(Inv), string.Join(";", cargo)));
+        }
+
+        Layer(w, "settled");
+        // settled-hex SET only — the hex tier is never persisted (CLAUDE.md);
+        // bodies re-derive from the generator on load. Sorted (q,r) for P6.
+        var settledHexes = new List<HexCoordinate>(state.SettledSystems.Keys);
+        settledHexes.Sort((x, y) =>
+        {
+            int c = x.Q.CompareTo(y.Q);
+            return c != 0 ? c : x.R.CompareTo(y.R);
+        });
+        foreach (var h in settledHexes)
+            w.WriteLine(Join("SETTLED", h.Q.ToString(Inv), h.R.ToString(Inv)));
+
+        Layer(w, "bodyresources");
+        // depletable per-body resource stocks — REAL mutable state (a Mine/
+        // Excavation digs its rock down over time), so genuinely serialized,
+        // NOT re-derived like the hex tier. Sorted (q, r, star, slot) for P6.
+        var bodyResKeys =
+            new List<(HexCoordinate Hex, BodyRef Body)>(state.BodyResources.Keys);
+        bodyResKeys.Sort((x, y) =>
+        {
+            int c = x.Hex.Q.CompareTo(y.Hex.Q);
+            if (c != 0) return c;
+            c = x.Hex.R.CompareTo(y.Hex.R);
+            if (c != 0) return c;
+            c = x.Body.StarIndex.CompareTo(y.Body.StarIndex);
+            return c != 0 ? c : x.Body.SlotIndex.CompareTo(y.Body.SlotIndex);
+        });
+        foreach (var k in bodyResKeys)
+        {
+            var stock = state.BodyResources[k];
+            w.WriteLine(Join("BODYRESOURCE", k.Hex.Q.ToString(Inv),
+                k.Hex.R.ToString(Inv), k.Body.StarIndex.ToString(Inv),
+                k.Body.SlotIndex.ToString(Inv), ((int)stock.Good).ToString(Inv),
+                R(stock.Quantity), R(stock.Grade)));
         }
         w.WriteLine("END");
     }
@@ -1075,7 +1120,7 @@ public static class ArtifactSerializer
                     case "FACILITY":
                         if (int.Parse(f[1], Inv) != state!.Facilities.Count)
                             throw new InvalidDataException("facility ids out of order");
-                        state.Facilities.Add(new Facility(int.Parse(f[1], Inv),
+                        var facility = new Facility(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             new HexCoordinate(int.Parse(f[4], Inv), int.Parse(f[5], Inv)),
                             int.Parse(f[6], Inv), int.Parse(f[8], Inv))
@@ -1083,7 +1128,13 @@ public static class ArtifactSerializer
                             Condition = double.Parse(f[7], Inv),
                             // facilities v2 (slice t1): the commissioning clock rides along
                             CommissionedYear = long.Parse(f[9], Inv),
-                        });
+                        };
+                        // facilities v3 (locality): trailing body-ref, length-guarded
+                        // for old (v2, 10-field) records — defaults to None
+                        if (f.Length > 11)
+                            facility.Body = new BodyRef(int.Parse(f[10], Inv),
+                                                        int.Parse(f[11], Inv));
+                        state.Facilities.Add(facility);
                         break;
                     case "NAVY":
                     {
@@ -1136,6 +1187,11 @@ public static class ArtifactSerializer
                                 fleet.Hulls.Add(new HullGroup(designId,
                                     int.Parse(h[1], Inv), double.Parse(h[2], Inv)));
                             }
+                        // fleets v3 (locality): trailing body-ref (after the
+                        // hull map at f[10]), length-guarded for old records
+                        if (f.Length > 12)
+                            fleet.Body = new BodyRef(int.Parse(f[11], Inv),
+                                                     int.Parse(f[12], Inv));
                         state.Fleets.Add(fleet);
                         break;
                     }
@@ -1160,6 +1216,11 @@ public static class ArtifactSerializer
                         };
                         for (int ax = 0; ax < 4; ax++)
                             segment.Ideology[ax] = double.Parse(f[9 + ax], Inv);
+                        // segments v3 (locality): trailing body-ref (after the
+                        // four ideology axes f[9]..f[12]), length-guarded
+                        if (f.Length > 14)
+                            segment.Body = new BodyRef(int.Parse(f[13], Inv),
+                                                       int.Parse(f[14], Inv));
                         state!.Segments.Add(segment);
                         break;
                     case "CULTURE":
@@ -1495,6 +1556,11 @@ public static class ArtifactSerializer
                             }
                         if (f.Length > 24)
                             project.StarvedYears = double.Parse(f[24], Inv);
+                        // projects v3 (locality): trailing body-ref (StarvedYears
+                        // is f[24]), length-guarded for old records
+                        if (f.Length > 26)
+                            project.Body = new BodyRef(int.Parse(f[25], Inv),
+                                                       int.Parse(f[26], Inv));
                         state.Projects.Add(project);
                         break;
                     }
@@ -1584,6 +1650,25 @@ public static class ArtifactSerializer
                         state.Pulses.Add(pulse);
                         break;
                     }
+                    case "SETTLED":
+                        // re-derive the hex's system from the pure generator —
+                        // the bodies were never persisted (CLAUDE.md), only the
+                        // settled-hex SET; Commit regenerates and memoizes.
+                        SystemRegistry.Commit(state!,
+                            new HexCoordinate(int.Parse(f[1], Inv),
+                                              int.Parse(f[2], Inv)));
+                        break;
+                    case "BODYRESOURCE":
+                        // REAL mutable stock, restored verbatim (not re-rolled).
+                        state!.BodyResources[(
+                            new HexCoordinate(int.Parse(f[1], Inv),
+                                              int.Parse(f[2], Inv)),
+                            new BodyRef(int.Parse(f[3], Inv),
+                                        int.Parse(f[4], Inv)))] =
+                            new StarGen.Core.Substrate.Stock(
+                                (StarGen.Core.Substrate.GoodId)int.Parse(f[5], Inv),
+                                double.Parse(f[6], Inv), double.Parse(f[7], Inv));
+                        break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');

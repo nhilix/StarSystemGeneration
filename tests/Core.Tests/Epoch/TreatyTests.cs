@@ -28,7 +28,16 @@ public class TreatyTests
     [Fact]
     public void WarmPairs_ClimbTheLadder_OneRungAtATime()
     {
-        var state = Run();
+        // Locality's body-resource-stock task shifts seed 42's economy (real
+        // bodies/ore instead of riding None), which perturbs this pair's
+        // independent tension sources. BR-4 re-tuned this to epoch 12 for a
+        // clean single monotonic 1→2→3 climb. BR-5 (wiring BodyResourceOps.
+        // Extract — extraction now DEPLETES the claimed body) shifts the
+        // economy once more, delaying this seed's first polity relation from
+        // epoch ≤12 to epoch 13 (at epoch 12 Relations.Count is now 0). Re-
+        // tuned to epoch 13 — the first epoch with a clean, peacetime relation
+        // to force calm on; the ladder mechanic itself is unchanged.
+        var state = Run(13);
         Assert.True(state.Relations.Count > 0);
         // force a very warm, calm pair and let diplomacy work
         var rel = EpochTestKit.FirstLiveRelation(state);

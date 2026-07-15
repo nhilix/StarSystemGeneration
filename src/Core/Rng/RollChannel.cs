@@ -113,4 +113,7 @@ public enum RollChannel : ulong
 
     // --- Contract economy / front supply lines (slice CE). ---
     ShipmentInterdiction = 76, // wartime seizure on a contested leg: step = epoch, actor = shipment owner, subIndex = shipment id
+
+    // --- Body resource stocks (locality — body-resource-stock design). ---
+    BodyResourceStock = 77,    // per-body depletable stock roll: RollContext keyed by hex, index = starIndex*100 + slotIndex, subIndex unused
 }

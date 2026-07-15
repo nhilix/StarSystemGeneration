@@ -114,9 +114,17 @@ Journeys compose from three leg types:
 
 | Leg | Scale | Cost basis |
 |---|---|---|
-| **Intra-domain** | facility hex ↔ its port | hex distance, local |
+| **Hex hop** | facility hex ↔ its port | hex distance, local |
+| **Local hop** | body ↔ body within an arrival hex | `OrbitDistance × Economy.LocalHopYearsPerOrbitStep` |
 | **Lane hop** | port ↔ port | fast; lane quality |
 | **Off-lane crossing** | anywhere ↔ anywhere | slow; hex distance × ship endurance |
+
+The former "intra-domain" leg is really two composable pieces: the **hex hop**
+between hexes in a domain, and the **local hop** between bodies within the
+arrival hex — same star or across a multi-star system's stars, priced by the
+discrete `OrbitDistance` metric (locality slice §2), kept cheap relative to a
+lane hop. Any leg that resolves to a specific body (not just a hex) composes
+hex-hop + local-hop.
 
 At the generational clock these are throughput and delay rates; at the play clock
 they are literal journeys (P7). News rides the same traffic: fast along busy lanes,
