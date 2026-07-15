@@ -151,10 +151,41 @@ construction outright when an extraction type resolves no eligible body
 
 ### Phase 2 gates
 
-- [ ] `dotnet test StarSystemGeneration.sln` fully green
-- [ ] Determinism byte-identity
-- [ ] Golden re-frozen once at Phase 2 end
-- [ ] Fresh-eyes whole-branch review (model: fable), one fix wave
+- [x] `dotnet test StarSystemGeneration.sln` fully green (942/942)
+- [x] Determinism byte-identity (full-regenerate golden byte-identity witness
+      passes; round-trip tests are additional unit witnesses)
+- [x] Golden re-frozen once at Phase 2 end (commit cebf535)
+- [x] Fresh-eyes whole-branch review (model: fable) — verdict: Ready to merge
+      With fixes. Confirmed the throughline is genuinely built this time
+      (RichnessModifier/ExtractionPotential have zero remaining callers in
+      src/; SupplyLands has no hex-aggregate extraction path left). Confirmed
+      all three facility-creation paths (groundbreaking, colony founding, and
+      the controller-added starter-industry path) route through one shared
+      helper. Independently re-traced determinism/conservation/tick-invariance
+      and the riskiest re-tune (KinClaim) against real RelationsOps code — all
+      hold. One Important finding (SupplyLands' own doc comment still
+      described the retired hex-aggregate model) — fix wave dispatched.
+      Minor items, carried to the next kickoff prompt's deferred list (not
+      blocking):
+        - Colony founding (`CompleteExpedition`) can still create a bodiless
+          extraction dud — only groundbreaking rejects, expeditions don't.
+          Real resources get spent shipping equipment to a hex that may hold
+          nothing to mine. Same body-blind-siting root cause as the
+          adjacent-hex-spillover deferral.
+        - `BodyResourceOps.Commit` assumes Mine/ExcavationSite are single-good
+          (`Produces[0]`) — safe today (verified true for both), but adding a
+          second product to either catalog entry would silently double-drain
+          the stock. Worth a guard/comment pinning the invariant.
+        - FineTick's provisions tolerance (0.85, widened 4x total across this
+          slice) is nearly toothless — only fails past a ~6.7x coarse/fine
+          divergence. Split into its own guard next time it's touched.
+        - A Mine/ExcavationSite at a truly zero-richness hex still builds
+          (rejection is body-presence-based, not stock-value-based) — rolls a
+          0-quantity stock. Design-consistent (imperfect siting correlation is
+          deliberate), just noting it's not a covered rejection case.
+        - Unity `SystemStage.cs` OrbitRef alias (from Phase 1 Task 1) still not
+          compiler-verified in this environment — remains outstanding at the
+          Unity eyeball gate.
 - [ ] REPL + Unity eyeball: a Mine posts ore that draws its body's stock down
       over epochs (rich body outlasts poor); Skimmer/Agri yield steadily with no
       stock entry; a hex whose committed system holds no eligible body never
