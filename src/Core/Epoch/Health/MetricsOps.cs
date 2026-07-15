@@ -21,9 +21,26 @@ public sealed record MoneyRow(
         + CourierEscrow + ExpeditionPurses;
 }
 
+/// <summary>One currency's ending state and conservation residual at an epoch
+/// (currency-and-FX design, slice CU-1 task 9): its walked <see cref="Currency.
+/// Supply"/> and the four cumulative counters the residual nets — sovereign and
+/// steady mints, plus the paired converted-in/out transfer tallies. The
+/// residual is that currency's own supply delta minus its mints and net of its
+/// conversions; nonzero means a per-currency leak. Defined 0 on a currency's
+/// first observed epoch (no prior baseline — the same convention the whole-sim
+/// first row uses), which also absorbs the one-time founding endowment/seed.</summary>
+public sealed record CurrencyResidualRow(
+    int CurrencyId, double Supply,
+    double CumulativeFiatIssued, double CumulativeSteadyIssuance,
+    double CumulativeConvertedIn, double CumulativeConvertedOut,
+    double Residual);
+
 /// <summary>One epoch's macro snapshot — a pure function of the state at
 /// capture (levels and counts only; per-epoch deltas are the reader's
-/// derivative, so the row never needs cross-step memory).</summary>
+/// derivative, so the row never needs cross-step memory).
+/// <see cref="ConservationResidual"/> is the worst (max-absolute) per-currency
+/// residual across <see cref="Currencies"/> — the galaxy roll-up of the real
+/// invariant, which is now per-currency, not the single lump supply number.</summary>
 public sealed record MetricRow(
     int Epoch, int WorldYear, MoneyRow Money,
     int LivePolities, int NegativeTreasuries,
@@ -31,7 +48,8 @@ public sealed record MetricRow(
     double MaxPolityCredits,
     double Population, double MeanSoL,
     int EndowedEntries, double ConservationResidual,
-    double CumulativeFiatIssued, double CumulativeSteadyIssuance);
+    double CumulativeFiatIssued, double CumulativeSteadyIssuance,
+    IReadOnlyList<CurrencyResidualRow> Currencies);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -116,37 +134,56 @@ public static class MetricsOps
             sol += s.SoL * s.Size;
         }
 
-        // conservation (spec §2, widened by monetary-equilibrium design §5 and
-        // Part B): there are now THREE declared mints — the one-time entry
-        // endowment, reactive/backstop sovereign issuance (CumulativeFiatIssued),
-        // and the always-on steady issuance channel (CumulativeSteadyIssuance) —
-        // so the supply delta minus the epoch's endowments AND both issuance
-        // deltas must be zero. All are diffed as levels against the previous row;
-        // every other new flow (pool decay, wealth levy) is a symmetric transfer
-        // between existing holders, not a mint. A fresh series (a loaded artifact)
-        // has no baseline: its first residual is defined 0.
         int endowed = 0;
         foreach (var e in state.Log.Events)
             if (e.Type == WorldEventType.PolityEmerged) endowed++;
         var money = Money(state, "epoch");
-        double residual = 0;
-        if (state.Health.Rows.Count > 0)
+
+        // Per-currency conservation (currency-and-FX design, "Conservation &
+        // determinism"): each Currency.Supply grows only through its own
+        // declared mints — sovereign (CumulativeFiatIssued) and steady
+        // (CumulativeSteadyIssuance) issuance into that currency — and every
+        // cross-currency conversion is a TRANSFER, not a mint: it lowers the
+        // source's supply (CumulativeConvertedOut) and raises the destination's
+        // (CumulativeConvertedIn), so the residual nets those pairs out. All
+        // counters diff as levels against the same currency's row last epoch.
+        // A currency with no prior baseline (its first observed epoch) is
+        // defined 0 — the same convention the whole-sim first row uses, which
+        // also absorbs the one-time founding endowment (emergence) or seed
+        // transfer (graduation/federation) that lands in that first epoch.
+        // Requires SupplyOps.Recompute to have written Currency.Supply first
+        // (the epoch engine runs it immediately before this snapshot).
+        var prev = state.Health.Rows.Count > 0
+            ? state.Health.Rows[state.Health.Rows.Count - 1] : null;
+        var currencyRows = new List<CurrencyResidualRow>(state.Currencies.Count);
+        double worstResidual = 0.0;
+        foreach (var cur in state.Currencies)                 // id order (P6)
         {
-            var prev = state.Health.Rows[state.Health.Rows.Count - 1];
-            double endowment = state.Config.Economy.InitialCreditsPerPolity
-                + state.Config.Expansion.HomeworldSegmentSize
-                  * state.Config.Economy.InitialWealthPerPop;
-            residual = money.Supply - prev.Money.Supply
-                - (endowed - prev.EndowedEntries) * endowment
-                - (state.CumulativeFiatIssued - prev.CumulativeFiatIssued)
-                - (state.CumulativeSteadyIssuance - prev.CumulativeSteadyIssuance);
+            CurrencyResidualRow? baseline = null;
+            if (prev != null)
+                foreach (var row in prev.Currencies)
+                    if (row.CurrencyId == cur.Id) { baseline = row; break; }
+
+            double residual = 0.0;
+            if (baseline != null)
+                residual = cur.Supply - baseline.Supply
+                    - (cur.CumulativeFiatIssued - baseline.CumulativeFiatIssued)
+                    - (cur.CumulativeSteadyIssuance - baseline.CumulativeSteadyIssuance)
+                    - (cur.CumulativeConvertedIn - baseline.CumulativeConvertedIn)
+                    + (cur.CumulativeConvertedOut - baseline.CumulativeConvertedOut);
+
+            currencyRows.Add(new CurrencyResidualRow(cur.Id, cur.Supply,
+                cur.CumulativeFiatIssued, cur.CumulativeSteadyIssuance,
+                cur.CumulativeConvertedIn, cur.CumulativeConvertedOut, residual));
+            double abs = residual < 0 ? -residual : residual;
+            if (abs > worstResidual) worstResidual = abs;
         }
 
         return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
             pop, pop <= 0 ? 0.0 : sol / pop,
-            endowed, residual, state.CumulativeFiatIssued,
-            state.CumulativeSteadyIssuance);
+            endowed, worstResidual, state.CumulativeFiatIssued,
+            state.CumulativeSteadyIssuance, currencyRows);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

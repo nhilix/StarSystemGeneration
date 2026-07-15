@@ -421,6 +421,12 @@ public sealed class AllocationPhase : ISimPhase
             {
                 pr.Credits += steadyIssuance;
                 state.CumulativeSteadyIssuance += steadyIssuance;
+                // per-currency mirror (slice CU-1 task 9): the mint lands in
+                // THIS polity's own currency; the per-currency conservation
+                // residual nets it out just as the galaxy-wide field does
+                if (pr.CurrencyId >= 0)
+                    state.CurrencyOf(pr.CurrencyId).CumulativeSteadyIssuance
+                        += steadyIssuance;
             }
             double allocatable = Math.Max(0.0,
                 pr.Receipts + pr.BorrowedThisEpoch + steadyIssuance);
@@ -651,6 +657,11 @@ public sealed class AllocationPhase : ISimPhase
         if (issued <= 0) return;
         pr.Credits += issued;
         state.CumulativeFiatIssued += issued;
+        // per-currency mirror (slice CU-1 task 9): sovereign issuance mints
+        // into this polity's own currency, so the per-currency residual can
+        // net the same mint the galaxy-wide field already tracks
+        if (pr.CurrencyId >= 0)
+            state.CurrencyOf(pr.CurrencyId).CumulativeFiatIssued += issued;
     }
 
     /// <summary>Interest and amortization flow lender-ward; a borrower who

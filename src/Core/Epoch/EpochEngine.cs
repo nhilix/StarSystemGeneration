@@ -43,6 +43,12 @@ public sealed class EpochEngine
             // the per-phase money rows attribute treasury motion
             state.Health.MoneyRows.Add(MetricsOps.Money(state, phase.Name));
         }
+        // the epoch's money has all moved: write each currency's ending supply
+        // back onto the live record so NEXT epoch's FxOps.RecomputeRates reads a
+        // fresh, diverging value (currency-and-FX design, slice CU-1 task 9) —
+        // and so this epoch's Snapshot can measure the per-currency residual
+        // against it
+        SupplyOps.Recompute(state);
         state.Health.Rows.Add(MetricsOps.Snapshot(state));
         state.Health.PolityRows.AddRange(MetricsOps.PolityRows(state));
         state.EpochIndex++;
