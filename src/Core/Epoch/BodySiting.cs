@@ -8,8 +8,11 @@ namespace StarGen.Core.Epoch;
 /// per-render guess (locality slice §4). Type affinity — mine → belt else
 /// rock, skimmer → gas giant, agri → richest biosphere, excavation →
 /// wreckage else rock — evaluated against the frozen body list, skipping
-/// bodies already claimed so two same-type facilities don't collapse onto
-/// one body. Deterministic first-match in star/slot order.</summary>
+/// bodies already claimed. The terminal fallback to the port body is
+/// claim-checked too, so two same-type facilities can never collapse onto
+/// one body — once every candidate (including the port) is already taken,
+/// assignment yields <see cref="BodyRef.None"/> rather than a collision.
+/// Deterministic first-match in star/slot order.</summary>
 public static class BodySiting
 {
     public static BodyRef Assign(StarSystem? system, InfraTypeId type,
@@ -17,21 +20,18 @@ public static class BodySiting
     {
         if (system == null) return BodyRef.None;
         var taken = new HashSet<BodyRef>(claimed);
-        switch (type)
+        BodyRef? preferred = type switch
         {
-            case InfraTypeId.Mine:
-                return FirstFree(system, BodyKind.PlanetoidBelt, taken)
-                    ?? FirstFree(system, BodyKind.RockyWorld, taken) ?? portBody;
-            case InfraTypeId.Skimmer:
-                return FirstFree(system, BodyKind.GasGiant, taken) ?? portBody;
-            case InfraTypeId.AgriComplex:
-                return RichestBiosphere(system, taken) ?? portBody;
-            case InfraTypeId.ExcavationSite:
-                return FirstFree(system, BodyKind.Wreckage, taken)
-                    ?? FirstFree(system, BodyKind.RockyWorld, taken) ?? portBody;
-            default:
-                return portBody;
-        }
+            InfraTypeId.Mine => FirstFree(system, BodyKind.PlanetoidBelt, taken)
+                ?? FirstFree(system, BodyKind.RockyWorld, taken),
+            InfraTypeId.Skimmer => FirstFree(system, BodyKind.GasGiant, taken),
+            InfraTypeId.AgriComplex => RichestBiosphere(system, taken),
+            InfraTypeId.ExcavationSite => FirstFree(system, BodyKind.Wreckage, taken)
+                ?? FirstFree(system, BodyKind.RockyWorld, taken),
+            _ => null
+        };
+        if (preferred.HasValue) return preferred.Value;
+        return taken.Contains(portBody) ? BodyRef.None : portBody;
     }
 
     private static BodyRef? FirstFree(StarSystem system, BodyKind kind,

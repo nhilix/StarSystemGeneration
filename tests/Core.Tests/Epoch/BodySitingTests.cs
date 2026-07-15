@@ -36,6 +36,30 @@ public class BodySitingTests
         Assert.NotEqual(first, second);
     }
 
+    private static StarSystem WithNoExtractionSubstrate()
+    {
+        var sys = new StarSystem("TEST");
+        var s0 = new Star();
+        s0.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Habitable,
+            Body = new Body { Kind = BodyKind.GasGiant, Size = 5 } });
+        sys.Stars.Add(s0);
+        return sys;
+    }
+
+    [Fact]
+    public void SecondMine_FallsToNone_WhenSubstrateAbsentAndPortAlreadyClaimed()
+    {
+        var sys = WithNoExtractionSubstrate();
+        var port = BodySiting.PortBody(sys);
+        var first = BodySiting.Assign(sys, InfraTypeId.Mine, port,
+            new List<BodyRef>());
+        Assert.Equal(port, first);                   // no belt/rock: falls to port
+        var second = BodySiting.Assign(sys, InfraTypeId.Mine, port,
+            new List<BodyRef> { first });
+        Assert.True(second.IsNone);                   // port already taken: no collision
+        Assert.NotEqual(first, second);
+    }
+
     [Fact]
     public void NonExtraction_RidesThePortBody()
     {
