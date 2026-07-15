@@ -135,9 +135,15 @@ construction outright when an extraction type resolves no eligible body
       independently re-verified every high-stakes claim. Approved.
       NOTE: BR-Task 6 (below) is now mostly DONE as a side effect — becomes a
       light verification/extension pass, not a from-scratch build.
-- [ ] BR-Task 6: Serialize `BodyResources` (bodyresources v1) — mostly landed in
-      BR-Task 5 as a necessary fix; this task verifies/extends round-trip
-      coverage rather than building fresh (Sonnet — re-scoped down from Opus)
+- [x] BR-Task 6: Serialize `BodyResources` (bodyresources v1) (Sonnet,
+      re-scoped to verification). Commits cac30a1..9918b70. Verified layer
+      name/version/lockstep/sort/strict-completeness all correct against real
+      code — no implementation fix needed, just added the missing dedicated
+      round-trip tests. Fix wave: sort-order test never exercised R as a
+      discriminating key (dropped-R regression would've passed silently) —
+      fixed with an R-differentiated pair, re-review traced the fix with a
+      mutation-testing argument confirming it genuinely kills that regression
+      class. Approved.
 - [ ] BR-Task 7: `Extraction.BodyStockRemaining` metric (Sonnet)
 
 ### Phase 2 gates
