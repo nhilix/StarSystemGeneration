@@ -24,7 +24,16 @@ Baseline: 900/900 tests green before any change.
       determinism invariant). Commit 63bcb80. Both invariants (memoize-once
       key-presence semantics; coordinate-only serialization, bodies re-derive)
       independently traced and confirmed by Opus reviewer.
-- [ ] Task 6: Body-assignment at groundbreaking, claim-aware (Sonnet, touches ProjectOps — watch allocation interplay)
+- [x] Task 6: Body-assignment at groundbreaking, claim-aware (Sonnet). Commits
+      1ab342e..6e9f71c. Fix wave: terminal `?? portBody` fallback wasn't claim-checked
+      in any branch (mine/skimmer/agri/excavation/default) — two same-type facilities
+      could still collide once preferred substrate was exhausted/absent. Restructured
+      to a single claim-checked tail, falls to BodyRef.None if portBody itself is
+      claimed. Re-reviewed, approved — fix structurally closes all branches.
+      USER-RAISED FOLLOW-ON (deferred, not this slice): adjacent-hex spillover when
+      a hex's bodies are all claimed/full — changes Facility.Hex semantics, touches
+      Siting.cs, needs its own brainstorm/design pass. Flag prominently in the next
+      kickoff prompt and HANDOFF.md.
 - [ ] Task 7: Atlas reads decided placement (Sonnet)
 - [ ] Task 8: Extraction reads claimed body's richness — throughline (Sonnet, verify ConservationTests stays green)
 - [ ] Task 9: `Settlement.SettledHexes` sim-health metric (Sonnet)
