@@ -20,18 +20,19 @@ public class LaneBuilderTests
     /// <summary>The seed-42 default run must not produce all-pairs webs:
     /// mean lane degree over any polity's ports stays well under
     /// (ports−1) — the topology assertion from the spec (§7). Flat ceiling
-    /// recalibrated 3.0 → 4.0 (slice CU-1 task 13): degreeSum here counts
-    /// cross-border lane endpoints too, so with FX genuinely live, a small
-    /// polity can legitimately sit at an internal hub (its own ports) PLUS
-    /// several independent direct lanes to busy foreign trade partners —
+    /// recalibrated 3.0 → 3.9 (slice CU-1 task 13, then narrowed in the
+    /// task-13 review fix wave): degreeSum here counts cross-border lane
+    /// endpoints too, so with FX genuinely live, a small polity can
+    /// legitimately sit at an internal hub (its own ports) PLUS several
+    /// independent direct lanes to busy foreign trade partners —
     /// investigated concretely for polity 48 (4 ports, meanDegree 3.50: a
     /// port-2 hub to its other 3 ports, plus all 4 ports reaching one
     /// foreign port and 2 of them reaching two more foreign polities each)
-    /// and confirmed healthy, real arbitrage-driven trade, not a bug. 4.0
-    /// still exceeds a fully-meshed K4 (meanDegree 3.0 on its own) by a full
-    /// point of average degree, so an actual pathological web — full internal
-    /// mesh stacked with heavy external over-connection, or duplicate lanes —
-    /// still trips this guard.</summary>
+    /// and confirmed healthy, real arbitrage-driven trade, not a bug. 3.9
+    /// sits comfortably above polity 48's confirmed-healthy 3.50 but still
+    /// strictly below a literal 5-port complete mesh (K5, meanDegree exactly
+    /// (5−1) = 4.0) — the flat ceiling alone still traps that pathological
+    /// case, which a 4.0 ceiling would have let slip through undetected.</summary>
     [Fact]
     public void DefaultHistory_BuildsTreesAndHubs_NotAllPairsWebs()
     {
@@ -49,10 +50,26 @@ public class LaneBuilderTests
                         degreeSum++;
             double meanDegree = (double)degreeSum / ports.Count;
             // all-pairs would be ports−1; a healthy network sits near 2
-            Assert.True(meanDegree <= 0.6 * (ports.Count - 1) || meanDegree <= 4.0,
+            Assert.True(meanDegree <= 0.6 * (ports.Count - 1) || meanDegree <= 3.9,
                 $"polity {pr.ActorId}: mean lane degree {meanDegree:0.00} "
                 + $"across {ports.Count} ports smells like a web");
         }
+    }
+
+    /// <summary>Boundary check for the flat-ceiling term added by the task-13
+    /// recalibration fix wave: a literal 5-port complete mesh (K5) has
+    /// meanDegree exactly (5−1) = 4.0. The ratio term at ports=5 is
+    /// 0.6*(5-1) = 2.4, which K5 also fails (4.0 > 2.4), so the flat ceiling
+    /// is the only thing that must hold the line here — verify it actually
+    /// does at 3.9 (it would NOT have at the old 4.0 ceiling).</summary>
+    [Fact]
+    public void FlatCeiling_RejectsFivePortCompleteMesh()
+    {
+        const int ports = 5;
+        const double meanDegree = ports - 1; // K5: every port touches every other => 4.0
+        const double ratioTerm = 0.6 * (ports - 1); // 2.4
+        Assert.False(meanDegree <= ratioTerm || meanDegree <= 3.9,
+            "K5 complete mesh (meanDegree 4.0) must still trip the web guard");
     }
 
     /// <summary>The colonization chain ends in a connecting gate (founding
