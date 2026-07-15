@@ -131,12 +131,18 @@ public static class MarketEngine
     // ------------------------------------------------------------------
 
     /// <summary>Every active facility produces per C's formula and sells into
-    /// its attached market. Extraction reads the genesis fields at its hex
-    /// (output AND grade root in geography); processing consumes market
-    /// inventory through recipes, paying input costs from the owner's credits
-    /// into the market pool. Wages precede sales: the labor share of each
-    /// deposit's value goes to the staffing segments immediately, giving
-    /// households purchasing power this same step.</summary>
+    /// its attached market. Extraction roots in the specific claimed body, not
+    /// a hex aggregate: a Mine/ExcavationSite draws down a finite, depletable
+    /// per-body resource stock (rolled once from regional richness at
+    /// groundbreaking, then dug out until the rock runs dry); a
+    /// Skimmer/AgriComplex draws a renewable yield from the claimed body's own
+    /// attributes (a gas giant's mass, a world's biosphere and water), with no
+    /// depletion. Output and grade still root in geography — now body-native.
+    /// Processing consumes market inventory through recipes, paying input
+    /// costs from the owner's credits into the market pool. Wages precede
+    /// sales: the labor share of each deposit's value goes to the staffing
+    /// segments immediately, giving households purchasing power this same
+    /// step.</summary>
     public static void SupplyLands(SimState state, MarketStepScratch scratch)
     {
         var cfg = state.Config;
