@@ -595,6 +595,57 @@ MergeInto corp-lent borrower-change conversion; MergeInto OriginalPrincipal
 preservation). Regression test `FleetSupplyCurrencyTests`. 972/972 green; seed-42
 golden regenerated (deliberate history change). See `.superpowers/sdd/task-14-report.md`.
 
+## Task 15: Whole-branch review cleanup (Sonnet)
+
+**Inserted after the final whole-branch review.** Three findings warrant a
+small, low-risk fix before merge (not blocking on their own, but cheap and
+worth doing now rather than filing as follow-ups):
+
+1. `MetricsOps.Money`'s `MoneyRow` docstring still describes its columns
+   (including `LoanPrincipal`) as straightforwardly "the money supply
+   decomposed," with no caveat that several columns (`LoanPrincipal`,
+   `SegmentWealth`) are raw MIXED-CURRENCY NOMINAL sums, not numeraire-
+   converted — Task 14's investigation nearly chased a false lead because
+   of exactly this ambiguity (a legitimate weak-currency nominal swing
+   looked like a leak signal at first glance). Update the docstring to
+   state plainly which columns are nominal sums (non-commensurable across
+   currencies, informative but not an invariant) versus which are
+   meaningful as a single number.
+2. `docs/TUNING.md`'s `Economy.FxSensitivity`/`Economy.FxReceiptsFloor` rows
+   still say "(Slice CU-1; not yet wired)" — stale since Task 9 made rates
+   genuinely diverge. Update to reflect that these are now live and
+   consequential (Task 13's lane-topology shift traces directly to them).
+3. `ProjectOps.SpendTreasury`'s corp path uses a throwing `LocalCurrencyOf`
+   while its own `FunderCurrency` uses the non-throwing `LocalCurrencySafe`
+   for the same lookup — pick one convention consistently (if the unowned-
+   port edge is genuinely impossible at this call site, document why the
+   throwing variant is safe here; if it's possible, use the Safe variant
+   to match `FunderCurrency`).
+
+**Do NOT attempt to fix in this task** (file as known, accepted follow-ups
+in `docs/HANDOFF.md` at slice wrap-up instead — each is a real but
+lower-priority item, not a merge blocker): corp bankruptcy being now
+near-unreachable through normal play (every corp debit caps at holdings
+since Tasks 1/6b, a genuine regime change from pre-slice behavior where
+over-extended corps went bankrupt — note whether this is intended or a
+lifecycle gap, but don't change the behavior here); the several
+sub-`1e-12` dust sinks (`Corporation.Withdraw`'s bucket remainders,
+`OrderOps.Prune`'s escrow floor, `ServiceLoans`'s force-zero after a
+partial-payment round trip) — bounded, currently absorbed by the
+conservation tolerance, worth a note not a fix; the conservation tolerance
+quietly becoming relative (`≤1.3e-9 × max(1,|Supply|)`) rather than ME's
+literal absolute bound — defensible given FP error scales with magnitude,
+but state the change explicitly in the design doc rather than leaving it
+implicit; uneven documentation of the three known/accepted scope-boundary
+gaps (colony-purse absorption stub, the now-superseded gate-pair/project
+treasury gap, the untriggered unowned-port migration edge) — worth one
+consolidated "known residual edges" paragraph in `markets.md` or the
+ledger, not urgent enough to block this task.
+
+Run the full `dotnet test` suite before committing (should stay at
+972/972, hex-tier intact — this is a docs+one-line-consistency change, no
+behavior change expected). Commit, self-review, report back.
+
 ## Acceptance (after Task 12, before merge)
 
 `dotnet test` green (hex-tier suite intact); determinism byte-identity for
