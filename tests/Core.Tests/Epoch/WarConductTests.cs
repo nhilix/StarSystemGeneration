@@ -122,15 +122,18 @@ public class WarConductTests
         // the siege MECHANIC (port transfers, segments intact) over an
         // 8-epoch continuation, not emergent-war politics. Once the
         // world-time economy relit emergent wars (slice t1), epoch 24 sits in
-        // the war era; re-tuned to stage at epoch 16 (still peacetime for seed
-        // 42 at the time). Locality's body-resource-stock task (BR-4) shifts
-        // seed 42's economy again — starter/founding/groundbroken extraction
-        // facilities now carry real bodies and produce real ore instead of
-        // riding None, which accelerates growth and pulls emergent war
-        // forward too, so epoch 16 is already mid-war. Re-tuned again to
-        // epoch 12 (confirmed zero active wars at that point) — the clean
-        // peacetime stage this test needs; the teeth are unchanged.
-        var state = Run(12);
+        // the war era; re-tuned to stage at epoch 16, then BR-4 re-tuned to
+        // epoch 12 (zero active wars then). Wiring BodyResourceOps.Extract
+        // (locality's body-resource-stock task) shifts seed 42's economy once
+        // more: at epoch 12 FirstLiveRelation's pick can no longer take its
+        // target port within the continuation window (searched epochs
+        // 13-27 x continuations 8/12: the pair FirstLiveRelation actually
+        // picks holds through the pair's early growth). Confirmed a robust
+        // plateau at epochs 17-23 where the siege completes cleanly under
+        // both an 8- and a 12-epoch continuation — not a single lucky point.
+        // Re-tuned to epoch 17 (still zero active wars for seed 42 at that
+        // point); the teeth are unchanged.
+        var state = Run(17);
         var (war, attacker, defender, target) = StageWar(state, 300);
         double populationBefore = 0;
         foreach (var s in state.Segments)
