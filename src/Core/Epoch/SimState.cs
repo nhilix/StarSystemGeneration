@@ -46,6 +46,15 @@ public sealed class SimState
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
     public List<Facility> Facilities { get; } = new List<Facility>();
+    /// <summary>Frozen hex-tier systems, keyed by hex (locality slice §1) —
+    /// the first time construction/population touches a hex the generator is
+    /// called once and its result memoized here. In-memory only: the bodies
+    /// re-derive from the pure generator on load (the hex tier is never
+    /// persisted), only the settled-hex SET is serialized. A committed empty
+    /// reach stores a null system but stays a key (still "settled").
+    /// Iterate SORTED for any output (P6).</summary>
+    public Dictionary<HexCoordinate, StarSystem?> SettledSystems { get; }
+        = new Dictionary<HexCoordinate, StarSystem?>();
     /// <summary>Per-polity ship designs — lineage entries in id order;
     /// improved marks append, never edit (fleets/ships-and-fleets.md).</summary>
     public List<ShipDesign> Designs { get; } = new List<ShipDesign>();

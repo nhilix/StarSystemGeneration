@@ -31,7 +31,7 @@ public static class ArtifactSerializer
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
-        ("shipments", 1), ("orders", 1), ("couriers", 1),
+        ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
     };
 
     public static string ToText(SimState state)
@@ -535,6 +535,18 @@ public static class ArtifactSerializer
                 c.FulfillerActorId.ToString(Inv),
                 c.ShipmentId.ToString(Inv), string.Join(";", cargo)));
         }
+
+        Layer(w, "settled");
+        // settled-hex SET only — the hex tier is never persisted (CLAUDE.md);
+        // bodies re-derive from the generator on load. Sorted (q,r) for P6.
+        var settledHexes = new List<HexCoordinate>(state.SettledSystems.Keys);
+        settledHexes.Sort((x, y) =>
+        {
+            int c = x.Q.CompareTo(y.Q);
+            return c != 0 ? c : x.R.CompareTo(y.R);
+        });
+        foreach (var h in settledHexes)
+            w.WriteLine(Join("SETTLED", h.Q.ToString(Inv), h.R.ToString(Inv)));
         w.WriteLine("END");
     }
 
@@ -1613,6 +1625,14 @@ public static class ArtifactSerializer
                         state.Pulses.Add(pulse);
                         break;
                     }
+                    case "SETTLED":
+                        // re-derive the hex's system from the pure generator —
+                        // the bodies were never persisted (CLAUDE.md), only the
+                        // settled-hex SET; Commit regenerates and memoizes.
+                        SystemRegistry.Commit(state!,
+                            new HexCoordinate(int.Parse(f[1], Inv),
+                                              int.Parse(f[2], Inv)));
+                        break;
                     case "EVENT":
                         var actorParts = f[5].Length == 0
                             ? new string[0] : f[5].Split(';');
