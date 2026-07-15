@@ -225,6 +225,17 @@ public static class MarketEngine
         // working capital does not fund value destruction
         if (market.Price[(int)pick.Output] <= costPerUnit) return;
         double qty = pickQty;
+        // a CORP owner fronts inputs from its own wallet and has no overdraft
+        // (unlike a polity, whose ledger may dip): bound the run to what it can
+        // actually pay, so its input sellers — settled in full inside LiftAsks —
+        // are never paid past the corp's holdings while its capped debit
+        // silently keeps the shortfall (that mints money). Inputs and output
+        // scale together off this bounded qty, so goods conserve too. Matches
+        // the freight spread run's own affordability clamp.
+        if (state.CorporationOf(f.OwnerActorId) is { } prodCorp)
+            qty = Math.Min(qty, Math.Max(0.0, prodCorp.Credits)
+                                / Math.Max(1e-9, costPerUnit));
+        if (qty <= 1e-9) return;
 
         double gradeSum = 0, weightSum = 0;
         foreach (var q in pick.Inputs)
@@ -809,28 +820,40 @@ public static class MarketEngine
                 int srcLocal = state.LocalCurrencyOf(src.Id);
                 int dstLocal = state.LocalCurrencyOf(dst.Id);
                 state.DebitLocal(fleet.OwnerActorId, cost, srcLocal);
+                // the goods leg above is bounded upfront by `budget` (a corp's
+                // own wallet), so its pre-paid sellers never outrun the capped
+                // debit. The sequential fees below CAN drain a corp's wallet
+                // further, so each credits its collector only the amount the
+                // capped debit actually provided — a corp has no overdraft, and
+                // settling a counterparty past the corp's holdings mints money
                 if (tariff > 0 && feeTo >= 0)
                 {
                     double fee = drawn * tariff;
-                    state.DebitLocal(fleet.OwnerActorId, fee, dstLocal);
-                    state.CreditLocal(feeTo, fee, dstLocal);
-                    state.LedgerOf(feeTo).Receipts += fee;
+                    double feePaid = state.DebitLocal(fleet.OwnerActorId, fee,
+                                                      dstLocal);
+                    state.CreditLocal(feeTo, feePaid, dstLocal);
+                    state.LedgerOf(feeTo).Receipts += feePaid;
                 }
                 if (friction > 0)
                 {
                     // friction burns as fees at the destination port
                     double burn = drawn * friction;
-                    state.DebitLocal(fleet.OwnerActorId, burn, dstLocal);
+                    double burnPaid = state.DebitLocal(fleet.OwnerActorId, burn,
+                                                       dstLocal);
                     var dstOwner = state.PolityOf(dst.OwnerActorId);
-                    dstOwner.Credits += burn;      // dstOwner IS the local polity
-                    dstOwner.Receipts += burn;
+                    dstOwner.Credits += burnPaid;  // dstOwner IS the local polity
+                    dstOwner.Receipts += burnPaid;
                 }
                 // movement is never free: the fuel burn is bought off the
                 // source book at real asks — a fuel-dry port's crawl shows
-                // in its fuel prints
+                // in its fuel prints. The lift is bounded to a corp's REMAINING
+                // wallet (a polity marine still fronts unbounded, on its own
+                // solvency plumbing) so the fuel sellers, pre-paid inside
+                // LiftAsks, are never settled past what the corp can pay
+                double fuelBudget = state.CorporationOf(fleet.OwnerActorId) != null
+                    ? Math.Max(0.0, trader.Credits) : double.MaxValue;
                 var (_, _, fuelCost) = BookOps.LiftAsks(state, src.Id,
-                    (int)GoodId.Fuel, drawn * fuelUnits,
-                    budget: double.MaxValue);
+                    (int)GoodId.Fuel, drawn * fuelUnits, fuelBudget);
                 state.DebitLocal(fleet.OwnerActorId, fuelCost, srcLocal);
                 // transit time (spec §4b): a hop inside the step posts the
                 // cargo at the destination now (sub-step blur, sells into

@@ -579,9 +579,12 @@ public static class CorporationOps
                 double need = q.Quantity * scale;
                 if (need <= 0) continue;
                 // upkeep is bought off the book on working capital now —
-                // the sellers are real and get paid at their asks
+                // the sellers are real and get paid at their asks. The lift is
+                // bounded to what the wallet can actually cover (matching
+                // BuyDraw/hull-build): the corp has no overdraft, so settling
+                // sellers beyond its holdings would mint the shortfall
                 var (drawn, _, cost) = BookOps.LiftAsks(state, mIx,
-                    (int)q.Good, need, budget: double.MaxValue);
+                    (int)q.Good, need, budget: Math.Max(0.0, corp.Credits));
                 // the cost is in the attached market's local currency — the
                 // corp draws it down (converting when short)
                 state.DebitLocal(corp.ActorId, cost, state.LocalCurrencyOf(mIx));

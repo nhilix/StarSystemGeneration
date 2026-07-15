@@ -137,6 +137,64 @@ public class CorpWalletTradeTests
         Assert.True(corp.Active);
     }
 
+    /// <summary>Task 6b: when the corp's wallet cannot cover facility upkeep, it
+    /// pays exactly what it holds (no overdraft) and the upkeep sellers are
+    /// credited only that capped amount — never the full requested basket. The
+    /// pre-fix bug lifted the whole basket at <c>budget: double.MaxValue</c>,
+    /// settling the sellers in full, then discarded the corp's capped debit —
+    /// minting the shortfall. Conservation is checked in numeraire terms across
+    /// every ledger the upkeep can touch.</summary>
+    [Fact]
+    public void FacilityUpkeep_CappedByWallet_CreditsSellersOnlyWhatWasPaid()
+    {
+        var (state, host, _) = HostWithPort();
+        var corp = AddCorp(state, host, CorporateNiche.Extraction, homePortId: 0);
+        corp.Deposit(state, 3.0, 0);      // a tiny C0 wallet the upkeep will exhaust
+        corp.Receipts = 0.0;              // no dividend this step — isolate upkeep
+        // a tier-1 Mine whose upkeep basket costs far more than the 3 C0 wallet
+        state.Facilities.Add(new Facility(state.Facilities.Count,
+            (int)InfraTypeId.Mine, tier: 1, state.Ports[0].Hex,
+            corp.ActorId, state.WorldYear));
+        // a resident segment so the sellers' wage split has somewhere to land
+        state.Segments.Add(new PopulationSegment(0, 0,
+            state.PolityOf(host).SpeciesId, state.PolityOf(host).SpeciesId, 3.0)
+        { Wealth = 500 });
+        // plenty of dear machinery for the upkeep to (try to) buy off the book
+        EpochTestKit.Stock(state, 0, (int)GoodId.Machinery, 1000.0, 0.5, ask: 5.0);
+
+        double before = NumeraireTotal(state);
+        CorporationOps.Operate(state);
+        double after = NumeraireTotal(state);
+
+        // the cap bit: the wallet is drained, not overdrafted
+        Assert.True(corp.Credits <= 0.5,
+            "upkeep should have drained the corp's tiny wallet");
+        Assert.True(corp.Credits >= -1e-9, "the corp must never overdraft");
+        Assert.True(corp.Active, "a drained-but-solvent corp is not dissolved");
+        // and no money was minted settling the upkeep sellers beyond the cap
+        Assert.Equal(before, after, System.Math.Max(1.0, before) * 1e-9);
+    }
+
+    /// <summary>Numeraire value of every ledger the interior step can move money
+    /// between — polities (own-currency face × rate), their segments (local
+    /// currency), corporations (already numeraire), and open-order escrow.</summary>
+    private static double NumeraireTotal(SimState state)
+    {
+        double Rate(int curId) =>
+            curId < 0 ? 1.0 : state.CurrencyOf(curId).NumeraireRate;
+        double total = 0;
+        foreach (var p in state.Polities)
+            total += (p.Credits + p.DevelopmentPoints + p.MilitaryPoints
+                      + p.ExpansionPoints + p.ReservePoints) * Rate(p.CurrencyId);
+        foreach (var s in state.Segments)
+            total += s.Wealth * Rate(state.LocalCurrencyOf(s.PortId));
+        foreach (var c in state.Corporations)
+            total += c.Credits;   // Credits is the numeraire-valued wallet
+        foreach (var o in state.Orders)
+            total += o.EscrowCredits * Rate(state.LocalCurrencyOf(o.PortId));
+        return total;
+    }
+
     // ---- seizure: the whole multi-currency wallet sweeps into the polity ----
 
     [Fact]

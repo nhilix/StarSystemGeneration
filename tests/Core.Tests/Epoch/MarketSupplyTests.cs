@@ -112,6 +112,61 @@ public class MarketSupplyTests
             "the feedstock seller booked real revenue");
     }
 
+    /// <summary>Task 6b: a CORP-owned processing facility fronts its recipe
+    /// inputs from its own wallet and has no overdraft — when the wallet cannot
+    /// cover the full run the production is bounded to what it can pay, so the
+    /// input sellers (settled in full inside LiftAsks) are never paid past the
+    /// corp's holdings while its capped debit keeps the shortfall (which minted
+    /// money before the fix). Single active currency (rate 1.0) so face value IS
+    /// numeraire and conservation is exact.</summary>
+    [Fact]
+    public void CorpProcessing_CappedByWallet_ConservesCredits()
+    {
+        var (state, port) = Fixture();
+        var cur = new Currency(0, "C0", foundingPolityId: 0)
+        { NumeraireRate = 1.0 };
+        state.Currencies.Add(cur);
+        state.PolityOf(port.OwnerActorId).CurrencyId = 0;
+        // a corp that owns the refinery, funded with a wallet far too thin to
+        // buy the whole input run
+        int actorId = state.Actors.Count;
+        state.Actors.Add(new Actor(actorId, ActorKind.Corporation, "Refco",
+            port.Hex, 0, new CorporateController(state.Config)) { Entered = true });
+        var corp = new Corporation(0, actorId, "Refco", port.OwnerActorId,
+            CorporateNiche.Fabrication, port.Id, 0);
+        state.Corporations.Add(corp);
+        corp.Deposit(state, 8.0, 0);          // 8 C0 wallet
+        Built(state, InfraTypeId.Refinery, port.Hex, actorId);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Ore, 1000.0, 0.6);
+        EpochTestKit.Stock(state, 0, (int)GoodId.Volatiles, 1000.0, 0.6);
+
+        double before = Total(state);
+        MarketEngine.SupplyLands(state, new MarketStepScratch(state));
+        double after = Total(state);
+
+        Assert.True(BookOps.AskQty(state, 0, (int)GoodId.Alloys) > 0,
+            "the corp should still produce something within its means");
+        Assert.True(corp.Credits <= 0.5,
+            "the input run should have drained the tiny wallet");
+        Assert.True(corp.Credits >= -1e-9, "the corp must never overdraft");
+        Assert.Equal(before, after, System.Math.Max(1.0, before) * 1e-9);
+    }
+
+    /// <summary>Face-value credit total across every holder the market step can
+    /// move money between (single-currency, rate 1.0, so face IS numeraire).</summary>
+    private static double Total(SimState state)
+    {
+        double t = 0;
+        foreach (var pr in state.Polities)
+            t += pr.Credits + pr.ExpansionPoints + pr.DevelopmentPoints
+                 + pr.MilitaryPoints + pr.ReservePoints;
+        foreach (var s in state.Segments) t += s.Wealth;
+        foreach (var f in state.Factions) t += f.Wealth;
+        foreach (var o in state.Orders) t += o.EscrowCredits;
+        foreach (var c in state.Corporations) t += c.Credits;
+        return t;
+    }
+
     [Fact]
     public void UnderConstruction_ProducesNothing()
     {
