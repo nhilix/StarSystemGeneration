@@ -47,7 +47,9 @@ deficit number — and exotics wars have a motive beyond balance sheets.
 ## Grade
 
 Every stock of a good is `(quantity, grade)`, grade ∈ [0,1] — one scalar carried
-wherever stocks live (markets, stockpiles, cargo holds).
+wherever stocks live (markets, stockpiles, cargo holds, and depletable body
+reserves — a Mine/Excavation body holds a finite `(good, quantity, grade)` stock
+it is dug out of over time until the rock runs dry).
 
 **Origin — grade flows from geography through the chains:**
 

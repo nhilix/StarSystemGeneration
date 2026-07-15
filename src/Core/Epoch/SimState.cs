@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
+using StarGen.Core.Substrate;
 
 namespace StarGen.Core.Epoch;
 
@@ -55,6 +56,13 @@ public sealed class SimState
     /// Iterate SORTED for any output (P6).</summary>
     public Dictionary<HexCoordinate, StarSystem?> SettledSystems { get; }
         = new Dictionary<HexCoordinate, StarSystem?>();
+    /// <summary>Depletable per-body resource stocks (body-resource-stock
+    /// design), keyed (hex, body). Unlike SettledSystems this is REAL mutable
+    /// state — rolled once when a Mine/ExcavationSite claims a body, then
+    /// decremented as it extracts — so it is genuinely serialized, not
+    /// re-derived. Iterate SORTED (q, r, star, slot) for any output (P6).</summary>
+    public Dictionary<(HexCoordinate Hex, BodyRef Body), Stock> BodyResources
+    { get; } = new Dictionary<(HexCoordinate, BodyRef), Stock>();
     /// <summary>Per-polity ship designs — lineage entries in id order;
     /// improved marks append, never edit (fleets/ships-and-fleets.md).</summary>
     public List<ShipDesign> Designs { get; } = new List<ShipDesign>();
