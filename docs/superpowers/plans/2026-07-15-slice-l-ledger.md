@@ -103,7 +103,9 @@ construction outright when an extraction type resolves no eligible body
 
 - [x] BR-Task 1: Roll channel + `Economy` stock knobs (Sonnet). Commit 3d5847f.
       Clean, approved first review, no fix wave.
-- [ ] BR-Task 2: `SimState.BodyResources` + `BodyResourceOps` (Sonnet)
+- [x] BR-Task 2: `SimState.BodyResources` + `BodyResourceOps` (Sonnet). Commit
+      c9684ee. Determinism/idempotency independently traced (stateless roll,
+      no double-commit path, zero-floor algebraic not clamped). Clean, approved.
 - [ ] BR-Task 3: `BodySiting` body-native extraction — Assign rejects, renewable
       yield/grade (Sonnet — supersedes today's earlier fix-wave test
       `SecondMine_FallsToNone_WhenSubstrateAbsentAndPortAlreadyClaimed`, intentional)
