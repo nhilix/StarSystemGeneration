@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using StarGen.Core.Content;
 using StarGen.Core.Galaxy;
@@ -352,13 +353,15 @@ public static class CorporationOps
         var corp = new Corporation(state.Corporations.Count, actorId, name,
             outlaw ? -1 : pr.ActorId, niche, homePort, state.WorldYear)
         {
-            Credits = faction.Wealth,   // the war chest capitalizes it (P4)
             // the field (or site) the expedition works
             TargetId = niche == CorporateNiche.Salvage ? faction.ContextId : -1,
         };
+        state.Corporations.Add(corp);
+        // the war chest capitalizes it, banked in the chartering polity's
+        // currency — the merchant faction accrued its wealth there (P4)
+        state.CreditLocal(corp.ActorId, faction.Wealth, pr.CurrencyId);
         faction.Wealth = 0;
         faction.Active = false;         // the merchant faction incorporated
-        state.Corporations.Add(corp);
 
         // the executive suite: the faction's leader moves to the boardroom
         var executive = state.Characters[faction.LeaderCharacterId];
@@ -482,18 +485,24 @@ public static class CorporationOps
             // internal politics (they feed the corporate faction's wealth)
             if (corp.HostPolityId >= 0 && corp.Receipts > 0)
             {
+                // dividends and lobby money are paid to host-polity elites in
+                // the host's currency — the wallet draws that bucket down,
+                // converting from others when short (design draw-down rule)
+                int hostCurrency = state.PolityOf(corp.HostPolityId).CurrencyId;
                 double dividend = corp.Receipts * policies.DividendRate;
                 dividend = Math.Min(dividend, Math.Max(0, corp.Credits));
                 if (dividend > 0)
                 {
-                    corp.Credits -= dividend;
-                    ElitesOf(state, corp).Wealth += dividend;
+                    double paid = state.DebitLocal(corp.ActorId, dividend,
+                                                   hostCurrency);
+                    ElitesOf(state, corp).Wealth += paid;
                 }
                 double lobby = Math.Max(0, corp.Credits) * knobs.LobbyShare;
                 if (lobby > 0)
                 {
-                    corp.Credits -= lobby;
-                    ElitesOf(state, corp).Wealth += lobby;
+                    double paid = state.DebitLocal(corp.ActorId, lobby,
+                                                   hostCurrency);
+                    ElitesOf(state, corp).Wealth += paid;
                 }
                 if (corp.Receipts / state.Config.Sim.StepFraction
                         > knobs.MagnateReceipts
@@ -573,7 +582,9 @@ public static class CorporationOps
                 // the sellers are real and get paid at their asks
                 var (drawn, _, cost) = BookOps.LiftAsks(state, mIx,
                     (int)q.Good, need, budget: double.MaxValue);
-                corp.Credits -= cost;
+                // the cost is in the attached market's local currency — the
+                // corp draws it down (converting when short)
+                state.DebitLocal(corp.ActorId, cost, state.LocalCurrencyOf(mIx));
                 met = Math.Min(met, drawn / need);
             }
             double target = Math.Max(0.05, met);
@@ -860,7 +871,7 @@ public static class CorporationOps
             market.PortId, (int)GoodId.ShipComponents, affordable * perHull,
             budget);
         int hulls = (int)(components / perHull);
-        corp.Credits -= cost;
+        state.DebitLocal(corp.ActorId, cost, state.LocalCurrencyOf(market.PortId));
         double spare = components - hulls * perHull;
         if (spare > 1e-9)   // the sub-hull remainder goes back up for sale
             BookOps.PostSupply(state, market.PortId, corp.ActorId,
@@ -906,8 +917,11 @@ public static class CorporationOps
         foreach (var s in state.Segments)
             if (s.PortId == corp.HomePortId && s.Wealth > 0)
                 s.Wealth -= take * s.Wealth / wealth;
-        corp.Credits += take;
-        corp.Receipts += take;
+        // the skim banks in the home market's currency — the segment wealth it
+        // was taken from resolves to that denomination
+        double banked = state.CreditLocal(corp.ActorId, take,
+                                          state.LocalCurrencyOf(corp.HomePortId));
+        corp.Receipts += banked;
     }
 
     /// <summary>Corporate fleets buy their upkeep at the home market —
@@ -957,7 +971,7 @@ public static class CorporationOps
         if (need <= 0) return 1.0;
         var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
             need, budget: Math.Max(0.0, corp.Credits));
-        corp.Credits -= cost;
+        state.DebitLocal(corp.ActorId, cost, state.LocalCurrencyOf(market.PortId));
         return drawn / need;
     }
 
@@ -977,7 +991,10 @@ public static class CorporationOps
             var o = state.Orders[i];
             if (o.OwnerActorId != corp.ActorId) continue;
             if (o.Side == OrderSide.Buy)
-                corp.Credits += OrderOps.CancelBuy(state, o);
+                // the escrow refunds in the port's local currency, converting
+                // back for a foreign corp (mirrors OrderOps.ExpireOrders)
+                state.CreditLocal(corp.ActorId, OrderOps.CancelBuy(state, o),
+                                  state.LocalCurrencyOf(o.PortId));
             else
                 o.OwnerActorId = successorActorId;
         }
@@ -994,6 +1011,55 @@ public static class CorporationOps
         foreach (var loan in state.Loans)                     // id order (P6)
             if (!loan.Closed && loan.LenderActorId == corp.ActorId)
                 loan.LenderActorId = successorActorId;
+    }
+
+    /// <summary>Move a corporation's whole balance onto <paramref name="target"/>:
+    /// each live wallet bucket withdraws and re-deposits (converting into the
+    /// target ledger's own denomination), then the pre-currency single balance
+    /// (the dormant world before genesis mints currencies) transfers
+    /// same-currency. Ascending currency id (P6). Leaves the corporation with an
+    /// empty wallet and zero Credits.</summary>
+    private static void SweepWalletInto(SimState state, Corporation corp,
+                                        ICreditLedger target)
+    {
+        var ids = new List<int>(corp.Holdings.Keys);
+        ids.Sort();
+        foreach (int cid in ids)
+        {
+            double amt = corp.Holdings[cid];
+            if (amt <= 0) continue;
+            corp.Withdraw(state, amt, cid);       // empties the bucket
+            target.Deposit(state, amt, cid);      // converts into the target
+        }
+        if (corp.Credits != 0)                    // dormant single balance
+        {
+            target.Credits += corp.Credits;
+            corp.Credits = 0;
+        }
+    }
+
+    /// <summary>Empty a corporation's live wallet, converting every bucket into
+    /// <paramref name="toCurrencyId"/> and returning the total in that currency.
+    /// Each conversion records a transfer between the two currencies' supplies
+    /// (a conversion is never a mint). Ascending currency id (P6). The dormant
+    /// single balance is settled by the caller.</summary>
+    private static double DrainWalletTo(SimState state, Corporation corp,
+                                        int toCurrencyId)
+    {
+        var ids = new List<int>(corp.Holdings.Keys);
+        ids.Sort();
+        double total = 0;
+        foreach (int cid in ids)
+        {
+            double amt = corp.Holdings[cid];
+            if (amt <= 0) continue;
+            double inTarget = state.ConvertCurrency(amt, cid, toCurrencyId);
+            corp.Withdraw(state, amt, cid);       // empties the bucket
+            total += inTarget;
+            if (cid != toCurrencyId)
+                state.RecordConversion(cid, amt, toCurrencyId, inTarget);
+        }
+        return total;
     }
 
     /// <summary>Dissolution with residue (corporations.md §Death): assets
@@ -1033,8 +1099,14 @@ public static class CorporationOps
         // the books settle whole: surplus to the home port's populations,
         // debt onto the sovereign administering the collapse — a negative
         // balance is never wiped (that would mint the money the creditors
-        // already received, P4)
-        double credits = corp.Credits;
+        // already received, P4). Drain every live currency bucket into the
+        // home port's currency, then fold in the pre-currency single balance
+        // (the dormant world before genesis mints currencies). A live wallet
+        // never runs negative — the debt branch only fires on a dormant single
+        // balance that raw debits drove under (its old role).
+        int homeCurrency = state.LocalCurrencyOf(corp.HomePortId);
+        double credits = DrainWalletTo(state, corp, homeCurrency);
+        credits += corp.Credits;
         corp.Credits = 0;
         if (credits < 0)
             state.PolityOf(state.Ports[corp.HomePortId].OwnerActorId)
@@ -1102,8 +1174,10 @@ public static class CorporationOps
             }
         corp.HullsBuilt -= hullsMoved;
         pr.HullsBuilt += hullsMoved;
-        pr.Credits += corp.Credits;   // assets AND liabilities seize (P4)
-        corp.Credits = 0;
+        // the wallet seizes bucket by bucket, each converting into the seizing
+        // polity's currency; the dormant single balance seizes same-currency
+        // (assets AND liabilities move, P4)
+        SweepWalletInto(state, corp, pr);
         corp.Active = false;
         if (pr.Interior != null)
             pr.Interior.Legitimacy = Math.Max(0.0, pr.Interior.Legitimacy

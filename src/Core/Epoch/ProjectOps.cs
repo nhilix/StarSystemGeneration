@@ -362,7 +362,14 @@ public static class ProjectOps
     internal static void SpendTreasury(SimState state, Project p, double amount)
     {
         var corp = state.CorporationOf(p.FunderActorId);
-        if (corp != null) { corp.Credits -= amount; return; }
+        if (corp != null)
+        {
+            // corporate works stream wages in the building port's currency —
+            // the wallet draws that bucket down, converting when short
+            state.DebitLocal(p.FunderActorId, amount,
+                             state.LocalCurrencyOf(p.PortId));
+            return;
+        }
         var pr = state.PolityOf(p.FunderActorId);
         switch (p.Kind)
         {

@@ -217,7 +217,6 @@ public static class MarketEngine
         // inputs are bought on working capital: the owner's ledger may dip
         // within the step — sales land as its own sell orders' fills, and
         // insolvency is Allocation's credit problem
-        var owner = state.LedgerOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
@@ -232,7 +231,9 @@ public static class MarketEngine
         {
             var (_, grade0, cost0) = BookOps.LiftAsks(state, mIx,
                 (int)q.Good, qty * q.Quantity, budget: double.MaxValue);
-            owner.Credits -= cost0;
+            // the input cost is in the attached market's local currency — a
+            // foreign owner (a cross-border corp) draws it down, converting
+            state.DebitLocal(f.OwnerActorId, cost0, state.LocalCurrencyOf(mIx));
             gradeSum += grade0 * q.Quantity;
             weightSum += q.Quantity;
         }
