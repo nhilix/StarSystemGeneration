@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 // UnityEngine.SystemInfo (device caps) shadows the read model's record
 using SystemInfo = StarGen.Core.Atlas.SystemInfo;
+using OrbitRef = StarGen.Core.Epoch.BodyRef;
 
 namespace StarGen.AtlasView
 {
