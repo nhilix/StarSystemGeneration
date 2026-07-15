@@ -44,6 +44,16 @@ public static class ProjectOps
         var facility = new Facility(state.Facilities.Count, c.TypeId,
             tier: 1, c.Hex, ownerActorId, state.WorldYear)
         { CommissionedYear = -1 };
+        // groundbreaking is the §1 commit trigger: freeze the hex's system,
+        // then decide this facility's body once — seeing bodies already
+        // claimed by other facilities at this hex (the two-mines fix).
+        var system = SystemRegistry.Commit(state, c.Hex);
+        var portBody = BodySiting.PortBody(system);
+        var claimed = new List<BodyRef>();
+        foreach (var other in state.Facilities)           // id order (P6)
+            if (other.Hex.Equals(c.Hex) && !other.Body.IsNone)
+                claimed.Add(other.Body);
+        facility.Body = BodySiting.Assign(system, type, portBody, claimed);
         state.Facilities.Add(facility);
         double years = Math.Max(1.0, def.ConstructionYears);
         var p = SpawnAt(state, ProjectKind.FacilityConstruction, ownerActorId,
@@ -60,6 +70,7 @@ public static class ProjectOps
         p.WagesPerYear = value / years;
         p.TypeId = c.TypeId;
         p.TargetId = facility.Id;
+        p.Body = facility.Body;
         return p;
     }
 
