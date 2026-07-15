@@ -814,7 +814,47 @@ public sealed class EconomyKnobs
 
     // -- Credit --
     public double LoanRatePerYear { get; set; } = 0.02;
-    public int LoanTermYears { get; set; } = 50;
+    /// <summary>Amortization term in world-years — 5 epochs at the default
+    /// 25-year tick, so financed investment (facilities, port raises) has real
+    /// runway to mature and lift Receipts before the balloon payment comes due.
+    /// A 2-epoch term (the old 50) amortized faster than any project could pay
+    /// for itself, capitalizing missed service into a debt spiral.</summary>
+    public int LoanTermYears { get; set; } = 125;
+    /// <summary>Unspent Expansion/Development/Military points decay back to
+    /// Credits at this rate per world-year — the idle-pool recycle.</summary>
+    public double PoolIdleDecayPerYear { get; set; } = 0.05;
+    /// <summary>Bounds bounded sovereign issuance (the second declared mint) to
+    /// this fraction of the epoch's own real receipts when covering an
+    /// end-of-epoch shortfall.</summary>
+    public double SovereignIssuanceRate { get; set; } = 0.5;
+    /// <summary>A borrower-side creditworthiness ceiling (Part A / credit-score
+    /// gate): a polity's existing open-loan principal may not exceed this
+    /// multiple of its trailing real income (LastIncomePerYear × YearsPerEpoch,
+    /// i.e. one epoch's receipts) before it is locked out of NEW borrowing until
+    /// amortization services the debt down. A lender won't extend fresh credit to
+    /// someone already buried in debt.</summary>
+    public double MaxDebtToIncomeRatio { get; set; } = 3.0;
+    /// <summary>The always-on steady issuance channel (Part B / third declared
+    /// mint): every entered polity mints this fraction of its own real receipts
+    /// each epoch into the allocation base, so the money supply grows roughly in
+    /// step with real output instead of only being patched reactively. Recomputed
+    /// fresh from Receipts each epoch — it never compounds on itself.</summary>
+    public double SteadyIssuanceRate { get; set; } = 0.02;
+    /// <summary>A hard ceiling on how far a loan's principal may capitalize
+    /// before it is forced to default: once the live Principal grows past this
+    /// multiple of the loan's OriginalPrincipal, the loan defaults (collateral
+    /// seized) rather than compounding indefinitely. Default 2.0 — a loan whose
+    /// principal has doubled from its issued size is written off.</summary>
+    public double LoanCapitalizationCeiling { get; set; } = 2.0;
+
+    // -- Taxation --
+    /// <summary>Per-capita wealth exemption below which the levy never bites
+    /// (subsistence households untouched).</summary>
+    public double WealthTaxFloorPerPop { get; set; } = 20.0;
+    /// <summary>Segment wealth above the exemption floor is levied at this rate
+    /// per world-year, paid to the port owner — the household-wealth
+    /// recirculation valve.</summary>
+    public double WealthTaxRatePerYear { get; set; } = 0.02;
 
     // -- Facility lifecycle --
     /// <summary>Fractional condition decay per world-year toward the unmet

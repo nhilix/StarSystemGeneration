@@ -103,6 +103,14 @@ public class GovernmentTests
             Assert.InRange(pr.Interior.Legitimacy, 0.0, 1.0);
             Assert.InRange(pr.Interior.Cohesion, 0.0, 1.0);
             Assert.InRange(pr.Interior.Enforcement, 0.0, 1.0);
+            // the cohesion-under-legitimacy invariant is RECOMPUTE's contract, so
+            // it only binds polities Recompute actually processes: entered, holding
+            // a populated port. A polity that lost every port or all its population
+            // is skipped by Recompute (InteriorOps.cs) and keeps a stale cohesion
+            // from before a coup last cut its legitimacy — outside the contract.
+            bool recomputed = state.Actors[pr.ActorId].Entered
+                && OwnsPopulatedPort(state, pr.ActorId);
+            if (!recomputed) continue;
             var form = GovernmentForms.Get(pr.Interior.FormId);
             Assert.True(pr.Interior.Cohesion
                         <= System.Math.Max(pr.Interior.Legitimacy,
@@ -178,5 +186,15 @@ public class GovernmentTests
                              lp.Interior.OfficialIdeology[ax]);
         }
         Assert.Equal(text, ArtifactSerializer.ToText(loaded));
+    }
+
+    /// <summary>Mirrors Recompute's own domain guard (InteriorOps.cs): a polity
+    /// it processes owns at least one port carrying live population.</summary>
+    private static bool OwnsPopulatedPort(SimState state, int actorId)
+    {
+        foreach (var s in state.Segments)
+            if (s.Size > 0 && state.Ports[s.PortId].OwnerActorId == actorId)
+                return true;
+        return false;
     }
 }

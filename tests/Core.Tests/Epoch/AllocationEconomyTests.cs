@@ -41,8 +41,17 @@ public class AllocationEconomyTests
     [Fact]
     public void Income_SplitsByBudgetWeights_StubGone()
     {
+        // slice ME §1: the base now reads Receipts, not the balance — the
+        // income is the receipts the Markets phase accrued into Credits, so
+        // seed both. Idle-pool decay off to read the raw split (that recycle
+        // has its own coverage in AllocationMonetaryTests).
         var (state, _) = Fixture(credits: 100);
         var pr = state.PolityOf(0);
+        pr.Receipts = 100;
+        state.Config.Economy.PoolIdleDecayPerYear = 0.0;
+        // the steady mint (Part B) would widen the base past raw Receipts; it has
+        // its own coverage in AllocationMonetaryTests, so read the pure split here
+        state.Config.Economy.SteadyIssuanceRate = 0.0;
         new AllocationPhase().Run(state);
 
         var budget = PolityPolicies.Default.Budget;
@@ -271,7 +280,11 @@ public class AllocationEconomyTests
         var loan = state.Loans[0];
         Assert.Equal(1, loan.LenderActorId);
         Assert.Equal(0, loan.BorrowerActorId);
-        Assert.True(state.PolityOf(0).Credits >= 0, "the loan should cover the hole");
+        // Borrow ran at the top against the carried -50: principal = 1.2*50 = 60
+        // covers the hole (the loan-financing fix then routes that principal
+        // into the same epoch's budget split, so Credits itself ends negative
+        // again — the mint backstops only the capped residual, tested elsewhere)
+        Assert.Equal(60.0, loan.Principal, 6);
         Assert.True(state.PolityOf(1).Credits < 1000, "lender fronts the principal");
         bool staged = false;
         foreach (var e in state.Staged)
@@ -284,6 +297,45 @@ public class AllocationEconomyTests
         double principalBefore = loan.Principal;
         new AllocationPhase().Run(state);
         Assert.True(state.PolityOf(1).Credits > lenderBefore, "interest flows");
+        Assert.True(loan.Principal < principalBefore, "principal amortizes");
+    }
+
+    // Slice ME task 4 — the lender search widens to corporations: no polity
+    // holds surplus here, only a corporation does, so the loan must find it.
+    [Fact]
+    public void Insolvency_BorrowsFromACorporation_WhenOnlyItHoldsCollateral()
+    {
+        var (state, _) = Fixture(credits: -50);      // underwater
+        int corpActor = state.Actors.Count;
+        state.Actors.Add(new Actor(corpActor, ActorKind.Corporation, "Vex",
+            default, state.EpochIndex,
+            new CorporateController(state.Config)) { Entered = true });
+        var corp = new Corporation(0, corpActor, "Vex", state.Actors[0].Id,
+            CorporateNiche.Freight, homePortId: 0, state.WorldYear)
+        { Credits = 1000 };
+        state.Corporations.Add(corp);
+
+        new AllocationPhase().Run(state);
+
+        Assert.True(state.Loans.Count == 1, "an insolvent polity should borrow from a corp lender");
+        var loan = state.Loans[0];
+        Assert.Equal(corpActor, loan.LenderActorId);
+        Assert.Equal(0, loan.BorrowerActorId);
+        // Borrow ran at the top against the carried -50: principal = 1.2*50 = 60
+        // covers the hole (the fix then routes it into this epoch's budget split)
+        Assert.Equal(60.0, loan.Principal, 6);
+        Assert.True(corp.Credits < 1000, "corp lender fronts the principal");
+        bool staged = false;
+        foreach (var e in state.Staged)
+            if (e.Type == WorldEventType.LoanIssued) staged = true;
+        Assert.True(staged);
+
+        // servicing: next allocation pays interest+principal to the corp lender
+        state.PolityOf(0).Credits = 500;
+        double lenderBefore = corp.Credits;
+        double principalBefore = loan.Principal;
+        new AllocationPhase().Run(state);
+        Assert.True(corp.Credits > lenderBefore, "interest flows to the corp");
         Assert.True(loan.Principal < principalBefore, "principal amortizes");
     }
 

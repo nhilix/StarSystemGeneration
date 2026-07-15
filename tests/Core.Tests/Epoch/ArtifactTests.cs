@@ -58,6 +58,23 @@ public class ArtifactTests
     }
 
     [Fact]
+    public void Policy_OperationsShare_RoundTrips()
+    {
+        var built = Run();
+        // pin a non-default Operations share on a live polity's POLICY line,
+        // so the round-trip exercises the trailing Operations field specifically
+        var polity = built.Actors.First(a => a.Policies is PolityPolicies);
+        var pp = (PolityPolicies)polity.Policies!;
+        polity.Policies = pp with { Budget = pp.Budget with { Operations = 0.07 } };
+        Assert.NotEqual(0.07, pp.Budget.Operations);
+
+        var loaded = ArtifactSerializer.Load(
+            new StringReader(ArtifactSerializer.ToText(built)));
+        var reloaded = (PolityPolicies)loaded.Actors[polity.Id].Policies!;
+        Assert.Equal(0.07, reloaded.Budget.Operations);
+    }
+
+    [Fact]
     public void Artifact_RefusesForeignAndVersionMismatch()
     {
         Assert.Throws<InvalidDataException>(

@@ -25,9 +25,9 @@ public static class ArtifactSerializer
     /// layers append, never reorder.</summary>
     private static readonly (string Name, int Version)[] Layers =
     {
-        ("config", 6), ("clock", 1), ("raster", 2), ("species", 1),
-        ("actors", 7), ("ports", 2), ("lanes", 3), ("facilities", 2),
-        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 3),
+        ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
+        ("actors", 8), ("ports", 2), ("lanes", 3), ("facilities", 2),
+        ("fleets", 2), ("segments", 2), ("events", 1), ("markets", 4),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 2),
@@ -69,8 +69,14 @@ public static class ArtifactSerializer
             w.WriteLine(Join("KNOB", knob.Name, R(knob.Get(ec))));
 
         Layer(w, "clock");
+        // clock v2 (slice ME): CumulativeFiatIssued rides the CLOCK line so the
+        // second mint's running total survives load — it has no event log to
+        // recompute from (issuance stages no event), unlike the endowment count.
+        // clock v3 (Part B): CumulativeSteadyIssuance, the third mint's running
+        // total, rides along the same way for the same reason
         w.WriteLine(Join("CLOCK", state.EpochIndex.ToString(Inv),
-            state.WorldYear.ToString(Inv)));
+            state.WorldYear.ToString(Inv), R(state.CumulativeFiatIssued),
+            R(state.CumulativeSteadyIssuance)));
 
         Layer(w, "raster");
         foreach (var cell in state.Skeleton.Cells)
@@ -118,7 +124,9 @@ public static class ArtifactSerializer
                     DoubleMap(pp.StockpileTargets), IntMap(pp.DiplomaticPostures),
                     // actors v4 (slice G): the research split rides along
                     R(pp.Research.Industrial), R(pp.Research.Military),
-                    R(pp.Research.Astrogation), R(pp.Research.Life)));
+                    R(pp.Research.Astrogation), R(pp.Research.Life),
+                    // actors v8 (slice ME): the Operations budget share rides along
+                    R(pp.Budget.Operations)));
             // actors v6 (slice t1): the standing plan's entries follow the
             // actor's POLICY line, in plan order (Load rebuilds them).
             // Corp plans ride the same lines (slice CE, C11): Intent runs
@@ -241,11 +249,15 @@ public static class ArtifactSerializer
                 if (p.StockQty[g] != 0)
                     w.WriteLine(Join("STOCK", p.Id.ToString(Inv),
                         g.ToString(Inv), R(p.StockQty[g]), R(p.StockGrade[g])));
+        // markets v4 (slice ME fix): OriginalPrincipal rides the LOAN line so
+        // the capitalization ceiling's fixed reference point survives load —
+        // without it, reload resets the ceiling and lets an already-over-ceiling
+        // loan get a fresh runway every time
         foreach (var l in state.Loans)
             w.WriteLine(Join("LOAN", l.Id.ToString(Inv),
                 l.LenderActorId.ToString(Inv), l.BorrowerActorId.ToString(Inv),
                 R(l.Principal), R(l.RatePerYear), l.TermYears.ToString(Inv),
-                l.IssuedYear.ToString(Inv), B(l.Closed)));
+                l.IssuedYear.ToString(Inv), B(l.Closed), R(l.OriginalPrincipal)));
 
         Layer(w, "features");
         foreach (var feat in state.Skeleton.Features)
@@ -829,6 +841,10 @@ public static class ArtifactSerializer
                         {
                             EpochIndex = int.Parse(f[1], Inv),
                             WorldYear = int.Parse(f[2], Inv),
+                            // clock v2 (slice ME): the second mint's running total
+                            CumulativeFiatIssued = double.Parse(f[3], Inv),
+                            // clock v3 (Part B): the third mint's running total
+                            CumulativeSteadyIssuance = double.Parse(f[4], Inv),
                         };
                         break;
                     case "CELL":
@@ -969,7 +985,9 @@ public static class ArtifactSerializer
                             new BudgetWeights(double.Parse(f[2], Inv),
                                 double.Parse(f[3], Inv), double.Parse(f[4], Inv),
                                 double.Parse(f[5], Inv), double.Parse(f[6], Inv),
-                                double.Parse(f[7], Inv)),
+                                double.Parse(f[7], Inv),
+                                // actors v8 (slice ME): the Operations budget share
+                                double.Parse(f[22], Inv)),
                             TaxRate: double.Parse(f[8], Inv),
                             TariffSchedule: ParseDoubleMap(f[13]),
                             LawCode: ParseIntMap<LegalityLevel>(f[14]),
@@ -1172,7 +1190,9 @@ public static class ArtifactSerializer
                         state.Loans.Add(new Loan(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), int.Parse(f[3], Inv),
                             double.Parse(f[4], Inv), double.Parse(f[5], Inv),
-                            int.Parse(f[6], Inv), int.Parse(f[7], Inv))
+                            int.Parse(f[6], Inv), int.Parse(f[7], Inv),
+                            // markets v4 (slice ME fix): OriginalPrincipal
+                            originalPrincipal: double.Parse(f[9], Inv))
                         { Closed = f[8] == "1" });
                         break;
                     case "INTR":

@@ -111,6 +111,54 @@ public class EconomyArtifactTests
     }
 
     [Fact]
+    public void Loan_OriginalPrincipal_SurvivesRoundTripAfterCapitalization()
+    {
+        var built = Run();
+        // simulate capitalized interest growing Principal past OriginalPrincipal
+        // (markets v4: OriginalPrincipal rides the LOAN line as its own field so
+        // the capitalization ceiling's fixed reference point isn't reset by a
+        // reload — without it, an already-over-ceiling loan gets fresh runway
+        // every time the artifact round-trips)
+        var loan = new Loan(built.Loans.Count, 0, 1, 77.0, 0.02, 50, 250)
+        { Closed = false };
+        loan.Principal = 140.0;
+        built.Loans.Add(loan);
+
+        var loaded = Reload(built);
+
+        var reloadedLoan = loaded.Loans[loaded.Loans.Count - 1];
+        Assert.Equal(140.0, reloadedLoan.Principal);
+        Assert.Equal(77.0, reloadedLoan.OriginalPrincipal);
+        Assert.NotEqual(reloadedLoan.Principal, reloadedLoan.OriginalPrincipal);
+    }
+
+    [Fact]
+    public void CumulativeFiatIssued_RoundTrips()
+    {
+        var built = Run();
+        // whatever the history minted survives as-is (clock v2 carries it)...
+        Assert.Equal(built.CumulativeFiatIssued,
+                     Reload(built).CumulativeFiatIssued);
+        // ...and an explicit level survives too: the running total has no event
+        // log to recompute from, so the CLOCK line must persist it directly
+        built.CumulativeFiatIssued = 4242.5;
+        Assert.Equal(4242.5, Reload(built).CumulativeFiatIssued);
+    }
+
+    [Fact]
+    public void CumulativeSteadyIssuance_RoundTrips()
+    {
+        var built = Run();
+        // whatever the history minted via the steady channel survives (clock v3)...
+        Assert.Equal(built.CumulativeSteadyIssuance,
+                     Reload(built).CumulativeSteadyIssuance);
+        // ...and an explicit level persists on the CLOCK line, no event log to
+        // recompute the third mint's running total from
+        built.CumulativeSteadyIssuance = 1337.25;
+        Assert.Equal(1337.25, Reload(built).CumulativeSteadyIssuance);
+    }
+
+    [Fact]
     public void NonDefaultEconomyConfig_RoundTrips()
     {
         var state = EpochTestKit.Seeded(42, 8).State;

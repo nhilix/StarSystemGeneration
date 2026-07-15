@@ -5,7 +5,8 @@ namespace StarGen.Core.Epoch;
 /// <summary>Polity budget weights, consumed by Allocation. Normalized shares.</summary>
 public sealed record BudgetWeights(
     double Development, double Military, double Research,
-    double Expansion, double Appeasement, double Reserves);
+    double Expansion, double Appeasement, double Reserves,
+    double Operations);
 
 /// <summary>The research budget's standing split across the four tech
 /// domains (economy/technology.md §Advancement) — the contract's
@@ -60,8 +61,9 @@ public sealed record PolityPolicies(
         new Dictionary<int, DiplomaticPosture>();
 
     public static PolityPolicies Default { get; } = new PolityPolicies(
-        Budget: new BudgetWeights(Development: 0.30, Military: 0.20, Research: 0.15,
-                                  Expansion: 0.20, Appeasement: 0.05, Reserves: 0.10),
+        Budget: new BudgetWeights(Development: 0.25, Military: 0.20, Research: 0.15,
+                                  Expansion: 0.15, Appeasement: 0.05, Reserves: 0.10,
+                                  Operations: 0.10),
         TaxRate: 0.10,
         TariffSchedule: NoWeights,
         LawCode: NoLaws,

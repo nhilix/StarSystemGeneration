@@ -250,7 +250,8 @@ public class ContiguityAndWarAimTests
         Assert.True(wartime.Budget.Development < peace.Budget.Development);
         double budgetSum = wartime.Budget.Development + wartime.Budget.Military
             + wartime.Budget.Research + wartime.Budget.Expansion
-            + wartime.Budget.Appeasement + wartime.Budget.Reserves;
+            + wartime.Budget.Appeasement + wartime.Budget.Reserves
+            + wartime.Budget.Operations;
         Assert.Equal(1.0, budgetSum, 9);   // the shift moves, never mints
         double peaceArms = peace.StockpileTargets.TryGetValue(
             (int)StarGen.Core.Substrate.GoodId.Armaments, out double pa)

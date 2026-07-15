@@ -66,7 +66,10 @@ public class FleetShapeTests
         int totalHulls = 0;
         foreach (var f in state.Fleets)
         {
-            Assert.InRange(f.Readiness, 0.0, 1.0);
+            // readiness is the need-weighted met fraction in [0,1]; a fully
+            // supplied fleet's weighted average can round to 1+2e-16, so the
+            // upper bound tolerates a small floating-point rounding margin
+            Assert.InRange(f.Readiness, 0.0, 1.0 + 1e-9);
             totalHulls += f.TotalHulls;
         }
         Assert.InRange(totalHulls, 1, entered * 500);

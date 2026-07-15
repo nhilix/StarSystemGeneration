@@ -83,6 +83,10 @@ public class GraduationTests
                 minted += eco.InitialCreditsPerPolity
                           + state.Config.Expansion.HomeworldSegmentSize
                             * eco.InitialWealthPerPop;
+        // slice ME §5: bounded sovereign issuance is the second declared mint
+        minted += state.CumulativeFiatIssued;
+        // Part B: the always-on steady issuance channel is the third declared mint
+        minted += state.CumulativeSteadyIssuance;
         foreach (var p in state.Polities)
             held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
                     + p.MilitaryPoints + p.ReservePoints;

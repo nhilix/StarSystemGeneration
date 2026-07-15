@@ -44,31 +44,43 @@ never conclude from one galaxy.
 
 ## The money vocabulary (the holder classes)
 
-Money is conserved (P4): the **entry endowment is the only mint** —
-`Economy.InitialCreditsPerPolity` + `Expansion.HomeworldSegmentSize ×
-Economy.InitialWealthPerPop` per `PolityEmerged` event. Everything else
-moves credits between these classes:
+Money is conserved (P4): **three declared mints** exist — the one-time entry
+endowment (`Economy.InitialCreditsPerPolity` +
+`Expansion.HomeworldSegmentSize × Economy.InitialWealthPerPop` per
+`PolityEmerged` event); bounded reactive **sovereign issuance**, the second
+mint (`Economy.SovereignIssuanceRate` × the epoch's own receipts, run last in
+`AllocationPhase`'s per-polity loop once every bill is paid — the backstop that
+covers a residual shortfall); and the always-on **steady issuance** channel,
+the third mint (`Economy.SteadyIssuanceRate` × every polity's own receipts every
+epoch, minted into Credits and flowed through the allocation base so it funds
+real investment — the growth-linked monetary expansion, not an emergency patch;
+monetary-
+equilibrium design §5). Everything else moves credits between these
+classes:
 
 | Class | Where it sits |
 |---|---|
 | `Money.PolityCredits` | Treasury lines (`PolityRecord.Credits`) — negative = deficit financing |
 | `Money.PolityPools` | Allocated budget waiting to be spent (expansion/development/military/reserve points) |
 | `Money.CorpCredits` | Corporation books |
-| `Money.SegmentWealth` | Household wealth (wages accumulate here; consumption spends it) |
+| `Money.SegmentWealth` | Household wealth (wages accumulate here; consumption and the wealth levy spend it) |
 | `Money.FactionWealth` | Faction war chests (appeasement in, corp capitalization out) |
 | `Money.OrderEscrow` | Credits held by resting buy orders (drawn whole at post) |
 | `Money.CourierEscrow` | Courier fees in flight (post → delivery/refund) |
 | `Money.ExpeditionPurses` | Founding purses aboard in-flight colony expeditions (`ColonyCost` each) |
+| `Money.CumulativeFiatIssued` | Not a holder — running total minted by bounded reactive sovereign issuance, the second mint the residual formula nets out |
+| `Money.CumulativeSteadyIssuance` | Not a holder — running total minted by the always-on steady issuance channel, the third mint the residual formula nets out |
 
 `Money.LoanPrincipal` rides beside them as a *claim*, not a holder — loans
 move credits between ledgers; the principal is memory.
 
 **`Money.ConservationResidual`** is the leak detector: this epoch's supply
-delta minus the epoch's endowments. Anything beyond double-accumulation
-noise is an unknown mint or leak — find it before trusting anything else
-the run says. `ConservationTests` freezes the residual within 1e-6 of
-zero (relative to supply) across the full seed-42 default history; in
-practice it sits at ~1e-8.
+delta minus the epoch's endowment mint, its reactive sovereign-issuance mint,
+and its steady-issuance mint (the three declared mints). Anything beyond double-accumulation noise is
+an unknown mint or leak — find it before trusting anything else the run
+says. `ConservationTests` freezes the residual within 1e-6 of zero
+(relative to supply) across the full seed-42 default history; in practice
+it sits at ~1e-8.
 
 Known **designed sinks and limits**:
 
@@ -107,7 +119,31 @@ What a healthy seed looks like (calibration prose, not assertions):
   intentional) but **recovering**; the pathological signature is the whole
   roster negative and monotonically deepening.
 
-### Pathology: the treasury spiral (open — the monetary slice's brief)
+### Pathology: the treasury spiral (resolved — slice ME)
+
+**Resolved (slice ME):** the circulation trap diagnosed below is fixed by
+`docs/superpowers/specs/2026-07-13-monetary-equilibrium-design.md`.
+`AllocationPhase` budgets off `Receipts` alone — it no longer reads
+`Credits` into the allocation base, so a positive treasury stops being
+swept to zero every epoch. A standing `Operations` budget share stays
+liquid in `Credits` as the margin that pays upkeep, loan service, and
+tribute. Idle Expansion/Development/Military pools and household wealth
+above a per-capita floor recirculate instead of parking forever. And a
+bounded reactive sovereign mint (`Money.CumulativeFiatIssued`,
+`Economy.SovereignIssuanceRate`) covers the true end-of-epoch shortfall up
+to a receipts-scaled cap — the second declared mint, netted out of
+`Money.ConservationResidual` above. A separate always-on **steady issuance**
+channel (`Money.CumulativeSteadyIssuance`, `Economy.SteadyIssuanceRate`) mints
+a small fraction of every polity's receipts each epoch into the allocation
+base — the third declared mint, growth-linked rather than reactive, so the
+money supply expands in step with real output instead of only being patched
+during shortfalls. `Phases.Borrow`'s lender search now also scans corporation
+books, and a borrower-side debt-to-income gate (`Economy.MaxDebtToIncomeRatio`)
+refuses new credit to a polity whose open-loan principal already exceeds a
+bounded multiple of its trailing income — a credit-score check that keeps loan
+principal from stacking to absurd multiples of a small economy. See
+`docs/design/economy/markets.md` §Credit for the amended spec. The diagnosis
+below is kept as the evidence record it was built from.
 
 Seed 42, radius 8, defaults: every entered polity's treasury crosses zero
 in **epoch 1** and deepens monotonically (−41.6k summed by epoch 11)

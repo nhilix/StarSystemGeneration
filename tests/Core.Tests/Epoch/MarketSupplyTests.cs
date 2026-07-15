@@ -181,6 +181,16 @@ public class MarketSupplyTests
             // exile — the starter industry moved with the territory
             if (!state.Ports.Any(p => p.OwnerActorId == pr.ActorId
                     && p.Hex.Equals(state.Actors[pr.ActorId].Seat))) continue;
+            // a homeworld's industry can also be seized piecemeal by creditors:
+            // ServiceLoans transfers a defaulted borrower's facilities to the
+            // lender (economy/markets.md §Credit). That's a legitimate history
+            // outcome, not a seeding failure — this test asserts seeding, so
+            // skip a polity whose seat industry was foreclosed. (Slice ME made
+            // the credit loop breathe, so more borrowers reach — and survive —
+            // default than in the pre-mechanism equilibrium this test froze.)
+            if (state.Log.Events.Any(e => e.Type == WorldEventType.LoanDefaulted
+                    && e.Payload is LoanDefaultedPayload d
+                    && d.BorrowerActorId == pr.ActorId)) continue;
             int starters = 0;
             foreach (var f in state.Facilities)
                 if (f.OwnerActorId == pr.ActorId

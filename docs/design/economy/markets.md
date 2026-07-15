@@ -150,13 +150,42 @@ Every transaction moves credits buyer → seller, conserved (P4). Polity income:
 ## Credit
 
 Loan objects: (lender, borrower, principal, rate, term). Wealthy institutions lend
-by policy. Archetypal borrowers: **polities at war** (war loans — wars can be
-financed, and long wars leave debt overhang) and **leveraging corporations**.
-Unpayable obligations trigger a **default event**: reputation damage, relations hit
-with the lender, collateral seizure (asset transfer — a lender can end up owning a
-foreign mine), possible corporate dissolution. All interest and principal flows are
-conserved ledger moves. There are no banks as actors; lenders are whoever holds
-surplus.
+by policy — polities and corporations both sit in the candidate lender pool.
+Archetypal borrowers: **polities at war** (war loans — wars can be financed, and
+long wars leave debt overhang) and **leveraging corporations**. Unpayable
+obligations trigger a **default event**: reputation damage, relations hit with the
+lender, collateral seizure (asset transfer — a lender can end up owning a foreign
+mine), possible corporate dissolution. All interest and principal flows are
+conserved ledger moves.
+
+Borrowed principal lands in the borrower's Credits, not in an investment pool: the
+allocation base is the epoch's receipts, not the balance, so a loan no longer
+inflates Development or Military points the way spending it directly would. A loan
+is **bridge financing** — it keeps the treasury solvent (pays bills, avoids
+default, reduces reliance on sovereign issuance) rather than injecting new
+investment. Real investment growth comes from real receipts and, at the margin,
+bounded issuance; "war loans finance wars" means financing the war *economy's
+solvency*, not a direct pool injection.
+
+A standing **Operations** budget share never leaves the treasury at allocation —
+it stays in Credits as the cash margin that pays facility upkeep, loan service,
+and vassal tribute without those bills having to force the balance negative by
+construction.
+
+There are no banks as actors, but lenders are no longer the treasury's only
+source of credit: the sovereign is also a bounded **issuer**. At the end of every
+epoch, after every bill (upkeep, loan service, tribute) is paid, a treasury still
+short mints up to a fraction of *that epoch's own real receipts* — weight-scaled,
+not debt-scaled, so the largest debtor holds no special claim on it. The cap
+bounds the *rate*, not the outcome: a shallow shortfall under the cap gets topped
+up to zero outright, but a deep enough shortfall still outruns it and the treasury
+stays negative — the mint doesn't erase every hole, only what fits the fraction.
+Issuance never covers loan service — service is paid earlier in the step, against
+last epoch's balance, so default and collateral seizure stay real consequences.
+Issued credits enter circulation the ordinary way, spent into upkeep, tribute, and
+appeasement against real sellers and factions, so the existing price-drift
+machinery carries whatever inflation the extra money causes — no bespoke mechanic
+needed.
 
 ## Stockpiles
 

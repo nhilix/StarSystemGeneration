@@ -309,6 +309,28 @@ public sealed class MarketsPhase : ISimPhase
                 ? lane.SaturatedYears + state.Config.Sim.YearsPerEpoch : 0;
         int famines = MarketEngine.MatchAndClear(state, scratch);
         int spanYears = state.Config.Sim.YearsPerEpoch;
+        var eco = state.Config.Economy;
+        // household wealth above what demand-band consumption can spend
+        // just piles up otherwise (nothing else drains it) — the levy
+        // recirculates the excess into the sovereign's receipts, mirroring
+        // SettleSale's tax-transfer shape (P4: conserved, not minted)
+        foreach (var seg in state.Segments)
+        {
+            double floor = seg.Size * eco.WealthTaxFloorPerPop;
+            double taxable = Math.Max(0.0, seg.Wealth - floor);
+            // compounded per world-year (P7, fix wave 1): a 25-year step levies
+            // exactly what twenty-five 1-year steps would, and the fraction
+            // stays in [0,1) so the levy can never exceed the taxable excess
+            // (no driving wealth below the floor) — the shape DecayIdlePools uses
+            double levy = taxable
+                * (1.0 - Math.Pow(Math.Max(0.0, 1.0 - eco.WealthTaxRatePerYear),
+                                  spanYears));
+            if (levy <= 0) continue;
+            seg.Wealth -= levy;
+            var sovereign = state.LedgerOf(state.Ports[seg.PortId].OwnerActorId);
+            sovereign.Credits += levy;
+            sovereign.Receipts += levy;
+        }
         foreach (var pr in state.Polities)
             pr.LastIncomePerYear = pr.Receipts / spanYears;
         foreach (var corp in state.Corporations)
@@ -350,6 +372,14 @@ public sealed class AllocationPhase : ISimPhase
         // tribute ships up before anyone budgets: vassals allocate what
         // remains of their receipts (interpolity/relations.md §Vassalage)
         int tributes = FederationOps.PayTribute(state);
+        // every polity starts the epoch owing nothing to THIS epoch's base;
+        // Borrow then runs at the TOP against each carried-over balance (after
+        // this epoch's ServiceLoans/tribute), so a polity that ended last epoch
+        // negative seeks financing before its budget is set — and the fresh
+        // principal it marks in BorrowedThisEpoch flows through the same epoch's
+        // allocation split, funding real investment rather than only the bills
+        foreach (var pr in state.Polities) pr.BorrowedThisEpoch = 0;
+        int borrowed = Borrow(state);
         var ownPorts = new List<Port>();
         foreach (var pr in state.Polities)                    // actor-id order
         {
@@ -364,9 +394,32 @@ public sealed class AllocationPhase : ISimPhase
             // standing weights bend toward strong factions' agendas before
             // they spend — pressure is mechanical, bounded by form tolerance
             var budget = FactionOps.PressedBudget(state, pr, policies.Budget);
-            // budget the epoch's receipts, not the balance: development is
-            // deficit-financed through downturns; credit picks up the slack
-            double allocatable = Math.Max(0.0, Math.Max(pr.Credits, pr.Receipts));
+            // budget the epoch's receipts plus any principal borrowed at the
+            // top of THIS epoch, not the balance (monetary-equilibrium design
+            // §1): reading the stock swept a polity's entire historical treasury
+            // into pools every epoch; income alone makes Credits a real
+            // accumulating stock. BorrowedThisEpoch lets a fresh loan fund the
+            // investment pools the same epoch it is drawn — the money already
+            // exists (a conserved lender→borrower transfer), so this routes it
+            // through the split, it is not a new mint.
+            // the always-on steady mint (Part B / design's third declared channel):
+            // a small fraction of THIS polity's own real receipts, minted fresh
+            // every epoch so the money supply grows in step with real output rather
+            // than only being patched reactively during shortfalls. Recomputed from
+            // Receipts each epoch, it never compounds on itself the way runaway loan
+            // interest did. Like Borrow's principal and IssueSovereignCredit, the
+            // mint lands in Credits (a real holder — that is what makes the supply
+            // grow and keeps the residual netting out) AND enters the base, so the
+            // same budget split routes it into real investment.
+            double steadyIssuance = cfg.Economy.SteadyIssuanceRate
+                                    * Math.Max(0.0, pr.Receipts);
+            if (steadyIssuance > 0)
+            {
+                pr.Credits += steadyIssuance;
+                state.CumulativeSteadyIssuance += steadyIssuance;
+            }
+            double allocatable = Math.Max(0.0,
+                pr.Receipts + pr.BorrowedThisEpoch + steadyIssuance);
             pr.ExpansionPoints += allocatable * budget.Expansion;
             pr.DevelopmentPoints += allocatable * budget.Development;
             pr.MilitaryPoints += allocatable * budget.Military;
@@ -412,6 +465,10 @@ public sealed class AllocationPhase : ISimPhase
             hullsLost += FleetOps.SupplyFleets(state, pr);
             RunUpkeep(state, pr);
             DecayStockpiles(state, pr, ownPorts);
+            // whatever the epoch's works left unspent in the idle pools
+            // recirculates into the treasury (design §3) — a recycle into the
+            // buffer stock, not a leak
+            DecayIdlePools(state, pr);
         }
         // the job board clears: open couriers meet whoever's hulls sit on
         // their first leg — the poster's own marine self-fulfills at cost
@@ -428,7 +485,17 @@ public sealed class AllocationPhase : ISimPhase
         int advances = 0;
         foreach (var staged in state.Staged)
             if (staged.Type == WorldEventType.TechAdvanced) advances++;
-        int borrowed = Borrow(state);
+        // sovereign issuance runs LAST — after top-of-epoch Borrow and the whole
+        // budget/spend loop: peer lending already got first refusal on each
+        // carried deficit (Borrow ran at the top, fix wave 1 finding 1), so the
+        // bounded second mint (design §5) only backstops whatever is STILL
+        // negative at end of epoch — after this epoch's spend, including the
+        // principal a fresh loan routed into the budget split. ServiceLoans ran
+        // at the top against last epoch's balance, so issuance never covers loan
+        // service
+        foreach (var pr in state.Polities)                    // actor-id order
+            if (state.Actors[pr.ActorId].Entered)
+                IssueSovereignCredit(state, pr);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
@@ -534,6 +601,54 @@ public sealed class AllocationPhase : ISimPhase
         }
     }
 
+    /// <summary>Idle-pool recycle (monetary-equilibrium design §3): whatever
+    /// the epoch's works left unspent in the Expansion/Development/Military
+    /// pools decays a bounded fraction back into Credits — the Planner accrues
+    /// these ~2x faster than it spends them, so idle points would otherwise
+    /// park forever. ReservePoints is excluded: it funds physical stockpile
+    /// targets with its own perishability decay, not idle cash. Compounded per
+    /// world-year like StockpileDecayPerYear (P7): a 25-year step recirculates
+    /// exactly what twenty-five 1-year steps would. Conserved — the decayed
+    /// points land in Credits, they do not vanish.</summary>
+    private static void DecayIdlePools(SimState state, PolityRecord pr)
+    {
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        double keep = Math.Pow(Math.Max(0.0, 1.0 - eco.PoolIdleDecayPerYear), years);
+        double DecayOne(double points)
+        {
+            double decayed = points * (1.0 - keep);
+            pr.Credits += decayed;
+            return points - decayed;
+        }
+        pr.ExpansionPoints = DecayOne(pr.ExpansionPoints);
+        pr.DevelopmentPoints = DecayOne(pr.DevelopmentPoints);
+        pr.MilitaryPoints = DecayOne(pr.MilitaryPoints);
+    }
+
+    /// <summary>Bounded sovereign issuance — the second declared mint
+    /// (monetary-equilibrium design §5). Run in its own pass AFTER Borrow (fix
+    /// wave 1), so peer lending gets first refusal on every shortfall and the
+    /// mint only backstops what stays negative — it sees the true end-of-epoch
+    /// shortfall after every bill and every loan. A negative treasury mints up
+    /// to a fraction of its own real receipts (weight, not indebtedness — no
+    /// moral hazard toward the largest debtor), never the whole hole:
+    /// NegativeTreasuries must still breathe. Issuance never covers loan service
+    /// by construction (ServiceLoans runs at the top of the phase against last
+    /// epoch's balance), so default and collateral seizure stay real.
+    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
+    private static void IssueSovereignCredit(SimState state, PolityRecord pr)
+    {
+        if (pr.Credits >= 0) return;
+        double shortfall = -pr.Credits;
+        double cap = state.Config.Economy.SovereignIssuanceRate
+                     * Math.Max(0.0, pr.Receipts);
+        double issued = Math.Min(shortfall, cap);
+        if (issued <= 0) return;
+        pr.Credits += issued;
+        state.CumulativeFiatIssued += issued;
+    }
+
     /// <summary>Interest and amortization flow lender-ward; a borrower who
     /// cannot pay at all defaults: the loan closes, collateral transfers
     /// (a lender can end up owning a foreign mine). Returns defaults.</summary>
@@ -546,9 +661,16 @@ public sealed class AllocationPhase : ISimPhase
         {
             if (loan.Closed || loan.Principal <= 0) continue;
             var borrower = state.PolityOf(loan.BorrowerActorId);
-            var lender = state.PolityOf(loan.LenderActorId);
-            double interest = loan.Principal * loan.RatePerYear * years;
-            double amort = loan.Principal * Math.Min(1.0, (double)years / loan.TermYears);
+            var lender = state.LedgerOf(loan.LenderActorId);
+            // compounded per world-year (P7): a 25-year step accrues exactly
+            // what twenty-five 1-year steps compounding would, not a flat
+            // rate*years multiply. amort decays the principal-owed fraction with
+            // the DecayIdlePools shape, treating 1/TermYears as the annual
+            // paydown rate — so a loan finishes amortizing near TermYears
+            // regardless of tick resolution
+            double interest = loan.Principal * (Math.Pow(1.0 + loan.RatePerYear, years) - 1.0);
+            double amort = loan.Principal
+                * (1.0 - Math.Pow(Math.Max(0.0, 1.0 - 1.0 / loan.TermYears), years));
             double payment = interest + amort;
             if (borrower.Credits >= payment)
             {
@@ -563,58 +685,104 @@ public sealed class AllocationPhase : ISimPhase
                 lender.Credits += borrower.Credits;
                 loan.Principal += interest - Math.Min(interest, borrower.Credits);
                 borrower.Credits = 0;
+                // a loan whose principal has capitalized past a bounded multiple
+                // of its issued size is forced to default rather than compounding
+                // toward millions forever — the borrower can still be nominally
+                // solvent (some Credits) yet never service a debt this deep, so
+                // the ceiling is a second default trigger beside the zero-Credits
+                // one, seizing collateral exactly the same way
+                if (loan.Principal > eco.LoanCapitalizationCeiling * loan.OriginalPrincipal)
+                    ForceDefault(state, loan, ref defaults);
             }
             else
-            {
-                loan.Closed = true;
-                defaults++;
-                Facility? seized = null;
-                foreach (var f in state.Facilities)
-                    if (f.OwnerActorId == loan.BorrowerActorId) { seized = f; break; }
-                if (seized != null) seized.OwnerActorId = loan.LenderActorId;
-                state.Staged.Add(new StagedEvent(
-                    ClockStratum.Generational, WorldEventType.LoanDefaulted,
-                    new[] { loan.BorrowerActorId, loan.LenderActorId },
-                    state.Actors[loan.BorrowerActorId].Seat,
-                    Magnitude: loan.Principal, Valence: -1.0,
-                    EventVisibility.Public,
-                    new LoanDefaultedPayload(loan.Id, loan.LenderActorId,
-                                             loan.BorrowerActorId)));
-            }
+                ForceDefault(state, loan, ref defaults);
         }
         return defaults;
     }
 
+    /// <summary>Close a loan as a default: seize the borrower's first facility
+    /// for the lender and stage the LoanDefaulted event. Shared by both default
+    /// triggers — a borrower with no Credits at all, and one whose principal has
+    /// capitalized past the ceiling — so the two paths move money and collateral
+    /// identically.</summary>
+    private static void ForceDefault(SimState state, Loan loan, ref int defaults)
+    {
+        loan.Closed = true;
+        defaults++;
+        Facility? seized = null;
+        foreach (var f in state.Facilities)
+            if (f.OwnerActorId == loan.BorrowerActorId) { seized = f; break; }
+        if (seized != null) seized.OwnerActorId = loan.LenderActorId;
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.LoanDefaulted,
+            new[] { loan.BorrowerActorId, loan.LenderActorId },
+            state.Actors[loan.BorrowerActorId].Seat,
+            Magnitude: loan.Principal, Valence: -1.0,
+            EventVisibility.Public,
+            new LoanDefaultedPayload(loan.Id, loan.LenderActorId,
+                                     loan.BorrowerActorId)));
+    }
+
     /// <summary>Insolvent polities borrow from whoever holds surplus — the
-    /// richest entered polity able to front the principal twice over.</summary>
+    /// richest entered candidate, polity or corporation, able to front the
+    /// principal twice over (economy/markets.md §Credit: "lenders are
+    /// whoever holds surplus").</summary>
     private static int Borrow(SimState state)
     {
         var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
         int issued = 0;
         foreach (var pr in state.Polities)                    // actor-id order
         {
             if (!state.Actors[pr.ActorId].Entered || pr.Credits >= 0) continue;
+            // borrower-side creditworthiness (Part A, credit-score gate): a polity
+            // already carrying open-loan principal above a bounded multiple of its
+            // trailing real income (LastIncomePerYear × years ≈ one epoch's
+            // receipts) is locked out of NEW credit until amortization services the
+            // debt down. This touches nothing in ServiceLoans — existing loans keep
+            // accruing/amortizing/defaulting; it only refuses to pile on MORE.
+            double existingPrincipal = 0;
+            foreach (var open in state.Loans)                 // id order (P6)
+                if (open.BorrowerActorId == pr.ActorId && !open.Closed)
+                    existingPrincipal += open.Principal;
+            double debtCeiling = eco.MaxDebtToIncomeRatio
+                * Math.Max(0.0, pr.LastIncomePerYear) * years;
+            if (existingPrincipal > debtCeiling) continue;
             double principal = -pr.Credits * 1.2;
-            PolityRecord? lender = null;
+            ICreditLedger? lender = null;
+            int lenderActorId = -1;
             foreach (var candidate in state.Polities)
                 if (candidate.ActorId != pr.ActorId
                     && state.Actors[candidate.ActorId].Entered
                     && candidate.Credits >= principal * 2
                     && (lender == null || candidate.Credits > lender.Credits))
-                    lender = candidate;
+                { lender = candidate; lenderActorId = candidate.ActorId; }
+            // the corp pass runs after the polity pass, so on an exact-credit
+            // tie a polity lender is kept over a corp one — a stable, seeded
+            // tiebreak that does not depend on actor-id interleaving (schism and
+            // graduation polities can be minted after early corps)
+            foreach (var candidate in state.Corporations)
+                if (candidate.ActorId != pr.ActorId
+                    && state.Actors[candidate.ActorId].Entered
+                    && candidate.Credits >= principal * 2
+                    && (lender == null || candidate.Credits > lender.Credits))
+                { lender = candidate; lenderActorId = candidate.ActorId; }
             if (lender == null) continue;
             lender.Credits -= principal;
             pr.Credits += principal;
-            var loan = new Loan(state.Loans.Count, lender.ActorId, pr.ActorId,
+            // mark THIS epoch's borrowing so the same epoch's allocation base
+            // can route the principal into the investment pools (Part A)
+            pr.BorrowedThisEpoch += principal;
+            var loan = new Loan(state.Loans.Count, lenderActorId, pr.ActorId,
                 principal, eco.LoanRatePerYear, eco.LoanTermYears, state.WorldYear);
             state.Loans.Add(loan);
             issued++;
             state.Staged.Add(new StagedEvent(
                 ClockStratum.Generational, WorldEventType.LoanIssued,
-                new[] { pr.ActorId, lender.ActorId },
+                new[] { pr.ActorId, lenderActorId },
                 state.Actors[pr.ActorId].Seat,
                 Magnitude: principal, Valence: 0.0, EventVisibility.Regional,
-                new LoanIssuedPayload(loan.Id, lender.ActorId, pr.ActorId,
+                new LoanIssuedPayload(loan.Id, lenderActorId, pr.ActorId,
                                       principal)));
         }
         return issued;

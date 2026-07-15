@@ -965,9 +965,10 @@ public static class CorporationOps
 
     /// <summary>The estates pass shared by dissolution and nationalization
     /// (slice CE review wave): resting buys refund their escrow into the
-    /// corp's settling books; resting sells, in-flight shipments, and
-    /// courier-fulfiller roles pass to the successor — nothing keeps
-    /// earning into a ledger nobody owns. Id order throughout (P6).</summary>
+    /// corp's settling books; resting sells, in-flight shipments,
+    /// courier-fulfiller roles, and open lender-side loans pass to the
+    /// successor — nothing keeps earning into a ledger nobody owns. Id order
+    /// throughout (P6).</summary>
     private static void SweepEstate(SimState state, Corporation corp,
                                     int successorActorId)
     {
@@ -986,6 +987,13 @@ public static class CorporationOps
         foreach (var c in state.Couriers)                     // id order (P6)
             if (c.FulfillerActorId == corp.ActorId)
                 c.FulfillerActorId = successorActorId;
+        // loans the corp made (the broadened lender pool, monetary-equilibrium
+        // design §6) pass to the successor too (fix wave 1): otherwise
+        // ServiceLoans keeps crediting interest into the dead corp's ledger
+        // forever — parked money, the exact circulation trap this slice drains
+        foreach (var loan in state.Loans)                     // id order (P6)
+            if (!loan.Closed && loan.LenderActorId == corp.ActorId)
+                loan.LenderActorId = successorActorId;
     }
 
     /// <summary>Dissolution with residue (corporations.md §Death): assets
