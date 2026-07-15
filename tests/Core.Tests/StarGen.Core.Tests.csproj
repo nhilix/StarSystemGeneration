@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="StarGen.Core.Epoch.BodyRef" Alias="OrbitRef" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,16 +4,9 @@ using StarGen.Core.Galaxy;
 using StarGen.Core.Generation;
 using StarGen.Core.Model;
 using StarGen.Core.Substrate;
+using OrbitRef = StarGen.Core.Epoch.BodyRef;
 
 namespace StarGen.Core.Atlas;
-
-/// <summary>An orbit address inside the stage: which star, which slot.
-/// None (-1,-1) is the deep-space station orbit — a port or facility with
-/// no body to dock at (bodiless system, empty reach).</summary>
-public readonly record struct OrbitRef(int StarIndex, int SlotIndex)
-{
-    public static readonly OrbitRef None = new(-1, -1);
-}
 
 /// <summary>One star of the system, stage-ready.</summary>
 public sealed record StageStarRow(int Index, string TypeId, string TypeName,
