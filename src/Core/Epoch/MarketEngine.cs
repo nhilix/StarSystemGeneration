@@ -679,7 +679,12 @@ public static class MarketEngine
                                       state.Markets[hub].Price[g]);
                 qty = Math.Min(qty, Math.Max(0.0, owner.Credits) / bid);
                 if (qty <= 1e-9) continue;
-                owner.Credits -= qty * bid;               // real escrow
+                // real escrow, drawn as local currency (order entry, design §1):
+                // the hub's own sovereign posts here, so this is same-currency
+                // today, but the escrow rides the book in local terms and the
+                // draw goes through the currency-aware debit for robustness
+                state.DebitLocal(owner.ActorId, qty * bid,
+                                 state.LocalCurrencyOf(hub));
                 var order = OrderOps.PostBuy(state, owner.ActorId, hub, g,
                     qty, bid, state.WorldYear);
                 scratch.RelayBids.Add((order, hub));
@@ -795,21 +800,29 @@ public static class MarketEngine
                 var (drawn, grade, cost) = BookOps.LiftAsks(state, src.Id,
                     g, qty, budget);
                 if (drawn <= 0) continue;
-                trader.Credits -= cost;
+                // the trader pays in each market's LOCAL currency, converting out
+                // of its own ledger first (design §1 — the freight bypass mirrors
+                // order entry): a corp draws its wallet down, a polity marine
+                // converts and may go negative. Goods+fuel price at the source
+                // book, the crossing fees at the destination.
+                int srcLocal = state.LocalCurrencyOf(src.Id);
+                int dstLocal = state.LocalCurrencyOf(dst.Id);
+                state.DebitLocal(fleet.OwnerActorId, cost, srcLocal);
                 if (tariff > 0 && feeTo >= 0)
                 {
-                    trader.Credits -= drawn * tariff;
-                    var collector = state.LedgerOf(feeTo);
-                    collector.Credits += drawn * tariff;
-                    collector.Receipts += drawn * tariff;
+                    double fee = drawn * tariff;
+                    state.DebitLocal(fleet.OwnerActorId, fee, dstLocal);
+                    state.CreditLocal(feeTo, fee, dstLocal);
+                    state.LedgerOf(feeTo).Receipts += fee;
                 }
                 if (friction > 0)
                 {
                     // friction burns as fees at the destination port
-                    trader.Credits -= drawn * friction;
+                    double burn = drawn * friction;
+                    state.DebitLocal(fleet.OwnerActorId, burn, dstLocal);
                     var dstOwner = state.PolityOf(dst.OwnerActorId);
-                    dstOwner.Credits += drawn * friction;
-                    dstOwner.Receipts += drawn * friction;
+                    dstOwner.Credits += burn;      // dstOwner IS the local polity
+                    dstOwner.Receipts += burn;
                 }
                 // movement is never free: the fuel burn is bought off the
                 // source book at real asks — a fuel-dry port's crawl shows
@@ -817,7 +830,7 @@ public static class MarketEngine
                 var (_, _, fuelCost) = BookOps.LiftAsks(state, src.Id,
                     (int)GoodId.Fuel, drawn * fuelUnits,
                     budget: double.MaxValue);
-                trader.Credits -= fuelCost;
+                state.DebitLocal(fleet.OwnerActorId, fuelCost, srcLocal);
                 // transit time (spec §4b): a hop inside the step posts the
                 // cargo at the destination now (sub-step blur, sells into
                 // whatever book exists); a longer haul rides a shipment —
@@ -957,7 +970,10 @@ public static class MarketEngine
         {
             double refund = OrderOps.CancelBuy(state, order);
             if (refund > 0)
-                state.LedgerOf(order.OwnerActorId).Credits += refund;
+                // the escrow is local currency; refund back into the poster's own
+                // (same-currency for the hub sovereign, but symmetric with entry)
+                state.CreditLocal(order.OwnerActorId, refund,
+                                  state.LocalCurrencyOf(order.PortId));
         }
 
         // consequences: famine arithmetic and the SoL drift

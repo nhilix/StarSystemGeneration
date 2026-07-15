@@ -33,8 +33,11 @@ public interface ICreditLedger
     /// <summary>Credit this ledger with <paramref name="amount"/> denominated in
     /// <paramref name="fromCurrencyId"/>. A single-currency polity auto-converts
     /// into its own currency; a corporation accumulates the money in that
-    /// currency's wallet bucket unconverted.</summary>
-    void Deposit(SimState state, double amount, int fromCurrencyId);
+    /// currency's wallet bucket unconverted. Returns the amount actually banked in
+    /// the ledger's OWN denomination (the converted own-currency sum for a polity,
+    /// the unconverted <paramref name="amount"/> for a corporation) so a caller can
+    /// mirror it into <see cref="Receipts"/>.</summary>
+    double Deposit(SimState state, double amount, int fromCurrencyId);
 
     /// <summary>Debit enough of this ledger to provide <paramref name="amount"/>
     /// denominated in <paramref name="toCurrencyId"/>; returns the amount
@@ -129,12 +132,13 @@ public sealed class Corporation : ICreditLedger
     /// <summary>Accumulate <paramref name="amount"/> of
     /// <paramref name="fromCurrencyId"/> in the matching wallet bucket
     /// unconverted — a corporation banks whatever currency it earns.</summary>
-    public void Deposit(SimState state, double amount, int fromCurrencyId)
+    public double Deposit(SimState state, double amount, int fromCurrencyId)
     {
-        if (amount == 0) return;
+        if (amount == 0) return 0;
         _holdings.TryGetValue(fromCurrencyId, out double held);
         _holdings[fromCurrencyId] = held + amount;
         RefreshNumeraire(state);
+        return amount;   // a corporation banks the currency it was paid, unconverted
     }
 
     /// <summary>Provide <paramref name="amount"/> of
@@ -175,9 +179,11 @@ public sealed class Corporation : ICreditLedger
                 double valueInTo = state.ConvertCurrency(heldOther, otherId, toCurrencyId);
                 if (valueInTo <= remaining + 1e-12)
                 {
-                    // whole bucket consumed
+                    // whole bucket consumed — the whole held amount converts out of
+                    // otherId into toCurrencyId (a transfer between their supplies)
                     _holdings.Remove(otherId);
                     remaining -= valueInTo;
+                    state.RecordConversion(otherId, heldOther, toCurrencyId, valueInTo);
                 }
                 else
                 {
@@ -186,6 +192,7 @@ public sealed class Corporation : ICreditLedger
                     double left = heldOther - spendOther;
                     if (left > 1e-12) _holdings[otherId] = left;
                     else _holdings.Remove(otherId);
+                    state.RecordConversion(otherId, spendOther, toCurrencyId, remaining);
                     remaining = 0;
                 }
             }

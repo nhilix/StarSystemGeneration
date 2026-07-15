@@ -63,7 +63,7 @@ public class MarketOrderTests
     }
 
     [Fact]
-    public void Fill_TradesAtMakerPrice_CreditsToSeller_GoodsToCaller()
+    public void Fill_TradesAtMakerPrice_ReleasesEscrow_GoodsToCaller()
     {
         var (state, port) = Fixture();
         int g = (int)GoodId.Alloys;
@@ -83,9 +83,11 @@ public class MarketOrderTests
         Assert.Equal(30.0, paid, 6);
         Assert.Equal(15.0, sell.QtyRemaining, 6);
         Assert.Equal(0.0, buy.QtyRemaining, 6);
-        // maker price 3.0 × 10 to the seller; the bid-limit surplus stays
-        // escrowed until cancel (refunds go back where the escrow came from)
-        Assert.Equal(sellerBefore + 30.0, seller.Credits, 6);
+        // maker price 3.0 × 10 leaves the buy escrow; the bid-limit surplus stays
+        // escrowed until cancel. Fill no longer pays the seller — SettleSale owns
+        // the whole local split (tax/wages local, seller net converts) so the
+        // seller is untouched by Fill alone (CU-1 §1 reorder).
+        Assert.Equal(sellerBefore, seller.Credits, 6);
         Assert.Equal(10.0, buy.EscrowCredits, 6);
     }
 

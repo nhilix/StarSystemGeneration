@@ -94,12 +94,17 @@ public sealed class PolityRecord : ICreditLedger
 
     /// <summary>Credit the treasury with <paramref name="amount"/> denominated
     /// in <paramref name="fromCurrencyId"/>, auto-converting into this polity's
-    /// own currency on receipt (a polity is single-currency).</summary>
-    public void Deposit(SimState state, double amount, int fromCurrencyId)
+    /// own currency on receipt (a polity is single-currency). Returns the
+    /// own-currency sum added to <see cref="Credits"/>. A cross-currency receipt
+    /// records the transfer: <paramref name="fromCurrencyId"/> leaves circulation,
+    /// this polity's currency gains the converted sum.</summary>
+    public double Deposit(SimState state, double amount, int fromCurrencyId)
     {
-        Credits += fromCurrencyId == CurrencyId
-            ? amount
-            : state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
+        if (fromCurrencyId == CurrencyId) { Credits += amount; return amount; }
+        double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
+        Credits += own;
+        state.RecordConversion(fromCurrencyId, amount, CurrencyId, own);
+        return own;
     }
 
     /// <summary>Debit the treasury to provide <paramref name="amount"/>
@@ -107,13 +112,16 @@ public sealed class PolityRecord : ICreditLedger
     /// needed sum of its own currency out, deducting it from
     /// <see cref="Credits"/> — which may go negative, the existing insolvency
     /// path (<c>Borrow</c> answers a negative balance); a polity does not cap.
-    /// Returns the full <paramref name="toCurrencyId"/> amount provided.</summary>
+    /// Returns the full <paramref name="toCurrencyId"/> amount provided. A
+    /// cross-currency payout records the transfer: this polity's own currency
+    /// leaves circulation, <paramref name="toCurrencyId"/> gains the amount.</summary>
     public double Withdraw(SimState state, double amount, int toCurrencyId)
     {
         if (amount <= 0) return 0;
-        Credits -= toCurrencyId == CurrencyId
-            ? amount
-            : state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
+        if (toCurrencyId == CurrencyId) { Credits -= amount; return amount; }
+        double ownCost = state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
+        Credits -= ownCost;
+        state.RecordConversion(CurrencyId, ownCost, toCurrencyId, amount);
         return amount;
     }
 }

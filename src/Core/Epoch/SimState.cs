@@ -183,6 +183,64 @@ public sealed class SimState
         return amount * from.NumeraireRate / to.NumeraireRate;
     }
 
+    /// <summary>Record a cross-currency transfer between two currencies' supplies
+    /// (design "Conservation &amp; determinism": a conversion is a transfer, never
+    /// a mint) — <paramref name="outAmount"/> of <paramref name="fromCurrencyId"/>
+    /// leaves circulation and <paramref name="inAmount"/> of
+    /// <paramref name="toCurrencyId"/> enters, tracked by the paired
+    /// <see cref="Currency.CumulativeConvertedOut"/>/<c>In</c> counters so the
+    /// per-currency residual nets it out. Amounts are each in their OWN currency's
+    /// units (the conversion direction, not the arithmetic direction, decides which
+    /// side is out vs in). A no-op when the currencies match or either side is
+    /// unwired (id &lt; 0, i.e. pre-genesis) — the single-currency world records
+    /// nothing.</summary>
+    public void RecordConversion(int fromCurrencyId, double outAmount,
+                                 int toCurrencyId, double inAmount)
+    {
+        if (fromCurrencyId == toCurrencyId
+            || fromCurrencyId < 0 || toCurrencyId < 0) return;
+        CurrencyOf(fromCurrencyId).CumulativeConvertedOut += outAmount;
+        CurrencyOf(toCurrencyId).CumulativeConvertedIn += inAmount;
+    }
+
+    /// <summary>The currency a port's market is denominated in — the port-owning
+    /// polity's <see cref="PolityRecord.CurrencyId"/>. Every price, bid, ask, and
+    /// escrow at that port is in this currency. −1 before genesis wires currencies
+    /// (the dormant single-currency world), which every conversion site treats as
+    /// "no conversion".</summary>
+    public int LocalCurrencyOf(int portId) =>
+        PolityOf(Ports[portId].OwnerActorId).CurrencyId;
+
+    /// <summary>Credit <paramref name="amount"/> of a market's local currency
+    /// (<paramref name="localCurrencyId"/>) to an earner, converting into the
+    /// earner's own currency where it differs (a polity) or banking the local
+    /// currency unconverted (a corporation), and recording the transfer. Returns
+    /// the amount banked in the earner ledger's own denomination, for a
+    /// Receipts mirror. Pre-genesis (<paramref name="localCurrencyId"/> &lt; 0)
+    /// this is the old raw single-currency credit — byte-identical, and it keeps a
+    /// corporation's empty <see cref="Corporation.Holdings"/> off the (nonexistent)
+    /// currency table.</summary>
+    public double CreditLocal(int earnerActorId, double amount, int localCurrencyId)
+    {
+        var ledger = LedgerOf(earnerActorId);
+        if (localCurrencyId < 0) { ledger.Credits += amount; return amount; }
+        return ledger.Deposit(this, amount, localCurrencyId);
+    }
+
+    /// <summary>Debit enough of a payer's ledger to provide <paramref name="amount"/>
+    /// of a market's local currency (<paramref name="localCurrencyId"/>), converting
+    /// out of the payer's own currency (a polity, which may go negative) or drawing
+    /// the wallet down (a corporation, which caps at what it holds), and recording
+    /// the transfer. Returns the amount actually provided in local-currency terms.
+    /// Pre-genesis (<paramref name="localCurrencyId"/> &lt; 0) this is the old raw
+    /// single-currency debit — byte-identical.</summary>
+    public double DebitLocal(int payerActorId, double amount, int localCurrencyId)
+    {
+        var ledger = LedgerOf(payerActorId);
+        if (localCurrencyId < 0) { ledger.Credits -= amount; return amount; }
+        return ledger.Withdraw(this, amount, localCurrencyId);
+    }
+
     /// <summary>The corporation record behind an actor id, or null.</summary>
     public Corporation? CorporationOf(int actorId)
     {

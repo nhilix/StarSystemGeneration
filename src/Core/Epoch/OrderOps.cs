@@ -55,7 +55,10 @@ public static class OrderOps
             var o = state.Orders[i];
             if (state.WorldYear <= o.ExpiryYear) continue;
             if (o.Side == OrderSide.Buy)
-                state.LedgerOf(o.OwnerActorId).Credits += CancelBuy(state, o);
+                // the escrow is in the port's local currency; a foreign buyer's
+                // refund converts back into their own currency (design §1)
+                state.CreditLocal(o.OwnerActorId, CancelBuy(state, o),
+                                  state.LocalCurrencyOf(o.PortId));
             else
             {
                 var (qty, grade) = CancelSell(state, o);
@@ -69,10 +72,14 @@ public static class OrderOps
 
     /// <summary>Trade the crossing pair: qty = min of the remainders, at
     /// MAKER price (the earlier-posted order's limit — price-time
-    /// priority's resting side). Credits move from the buy's escrow to the
-    /// seller's ledger; the goods return to the caller, who routes them
-    /// (consumption, site stock, a hold). Bid-limit surplus stays escrowed
-    /// until cancel. Zero-quantity orders leave the registry.</summary>
+    /// priority's resting side). The buy's escrow (held in the port's local
+    /// currency) is released by <paramref name="paid"/>; the goods return to the
+    /// caller, who routes them (consumption, site stock, a hold). The SELLER is
+    /// NOT paid here — <see cref="SettleSale"/> owns the whole local-currency
+    /// split (tax and wages stay local, only the seller's net converts into their
+    /// own currency), so the local deductions land before any conversion (design
+    /// §1). Bid-limit surplus stays escrowed until cancel. Zero-quantity orders
+    /// leave the registry.</summary>
     public static (double Qty, double Grade, double Paid) Fill(SimState state,
         MarketOrder buy, MarketOrder sell)
     {
@@ -83,9 +90,6 @@ public static class OrderOps
         buy.QtyRemaining -= qty;
         buy.EscrowCredits -= paid;
         sell.QtyRemaining -= qty;
-        var seller = state.LedgerOf(sell.OwnerActorId);
-        seller.Credits += paid;
-        seller.Receipts += paid;
         Prune(state, sell);
         Prune(state, buy);        // survives while surplus escrow remains
         return (qty, sell.Grade, paid);
@@ -142,10 +146,16 @@ public static class OrderOps
         return fills;
     }
 
-    /// <summary>A sale's consequences, shared by matching and ask-lifting:
-    /// the seller has already been paid in full — tax on the proceeds moves
-    /// to the port's sovereign and the labor share of the net pays the local
-    /// segments; the seller's realized take is what remains.</summary>
+    /// <summary>A sale's whole settlement, shared by matching and ask-lifting.
+    /// <paramref name="paid"/> is the gross in the port's LOCAL currency. Tax and
+    /// the labor wage share are local by construction — the sovereign owns the
+    /// port and the paid segments live in it — so they deduct from the gross
+    /// FIRST and credit the sovereign and local segments in local currency with no
+    /// conversion. Only the seller's NET remainder crosses a currency boundary: it
+    /// converts into the seller's own currency (a polity) or banks unconverted (a
+    /// corporation) at the point of crediting (design §1 — local deductions before
+    /// the conversion, not after). The seller is credited HERE, not by
+    /// <see cref="Fill"/>/<see cref="BookOps.LiftAsks"/>.</summary>
     internal static void SettleSale(SimState state, int portId,
                                     int sellerActorId, double paid)
     {
@@ -156,12 +166,17 @@ public static class OrderOps
         var sovereign = state.PolityOf(port.OwnerActorId);
         double tax = paid * taxRate;
         double wages = (paid - tax) * state.Config.Economy.LaborShare;
-        var seller = state.LedgerOf(sellerActorId);
-        seller.Credits -= tax + wages;
-        seller.Receipts -= tax + wages;
+        double net = paid - tax - wages;
+        // local share — no conversion (sovereign IS the local polity; wages pay
+        // its resident segments, whose wealth resolves to the same currency)
         sovereign.Credits += tax;
         sovereign.Receipts += tax;
         MarketEngine.PayWages(state, portId, wages);
+        // the seller's net converts into their own currency (or banks unconverted
+        // for a corp); Receipts mirrors the amount banked, in that denomination
+        double banked = state.CreditLocal(sellerActorId, net,
+                                          sovereign.CurrencyId);
+        state.LedgerOf(sellerActorId).Receipts += banked;
     }
 
     /// <summary>Release a sell order's remaining goods to the caller and
