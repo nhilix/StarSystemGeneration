@@ -504,6 +504,30 @@ shipped mechanism is stable enough to document accurately. Cross-reference
 `docs/superpowers/specs/2026-07-14-cu-currency-fx-design.md` for the full
 rationale rather than repeating it.
 
+## Task 13: LaneBuilderTests threshold recalibration (Sonnet)
+
+**Inserted at acceptance time, per explicit user decision.** The FX system
+going genuinely live (Task 9) produced a denser, more interconnected lane
+network as a real, investigated, and user-confirmed healthy consequence —
+not a bug. Investigated concretely: polity 48's 4 ports form a legitimate
+internal hub (port 2 → ports 7/8/11) PLUS multiple ports independently build
+direct lanes to busy foreign trade partners (all four ports reach port 0;
+two ports also reach two more foreign polities each) rather than routing
+everything through the hub — plausible as real arbitrage-driven trade
+activity now that currencies genuinely diverge. `LaneBuilderTests.
+DefaultHistory_BuildsTreesAndHubs_NotAllPairsWebs`'s heuristic threshold
+(`meanDegree <= 0.6*(ports-1) || meanDegree <= 3.0`) was calibrated for the
+pre-FX (single-currency, less trade-active) equilibrium; polity 48 now sits
+at `meanDegree = 3.50`.
+
+Recalibrate the threshold to accommodate the new, user-confirmed-healthy
+equilibrium — this is a deliberate recalibration with a documented reason,
+not a blind widening to make a red test go away. Re-run the full committed
+acceptance sweep/history to confirm no OTHER polity's topology looks
+pathological (a duplicate-lane loop, an unbounded degree growth) under the
+new threshold — the recalibration should still catch a genuine web, just
+not this specific denser-but-healthy pattern.
+
 ## Acceptance (after Task 12, before merge)
 
 `dotnet test` green (hex-tier suite intact); determinism byte-identity for
