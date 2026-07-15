@@ -646,6 +646,62 @@ Run the full `dotnet test` suite before committing (should stay at
 972/972, hex-tier intact — this is a docs+one-line-consistency change, no
 behavior change expected). Commit, self-review, report back.
 
+## Task 16: Merge main (Slice L landed) — resolve conflicts (Opus)
+
+**Inserted at wrap-up, per user instruction.** Slice L (locality — bodies
+become addressable) merged to `main` while this slice was in flight (55
+commits ahead of this branch's merge-base). Merge `main` into
+`slice-cu-currency` and resolve every conflict correctly — this is real
+semantic reconciliation in a few places, not purely mechanical. A trial
+merge (`git merge --no-commit --no-ff main`, already run and aborted by the
+orchestrator to leave the tree clean) found exactly four conflicts:
+
+1. **`src/Core/Epoch/ArtifactSerializer.cs`** — the `Layers` version tuple:
+   this slice bumped `actors` 8→9, `markets` 4→5, `corporations` 3→4; Slice
+   L bumped `facilities`/`fleets`/`segments` 2→3 and `projects` 2→3, and
+   added two brand-new layers (`settled`, `bodyresources`). No layer was
+   bumped by BOTH slices, so this should combine cleanly — take the union
+   of every version bump, append L's two new layers at the end (never
+   reorder existing layers, per the file's own convention), and confirm the
+   read/write bodies for `facilities`/`fleets`/`segments`/`projects`
+   correctly carry L's trailing `Body.StarIndex`/`SlotIndex` fields (this
+   slice didn't touch those rows' serialized shape at all, so there should
+   be no field-order collision — verify this assumption rather than
+   trusting it).
+2. **`src/Core/Epoch/Health/MetricsOps.cs`** — real semantic overlap, not
+   just additive: this slice's Task 9 reworked `Snapshot`'s residual
+   computation into a per-currency measure (read the current
+   `MoneyRow`/`MetricRow` shape and the residual logic on THIS branch
+   before resolving); Slice L added `SettledHexes`/`BodyStockRemaining`
+   fields to `MetricRow` and a `bodyStock` computation, on top of the OLD
+   single-lump residual logic. The merged result must keep this slice's
+   per-currency residual rework intact (do not silently revert to the old
+   lump residual) while also including L's two new fields and their
+   computation. Read both sides' full diffs
+   (`git diff 005294a766610c0fe307208d3814dc4f1a08fe8c main --
+   src/Core/Epoch/Health/MetricsOps.cs` for L's side; the current file on
+   this branch for CU-1's side) before resolving, not just the conflict
+   markers.
+3. **`docs/TUNING.md`** — purely additive (each slice inserted different
+   new knob rows near the same table location); include both sets of rows.
+4. **`tests/Core.Tests/Goldens/slice-b-artifact-seed42.txt`** — do not hand-
+   resolve this file's conflict markers. Once every source conflict is
+   resolved and the merge commit is in place, regenerate the golden fresh
+   (run the golden test / whatever this project's existing golden-refreeze
+   procedure is) and commit the regenerated file — this is a legitimate
+   history change from combining two slices' worth of behavior, not a
+   manual merge.
+
+After resolving all four: run the full `dotnet test` suite (hex-tier suite
+must never regress; determinism must hold) and confirm the count is sane
+given BOTH slices' test suites are now combined (do not expect exactly
+972 — that was CU-1 alone; report whatever the real combined count is,
+and investigate rather than assume if anything unexpected fails). Also
+spot-check that `MetricRegistry.cs` (L touched this too, adding metric
+registrations) didn't silently conflict with or duplicate anything CU-1's
+Task 9 added there. Commit the merge (a real merge commit, not a squash —
+preserve both slices' history), self-review, report back.
+
 ## Acceptance (after Task 12, before merge)
 
 `dotnet test` green (hex-tier suite intact); determinism byte-identity for
