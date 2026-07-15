@@ -29,6 +29,12 @@ public sealed class EpochEngine
     /// <summary>Integrates one epoch: YearsPerEpoch world-years of every rate.</summary>
     public void Step(SimState state)
     {
+        // FX rates recompute once, at the very start of the epoch, from the
+        // state left at the END of the prior epoch — BEFORE Markets clears and
+        // rebuilds Receipts and before any conversion (Borrow/ServiceLoans/
+        // PayTribute/market fills) reads the table, so the whole epoch converts
+        // against one frozen table (currency-and-FX design, "FX rate").
+        FxOps.RecomputeRates(state);
         foreach (var phase in _phases)
         {
             state.Trace.Add(new PhaseTraceEntry(state.EpochIndex, phase.Name,
