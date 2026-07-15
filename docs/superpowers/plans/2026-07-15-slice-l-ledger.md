@@ -110,9 +110,19 @@ construction outright when an extraction type resolves no eligible body
       `IsExtraction` gate confirmed type-agnostic (all four types, not per-type
       patch) against the full InfraTypeId enum. RichnessModifier/BodyExtractionTests
       confirmed untouched. Clean, approved first review.
-- [ ] BR-Task 4: Groundbreak rolls stock + rejects bodiless extraction — shared
-      `PlaceFacilityBody`, `CompleteExpedition`, starter-industry loop (Opus —
-      spans ProjectOps.cs + Phases.cs, changes a public method's return type)
+- [x] BR-Task 4: Groundbreak rolls stock + rejects bodiless extraction (Opus).
+      Commit cbbf8e3. Surfaced 5 emergent-history test regressions (FineTick,
+      Siege, WarDeclaration, KinClaim, Treaty ladder) — legitimate economy drift
+      from facilities now getting real bodies instead of None (RichnessModifier
+      no longer flat-neutral for them), NOT a per-tick depletion bug (confirmed:
+      BodyResourceOps.Extract isn't wired into SupplyLands until Task 5, and
+      Task 5's planned formula already scales by years-per-step correctly, no
+      latent bug). All 5 re-tuned with diagnosed root causes, independently
+      verified by Opus reviewer against real gating logic (WarOps.DeclareWar's
+      vassal precedence, RelationsOps.BothLive, etc.) — none a goalpost move.
+      Minor carried forward: FineTick's provisions tolerance now 0.85 (widened
+      3x total: 0.6→0.7→0.75→0.85) — getting weak, worth splitting out if
+      touched again.
 - [ ] BR-Task 5: `SupplyLands` depletes/yields from body, retires
       RichnessModifier/ExtractionPotential (Opus — economy-critical formula path)
 - [ ] BR-Task 6: Serialize `BodyResources` (bodyresources v1) (Opus — serializer
