@@ -683,6 +683,16 @@ public sealed class EconomyKnobs
     /// <summary>Extra stockpile capacity per good per active Depot tier at
     /// the port — depots are how a polity builds deep larders.</summary>
     public double StockCapPerDepotTier { get; set; } = 400.0;
+    /// <summary>Expected finite resource stock (units) a new Mine/Excavation
+    /// body is rolled with (body-resource-stock design): expected quantity =
+    /// this × the region's raster richness score. Bigger → deeper deposits
+    /// that outlast more epochs of extraction before a body runs dry.</summary>
+    public double BodyStockOreScale { get; set; } = 5000.0;
+    /// <summary>Fractional ± spread of a body's stock roll around its expected
+    /// quantity (body-resource-stock design): 0 = every body at the same
+    /// richness is identical; 0.4 = ±40% variance, so two belts in one rich
+    /// hex differ.</summary>
+    public double BodyStockVarianceSpread { get; set; } = 0.4;
     /// <summary>Freight speed on a lane in hexes per world-year, before the
     /// lane's gate-tier TransitSpeed multiplier (spec §4b: gate tier sets
     /// speed) — a tier-2 lane moves goods at 2× this base.</summary>
