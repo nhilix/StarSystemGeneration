@@ -364,10 +364,19 @@ public static class ProjectOps
         var corp = state.CorporationOf(p.FunderActorId);
         if (corp != null)
         {
-            // corporate works stream wages in the building port's currency —
-            // the wallet draws that bucket down, converting when short
-            state.DebitLocal(p.FunderActorId, amount,
-                             state.LocalCurrencyOf(p.PortId));
+            // corporate works stream wages / escrow bids in the building port's
+            // currency — the wallet draws that bucket down, converting when short.
+            // A NEGATIVE amount is a refund (RefundTreasury reverses a bid escrow):
+            // it must CREDIT the wallet back, not draw it — Corporation.Withdraw
+            // no-ops on a non-positive amount (a corp has no overdraft), so routing
+            // a refund through DebitLocal would silently swallow it and destroy the
+            // escrowed credits (a conservation leak). Deposit banks it back
+            // symmetrically, the corp mirror of the polity pool's `-= -amount`.
+            int localCurrency = state.LocalCurrencyOf(p.PortId);
+            if (amount >= 0)
+                state.DebitLocal(p.FunderActorId, amount, localCurrency);
+            else
+                state.CreditLocal(p.FunderActorId, -amount, localCurrency);
             return;
         }
         var pr = state.PolityOf(p.FunderActorId);
