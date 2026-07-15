@@ -61,4 +61,21 @@ public class SettledSystemsTests
         Assert.Equal(2.0,
             MetricRegistry.Find("Settlement.SettledHexes")!.Get(row), 9);
     }
+
+    [Fact]
+    public void BodyStockRemainingMetric_SumsRemainingStock()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        Assert.NotNull(MetricRegistry.Find("Extraction.BodyStockRemaining"));
+        state.BodyResources[(state.Actors[0].Seat, new BodyRef(0, 0))]
+            = new StarGen.Core.Substrate.Stock(
+                StarGen.Core.Substrate.GoodId.Ore, 100.0, 0.5);
+        state.BodyResources[(state.Actors[0].Seat, new BodyRef(0, 1))]
+            = new StarGen.Core.Substrate.Stock(
+                StarGen.Core.Substrate.GoodId.Ore, 25.0, 0.5);
+        var row = MetricsOps.Snapshot(state);
+        Assert.Equal(125.0, row.BodyStockRemaining, 6);
+        Assert.Equal(125.0,
+            MetricRegistry.Find("Extraction.BodyStockRemaining")!.Get(row), 6);
+    }
 }

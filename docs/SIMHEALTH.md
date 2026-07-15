@@ -166,6 +166,26 @@ Diagnosis: `docs/superpowers/plans/2026-07-12-debt-diagnosis.md`. The fix
 is out of scope for slice SH (the flagged monetary/credit-equilibrium
 pass).
 
+## Extraction (locality — body resource stocks)
+
+`Extraction.BodyStockRemaining` sums `SimState.BodyResources[...].Quantity`
+across every depletable body — the remaining stock behind every Mine or
+ExcavationSite facility currently drawing from a body deposit.
+
+**Healthy shape**: rises when new deposits are rolled and groundbroken
+(a fresh Mine/ExcavationSite starts pulling from a body no prior facility
+had touched), falls monotonically between founding waves as active
+facilities dig their bodies out. A mature, mine-heavy galaxy trends down
+between founding waves; a galaxy still expanding into fresh systems shows
+a sawtooth (rises at each wave, falls as it's worked).
+
+**Known open question**: no eviction or relocation is proposed yet for a
+body that runs dry — a facility sitting on a depleted deposit is not
+currently reassigned or torn down. This metric exists to give the
+depletion rate evidence before any relocation mechanic is designed: if a
+long sweep shows most stock exhausted early with facilities idling on
+dead bodies, that's the signal to design relocation, not a bug here.
+
 ## Settlement (locality — frozen hex-tier state)
 
 `Settlement.SettledHexes` counts `SimState.SettledSystems` — hexes whose

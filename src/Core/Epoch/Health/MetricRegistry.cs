@@ -22,6 +22,11 @@ public static class MetricRegistry
 
     private static readonly MetricDef[] Table =
     {
+        // ---- Extraction (body resource stocks — locality) ----
+        M("Extraction.BodyStockRemaining",
+          "total remaining depletable body-resource stock (falls as bodies deplete)",
+          r => r.BodyStockRemaining),
+
         // ---- Money (the holder classes — conserved credit stores) ----
         M("Money.ConservationResidual",
           "supply delta minus known mints — nonzero means an unknown leak",
