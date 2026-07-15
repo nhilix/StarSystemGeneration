@@ -34,7 +34,8 @@ Baseline: 900/900 tests green before any change.
       a hex's bodies are all claimed/full — changes Facility.Hex semantics, touches
       Siting.cs, needs its own brainstorm/design pass. Flag prominently in the next
       kickoff prompt and HANDOFF.md.
-- [ ] Task 7: Atlas reads decided placement (Sonnet)
+- [x] Task 7: Atlas reads decided placement (Sonnet). Commit 90c3ca4. Clean,
+      approved first review, no fix wave.
 - [ ] Task 8: Extraction reads claimed body's richness — throughline (Sonnet, verify ConservationTests stays green)
 - [ ] Task 9: `Settlement.SettledHexes` sim-health metric (Sonnet)
 
