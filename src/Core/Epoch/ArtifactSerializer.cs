@@ -32,7 +32,7 @@ public static class ArtifactSerializer
         ("corporations", 3), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
         ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
-        ("bodyres", 1),
+        ("bodyresources", 1),
     };
 
     public static string ToText(SimState state)
@@ -549,7 +549,7 @@ public static class ArtifactSerializer
         foreach (var h in settledHexes)
             w.WriteLine(Join("SETTLED", h.Q.ToString(Inv), h.R.ToString(Inv)));
 
-        Layer(w, "bodyres");
+        Layer(w, "bodyresources");
         // depletable per-body resource stocks — REAL mutable state (a Mine/
         // Excavation digs its rock down over time), so genuinely serialized,
         // NOT re-derived like the hex tier. Sorted (q, r, star, slot) for P6.
@@ -567,7 +567,7 @@ public static class ArtifactSerializer
         foreach (var k in bodyResKeys)
         {
             var stock = state.BodyResources[k];
-            w.WriteLine(Join("BODYRES", k.Hex.Q.ToString(Inv),
+            w.WriteLine(Join("BODYRESOURCE", k.Hex.Q.ToString(Inv),
                 k.Hex.R.ToString(Inv), k.Body.StarIndex.ToString(Inv),
                 k.Body.SlotIndex.ToString(Inv), ((int)stock.Good).ToString(Inv),
                 R(stock.Quantity), R(stock.Grade)));
@@ -1658,7 +1658,7 @@ public static class ArtifactSerializer
                             new HexCoordinate(int.Parse(f[1], Inv),
                                               int.Parse(f[2], Inv)));
                         break;
-                    case "BODYRES":
+                    case "BODYRESOURCE":
                         // REAL mutable stock, restored verbatim (not re-rolled).
                         state!.BodyResources[(
                             new HexCoordinate(int.Parse(f[1], Inv),
