@@ -252,17 +252,36 @@ against the borrower's own-currency debt ceiling. Lender-candidate ranking
 before comparing. The loan itself, once a lender is chosen, still issues
 denominated in the lender's currency (for a corporation lender, drawn from a
 specific bucket via `Withdraw`) — this part of ME's mechanism is unchanged in
-shape, only the comparison math is fixed. `ServiceLoans` — confirm (and fix
-if needed) that epoch-to-epoch amortization/interest, already denominated in
-the lender's currency, doesn't re-introduce a cross-currency comparison bug
-of its own; migrate its remaining raw `corp.Credits +=/-=` interest-crediting
-write (Task 4's implementer found this is one of the two remaining callers
-keeping `Corporation.Credits`'s transitional `_legacyCredits` bridge alive —
-the other was `CourierOps`, migrated in Task 5). After this migration, check
-whether the bridge now has zero remaining write-callers on `Corporation`; if
-so, remove it and make `Credits` the purely computed read-only property the
-design doc specifies (same as Task 4's brief asked, deferred to here since
-this is genuinely the last caller). Tests: a borrower with loans from two
+shape, only the comparison math is fixed.
+
+**Amended after Task 6b's review** — the bridge-removal scope named below was
+originally "just migrate `ServiceLoans`," confirmed insufficient: `Phases.
+Borrow` (`Phases.cs:771`) itself does a raw `lender.Credits -= principal` when
+the chosen lender is a corporation (the LEND side); `ServiceLoans`
+(`Phases.cs:~678-685`) does the matching raw `lender.Credits += payment` (the
+REPAY side). Task 6b's reviewer traced a real, confirmed conservation gap to
+exactly this pair: `Phases.Borrow` lending from a corp and `ServiceLoans`
+repaying it both bypass `Withdraw`/`Deposit`, so `Corporation.Credits`'s
+transitional `_legacyCredits` bridge (Task 1) accumulates a phantom balance
+that diverges from the corp's real withdrawable `Holdings` — confirmed to
+produce the exact residual (+58.4702 on the committed history) behind three
+still-red tests from Task 6/6b (`ConservationTests`, `ShapeAcceptanceTests`,
+the Graduation conserve test). Migrate **both** sides — `Borrow`'s lend-side
+debit via `Withdraw`, `ServiceLoans`'s repay-side credit via `Deposit` — not
+just the repay side. Also confirm `SimState.CreditLocal`/`DebitLocal`'s
+`localCurrencyId < 0` raw-`.Credits` fallback branches (`SimState.cs:~253,
+267`) are genuinely dead for corporations by the time this task ends (no
+remaining caller can reach them with a corp ledger) before concluding the
+bridge is safe to remove. Only once BOTH raw writes are migrated and the
+fallback branches are confirmed dead should the transitional `_legacyCredits`
+bridge/setter be removed, making `Credits` the purely computed read-only
+property the design doc specifies. Re-run `ConservationTests`/
+`ShapeAcceptanceTests`/the Graduation conserve test and confirm all three are
+now genuinely green (not just closer) — if a residual still remains, treat it
+as a new, distinctly-diagnosed finding, not evidence this fix was incomplete
+in a hand-wavy way.
+
+Tests: a borrower with loans from two
 different-currency lenders is correctly gated by the debt ceiling; lender
 selection picks correctly
 across currencies; existing ME loan-mechanism tests (capitalization ceiling,
