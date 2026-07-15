@@ -54,6 +54,15 @@ public class BodyResourceRoundTripTests
             = new Stock(GoodId.Exotics, 30.0, 0.5);
         state.BodyResources[(new HexCoordinate(-3, 2), new BodyRef(0, 0))]
             = new Stock(GoodId.Organics, 40.0, 0.5);
+        // Same Q (7), same (star, slot) — only R differs, so this pair is
+        // the one that actually exercises R as a discriminating sort key.
+        // Without it, a comparator that dropped R entirely (falling straight
+        // from Q to StarIndex) would still emit this test's other four
+        // entries in the same order, and the regression would go unnoticed.
+        state.BodyResources[(new HexCoordinate(7, 3), new BodyRef(0, 0))]
+            = new Stock(GoodId.Ore, 50.0, 0.5);
+        state.BodyResources[(new HexCoordinate(7, -2), new BodyRef(0, 0))]
+            = new Stock(GoodId.Volatiles, 60.0, 0.5);
 
         var text = ArtifactSerializer.ToText(state);
         var lines = text.Split('\n');
@@ -67,7 +76,10 @@ public class BodyResourceRoundTripTests
             int star = int.Parse(f[3]);
             int slot = int.Parse(f[4]);
             int idx = System.Array.IndexOf(
-                new[] { (-3, 2, 0, 0), (0, 0, 0, 9), (0, 0, 1, 0), (5, 5, 2, 1) },
+                new[] {
+                    (-3, 2, 0, 0), (0, 0, 0, 9), (0, 0, 1, 0), (5, 5, 2, 1),
+                    (7, -2, 0, 0), (7, 3, 0, 0),
+                },
                 (q, r, star, slot));
             Assert.True(idx >= 0, $"unexpected key in output: {line}");
             Assert.True(idx > prevIndex,
