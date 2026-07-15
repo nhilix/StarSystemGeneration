@@ -106,9 +106,10 @@ construction outright when an extraction type resolves no eligible body
 - [x] BR-Task 2: `SimState.BodyResources` + `BodyResourceOps` (Sonnet). Commit
       c9684ee. Determinism/idempotency independently traced (stateless roll,
       no double-commit path, zero-floor algebraic not clamped). Clean, approved.
-- [ ] BR-Task 3: `BodySiting` body-native extraction — Assign rejects, renewable
-      yield/grade (Sonnet — supersedes today's earlier fix-wave test
-      `SecondMine_FallsToNone_WhenSubstrateAbsentAndPortAlreadyClaimed`, intentional)
+- [x] BR-Task 3: `BodySiting` body-native extraction (Sonnet). Commit f0e9cc4.
+      `IsExtraction` gate confirmed type-agnostic (all four types, not per-type
+      patch) against the full InfraTypeId enum. RichnessModifier/BodyExtractionTests
+      confirmed untouched. Clean, approved first review.
 - [ ] BR-Task 4: Groundbreak rolls stock + rejects bodiless extraction — shared
       `PlaceFacilityBody`, `CompleteExpedition`, starter-industry loop (Opus —
       spans ProjectOps.cs + Phases.cs, changes a public method's return type)
