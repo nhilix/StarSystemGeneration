@@ -35,7 +35,15 @@ public static class CourierOps
             any = true;
         }
         if (!any) { state.NextCourierId--; return null; }
-        state.LedgerOf(posterActorId).Credits -= fee;  // escrowed on the record
+        // escrowed in the poster's own currency (it owns the origin port,
+        // so the port's local currency IS its own — currency-and-FX design,
+        // slice CU-1 task 5); resolution re-derives this same currency from
+        // OriginPortId rather than storing it, matching the order-book
+        // escrow's convention (no persisted currency field). DebitLocal
+        // (not a raw ledger.Withdraw) because it stays safe pre-genesis
+        // (currencyId < 0) the way a bare Corporation.Withdraw would not
+        // (SimState.CreditLocal/DebitLocal §doc).
+        state.DebitLocal(posterActorId, fee, state.LocalCurrencyOf(originPortId));
         state.Couriers.Add(c);
         return c;
     }
@@ -131,16 +139,26 @@ public static class CourierOps
     internal static void Resolve(SimState state, CourierContract c,
                                  ShipmentOps.SailOutcome outcome)
     {
+        // the currency the fee was escrowed in — the poster's own, derived
+        // live from the origin port's owner (no persisted currency field,
+        // matching the order-book escrow's convention)
+        int escrowCurrencyId = state.LocalCurrencyOf(c.OriginPortId);
         if (outcome == ShipmentOps.SailOutcome.Arrived)
         {
-            var fulfiller = state.LedgerOf(c.FulfillerActorId);
-            fulfiller.Credits += c.FeeEscrow;
-            fulfiller.Receipts += c.FeeEscrow;
+            // converts into the fulfiller's own currency (a polity) or
+            // banks unconverted (a corporation) — currency-and-FX design.
+            // CreditLocal, not a raw ledger.Deposit: stays safe pre-genesis
+            // (currencyId < 0) the way a bare Corporation.Deposit would not
+            double banked = state.CreditLocal(c.FulfillerActorId, c.FeeEscrow,
+                                              escrowCurrencyId);
+            state.LedgerOf(c.FulfillerActorId).Receipts += banked;
             c.Status = CourierStatus.Delivered;
         }
         else
         {
-            state.LedgerOf(c.PosterActorId).Credits += c.FeeEscrow;
+            // refund to the poster in the SAME currency it left — no
+            // conversion (it never crossed a currency boundary)
+            state.CreditLocal(c.PosterActorId, c.FeeEscrow, escrowCurrencyId);
             c.Status = CourierStatus.Lost;
         }
         c.FeeEscrow = 0;
@@ -170,7 +188,10 @@ public static class CourierOps
             for (int g = 0; g < c.Qty.Length; g++)
                 if (c.Qty[g] > 0)
                     origin.DepositStock(g, c.Qty[g], c.Grade[g]);
-            state.LedgerOf(c.PosterActorId).Credits += c.FeeEscrow;
+            // refund in the SAME currency it left — no conversion (it
+            // never crossed a currency boundary); see Resolve's refund
+            state.CreditLocal(c.PosterActorId, c.FeeEscrow,
+                              state.LocalCurrencyOf(c.OriginPortId));
             c.FeeEscrow = 0;
             c.Status = CourierStatus.Expired;
             state.Couriers.RemoveAt(i);

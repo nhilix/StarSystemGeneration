@@ -248,10 +248,13 @@ public static class FederationOps
                 || !state.Actors[overlord.ActorId].Entered) continue;
             double tribute = Math.Max(0.0, vassal.Receipts) * share;
             if (tribute <= 0) continue;
-            vassal.Credits -= tribute;
+            // the vassal's own currency leaves, converting into the
+            // overlord's own on arrival (currency-and-FX design) — a no-op
+            // conversion when they share one, or pre-genesis (both -1)
+            vassal.Withdraw(state, tribute, vassal.CurrencyId);
             vassal.Receipts -= tribute;   // the budget base shrinks with it
-            overlord.Credits += tribute;
-            overlord.Receipts += tribute;
+            double banked = overlord.Deposit(state, tribute, vassal.CurrencyId);
+            overlord.Receipts += banked;
             paid++;
         }
         return paid;

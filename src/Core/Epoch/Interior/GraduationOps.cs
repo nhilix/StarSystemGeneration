@@ -106,8 +106,11 @@ public static class GraduationOps
         string name = state.Cultures[cultureId].Name;
         var young = FoundSplinter(state, old, seceding, name,
                                   species.Militancy);
-        // the movement's war chest founds the treasury (conserved flow)
-        young.Credits += faction.Wealth;
+        // the movement's war chest founds the treasury (conserved flow):
+        // it was raised in the OLD polity's currency, converting into the
+        // child's own on arrival (currency-and-FX design) — a no-op
+        // conversion when they share one, or pre-genesis (both -1)
+        young.Deposit(state, faction.Wealth, old.CurrencyId);
         faction.Wealth = 0;
 
         // the interior: popular line of its own segments, form reseated,
@@ -189,8 +192,7 @@ public static class GraduationOps
             if (seceding.Contains(s.PortId)) secededPop += s.Size;
         }
         double share = totalPop > 0 ? secededPop / totalPop : 0.5;
-        young.Credits = old.Credits * share;
-        old.Credits -= young.Credits;
+        SeedTreasury(state, old, young, share);
         young.ExpansionPoints = old.ExpansionPoints * share;
         old.ExpansionPoints -= young.ExpansionPoints;
         young.DevelopmentPoints = old.DevelopmentPoints * share;
@@ -222,6 +224,29 @@ public static class GraduationOps
         young.HullsBuilt += hullsMoved;
         DesignRegistry.RegisterEntryDesigns(state, newId, militancy);
         return young;
+    }
+
+    /// <summary>Seed the new polity's treasury with its population share of
+    /// the parent's (slice CU-1 task 5, currency-and-FX design): the
+    /// transfer leaves the parent's currency and lands converted into the
+    /// child's own — one <see cref="SimState.ConvertCurrency"/> call via
+    /// <see cref="PolityRecord.Deposit"/>. Assumes the child's
+    /// <see cref="Currency"/> already exists by the time this runs (task 6's
+    /// genesis wiring establishes that ordering for graduation); pre-genesis
+    /// (both sides' <see cref="PolityRecord.CurrencyId"/> still −1) this is
+    /// byte-identical to a raw same-currency split. Uses <c>Deposit</c> on
+    /// BOTH legs, never <c>Withdraw</c>: an insolvent parent's share is
+    /// negative (the existing "goes negative, no cap" convention), and
+    /// <see cref="PolityRecord.Withdraw"/> silently no-ops on a
+    /// non-positive amount — which would leave the debt uncharged on the
+    /// parent while still crediting (or debiting) the child, breaking
+    /// conservation. Depositing the negated transfer has no such guard.</summary>
+    public static void SeedTreasury(SimState state, PolityRecord old,
+                                    PolityRecord young, double share)
+    {
+        double transfer = old.Credits * share;
+        old.Deposit(state, -transfer, old.CurrencyId);   // own currency, no guard
+        young.Deposit(state, transfer, old.CurrencyId);  // converts if currencies differ
     }
 
     /// <summary>Which domains walk: frontier ports for a regional schism,
