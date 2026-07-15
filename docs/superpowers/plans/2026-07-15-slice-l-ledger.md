@@ -16,7 +16,10 @@ Baseline: 900/900 tests green before any change.
 - [x] Task 3: `OrbitGeometry` — discrete OrbitDistance + local-hop knobs (Sonnet).
       Commit 5e6209f. Clean, approved. NOTE: golden test now red (KNOB dump gained 2
       entries) — expected red-window, re-freeze once at slice end.
-- [ ] Task 4: Serializer round-trips the four body-ref fields (Opus — serializer correctness hazard)
+- [x] Task 4: Serializer round-trips the four body-ref fields (Opus — serializer correctness hazard).
+      Commit a8e82e1. All field indices independently re-verified by Opus reviewer, no
+      off-by-ones. Minor (not blocking): FLEET/SEGMENT round-trip values and old-format
+      truncation only directly tested for FACILITY/PROJECT — carry to final review.
 - [ ] Task 5: `SettledSystems` registry + idempotent commit + serialization (Opus — determinism invariant)
 - [ ] Task 6: Body-assignment at groundbreaking, claim-aware (Sonnet, touches ProjectOps — watch allocation interplay)
 - [ ] Task 7: Atlas reads decided placement (Sonnet)
