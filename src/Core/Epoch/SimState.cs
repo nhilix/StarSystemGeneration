@@ -256,6 +256,26 @@ public sealed class SimState
     public int LocalCurrencyOf(int portId) =>
         PolityOf(Ports[portId].OwnerActorId).CurrencyId;
 
+    /// <summary>The currency a port's market is denominated in, or −1 when the
+    /// port sits unowned (no live-polity owner) or the id is out of range — the
+    /// non-throwing counterpart to <see cref="LocalCurrencyOf"/>. The
+    /// ownership-change and migration conversion sites use this so a transfer
+    /// touching an unowned port degrades to the dormant 1:1 path (which
+    /// <see cref="ConvertCurrency"/>/<see cref="RecordConversion"/> both treat as
+    /// a no-op) rather than throwing — matching how the conservation walk
+    /// (<c>SupplyOps</c>) resolves the same wealth to −1.</summary>
+    public int LocalCurrencySafe(int portId)
+    {
+        if (portId < 0 || portId >= Ports.Count) return -1;
+        int owner = Ports[portId].OwnerActorId;
+        if (owner < 0) return -1;
+        if (owner < Polities.Count && Polities[owner].ActorId == owner)
+            return Polities[owner].CurrencyId;
+        foreach (var p in Polities)
+            if (p.ActorId == owner) return p.CurrencyId;
+        return -1;
+    }
+
     /// <summary>Credit <paramref name="amount"/> of a market's local currency
     /// (<paramref name="localCurrencyId"/>) to an earner, converting into the
     /// earner's own currency where it differs (a polity) or banking the local
@@ -291,6 +311,46 @@ public sealed class SimState
         // negative), a corporation draws its wallet down with the dormant 1:1 rate.
         // See CreditLocal above — a live run only ever passes a real id.
         return LedgerOf(payerActorId).Withdraw(this, amount, localCurrencyId);
+    }
+
+    /// <summary>Force-convert every port-resolved money holder at a port whose
+    /// owner is changing — resident <see cref="PopulationSegment.Wealth"/> AND any
+    /// resting buy-order escrow (<see cref="MarketOrder.EscrowCredits"/>) or courier
+    /// fee escrow (<see cref="Courier.FeeEscrow"/>) denominated in that port's
+    /// market currency — from the old owner's currency into the new owner's,
+    /// recording each transfer. <c>SupplyOps</c> resolves ALL of these by the port's
+    /// current owner-currency, so a bare owner swap re-denominates them 1:1 and
+    /// leaks per-currency conservation; this is the shared conversion the three
+    /// ownership-change seams (federation/absorption, war capture, secession) apply
+    /// at the moment of transfer (currency-and-FX design, "Data model" /
+    /// "Conservation &amp; determinism"). A same-currency change, or an unwired side
+    /// (id &lt; 0), is a no-op via <see cref="ConvertCurrency"/>/<see cref="RecordConversion"/>.</summary>
+    public void ConvertPortHoldings(int portId, int fromCurrencyId, int toCurrencyId)
+    {
+        if (fromCurrencyId == toCurrencyId) return;
+        foreach (var s in Segments)                           // id order (P6)
+            if (s.PortId == portId && s.Wealth != 0)
+            {
+                double c = ConvertCurrency(s.Wealth, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, s.Wealth, toCurrencyId, c);
+                s.Wealth = c;
+            }
+        foreach (var o in Orders)                             // id order (P6)
+            if (o.PortId == portId && o.EscrowCredits != 0)
+            {
+                double c = ConvertCurrency(o.EscrowCredits, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, o.EscrowCredits, toCurrencyId, c);
+                o.EscrowCredits = c;
+            }
+        foreach (var cr in Couriers)                          // id order (P6)
+            if ((cr.Status == CourierStatus.Open
+                 || cr.Status == CourierStatus.InTransit)
+                && cr.OriginPortId == portId && cr.FeeEscrow != 0)
+            {
+                double c = ConvertCurrency(cr.FeeEscrow, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, cr.FeeEscrow, toCurrencyId, c);
+                cr.FeeEscrow = c;
+            }
     }
 
     /// <summary>The corporation record behind an actor id, or null.</summary>

@@ -463,7 +463,19 @@ public static class WarConduct
             p.OwnerActorId = newOwnerActorId;
             p.FunderActorId = newOwnerActorId;
         }
+        // the captured port's resident households (and any resting order/courier
+        // escrow at its market) now hold and earn the conqueror's currency:
+        // force-convert every port-resolved holder at the frozen rate and record
+        // the transfers, so nothing is silently re-denominated 1:1 at the capture
+        // seam (currency-and-FX design, "Data model"). Resolve both owners'
+        // currencies safely (an unowned side degrades to the dormant 1:1 no-op).
+        int fromCur = state.LocalCurrencySafe(portId);        // still the old owner
+        int toCur = -1;
+        for (int pi = 0; pi < state.Polities.Count; pi++)
+            if (state.Polities[pi].ActorId == newOwnerActorId)
+            { toCur = state.Polities[pi].CurrencyId; break; }
         port.OwnerActorId = newOwnerActorId;
+        state.ConvertPortHoldings(portId, fromCur, toCur);
     }
 
     // ---- the modifiers ----

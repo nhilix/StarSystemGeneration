@@ -458,11 +458,27 @@ public static class MarketEngine
                     if (want <= 1e-9) continue;
                     double bid = Math.Max(eco.PriceFloor,
                         market.Price[g] * eco.ProjectBidPremium);
-                    // the treasury escrows the bid — goods cost money now
+                    // the treasury escrows the bid — goods cost money now. The bid
+                    // (and the resting escrow it becomes) is in the BUILD MARKET's
+                    // currency, but SpendTreasury debits the funder in ITS currency
+                    // (a polity's pool, or a corp's home-port wallet). For a foreign
+                    // build port — or a GatePair end in another polity — those
+                    // differ, so convert across the boundary and record the transfer
+                    // (order entry, currency-and-FX design §1): a raw 1:1 escrow
+                    // would silently re-denominate the funder's spend into the
+                    // market's currency. The affordability bound converts the pool
+                    // into market terms so the escrow never outruns the debit.
+                    int endCur = state.LocalCurrencySafe(end);
+                    int funderCur = ProjectOps.FunderCurrency(state, p);
                     double affordable = ProjectOps.TreasuryAvailable(state, p);
-                    double qty = Math.Min(want, affordable / bid);
+                    double affordableInMarket = state.ConvertCurrency(
+                        affordable, funderCur, endCur);
+                    double qty = Math.Min(want, affordableInMarket / bid);
                     if (qty <= 1e-9) continue;
-                    ProjectOps.SpendTreasury(state, p, qty * bid);
+                    double escrow = qty * bid;                // market currency
+                    double cost = state.ConvertCurrency(escrow, endCur, funderCur);
+                    ProjectOps.SpendTreasury(state, p, cost);
+                    state.RecordConversion(funderCur, cost, endCur, escrow);
                     var order = OrderOps.PostBuy(state, p.FunderActorId,
                         end, g, qty, bid, state.WorldYear);
                     scratch.ProjectBids.Add((order, p));
@@ -983,7 +999,16 @@ public static class MarketEngine
         foreach (var (order, project) in scratch.ProjectBids)
         {
             double refund = OrderOps.CancelBuy(state, order);
-            if (refund > 0) ProjectOps.RefundTreasury(state, project, refund);
+            if (refund <= 0) continue;
+            // the unfilled escrow is in the build MARKET's currency; convert it
+            // back into the funder's currency and record the reverse transfer
+            // before returning it to the pool, symmetric with the entry conversion
+            // in PostProjectBids (a raw 1:1 refund would re-denominate it).
+            int endCur = state.LocalCurrencySafe(order.PortId);
+            int funderCur = ProjectOps.FunderCurrency(state, project);
+            double back = state.ConvertCurrency(refund, endCur, funderCur);
+            state.RecordConversion(endCur, refund, funderCur, back);
+            ProjectOps.RefundTreasury(state, project, back);
         }
         foreach (var (order, pr, _) in scratch.ProcureBids)
         {

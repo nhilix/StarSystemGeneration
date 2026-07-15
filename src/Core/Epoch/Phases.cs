@@ -1758,7 +1758,19 @@ public sealed class InteriorPhase : ISimPhase
             seg.Wealth -= wealthShare;
             var home = FindOrFoundSegment(state, bestPort, seg);
             home.Size += flow;
-            home.Wealth += wealthShare;
+            // the migrants' wealth crosses a currency boundary whenever the
+            // destination belongs to a different-currency polity — the gradient
+            // path above (unlike the refugee off-lane branch, which stays
+            // same-owner) freely picks a lane-neighbour of any polity. Convert at
+            // the frozen rate and record the transfer so per-currency conservation
+            // nets it out, instead of silently re-denominating 1:1 (currency-and-FX
+            // design, "Conversion mechanics"). Same-currency or an unowned port
+            // (id −1) degrades to the dormant 1:1 no-op.
+            int fromCur = state.LocalCurrencySafe(seg.PortId);
+            int toCur = state.LocalCurrencySafe(bestPort);
+            double moved = state.ConvertCurrency(wealthShare, fromCur, toCur);
+            state.RecordConversion(fromCur, wealthShare, toCur, moved);
+            home.Wealth += moved;
             flows++;
             if (refugees)
                 state.Staged.Add(new StagedEvent(

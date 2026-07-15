@@ -71,39 +71,27 @@ public class GraduationTests
                 Assert.Contains(state.Ports,
                                 p => p.OwnerActorId == s.NewPolityId);
         }
-        // credits still conserve to the mint across the split
-        double minted = 0, held = 0;
-        var eco = state.Config.Economy;
-        foreach (var a in state.Actors)
-            // the emergence event IS the mint record — retirement (slice H
-            // mergers) moves the credits on, never uncoins them
-            if (state.Log.Events.Any(e =>
-                    e.Type == WorldEventType.PolityEmerged
-                    && e.Actors.Contains(a.Id)))
-                minted += eco.InitialCreditsPerPolity
-                          + state.Config.Expansion.HomeworldSegmentSize
-                            * eco.InitialWealthPerPop;
-        // slice ME §5: bounded sovereign issuance is the second declared mint
-        minted += state.CumulativeFiatIssued;
-        // Part B: the always-on steady issuance channel is the third declared mint
-        minted += state.CumulativeSteadyIssuance;
-        foreach (var p in state.Polities)
-            held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
-                    + p.MilitaryPoints + p.ReservePoints;
-        foreach (var seg in state.Segments) held += seg.Wealth;
-        foreach (var f in state.Factions) held += f.Wealth;
-        foreach (var c in state.Corporations) held += c.Credits;
-        // a colony expedition in flight carries the settlers' stake between
-        // treasuries (charged at dispatch, minted into the colony on arrival —
-        // Task 9's world-time founding), so count the in-transit ColonyCost
-        foreach (var p in state.Projects)
-            if (p.InFlight && p.Kind == ProjectKind.ColonyExpedition)
-                held += state.Config.Expansion.ColonyCost;
-        // escrow is held credits too (slice CE): open order escrow and
-        // courier fees in flight
-        foreach (var o in state.Orders) held += o.EscrowCredits;
-        foreach (var c in state.Couriers) held += c.FeeEscrow;
-        Assert.Equal(minted, held, System.Math.Abs(minted) * 1e-9);
+        // money still conserves across the split — now measured PER CURRENCY
+        // (currency-and-FX design). The old single lump sum of native credits
+        // stopped being conserved the moment real FX rates went live: a schism
+        // mints the child a brand-new currency and force-converts the seceding
+        // treasury/pool/segment share into it (a recorded transfer that changes
+        // the native sum). The invariant is each Currency's own residual reading
+        // zero across the whole history — every currency grows only through its
+        // own declared mints, and every conversion nets across its Converted
+        // In/Out pair. This is exactly the schism path exercised end-to-end.
+        Assert.True(state.Health.Rows.Count >= 10, "history too short");
+        for (int i = 1; i < state.Health.Rows.Count; i++)
+        {
+            var row = state.Health.Rows[i];
+            foreach (var cur in row.Currencies)
+            {
+                double scale = System.Math.Max(1.0, System.Math.Abs(cur.Supply));
+                Assert.True(System.Math.Abs(cur.Residual) <= 1.3e-9 * scale,
+                    $"epoch {row.Epoch} currency {cur.CurrencyId}: residual "
+                    + $"{cur.Residual:G6} on supply {cur.Supply:G6}");
+            }
+        }
     }
 
     [Fact]

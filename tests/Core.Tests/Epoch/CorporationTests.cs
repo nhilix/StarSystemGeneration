@@ -102,11 +102,19 @@ public class CorporationTests
             && c.HostPolityId >= 0);
         if (corp == null) return;
         var pr = state.PolityOf(corp.HostPolityId);
-        double before = pr.Credits + corp.Credits;
+        // measured in the numeraire (currency-and-FX design): SweepWalletInto
+        // converts every corp wallet bucket into the SEIZING polity's currency, so
+        // the numeraire VALUE is what's conserved (pr's native Credits and the
+        // corp's numeraire wallet total are in different units otherwise). corp.
+        // Credits is already the numeraire wallet total; weight pr's own-currency
+        // balance by its rate.
+        double prRate = state.NumeraireRateOf(pr.CurrencyId);
+        double beforeNum = pr.Credits * prRate + corp.Credits;
         Assert.True(CorporationOps.Nationalize(state, corp.HostPolityId, corp.Id));
         Assert.False(corp.Active);
         Assert.Equal(0.0, corp.Credits);
-        Assert.Equal(before, pr.Credits, 9);   // assets AND liabilities move
+        // assets AND liabilities move — numeraire value conserved into the polity
+        Assert.Equal(beforeNum, pr.Credits * prRate, 6);
         Assert.Contains(state.Staged, e =>
             e.Type == WorldEventType.CorporationNationalized);
     }

@@ -15,21 +15,15 @@ namespace StarGen.Core.Tests.Epoch;
 /// worst per-currency residual, so a single assertion still gates the galaxy.</summary>
 public class ConservationTests
 {
-    // BLOCKED on a pre-existing, lump-hidden class of bug this per-currency
-    // residual is the first tool precise enough to see (task 9 report,
-    // .superpowers/sdd/task-9-report.md). Several sites move Wealth/Credits
-    // ACROSS a currency boundary with a raw 1:1 add/subtract instead of
-    // ConvertCurrency + RecordConversion — e.g. cross-polity migration
-    // (Phases.cs:1758-1761), and corp wealth flows. The old single-lump
-    // conservation netted these away (X out of A + X into B = 0 in the sum),
-    // so they were invisible; they reproduce IDENTICALLY at FxSensitivity=0
-    // (all rates 1.0), proving they are rate-independent and predate this task,
-    // not caused by deliverable 1 lighting up FX. Fixing every such site is a
-    // Tasks 3–8 conversion-integration audit, explicitly out of task 9's scope
-    // (measurement, not conversion). Un-skip once a follow-up routes those
-    // transfers through ConvertCurrency — this test is that fix's acceptance bar.
-    [Fact(Skip = "blocked on pre-existing cross-currency raw-transfer leaks — "
-        + "see .superpowers/sdd/task-9-report.md; this is the leak-fix acceptance bar")]
+    // Task 8 (full cross-currency movement audit) routed every raw 1:1
+    // cross-currency transfer through ConvertCurrency + RecordConversion — the
+    // migration gradient path, the construction-wage channel, and the three
+    // port-ownership-change seams (federation/absorption, war capture,
+    // secession) — closing the pre-existing, lump-hidden leak class this
+    // per-currency residual was the first tool precise enough to see (task 9
+    // report, .superpowers/sdd/task-9-report.md). This test is that fix's
+    // acceptance bar and now passes un-skipped at ME's validated tolerance.
+    [Fact]
     public void EveryPerCurrencyResidualIsZeroAcrossAFullSeed42History()
     {
         var (_, state) = EpochTestKit.Seeded();
@@ -53,9 +47,9 @@ public class ConservationTests
         }
     }
 
-    // Same block as above — the roll-up inherits the per-currency leak.
-    [Fact(Skip = "blocked on pre-existing cross-currency raw-transfer leaks — "
-        + "see .superpowers/sdd/task-9-report.md; this is the leak-fix acceptance bar")]
+    // Same fix as above — the roll-up (worst per-currency residual) is zero once
+    // every cross-currency transfer is recorded (task 8).
+    [Fact]
     public void WorstResidualRollUpIsZeroAcrossAFullSeed42History()
     {
         var (_, state) = EpochTestKit.Seeded();

@@ -30,13 +30,27 @@ public class WarResolutionTests
         => WarOps.DeclareWar(state, new DeclareWarAct(attacker, defender,
             (int)CasusBelli.BorderIncident, -1, specs, (int)demand))!;
 
+    // Numeraire-weighted money total (currency-and-FX design): with real FX live,
+    // summing NATIVE amounts across currencies is not conserved, but the numeraire
+    // VALUE is — a conversion scales by rateA/rateB, so amount·rate is invariant.
+    // Reparations move the loser's balance into the victor's own currency
+    // converted, so this numeraire total is what holds across the settlement.
     private static double TotalCredits(SimState state)
     {
         double sum = 0;
-        foreach (var p in state.Polities) sum += p.Credits;
-        foreach (var c in state.Corporations) sum += c.Credits;
-        foreach (var s in state.Segments) sum += s.Wealth;
-        foreach (var f in state.Factions) sum += f.Wealth;
+        foreach (var p in state.Polities)
+            sum += p.Credits * state.NumeraireRateOf(p.CurrencyId);
+        foreach (var c in state.Corporations)
+            sum += c.Credits;   // already numeraire (wallet total)
+        foreach (var s in state.Segments)
+            sum += s.Wealth * state.NumeraireRateOf(state.LocalCurrencySafe(s.PortId));
+        foreach (var f in state.Factions)
+        {
+            int cur = -1;
+            foreach (var p in state.Polities)
+                if (p.ActorId == f.PolityId) { cur = p.CurrencyId; break; }
+            sum += f.Wealth * state.NumeraireRateOf(cur);
+        }
         return sum;
     }
 
@@ -149,8 +163,13 @@ public class WarResolutionTests
         WarResolution.Terminate(state, null);
         Assert.False(war.Active);
         Assert.Equal(before, TotalCredits(state), 6);
-        var settlement = (PeaceSettledPayload)state.Staged
-            .First(e => e.Type == WorldEventType.PeaceSettled).Payload!;
+        // select THIS war's settlement by id — the FX-shifted history can carry a
+        // second war that Terminate settles in the same pass (its own PeaceSettled
+        // event), so a bare First() could grab the wrong one.
+        var settlement = state.Staged
+            .Where(e => e.Type == WorldEventType.PeaceSettled)
+            .Select(e => (PeaceSettledPayload)e.Payload!)
+            .First(p => p.WarId == war.Id);
         Assert.True(settlement.Reparations > 0);
     }
 

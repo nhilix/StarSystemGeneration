@@ -23,14 +23,31 @@ public class FederationTests
         new EpochEngine().Run(state);
     }
 
+    // Numeraire-weighted money total: with real FX rates live, summing NATIVE
+    // amounts across currencies is no longer conserved (a recorded conversion
+    // changes the native sum), but the numeraire VALUE is — ConvertCurrency scales
+    // by rateA/rateB, so amount·rateA is invariant. This is the cross-currency
+    // conservation check for a single operation (federation/absorption converts
+    // every mover into the survivor's currency, preserving numeraire value).
     private static double TotalCredits(SimState state)
     {
         double sum = 0;
-        foreach (var p in state.Polities) sum += p.Credits;
-        foreach (var c in state.Corporations) sum += c.Credits;
-        foreach (var s in state.Segments) sum += s.Wealth;
-        foreach (var f in state.Factions) sum += f.Wealth;
+        foreach (var p in state.Polities)
+            sum += p.Credits * state.NumeraireRateOf(p.CurrencyId);
+        foreach (var c in state.Corporations)
+            sum += c.Credits;   // already numeraire (wallet total)
+        foreach (var s in state.Segments)
+            sum += s.Wealth * state.NumeraireRateOf(state.LocalCurrencySafe(s.PortId));
+        foreach (var f in state.Factions)
+            sum += f.Wealth * state.NumeraireRateOf(PolityCurrency(state, f.PolityId));
         return sum;
+    }
+
+    private static int PolityCurrency(SimState state, int actorId)
+    {
+        foreach (var p in state.Polities)
+            if (p.ActorId == actorId) return p.CurrencyId;
+        return -1;
     }
 
     private static (int Built, int Wrecked, int Scrapped) HullLedger(SimState state)
@@ -158,8 +175,14 @@ public class FederationTests
         int paid = FederationOps.PayTribute(state);
         Assert.True(paid >= 1, "the bound vassal must pay");
         double share = state.Config.Relations.VassalTributeShare;
-        Assert.Equal(vc - 100 * share, vr.Credits, 9);
-        Assert.Equal(oc + 100 * share, or.Credits, 9);
+        // the vassal pays the tribute out of its OWN currency (no conversion on
+        // the debit); the overlord banks it converted into its own currency when
+        // the two currencies differ (currency-and-FX design, "Conversion
+        // mechanics" — a bilateral transfer routed through Deposit).
+        double tribute = 100 * share;
+        double landed = state.ConvertCurrency(tribute, vr.CurrencyId, or.CurrencyId);
+        Assert.Equal(vc - tribute, vr.Credits, 9);
+        Assert.Equal(oc + landed, or.Credits, 9);
         Assert.Equal(100 * (1 - share), vr.Receipts, 9);
 
         // the foreign-policy lock: the vassal's treaties resolve to nothing

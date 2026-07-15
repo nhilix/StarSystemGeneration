@@ -194,11 +194,21 @@ public class GenesisLifecycleCurrencyTests
         // the absorbed currency retires; the survivor's does not
         Assert.True(state.CurrencyOf(curV).Retired);
         Assert.False(state.CurrencyOf(curO).Retired);
-        // the vassal's balance left whole and landed converted (2.0 → 1.0 = 2×)
+        // the vassal's balance left whole and landed converted (2.0 → 1.0 = 2×) —
+        // only the treasury Credits lands in the survivor's Credits (its pools land
+        // in the survivor's pools, resident segment wealth stays segment wealth),
+        // so this balance check is exact.
         double landed = vassalCredits * 2.0 / 1.0;
         Assert.Equal(0.0, state.PolityOf(vassal).Credits, 6);
         Assert.Equal(overlordBefore + landed, state.PolityOf(overlord).Credits, 6);
-        Assert.Equal(landed, state.CurrencyOf(curO).CumulativeConvertedIn, 6);
+        // the balance conversion is booked among the survivor's converted-in
+        // total. Task 8 broadened absorption to ALSO force-convert the vassal's
+        // investment pools, resident segment wealth, and any resting order/courier
+        // escrow into the survivor's currency (currency-and-FX "Data model"), so
+        // this aggregate now exceeds the treasury leg alone — the precise per-leg
+        // Credits booking is pinned by MergeInto_ForceConvertsAbsorbedBalance.
+        Assert.True(state.CurrencyOf(curO).CumulativeConvertedIn >= landed - 1e-6,
+            "the balance conversion must be booked among the absorption transfers");
     }
 
     [Fact]
@@ -256,6 +266,17 @@ public class GenesisLifecycleCurrencyTests
         int oldCur = old!.CurrencyId;
         old.Credits = 1000.0;                       // a known, solvent treasury
         state.CurrencyOf(oldCur).NumeraireRate = 2.0;
+        // isolate the treasury-seed conversion so `transfer` reads ONLY it: task 8
+        // also force-converts the parent's pool share AND the seceding port's
+        // resident segment wealth and resting escrow into the child's currency
+        // (each precisely covered by its own unit test), which would otherwise
+        // inflate the parent's converted-out total below. Zero those here.
+        old.ExpansionPoints = old.DevelopmentPoints
+            = old.MilitaryPoints = old.ReservePoints = 0;
+        foreach (var s in state.Segments)
+            if (s.PortId == seatPort) s.Wealth = 0;
+        foreach (var o in state.Orders)
+            if (o.PortId == seatPort) o.EscrowCredits = 0;
         double outBefore = state.CurrencyOf(oldCur).CumulativeConvertedOut;
         int currenciesBefore = state.Currencies.Count;
         var seceding = new HashSet<int> { seatPort };
