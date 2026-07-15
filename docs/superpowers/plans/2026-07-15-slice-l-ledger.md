@@ -53,10 +53,20 @@ Baseline: 900/900 tests green before any change.
 
 ## Gates
 
-- [ ] `dotnet test StarSystemGeneration.sln` fully green
-- [ ] Determinism byte-identity (round-trip tests are the unit witnesses)
-- [ ] Goldens re-frozen once at slice end
-- [ ] Fresh-eyes whole-branch review (model: fable), one fix wave
+- [x] `dotnet test StarSystemGeneration.sln` fully green (926/926)
+- [x] Determinism byte-identity (round-trip tests are the unit witnesses)
+- [x] Goldens re-frozen (twice: once at Task-9 slice-end, once more after the final-review fix wave)
+- [x] Fresh-eyes whole-branch review (model: fable) — found 1 Critical + 2 Important
+      (RichnessModifier didn't deliver real variance for belts/wreckage/giants since
+      the generator's actual Size ranges don't match the formula's assumption;
+      genesis-path facilities render at deep-space instead of falling back to port
+      body; richness leaked onto non-extraction facilities). User decided fixes for
+      all three; fix wave landed (c107587) + re-frozen golden (e6e1610); re-review
+      (fable) independently traced all three fixes against concrete values —
+      Ready to merge: Yes. One minor non-blocking note carried forward: Skimmer/Mine
+      landing on a fallback body of the wrong kind (via portBody) still gets a
+      formula-shaped signal that isn't really there — same class as the belt fix,
+      deferred.
 - [ ] REPL eyeball: two same-type extractors at one hex on different bodies
 
 ## Wrap-up
