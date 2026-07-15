@@ -381,23 +381,58 @@ transfer, not silently re-denominated 1:1.
 
 ## Task 9: MetricsOps / conservation rework (Opus)
 
-`Currency.Supply` for currency X = Σ(`PolityRecord.Credits` where
-`CurrencyId == X`) + Σ(every corporation's `Holdings[X]`) +
-Σ(`Segment.Wealth`/`Faction.Wealth` resolved to X via owning polity) +
-escrow currently denominated in X. Rewrite `MetricsOps.Money`/`Snapshot` to
-produce a per-currency residual (mints tracked per-currency at the same
-`≤1.3e-9` tolerance ME validated) instead of one lump number, netting
-conversions via the `CumulativeConvertedIn`/`CumulativeConvertedOut` pair
-(design doc, "Conservation & determinism" — a conversion is a transfer
-between two currencies' supplies, not a mint, and must net to zero across
-the pair). The SIMHEALTH dashboard's galaxy-wide `Money.Supply` becomes a
-derived, numeraire-converted display figure
-(`Σ Currency.Supply × Currency.NumeraireRate`), not itself checked by
-`ConservationTests`. Rewrite `ConservationTests` to check N per-currency
-residuals. Tests: conservation holds per-currency across a multi-epoch run
+**Amended after Task 7c's review** — a confirmed, significant finding:
+`Currency.Supply` has **zero write sites anywhere in `src`** through Task
+7c. It is permanently 0, which pins every `Currency.NumeraireRate` at
+exactly 1.0 (`FxOps.RecomputeRates`'s formula gives `1/(1+k·0) = 1`) —
+every conversion in the entire slice so far has been bit-exact identity,
+and the FX-risk behavior Task 7c built has never fired through any real
+gameplay path (only through tests that set `NumeraireRate` directly on
+manually-constructed `Currency` objects). **This task must fix that, not
+just measure around it** — the two deliverables below are DISTINCT and
+both required:
+
+1. **A deterministic end-of-epoch pass that WRITES
+   `Currency.Supply = <the walked aggregate>` back onto the live `Currency`
+   record**, ordered so `FxOps.RecomputeRates` (which runs at the START of
+   the NEXT epoch, reading "the prior epoch's ending `Supply`" per the
+   design doc) reads a genuinely fresh, diverging value — not just a local
+   computed inside a snapshot/residual check that never reaches the field
+   `FxOps` actually reads. Without this, rates will keep reading 0 forever
+   and the entire FX-rate mechanism (Tasks 2, 3, 4, 5, 6, 7c) stays
+   permanently dormant regardless of how correct its conversion math is.
+   `Currency.Supply` for currency X = Σ(`PolityRecord.Credits` where
+   `CurrencyId == X`) + Σ(every corporation's `Holdings[X]`) +
+   Σ(`Segment.Wealth`/`Faction.Wealth` resolved to X via owning polity) +
+   escrow currently denominated in X.
+2. **The conservation-residual rework** (the originally-scoped part): rewrite
+   `MetricsOps.Money`/`Snapshot` to produce a per-currency residual (mints
+   tracked per-currency at the same `≤1.3e-9` tolerance ME validated)
+   instead of one lump number, netting conversions via the
+   `CumulativeConvertedIn`/`CumulativeConvertedOut` pair (design doc,
+   "Conservation & determinism" — a conversion is a transfer between two
+   currencies' supplies, not a mint, and must net to zero across the pair).
+   The SIMHEALTH dashboard's galaxy-wide `Money.Supply` becomes a derived,
+   numeraire-converted display figure (`Σ Currency.Supply ×
+   Currency.NumeraireRate`), not itself checked by `ConservationTests`.
+   Rewrite `ConservationTests` to check N per-currency residuals.
+
+Once (1) lands, rates will start actually diverging for the first time in
+this slice — re-run the full suite and the committed acceptance sweep
+expecting to SEE real behavior change (not just a passing test), and watch
+specifically for the kind of red window Tasks 6/6b/7b hit, since this is the
+first time any of that machinery runs against non-identity rates. Diagnose
+any new failure at its real mechanism — do not widen a tolerance to make a
+newly-live FX effect disappear.
+
+Tests: `Currency.Supply` visibly changes epoch-to-epoch as money moves and
+mints happen, and `NumeraireRate` visibly diverges from 1.0 between two
+currencies with different mint/trade behavior, in an ordinary full-history
+run (not a hand-constructed unit test) — this is the acceptance bar for
+deliverable (1). Conservation holds per-currency across a multi-epoch run
 with mixed-currency trades, loans, tribute, and at least one polity
 absorption; the aggregate display figure is informative but not asserted as
-an invariant.
+an invariant — this is the acceptance bar for deliverable (2).
 
 ## Task 10: Serializer (Sonnet)
 
