@@ -144,7 +144,10 @@ construction outright when an extraction type resolves no eligible body
       fixed with an R-differentiated pair, re-review traced the fix with a
       mutation-testing argument confirming it genuinely kills that regression
       class. Approved.
-- [ ] BR-Task 7: `Extraction.BodyStockRemaining` metric (Sonnet)
+- [x] BR-Task 7: `Extraction.BodyStockRemaining` metric (Sonnet). Commit f1c9413.
+      Field-position alignment (the exact hazard class this lineage escalates
+      for) independently re-verified 16/16 fields, no drift. Clean, approved
+      first review. All 7 Phase 2 tasks complete.
 
 ### Phase 2 gates
 
