@@ -317,6 +317,58 @@ test are all genuinely green — these three are the acceptance bar, not a
 smaller unit test in isolation. Full `dotnet test` suite must stay green
 otherwise (hex-tier suite never regresses).
 
+## Task 7c: True lender-currency loan denomination (Opus)
+
+**Inserted after Task 7's review, per explicit user decision** ("fix it now,
+inside CU-1" — not amend the design to match the code, not defer to a
+follow-up slice). The design doc's "Loans across currencies" section is the
+spec here: a cross-currency loan denominates in the LENDER's currency, FX
+risk sits with the borrower. Task 7 only fixed the cross-currency
+*comparison* math (debt ceiling, lender ranking); the loan's actual
+`Principal`/service payments are still computed and paid in the BORROWER's
+currency (`principal = -pr.Credits * 1.2`, a pre-slice ME formula,
+unchanged) — the opposite of the approved design. This task builds the real
+mechanism, not just fixes a formula:
+
+- **At issuance** (`Phases.Borrow`): the borrower's deficit-derived amount
+  (still computed from the borrower's own `Credits`/currency — that part of
+  ME's mechanism is correct and unchanged) converts via `ConvertCurrency`
+  into the LENDER's currency; THAT converted amount becomes `Loan.Principal`
+  going forward. The lender fronts `Principal` in their own currency
+  (`Withdraw` — already correct for a corp lender per Task 7; the polity
+  lender path is currently raw currency-blind arithmetic, per Task 7's
+  reviewer note, `Phases.cs:~824,743` — fix this here too, `Withdraw`/
+  `Deposit` like the corp path). The borrower receives the proceeds
+  converted back into their OWN currency at the issuance rate (a `Deposit`
+  in the borrower's currency) — this is the amount they actually get to
+  spend; only the DEBT is lender-currency-denominated, not the cash they
+  hold.
+- **At servicing** (`Phases.ServiceLoans`): amortization/interest is computed
+  in the lender's currency (fixed schedule against `Loan.Principal`, which
+  never changes shape). Each epoch, convert that epoch's lender-currency
+  payment into the BORROWER's currency **at that epoch's current rate** (not
+  the issuance rate — this is the FX-risk mechanism: the same lender-currency
+  payment can cost the borrower more or less of their own currency as rates
+  drift) to determine how much to `Withdraw` from the borrower; `Deposit` the
+  lender-currency amount to the lender. If the borrower can't cover the
+  converted cost, this should interact with the existing default/
+  capitalization-ceiling mechanics (`Economy.LoanCapitalizationCeiling`) the
+  same way an ordinary missed payment does today — don't build new default
+  semantics, reuse what ME already established.
+- Fix the polity↔polity raw-arithmetic path (`Phases.cs:~824,743`) to route
+  through `Withdraw`/`Deposit` like the corp path already does, so it
+  doesn't silently break conservation once FX rates genuinely diverge.
+
+Tests: a loan issued when rates are at parity, then serviced after rates
+drift, costs the borrower MORE (or less) of their own currency for the same
+lender-currency payment — this is the core FX-risk behavior the design
+doc's rationale depends on, and must be directly demonstrated, not just
+inferred from unit-level correctness of the conversion calls. Existing ME
+loan-mechanism tests (capitalization ceiling, debt-to-income gate) still
+pass unchanged in behavior when both currencies are the same (parity case).
+Conservation holds across issuance and every servicing epoch — no value
+created or destroyed by the conversions themselves, only transferred.
+
 ## Task 8: Segment/Faction wealth port-transfer conversion (Sonnet)
 
 Every port-ownership-change site — `FederationOps.MergeInto`'s port loop,
