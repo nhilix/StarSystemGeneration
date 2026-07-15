@@ -67,12 +67,71 @@ Baseline: 900/900 tests green before any change.
       landing on a fallback body of the wrong kind (via portBody) still gets a
       formula-shaped signal that isn't really there — same class as the belt fix,
       deferred.
-- [ ] REPL eyeball: two same-type extractors at one hex on different bodies
+- [~] REPL eyeball: two same-type extractors at one hex on different bodies —
+      superseded by a deeper finding during the eyeball itself (see Phase 2 below).
+      User found a hex with a port + facilities in a zero-body system during the
+      Unity eyeball check. Root-caused: `Siting.Score` ranks hexes from regional
+      raster fields entirely decoupled from `BodyGenerator`'s independent per-slot
+      body-kind roll (can null out every slot) — pre-existing, not a Slice L
+      regression, but Slice L's atlas work made it visible for the first time.
+      Investigating this further exposed that `RichnessModifier` (the whole
+      slice's stated "throughline") was never actually body-native — it's a
+      bounded multiplier on unchanged hex-aggregate `CellFields` math, going
+      inert (neutral 1.0) whenever there's no eligible body. User: this is not a
+      minor miss, it's the slice failing its own fundamental goal. Design
+      reopened — see Phase 2.
+
+## Phase 2: body resource stock (reopens the design, corrects the throughline)
+
+Design: `docs/superpowers/specs/2026-07-15-body-resource-stock-design.md`
+(committed 645392a). Plan: `docs/superpowers/plans/2026-07-15-body-resource-stock-plan.md`
+(7 tasks, committed e9514df — amended in review to also route the entry
+starter-industry loop, `Phases.cs:1437-1439`, through the new `PlaceFacilityBody`
+helper; the plan-authoring pass had only wired `CompleteExpedition`, missing that
+every new polity's starting Mine+AgriComplex would otherwise permanently produce
+zero under the new body-native model).
+
+Model: Mine/ExcavationSite get a real finite depletable stock
+(`SimState.BodyResources`, rolled once at groundbreaking from regional richness
++ per-body hash variance); Skimmer/AgriComplex get a renewable yield from the
+claimed body's own real attributes (no depletion); groundbreaking now REJECTS
+construction outright when an extraction type resolves no eligible body
+(`BodySiting.Assign` no longer rides the port body for extraction types).
+`RichnessModifier`/`ExtractionPotential` retired entirely.
+
+### Tasks
+
+- [ ] BR-Task 1: Roll channel + `Economy` stock knobs (Sonnet)
+- [ ] BR-Task 2: `SimState.BodyResources` + `BodyResourceOps` (Sonnet)
+- [ ] BR-Task 3: `BodySiting` body-native extraction — Assign rejects, renewable
+      yield/grade (Sonnet — supersedes today's earlier fix-wave test
+      `SecondMine_FallsToNone_WhenSubstrateAbsentAndPortAlreadyClaimed`, intentional)
+- [ ] BR-Task 4: Groundbreak rolls stock + rejects bodiless extraction — shared
+      `PlaceFacilityBody`, `CompleteExpedition`, starter-industry loop (Opus —
+      spans ProjectOps.cs + Phases.cs, changes a public method's return type)
+- [ ] BR-Task 5: `SupplyLands` depletes/yields from body, retires
+      RichnessModifier/ExtractionPotential (Opus — economy-critical formula path)
+- [ ] BR-Task 6: Serialize `BodyResources` (bodyresources v1) (Opus — serializer
+      correctness hazard, real mutable state not re-derived hex tier)
+- [ ] BR-Task 7: `Extraction.BodyStockRemaining` metric (Sonnet)
+
+### Phase 2 gates
+
+- [ ] `dotnet test StarSystemGeneration.sln` fully green
+- [ ] Determinism byte-identity
+- [ ] Golden re-frozen once at Phase 2 end
+- [ ] Fresh-eyes whole-branch review (model: fable), one fix wave
+- [ ] REPL + Unity eyeball: a Mine posts ore that draws its body's stock down
+      over epochs (rich body outlasts poor); Skimmer/Agri yield steadily with no
+      stock entry; a hex whose committed system holds no eligible body never
+      grows that extraction facility
 
 ## Wrap-up
 
 - [ ] Merge to main locally
 - [ ] Update `docs/HANDOFF.md`
-- [ ] Write population/off-lane slice's kickoff prompt
+- [ ] Write population/off-lane slice's kickoff prompt (flag: adjacent-hex
+      spillover when a body-poor hex's bodies are all claimed — still deferred,
+      now doubly relevant given real depletable stocks)
 - [ ] Sync Trello (In Progress → Eyeball/Merge Gate → Merged)
 - [ ] Push only when user says to
