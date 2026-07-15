@@ -22,4 +22,23 @@ public class BodyRefTests
         Assert.Equal(a, b);
         Assert.NotEqual(a, new BodyRef(1, 2));
     }
+
+    [Fact]
+    public void SiteAnchoredRecords_DefaultBodyRef_IsNone()
+    {
+        var f = new StarGen.Core.Epoch.Facility(0, 0, 1,
+            new StarGen.Core.Model.HexCoordinate(0, 0), 0, 100);
+        var p = new StarGen.Core.Epoch.Project(0,
+            StarGen.Core.Epoch.ProjectKind.FacilityConstruction, 1, 1, 0,
+            new StarGen.Core.Model.HexCoordinate(0, 0), 4.0, 100);
+        var seg = new StarGen.Core.Epoch.PopulationSegment(0, 0, 0, 0, 1.0);
+        var fleet = new StarGen.Core.Epoch.FleetRecord(0, 0,
+            new StarGen.Core.Model.HexCoordinate(0, 0));
+        Assert.True(f.Body.IsNone);
+        Assert.True(p.Body.IsNone);
+        Assert.True(seg.Body.IsNone);
+        Assert.True(fleet.Body.IsNone);
+        f.Body = new BodyRef(0, 3);
+        Assert.Equal(new BodyRef(0, 3), f.Body);
+    }
 }

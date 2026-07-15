@@ -14,6 +14,11 @@ public sealed class Facility
     public int TypeId { get; }
     public int Tier { get; set; }
     public HexCoordinate Hex { get; }
+    /// <summary>The specific body this facility claimed within its hex's
+    /// system — decided once at groundbreaking (locality slice §4).
+    /// None until a real system is committed (bodiless system, or a
+    /// gate/support asset that rides the port body).</summary>
+    public BodyRef Body { get; set; } = BodyRef.None;
     public int OwnerActorId { get; set; }
     /// <summary>Decays without upkeep, damaged by war, repaired by investment;
     /// output scales with it (economy/assets-and-investment.md).</summary>
