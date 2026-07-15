@@ -11,7 +11,8 @@ Baseline: 900/900 tests green before any change.
       the `Atlas` namespace — added its own alias, mirroring `SystemQuery.cs`'s. Not
       Unity-compiler-verified in this environment; flag for a real Unity compile pass
       at slice-end eyeball.)
-- [ ] Task 2: Body-ref fields on Facility/Project/PopulationSegment/FleetRecord (Sonnet)
+- [x] Task 2: Body-ref fields on Facility/Project/PopulationSegment/FleetRecord (Sonnet).
+      Commit af69437. Clean, approved first review, no fix wave.
 - [ ] Task 3: `OrbitGeometry` — discrete OrbitDistance + local-hop knobs (Sonnet)
 - [ ] Task 4: Serializer round-trips the four body-ref fields (Opus — serializer correctness hazard)
 - [ ] Task 5: `SettledSystems` registry + idempotent commit + serialization (Opus — determinism invariant)
