@@ -1278,13 +1278,12 @@ public static class ArtifactSerializer
                     case "CORP":
                         if (int.Parse(f[1], Inv) != state!.Corporations.Count)
                             throw new InvalidDataException("corporation ids out of order");
-                        state.Corporations.Add(new Corporation(int.Parse(f[1], Inv),
+                        var corp = new Corporation(int.Parse(f[1], Inv),
                             int.Parse(f[2], Inv), f[3], int.Parse(f[4], Inv),
                             (CorporateNiche)int.Parse(f[5], Inv),
                             int.Parse(f[6], Inv), long.Parse(f[7], Inv))
                         {
                             Active = f[8] == "1",
-                            Credits = double.Parse(f[9], Inv),
                             ExecutiveCharacterId = int.Parse(f[10], Inv),
                             HullsBuilt = int.Parse(f[11], Inv),
                             HullsWrecked = int.Parse(f[12], Inv),
@@ -1293,7 +1292,17 @@ public static class ArtifactSerializer
                             TargetId = int.Parse(f[15], Inv),
                             // corporations v3 (slice t1): trailing income rate rides along
                             LastIncomePerYear = double.Parse(f[16], Inv),
-                        });
+                        };
+                        // TODO(CU-1 task 10): serialize the multi-currency wallet
+                        // (Holdings) and the currency table. Until then the artifact
+                        // still carries only the numeraire total (f[9]); restore it
+                        // into a single dormant bucket so Corporation.Credits (now a
+                        // read-only wallet sum, task 7) round-trips its value. The
+                        // per-bucket composition was never persisted by this format.
+                        double corpCredits = double.Parse(f[9], Inv);
+                        if (corpCredits != 0)
+                            corp.Deposit(state, corpCredits, 0);
+                        state.Corporations.Add(corp);
                         break;
                     case "REL":
                         state!.Relations.Add(new PolityRelation(

@@ -57,7 +57,7 @@ public class MarketFreightTests
         int good, double qty, double bid)
     {
         var owner = state.Ports[portId].OwnerActorId;
-        state.LedgerOf(owner).Credits -= qty * bid;
+        state.PolityOf(owner).Credits -= qty * bid;
         return OrderOps.PostBuy(state, owner, portId, good, qty, bid,
             state.WorldYear + 1000);
     }
@@ -317,14 +317,15 @@ public class MarketFreightTests
             "Test Line", pa.Hex, 0, new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(0, actorId, "Test Line", 0,
-            CorporateNiche.Freight, pa.Id, 0) { Credits = 500 };
+            CorporateNiche.Freight, pa.Id, 0);
         state.Corporations.Add(corp);
+        corp.Deposit(state, 500, 0);   // wallet is the corp's whole balance now
         EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
 
         EpochTestKit.Stock(state, 0, g, 1000, 0.6);
-        state.LedgerOf(0).Credits += 4000;
+        state.PolityOf(0).Credits += 4000;
         double bid = state.Markets[0].Price[g] * 4;
-        state.LedgerOf(0).Credits -= 300 * bid;
+        state.PolityOf(0).Credits -= 300 * bid;
         OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
 
         var scratch = new MarketStepScratch(state);
@@ -365,13 +366,13 @@ public class MarketFreightTests
             "Empty Pockets", pa.Hex, 0, new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(0, actorId, "Empty Pockets", 0,
-            CorporateNiche.Freight, pa.Id, 0) { Credits = 0 };
+            CorporateNiche.Freight, pa.Id, 0);   // empty wallet == 0 Credits
         state.Corporations.Add(corp);
         EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
         EpochTestKit.Stock(state, 0, g, 1000, 0.6);
-        state.LedgerOf(0).Credits += 4000;
+        state.PolityOf(0).Credits += 4000;
         double bid = state.Markets[0].Price[g] * 4;
-        state.LedgerOf(0).Credits -= 300 * bid;
+        state.PolityOf(0).Credits -= 300 * bid;
         OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
 
         var scratch = new MarketStepScratch(state);

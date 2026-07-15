@@ -25,8 +25,8 @@ public class MetricsTests
         { Wealth = 25.0 });
         var corp = new Corporation(0, pr.ActorId, "Probe Test Combine",
             pr.ActorId, CorporateNiche.Freight, 0, state.WorldYear);
-        corp.Credits = 40.0;
         state.Corporations.Add(corp);
+        corp.Deposit(state, 40.0, 0);   // wallet is the corp's whole balance now
         var faction = new Faction(0, "Probe Merchants", pr.ActorId,
             FactionBasis.Corporate, state.WorldYear)
         { Wealth = 15.0 };

@@ -107,9 +107,9 @@ public class CorpGateLaneTests
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId,
             "Test Line", a0.Id, CorporateNiche.Freight, pa.Id,
-            state.WorldYear)
-        { Credits = 10_000 };
+            state.WorldYear);
         state.Corporations.Add(corp);
+        corp.Deposit(state, 10_000, 0);   // wallet is the corp's whole balance now
         return (state, corp, pa.Id, pb.Id);
     }
 }

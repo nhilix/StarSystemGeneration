@@ -18,14 +18,16 @@ public enum CorporateNiche
 /// <summary>The unified credit surface production and payouts move money
 /// through — polities and corporations both keep conserved books (P4).
 /// Slice CU-1 adds the currency-aware <see cref="Deposit"/>/<see cref="Withdraw"/>
-/// pair; <c>Credits</c> is a numeraire-denominated read used for cross-actor
-/// comparison/ranking (a polity's own single-currency balance, a corporation's
-/// numeraire-converted wallet total). Cross-currency money movement must go
-/// through Deposit/Withdraw — raw <c>Credits +=/-=</c> is same-currency-only
-/// internal bookkeeping and is migrated off corporations by later slice tasks.</summary>
+/// pair; <c>Credits</c> is a numeraire-denominated <b>read-only</b> handle used for
+/// cross-actor comparison/ranking (a polity's own single-currency balance, a
+/// corporation's numeraire-converted wallet total). All money movement goes through
+/// Deposit/Withdraw — there is no setter on the interface: a polity keeps a concrete
+/// settable <c>Credits</c> field for same-currency internal bookkeeping, but a
+/// corporation's <c>Credits</c> is a pure function of its <see cref="Corporation.Holdings"/>
+/// wallet (slice CU-1 task 7 removed the transitional single-balance bridge).</summary>
 public interface ICreditLedger
 {
-    double Credits { get; set; }
+    double Credits { get; }
     /// <summary>This epoch's market receipts (step-transient, cleared by
     /// the Markets phase; corporations pay dividends from it).</summary>
     double Receipts { get; set; }
@@ -86,23 +88,15 @@ public sealed class Corporation : ICreditLedger
     // forbids). Refreshed by Deposit/Withdraw and by RefreshNumeraire (called by
     // the per-epoch FX pass once rates move — a later slice task).
     private double _walletNumeraire;
-    // TRANSITIONAL (slice CU-1): the pre-currency single balance. Until the
-    // corporation write-sites migrate to Deposit/Withdraw and genesis funds
-    // Holdings (later slice tasks), legacy code still does `corp.Credits +=/-=/=`
-    // on a concrete Corporation. This field carries that value so behavior is
-    // unchanged while Holdings is still empty; it converges to zero as those
-    // sites migrate, after which the setter can be removed.
-    private double _legacyCredits;
 
     /// <summary>Numeraire-converted total of the wallet (design: computed from
-    /// <see cref="Holdings"/>). Read for cross-actor comparison/ranking. The
-    /// setter is the transitional bridge described above — it is NOT the way to
-    /// move currency-tagged money; use Deposit/Withdraw for that.</summary>
-    public double Credits
-    {
-        get => _walletNumeraire + _legacyCredits;
-        set => _legacyCredits = value - _walletNumeraire;
-    }
+    /// <see cref="Holdings"/>, cached in <c>_walletNumeraire</c> and refreshed by
+    /// every Deposit/Withdraw and by the per-epoch FX pass). Read-only and read for
+    /// cross-actor comparison/ranking — it is NOT the way to move currency-tagged
+    /// money; use Deposit/Withdraw for that. The transitional single-balance bridge
+    /// (slice CU-1 tasks 1–6b) is gone: every corp write-site now routes through the
+    /// wallet, so <c>Credits</c> is purely a function of <see cref="Holdings"/>.</summary>
+    public double Credits => _walletNumeraire;
     public double Receipts { get; set; }
     /// <summary>Last step's receipts per world-year (spec §2).</summary>
     public double LastIncomePerYear { get; set; }
@@ -214,7 +208,7 @@ public sealed class Corporation : ICreditLedger
         ids.Sort();
         double sum = 0;
         foreach (int id in ids)
-            sum += _holdings[id] * state.CurrencyOf(id).NumeraireRate;
+            sum += _holdings[id] * state.NumeraireRateOf(id);
         _walletNumeraire = sum;
     }
 }

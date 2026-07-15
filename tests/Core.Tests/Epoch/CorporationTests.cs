@@ -135,11 +135,11 @@ public class CorporationTests
             default, state.EpochIndex,
             new CorporateController(state.Config)) { Entered = true });
         var corp = new Corporation(0, corpActor, "Vex", a0.Id,
-            CorporateNiche.Freight, homePortId: 0, state.WorldYear)
-        { Credits = 100 };
+            CorporateNiche.Freight, homePortId: 0, state.WorldYear);
         state.Corporations.Add(corp);
+        corp.Deposit(state, 100, 0);   // wallet is the corp's whole balance now
         // a resting buy (escrow leaves the corp at post, the convention)
-        corp.Credits -= 50;
+        corp.Withdraw(state, 50, 0);
         OrderOps.PostBuy(state, corpActor, 1,
             (int)StarGen.Core.Substrate.GoodId.Ore, qty: 10, bid: 5,
             expiryYear: state.WorldYear + 1000);

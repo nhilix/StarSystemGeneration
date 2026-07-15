@@ -122,18 +122,9 @@ public class CurrencyLedgerTests
         Assert.Equal(0.0, corp.Credits, 9);
     }
 
-    // ---- Corporation legacy-bridge setter (transitional; keeps un-migrated
-    //      write-sites behaving until later slice tasks move them) ----
-
-    [Fact]
-    public void CorpCredits_LegacySetter_BehavesLikeTheOldFieldWhenWalletEmpty()
-    {
-        var corp = NewCorp();
-        corp.Credits += 50.0;
-        corp.Credits -= 20.0;
-        Assert.Equal(30.0, corp.Credits, 9);
-        Assert.Empty(corp.Holdings);
-    }
+    // (The transitional Corporation single-balance bridge/setter was removed in
+    //  slice CU-1 task 7 — Credits is now a pure read-only wallet sum, so the
+    //  old legacy-setter test no longer has a subject.)
 
     // ---- PolityRecord: single-currency auto-conversion ----
 

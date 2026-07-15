@@ -77,7 +77,12 @@ public class FixWaveTests
         var proj = ProjectOps.Spawn(state, ProjectKind.PortRaise,
             corp.ActorId, corp.ActorId, corp.HomePortId,
             state.Ports[corp.HomePortId].Hex, 5.0, ProjectPriority.Core, 0);
-        corp.Credits = -1e12;                           // force bankruptcy
+        // force death via the niche-death clock: a corp wallet can no longer go
+        // negative (Withdraw caps at holdings, task 7 — the balance-sheet
+        // bankruptcy branch is now unreachable by construction), so starve the
+        // niche instead — zero receipts with the lean clock already run out.
+        corp.Receipts = 0;
+        corp.LeanYears = 1_000_000;
         CorporationOps.Operate(state);                  // runs the death check
         Assert.False(corp.Active);
         Assert.True(proj.Cancelled);

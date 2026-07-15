@@ -1016,12 +1016,12 @@ public static class CorporationOps
                 loan.LenderActorId = successorActorId;
     }
 
-    /// <summary>Move a corporation's whole balance onto <paramref name="target"/>:
-    /// each live wallet bucket withdraws and re-deposits (converting into the
-    /// target ledger's own denomination), then the pre-currency single balance
-    /// (the dormant world before genesis mints currencies) transfers
-    /// same-currency. Ascending currency id (P6). Leaves the corporation with an
-    /// empty wallet and zero Credits.</summary>
+    /// <summary>Move a corporation's whole wallet onto <paramref name="target"/>:
+    /// each live bucket withdraws and re-deposits (converting into the target
+    /// ledger's own denomination). Ascending currency id (P6). Leaves the
+    /// corporation with an empty wallet and zero Credits — the wallet is now the
+    /// corp's entire balance (task 7 removed the pre-currency single-balance
+    /// bridge, so there is nothing left to settle after the buckets drain).</summary>
     private static void SweepWalletInto(SimState state, Corporation corp,
                                         ICreditLedger target)
     {
@@ -1033,11 +1033,6 @@ public static class CorporationOps
             if (amt <= 0) continue;
             corp.Withdraw(state, amt, cid);       // empties the bucket
             target.Deposit(state, amt, cid);      // converts into the target
-        }
-        if (corp.Credits != 0)                    // dormant single balance
-        {
-            target.Credits += corp.Credits;
-            corp.Credits = 0;
         }
     }
 
@@ -1102,15 +1097,14 @@ public static class CorporationOps
         // the books settle whole: surplus to the home port's populations,
         // debt onto the sovereign administering the collapse — a negative
         // balance is never wiped (that would mint the money the creditors
-        // already received, P4). Drain every live currency bucket into the
-        // home port's currency, then fold in the pre-currency single balance
-        // (the dormant world before genesis mints currencies). A live wallet
-        // never runs negative — the debt branch only fires on a dormant single
-        // balance that raw debits drove under (its old role).
+        // already received, P4). Draining every live bucket into the home port's
+        // currency empties the wallet, which is the corp's entire balance now
+        // that task 7 has removed the pre-currency single-balance bridge; a live
+        // wallet never runs negative (Corporation.Withdraw caps at holdings), so
+        // the debt branch below is dead for a corp but kept as a conserved-books
+        // guard.
         int homeCurrency = state.LocalCurrencyOf(corp.HomePortId);
         double credits = DrainWalletTo(state, corp, homeCurrency);
-        credits += corp.Credits;
-        corp.Credits = 0;
         if (credits < 0)
             state.PolityOf(state.Ports[corp.HomePortId].OwnerActorId)
                 .Credits += credits;

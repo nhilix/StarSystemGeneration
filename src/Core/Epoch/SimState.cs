@@ -167,6 +167,24 @@ public sealed class SimState
         throw new KeyNotFoundException($"no currency {currencyId}");
     }
 
+    /// <summary>The numeraire rate of a currency id, defaulting to the dormant 1:1
+    /// rate (1.0) for the pre-genesis sentinel (id &lt; 0) or any id not yet in the
+    /// registry — the same "no rate exists, treat as 1:1" convention
+    /// <see cref="ConvertCurrency"/> applies to an unwired id. Lets a numeraire
+    /// read (a corporation's wallet total) stay well-defined in the dormant
+    /// single-currency world before genesis mints the currency table, without the
+    /// throwing <see cref="CurrencyOf"/> lookup. In a live post-genesis run every
+    /// held currency is registered, so this is byte-identical to the direct rate.</summary>
+    public double NumeraireRateOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Currencies.Count
+            && Currencies[currencyId].Id == currencyId)
+            return Currencies[currencyId].NumeraireRate;
+        foreach (var cur in Currencies)
+            if (cur.Id == currencyId) return cur.NumeraireRate;
+        return 1.0;
+    }
+
     /// <summary>Mint a brand-new currency for a freshly founded polity and assign
     /// it as that polity's own (slice CU-1 genesis). The single chokepoint every
     /// polity-creation path routes through — entry (<c>InteriorPhase</c>),
@@ -249,9 +267,14 @@ public sealed class SimState
     /// currency table.</summary>
     public double CreditLocal(int earnerActorId, double amount, int localCurrencyId)
     {
-        var ledger = LedgerOf(earnerActorId);
-        if (localCurrencyId < 0) { ledger.Credits += amount; return amount; }
-        return ledger.Deposit(this, amount, localCurrencyId);
+        // Deposit handles every case, including the pre-genesis sentinel
+        // (localCurrencyId < 0): a polity banks it raw same-currency, a corporation
+        // banks it into the matching wallet bucket with the dormant 1:1 numeraire
+        // rate (SimState.NumeraireRateOf). Genesis now wires a currency to every
+        // polity before any market/courier/corp activity, so a live run only ever
+        // passes a real (>= 0) id here; the sentinel path survives for pre-genesis
+        // unit states. The transitional raw-Credits bridge is gone (task 7).
+        return LedgerOf(earnerActorId).Deposit(this, amount, localCurrencyId);
     }
 
     /// <summary>Debit enough of a payer's ledger to provide <paramref name="amount"/>
@@ -263,9 +286,11 @@ public sealed class SimState
     /// single-currency debit — byte-identical.</summary>
     public double DebitLocal(int payerActorId, double amount, int localCurrencyId)
     {
-        var ledger = LedgerOf(payerActorId);
-        if (localCurrencyId < 0) { ledger.Credits -= amount; return amount; }
-        return ledger.Withdraw(this, amount, localCurrencyId);
+        // Withdraw handles every case, including the pre-genesis sentinel
+        // (localCurrencyId < 0): a polity pays raw same-currency (and may go
+        // negative), a corporation draws its wallet down with the dormant 1:1 rate.
+        // See CreditLocal above — a live run only ever passes a real id.
+        return LedgerOf(payerActorId).Withdraw(this, amount, localCurrencyId);
     }
 
     /// <summary>The corporation record behind an actor id, or null.</summary>
