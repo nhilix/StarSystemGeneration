@@ -123,10 +123,21 @@ construction outright when an extraction type resolves no eligible body
       Minor carried forward: FineTick's provisions tolerance now 0.85 (widened
       3x total: 0.6→0.7→0.75→0.85) — getting weak, worth splitting out if
       touched again.
-- [ ] BR-Task 5: `SupplyLands` depletes/yields from body, retires
-      RichnessModifier/ExtractionPotential (Opus — economy-critical formula path)
-- [ ] BR-Task 6: Serialize `BodyResources` (bodyresources v1) (Opus — serializer
-      correctness hazard, real mutable state not re-derived hex tier)
+- [x] BR-Task 5: `SupplyLands` depletes/yields from body, retires
+      RichnessModifier/ExtractionPotential (Opus). Commits 9f4bef8..f9e3b99.
+      Beyond-brief serialization fix (BodyResources was never wired into
+      ArtifactSerializer — necessary, byte-identity suites can't be
+      re-baselined), renamed to `bodyresources` per controller decision. 5
+      emergent-history tests destabilized, all resolved with verified real
+      mechanisms (not threshold-fudged) — notably a dedicated investigation
+      caught and corrected the implementer's own wrong KinClaim diagnosis.
+      Tick-invariance analytically + empirically confirmed. Opus review
+      independently re-verified every high-stakes claim. Approved.
+      NOTE: BR-Task 6 (below) is now mostly DONE as a side effect — becomes a
+      light verification/extension pass, not a from-scratch build.
+- [ ] BR-Task 6: Serialize `BodyResources` (bodyresources v1) — mostly landed in
+      BR-Task 5 as a necessary fix; this task verifies/extends round-trip
+      coverage rather than building fresh (Sonnet — re-scoped down from Opus)
 - [ ] BR-Task 7: `Extraction.BodyStockRemaining` metric (Sonnet)
 
 ### Phase 2 gates
