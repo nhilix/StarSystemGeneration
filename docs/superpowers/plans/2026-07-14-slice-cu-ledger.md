@@ -369,15 +369,52 @@ pass unchanged in behavior when both currencies are the same (parity case).
 Conservation holds across issuance and every servicing epoch — no value
 created or destroyed by the conversions themselves, only transferred.
 
-## Task 8: Segment/Faction wealth port-transfer conversion (Sonnet)
+## Task 8: Full cross-currency movement audit (Opus)
 
-Every port-ownership-change site — `FederationOps.MergeInto`'s port loop,
-`WarConduct.TransferPort` (locate the exact method; the design doc names it
-generically), and `GraduationOps` secession — force-converts every
-`Segment`/`Faction` resident at that port from the old owner's currency into
-the new owner's currency via `ConvertCurrency` at the moment of transfer.
-Tests: a conquered port's resident segments' `Wealth` converts correctly at
-transfer, not silently re-denominated 1:1.
+**Widened after Task 9's review** — this was originally scoped narrowly as
+"Segment/Faction wealth at port-ownership-change sites." Task 9's precise
+per-currency conservation measurement (unavailable until Task 9 landed —
+the old lump measure was mathematically blind to this class of leak)
+confirmed a real, rate-independent leak: raw 1:1 cross-currency transfers at
+**migration** (`Phases.cs:~1756-1761` — the gradient migration path has no
+same-owner guard on its destination-port pick, unlike the refugee off-lane
+branch) and **construction wages** (`ProjectOps.cs:~318-331` →
+`MarketEngine.PayWages` — a polity-funded project at a foreign-owned port
+credits household wages in the building port's currency while debiting the
+funder's own pool in its own currency). Both confirmed genuinely new gaps
+in the original design's site inventory — not something a prior task
+skipped. The report explicitly warns there are **likely more** omitted
+sites of the same shape.
+
+**Do not scope this as "fix these two sites."** Audit every raw
+cross-currency `Wealth`/`Credits` move in the codebase — start from the two
+confirmed sites, but systematically check every place `Segment.Wealth`,
+`Faction.Wealth`, `PolityRecord.Credits`, or `Corporation.Holdings` moves
+between two actors whose `CurrencyId` can differ, and confirm each one
+routes through `ConvertCurrency`/`Deposit`/`Withdraw`/`CreditLocal`/
+`DebitLocal` rather than a raw `+=`/`-=`. This includes but is not limited
+to: the original port-ownership-change sites (`FederationOps.MergeInto`'s
+port loop, `WarConduct.TransferPort`, `GraduationOps` secession — force-
+convert every resident `Segment`/`Faction` at the moment of transfer),
+migration, and construction wages.
+
+**The real acceptance bar is the per-currency `ConservationTests`** Task 9
+wrote and marked `[Skip]` (pending this task) — un-skip them and make them
+pass at ME's validated `≤1.3e-9` tolerance, across the full committed
+acceptance sweep, not just the two named sites in isolation. If they still
+don't pass after fixing the two known sites, keep auditing — that's the
+signal there are more, per the report's own warning. Also re-check the
+`ShapeAcceptanceTests`/`FederationTests`/`WarResolutionTests`/
+`GraduationTests`/`CorporationTests` failures Task 9's reviewer flagged as
+"obsolete native-sum measure, but could also hint at another leak site" —
+confirm each is genuinely explained by the old-measure-vs-new-measure gap
+and not evidence of yet another omitted conversion site.
+
+Tests: the per-currency `ConservationTests` pass, un-skipped, at ME's
+tolerance; a conquered port's resident segments' `Wealth` converts
+correctly at transfer, not silently re-denominated 1:1; a migration between
+different-currency ports converts correctly; a foreign-port construction
+wage payment converts correctly.
 
 ## Task 9: MetricsOps / conservation rework (Opus)
 
