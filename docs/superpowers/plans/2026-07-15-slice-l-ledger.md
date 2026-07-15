@@ -13,7 +13,9 @@ Baseline: 900/900 tests green before any change.
       at slice-end eyeball.)
 - [x] Task 2: Body-ref fields on Facility/Project/PopulationSegment/FleetRecord (Sonnet).
       Commit af69437. Clean, approved first review, no fix wave.
-- [ ] Task 3: `OrbitGeometry` — discrete OrbitDistance + local-hop knobs (Sonnet)
+- [x] Task 3: `OrbitGeometry` — discrete OrbitDistance + local-hop knobs (Sonnet).
+      Commit 5e6209f. Clean, approved. NOTE: golden test now red (KNOB dump gained 2
+      entries) — expected red-window, re-freeze once at slice end.
 - [ ] Task 4: Serializer round-trips the four body-ref fields (Opus — serializer correctness hazard)
 - [ ] Task 5: `SettledSystems` registry + idempotent commit + serialization (Opus — determinism invariant)
 - [ ] Task 6: Body-assignment at groundbreaking, claim-aware (Sonnet, touches ProjectOps — watch allocation interplay)
