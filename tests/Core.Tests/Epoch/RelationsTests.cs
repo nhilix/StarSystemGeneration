@@ -135,7 +135,17 @@ public class RelationsTests
     [Fact]
     public void KinClaim_RaisesWhenKinLiveUnderForeignRule()
     {
-        var state = Run();
+        // Locality's body-resource-stock task (BR-4) shifts seed 42's economy
+        // (real bodies/ore instead of riding None), which accelerates the
+        // emergent political timeline: at the default epoch 24, the "other"
+        // polity in FirstLiveRelation gets eliminated (conquest/merger)
+        // between the raise-step and the release-step, freezing the relation
+        // (BothLive false skips the whole KinClaims update, so the claim
+        // never gets the chance to release even after the kin are gone).
+        // Re-tuned to epoch 20, where both sides are confirmed still Entered
+        // through both steps — the clean scenario this test needs; the
+        // release mechanic itself is unchanged.
+        var state = Run(20);
         // manufacture kin: move a big segment of polity 0's founding culture
         // under a related foreign polity's port
         Assert.True(state.Relations.Count > 0);

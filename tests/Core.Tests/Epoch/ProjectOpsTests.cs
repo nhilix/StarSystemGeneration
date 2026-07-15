@@ -154,7 +154,8 @@ public class ProjectOpsTests
             state.Ports[portId].Hex, portId, 1.0);
         var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
             pr.ActorId, candidate, ProjectPriority.Core, 0);
-        var f = state.Facilities[p.TargetId];
+        Assert.NotNull(p);                               // a body-bearing seat
+        var f = state.Facilities[p!.TargetId];
         Assert.Equal(-1, f.CommissionedYear);            // site, not facility
         Assert.False(MarketEngine.IsActive(state, f));
         // basket × years == the old lump (conservation invariant)
@@ -256,8 +257,9 @@ public class ProjectOpsTests
             state.Ports[portId].Hex, portId, 1.0);
         var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
             pr.ActorId, candidate, ProjectPriority.Core, 0);
+        Assert.NotNull(p);                               // a body-bearing seat
         ProjectOps.AdvanceAll(state);                    // fully fed
-        Assert.True(p.Completed);
+        Assert.True(p!.Completed);
         var f = state.Facilities[p.TargetId];
         Assert.Equal(state.WorldYear + (int)System.Math.Round(p.YearsRequired),
                      f.CommissionedYear);
@@ -457,6 +459,98 @@ public class ProjectOpsTests
         Assert.Equal(other, p.OwnerActorId);
         Assert.Equal(other, p.FunderActorId);
         Assert.Equal(2.0, p.YearsDelivered, 9);           // progress kept
+    }
+
+    /// <summary>Body-resource-stock design: an extraction facility with no
+    /// eligible body is not built at all — the groundbreak is rejected
+    /// outright (null project, no Facility row) rather than left riding None
+    /// producing nothing forever. Holds for all four extraction types.</summary>
+    [Theory]
+    [InlineData((int)StarGen.Core.Substrate.InfraTypeId.Mine)]
+    [InlineData((int)StarGen.Core.Substrate.InfraTypeId.Skimmer)]
+    [InlineData((int)StarGen.Core.Substrate.InfraTypeId.AgriComplex)]
+    [InlineData((int)StarGen.Core.Substrate.InfraTypeId.ExcavationSite)]
+    public void Groundbreak_NoEligibleBody_RejectsOutright(int typeId)
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        // a committed system with NO bodies at all: every extraction type
+        // resolves None (nothing to localize to).
+        var hex = new StarGen.Core.Model.HexCoordinate(444, 444);
+        var bodiless = new StarGen.Core.Model.StarSystem("T");
+        bodiless.Stars.Add(new StarGen.Core.Model.Star());
+        state.SettledSystems[hex] = bodiless;
+        int facBefore = state.Facilities.Count;
+        int projBefore = state.Projects.Count;
+        var candidate = new ConstructionCandidate(typeId, hex, portId, 1.0);
+
+        var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
+            pr.ActorId, candidate, ProjectPriority.Core, 0);
+
+        Assert.Null(p);                                   // no project
+        Assert.Equal(facBefore, state.Facilities.Count);  // no facility
+        Assert.Equal(projBefore, state.Projects.Count);
+    }
+
+    /// <summary>A groundbroken Mine at a hex holding a rocky world claims that
+    /// body and rolls its finite depletable stock once at groundbreaking
+    /// (body-resource-stock design).</summary>
+    [Fact]
+    public void Groundbreak_WithEligibleBody_BuildsAndRollsAStock()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        int portId = OwnPort(state, pr.ActorId);
+        // a committed system holding a rocky world: a Mine claims it.
+        var hex = new StarGen.Core.Model.HexCoordinate(445, 445);
+        var sys = new StarGen.Core.Model.StarSystem("T");
+        var s0 = new StarGen.Core.Model.Star();
+        s0.Slots.Add(new StarGen.Core.Model.OrbitSlot
+        {
+            Index = 0, Band = StarGen.Core.Model.OrbitBand.Habitable,
+            Body = new StarGen.Core.Model.Body
+            { Kind = StarGen.Core.Model.BodyKind.RockyWorld, Size = 6 }
+        });
+        sys.Stars.Add(s0);
+        state.SettledSystems[hex] = sys;
+        var candidate = new ConstructionCandidate(
+            (int)StarGen.Core.Substrate.InfraTypeId.Mine, hex, portId, 1.0);
+
+        var p = ProjectOps.SpawnFacilityConstruction(state, pr.ActorId,
+            pr.ActorId, candidate, ProjectPriority.Core, 0);
+
+        Assert.NotNull(p);
+        var f = state.Facilities[p!.TargetId];
+        Assert.False(f.Body.IsNone);                      // claimed the rock
+        Assert.True(state.BodyResources.ContainsKey((hex, f.Body)),
+            "a depletable Mine rolls its finite stock at groundbreaking");
+    }
+
+    /// <summary>Every new polity's entry starter industry now carries a real
+    /// body — the starter Mine claims a body at the homeworld seat (generated
+    /// with a real inhabited world) and rolls its depletable stock, closing
+    /// the "every Mine has a stock" invariant on the one facility-creation
+    /// path that bypasses groundbreaking entirely (body-resource-stock
+    /// design).</summary>
+    [Fact]
+    public void EntryStarterIndustry_CarriesARealBody_AndTheMineRollsAStock()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        RunHistory(state);   // entry already ran as part of seeding/history
+        var pr = state.Polities[FirstEnteredPolity(state)];
+        var seat = state.Actors[pr.ActorId].Seat;
+        var mine = state.Facilities.Find(f =>
+            f.OwnerActorId == pr.ActorId
+            && f.TypeId == (int)StarGen.Core.Substrate.InfraTypeId.Mine
+            && f.Hex.Equals(seat));
+        Assert.NotNull(mine);
+        // homeworld seats are generated with a real inhabited world, so the
+        // starter Mine is expected to resolve a real body, not None
+        Assert.False(mine!.Body.IsNone);
+        Assert.True(state.BodyResources.ContainsKey((mine.Hex, mine.Body)));
     }
 
     private static bool PortAt(SimState state,

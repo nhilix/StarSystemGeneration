@@ -122,11 +122,15 @@ public class WarConductTests
         // the siege MECHANIC (port transfers, segments intact) over an
         // 8-epoch continuation, not emergent-war politics. Once the
         // world-time economy relit emergent wars (slice t1), epoch 24 sits in
-        // the war era — a real war pulls in coalitions and the staged war
-        // settles (white peace, status quo ante) before the siege can
-        // complete. Staging at epoch 16, still peacetime for seed 42, gives
-        // the clean stage the test was written for; the teeth are unchanged.
-        var state = Run(16);
+        // the war era; re-tuned to stage at epoch 16 (still peacetime for seed
+        // 42 at the time). Locality's body-resource-stock task (BR-4) shifts
+        // seed 42's economy again — starter/founding/groundbroken extraction
+        // facilities now carry real bodies and produce real ore instead of
+        // riding None, which accelerates growth and pulls emergent war
+        // forward too, so epoch 16 is already mid-war. Re-tuned again to
+        // epoch 12 (confirmed zero active wars at that point) — the clean
+        // peacetime stage this test needs; the teeth are unchanged.
+        var state = Run(12);
         var (war, attacker, defender, target) = StageWar(state, 300);
         double populationBefore = 0;
         foreach (var s in state.Segments)
