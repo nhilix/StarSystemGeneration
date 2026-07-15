@@ -694,6 +694,14 @@ public sealed class EconomyKnobs
     /// (spec §4b): the quartermaster provisions ahead of the lead time, so
     /// remote sites are pre-positioned rather than fed hand to mouth.</summary>
     public double RequisitionLeadYears { get; set; } = 5.0;
+    /// <summary>The fixed cross-star hop added to OrbitDistance between
+    /// bodies in different stars of a multi-star system (locality slice §2) —
+    /// a discrete constant, not orbital mechanics.</summary>
+    public double CrossStarHopOrbitSteps { get; set; } = 8.0;
+    /// <summary>World-years per unit of OrbitDistance for a local hop
+    /// (intra-system body-to-body movement, locality slice §2). Small: the
+    /// local hop is cheap beside a lane-hop.</summary>
+    public double LocalHopYearsPerOrbitStep { get; set; } = 0.05;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

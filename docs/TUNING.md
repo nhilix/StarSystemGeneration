@@ -154,6 +154,8 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.WealthTaxRatePerYear` | 0.02 | Faster drain on wealth above the floor: a stronger inflation-control valve, but poorer elites/segments. | Wealth above the floor sits longer; a weaker sink against sovereign issuance. |
 | `Economy.CourierFeePerUnitPerHex` | 0.02 | State hauling costs real freight rates: fees drain treasuries, self-fulfillment pays back more. | Near-free requisitions (against the contract economy's grain). |
 | `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
+| `Economy.CrossStarHopOrbitSteps` | 8.0 | Multi-star systems effectively widen: every cross-star local hop takes longer. | Companion stars feel almost adjacent to the primary. |
+| `Economy.LocalHopYearsPerOrbitStep` | 0.05 | Intra-system travel gets dearer relative to a lane hop — orbit distance starts to matter. | Local hops approach free; only cross-star and lane geometry matter. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*
