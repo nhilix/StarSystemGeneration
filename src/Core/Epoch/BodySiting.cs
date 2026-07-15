@@ -65,6 +65,34 @@ public static class BodySiting
         return best;
     }
 
+    /// <summary>A per-body extraction multiplier in [0.5, 1.5] from the
+    /// SPECIFIC claimed body (locality slice §4 throughline: body-level
+    /// richness variance finally reaches the price signal). Size drives the
+    /// extractor bodies; biosphere drives agri. 1.0 (neutral) for a None
+    /// body, a null system, or a missing body — so legacy/unsettled
+    /// facilities are unchanged. Pure, deterministic, no rolls.</summary>
+    public static double RichnessModifier(StarSystem? system, BodyRef body,
+                                          InfraTypeId type)
+    {
+        if (system == null || body.IsNone) return 1.0;
+        if (body.StarIndex < 0 || body.StarIndex >= system.Stars.Count)
+            return 1.0;
+        Body? b = null;
+        foreach (var slot in system.Stars[body.StarIndex].Slots)
+            if (slot.Index == body.SlotIndex) { b = slot.Body; break; }
+        if (b == null) return 1.0;
+        // Body.Size is a small integer scale; map it onto [0.5, 1.5] around
+        // a neutral mid so a rich belt out-yields a poor one, an airless
+        // agri world under-yields a lush one — bounded, never a mint.
+        double signal = type switch
+        {
+            InfraTypeId.AgriComplex => (int)b.Biosphere,
+            _ => b.Size,
+        };
+        double norm = System.Math.Max(0.0, System.Math.Min(1.0, signal / 6.0));
+        return 0.5 + norm;               // [0.5, 1.5]
+    }
+
     /// <summary>Where the port docks: most-settled body (ties by size, then
     /// star/slot order), else first habitable-band body, else first body,
     /// else None — the Epoch twin of SystemQuery.PortOrbit.</summary>

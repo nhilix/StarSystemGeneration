@@ -152,6 +152,7 @@ public static class MarketEngine
             if (def.Produces.Count == 0) continue;        // keystone/support
 
             var fields = FieldsAt(state, f.Hex);
+            state.SettledSystems.TryGetValue(f.Hex, out var fSystem);
             double labor = 0;
             var embodiment = DominantEmbodiment(state, port.Id, ref labor);
             double laborFactor = Production.LaborFactor(labor,
@@ -165,7 +166,9 @@ public static class MarketEngine
             foreach (var good in def.Produces)            // catalog order
             {
                 double terrain = ExtractionPotential((InfraTypeId)f.TypeId,
-                                                     good, fields);
+                                                     good, fields)
+                    * BodySiting.RichnessModifier(fSystem, f.Body,
+                                                  (InfraTypeId)f.TypeId);
                 double utilization = Math.Min(1.0,
                     Math.Max(cfg.Economy.MinUtilization,
                         market.Price[(int)good]
