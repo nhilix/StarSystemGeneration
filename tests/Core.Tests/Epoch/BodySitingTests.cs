@@ -47,17 +47,23 @@ public class BodySitingTests
     }
 
     [Fact]
-    public void SecondMine_FallsToNone_WhenSubstrateAbsentAndPortAlreadyClaimed()
+    public void Mine_WithNoBeltOrRock_IsNone_NotThePortBody()
     {
-        var sys = WithNoExtractionSubstrate();
+        var sys = WithNoExtractionSubstrate();   // a gas giant only
         var port = BodySiting.PortBody(sys);
+        Assert.False(port.IsNone);               // a port body exists...
         var first = BodySiting.Assign(sys, InfraTypeId.Mine, port,
             new List<BodyRef>());
-        Assert.Equal(port, first);                   // no belt/rock: falls to port
-        var second = BodySiting.Assign(sys, InfraTypeId.Mine, port,
-            new List<BodyRef> { first });
-        Assert.True(second.IsNone);                   // port already taken: no collision
-        Assert.NotEqual(first, second);
+        Assert.True(first.IsNone);               // ...but a mine won't ride it
+    }
+
+    [Fact]
+    public void Skimmer_WithNoGasGiant_IsNone()
+    {
+        var sys = WithBelts();                   // belts + a rocky world, no giant
+        var port = BodySiting.PortBody(sys);
+        Assert.True(BodySiting.Assign(sys, InfraTypeId.Skimmer, port,
+            new List<BodyRef>()).IsNone);
     }
 
     [Fact]
