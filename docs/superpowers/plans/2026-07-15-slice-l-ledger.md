@@ -45,7 +45,11 @@ Baseline: 900/900 tests green before any change.
       pick up a Size-driven richness multiplier via the port body (incidental,
       not a deliberate design signal for those types) — pre-existing since the
       original commit, not introduced by the fix.
-- [ ] Task 9: `Settlement.SettledHexes` sim-health metric (Sonnet)
+- [x] Task 9: `Settlement.SettledHexes` sim-health metric (Sonnet). Commit cc680de.
+      Brief's MetricRow snapshot was stale (predates the ME slice's two Cumulative*
+      fields) — correctly appended after them, not at the brief's guessed position.
+      Positional alignment independently field-by-field verified, single call site
+      confirmed. Clean, approved first review.
 
 ## Gates
 
