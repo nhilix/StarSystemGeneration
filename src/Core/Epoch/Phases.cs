@@ -795,20 +795,26 @@ public sealed class AllocationPhase : ISimPhase
             // receipts) is locked out of NEW credit until amortization services the
             // debt down. This touches nothing in ServiceLoans — existing loans keep
             // accruing/amortizing/defaulting; it only refuses to pile on MORE.
-            // A borrower services every one of its loans in its OWN currency
-            // (ServiceLoans debits `borrower.Credits`, a single-currency polity
-            // balance), so each open loan's principal is denominated in the
-            // borrower's currency. Sum and the debt ceiling therefore share the
-            // borrower's currency; both numeraire-convert by the same rate so the
-            // creditworthiness comparison is in one common unit (currency-and-FX
-            // design "Loans across currencies"). The rate is a common factor here,
-            // but the per-loan conversion is the shape the design specifies and is
-            // robust if a borrower ever carries a foreign-denominated loan.
+            // A loan's principal is denominated in the LENDER's currency for a
+            // polity lender, but in the BORROWER's own currency for a corporation
+            // lender (design "Loans across currencies"; ServiceLoans derives
+            // loanCurrencyId the same way). Numeraire-convert each open loan by ITS
+            // OWN currency rate before summing against the debt ceiling — valuing a
+            // foreign-polity-lender loan at the borrower's rate (the old code)
+            // systematically mis-prices foreign debt exactly when the borrower's
+            // currency has drifted from the lender's, letting an over-leveraged
+            // borrower stack past the gate. Single-currency: every rate is equal,
+            // so this is byte-identical to the old common-factor form.
             double borrowerRate = state.NumeraireRateOf(pr.CurrencyId);
             double existingPrincipal = 0;
             foreach (var open in state.Loans)                 // id order (P6)
                 if (open.BorrowerActorId == pr.ActorId && !open.Closed)
-                    existingPrincipal += open.Principal * borrowerRate;
+                {
+                    int openCur = state.LedgerOf(open.LenderActorId) is Corporation
+                        ? pr.CurrencyId
+                        : ((PolityRecord)state.LedgerOf(open.LenderActorId)).CurrencyId;
+                    existingPrincipal += open.Principal * state.NumeraireRateOf(openCur);
+                }
             double debtCeiling = eco.MaxDebtToIncomeRatio
                 * Math.Max(0.0, pr.LastIncomePerYear) * years * borrowerRate;
             if (existingPrincipal > debtCeiling) continue;

@@ -432,9 +432,24 @@ public static class FleetOps
                                      Market market, int good, double need)
     {
         if (need <= 0) return 1.0;
+        // the military pool is in the polity's OWN currency; the book settles its
+        // sellers in the port's LOCAL currency (BookOps.LiftAsks — cost returned
+        // in local units). A fleet whose HomePortId has fallen into foreign hands
+        // (a captured home port the fleet was never re-homed off) victuals across
+        // a currency boundary: convert the pool into local units to bound the lift,
+        // then convert the returned cost back to charge the pool and RECORD the
+        // cross-currency transfer, so the polity-currency debit and the
+        // local-currency seller credit don't re-denominate 1:1 (design §1, the same
+        // discipline every other foreign-market payer applies). Same-currency (an
+        // own port) is byte-identical: both conversions and the record are no-ops.
+        int localCur = state.LocalCurrencySafe(market.PortId);
+        double budgetLocal = state.ConvertCurrency(
+            Math.Max(0.0, pr.MilitaryPoints), pr.CurrencyId, localCur);
         var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
-            need, budget: Math.Max(0.0, pr.MilitaryPoints));
-        pr.MilitaryPoints -= cost;
+            need, budget: budgetLocal);
+        double ownCost = state.ConvertCurrency(cost, localCur, pr.CurrencyId);
+        pr.MilitaryPoints -= ownCost;
+        state.RecordConversion(pr.CurrencyId, ownCost, localCur, cost);
         double shortfall = need - drawn;
         if (shortfall > 0)
             drawn += state.Ports[market.PortId].DrawStock(good, shortfall);

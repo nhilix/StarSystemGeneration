@@ -464,18 +464,36 @@ public static class FederationOps
             int newLender = lender ? intoId : loan.LenderActorId;
             int newBorrower = borrower ? intoId : loan.BorrowerActorId;
             if (newLender == newBorrower) continue;   // internal debt cancels
-            // a cross-currency loan denominates in the LENDER's currency
-            // (design, "Loans across currencies"). When the absorbed polity
-            // WAS the lender, the survivor's currency takes over — reprice the
-            // principal into it. A changed borrower leaves the loan
-            // lender-denominated, so its principal carries over untouched.
-            double principal = lender
+            // A loan denominates in the LENDER's currency for a polity lender,
+            // but in the BORROWER's currency for a corporation lender (design,
+            // "Loans across currencies"; Phases.Borrow/ServiceLoans). Reprice the
+            // principal into the survivor's currency whenever the side that
+            // DENOMINATES the loan is the one being absorbed: a changed
+            // polity-lender, OR a changed borrower under a corp lender. Otherwise
+            // the denominating currency is untouched and the principal carries.
+            // The old code repriced only on a lender change, silently
+            // re-denominating a corp-lent (borrower-denominated) loan 1:1 when its
+            // borrower was absorbed — the exact absorption-time leak this slice
+            // exists to close.
+            bool corpLender = state.CorporationOf(loan.LenderActorId) != null;
+            bool denomChanged = (lender && !corpLender) || (borrower && corpLender);
+            double principal = denomChanged
                 ? state.ConvertCurrency(loan.Principal, from.CurrencyId,
                                         into.CurrencyId)
                 : loan.Principal;
+            // preserve the capitalization ceiling's fixed reference across the
+            // reissue: scale OriginalPrincipal by the same conversion factor so the
+            // loan keeps its real "2x runway". A bare reissue defaulted
+            // OriginalPrincipal to the current (possibly already-capitalized)
+            // principal, handing every absorbed loan a fresh ceiling at each
+            // absorption — a pre-existing ME follow-up the serializer already
+            // guards against on load (markets v4).
+            double newOriginal = loan.Principal != 0
+                ? loan.OriginalPrincipal * (principal / loan.Principal)
+                : loan.OriginalPrincipal;
             state.Loans.Add(new Loan(state.Loans.Count, newLender, newBorrower,
                 principal, loan.RatePerYear, loan.TermYears,
-                loan.IssuedYear));
+                loan.IssuedYear, originalPrincipal: newOriginal));
         }
     }
 

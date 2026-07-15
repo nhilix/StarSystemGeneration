@@ -579,6 +579,22 @@ consistent with ME's validated behavior. Re-run the full sweep after the
 fix and report the actual numbers, not just "the specific flagged epoch no
 longer spikes."
 
+**RESOLVED.** The residual spike and the loan-principal "blowout" were two
+independent phenomena. (1) The residual leak's root cause was `FleetOps.
+DrawUpkeep` charging a foreign market's LOCAL-currency `cost` raw 1:1 against the
+polity's OWN-currency `MilitaryPoints` pool — fired when a fleet victuals at a
+`HomePortId` captured by another polity (the absorption correlation). Fixed with
+the standard convert-and-`RecordConversion` discipline. Full 32-run sweep worst
+per-epoch residual now **1.123e-07** (relative ~1e-13 on multi-million supply,
+far inside `1.3e-9 × supply`), down from 1.11. (2) The loan-principal blowout is
+NOT a leak or ceiling failure — it is nominal weak-currency denomination in the
+raw mixed-currency `Money.LoanPrincipal`; numeraire loan book is ~4.6k and the 2×
+cap ceiling holds (max ratio 1.83). Also fixed three whole-branch-review loan
+bugs as correctness hardening (Borrow debt-ceiling per-loan-currency rate;
+MergeInto corp-lent borrower-change conversion; MergeInto OriginalPrincipal
+preservation). Regression test `FleetSupplyCurrencyTests`. 972/972 green; seed-42
+golden regenerated (deliberate history change). See `.superpowers/sdd/task-14-report.md`.
+
 ## Acceptance (after Task 12, before merge)
 
 `dotnet test` green (hex-tier suite intact); determinism byte-identity for
