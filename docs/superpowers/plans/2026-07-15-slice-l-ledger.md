@@ -101,7 +101,8 @@ construction outright when an extraction type resolves no eligible body
 
 ### Tasks
 
-- [ ] BR-Task 1: Roll channel + `Economy` stock knobs (Sonnet)
+- [x] BR-Task 1: Roll channel + `Economy` stock knobs (Sonnet). Commit 3d5847f.
+      Clean, approved first review, no fix wave.
 - [ ] BR-Task 2: `SimState.BodyResources` + `BodyResourceOps` (Sonnet)
 - [ ] BR-Task 3: `BodySiting` body-native extraction — Assign rejects, renewable
       yield/grade (Sonnet — supersedes today's earlier fix-wave test
