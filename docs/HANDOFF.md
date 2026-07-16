@@ -1,14 +1,87 @@
-# Session Handoff — 2026-07-15 (Slice CU-1, Currency & FX — MERGED)
+# Session Handoff — 2026-07-16 (Slice CU-2, the Bank actor — MERGED)
 
-State: `slice-cu-currency` merged to `main` locally (via a merge of `main`
-into the branch to fold in Slice L first, then a `--no-ff` merge out —
-not pushed, push on say-so). 1014/1014 `dotnet test` post-merge · hex-tier
-suite intact · determinism byte-identity (golden regenerated twice: once
-mid-slice after the fleet-upkeep fix, once more folding in Slice L) · one
-whole-branch fresh-eyes review (fable) plus one fix wave · the real 32-run
-committed acceptance sweep re-run three times across the session as fixes
-landed, the last time against the actual post-merge tip · merge accepted
-2026-07-15.
+State: `slice-cu2-bank-actor` merged to `main` locally with `--no-ff`
+(main had NOT moved from the branch base 81c03c6 — L2 still in flight in its
+own worktree, no fold-in needed) — not pushed, push on say-so. 1047/1047
+`dotnet test` · hex-tier suite intact · determinism byte-identity · one
+whole-branch fresh-eyes review (fable, no Critical) + one fix wave · the
+32-run committed acceptance sweep run twice (before and after the fix wave),
+worst per-currency residual 9.0e-16 relative (FP epsilon, unchanged by the
+fix wave) · golden re-frozen once at slice end · merge accepted 2026-07-16.
+Design spec `docs/superpowers/specs/2026-07-15-cu2-bank-actor-design.md`;
+ledger `docs/superpowers/plans/2026-07-15-slice-cu2-ledger.md` (8 tasks grew
+to 14 real sub-tasks — the exchange-site audit split into 4a-4f, several
+inserted by real findings).
+
+## Slice CU-2 — the Bank actor (closed)
+
+**What shipped**: a first-class `Bank` per `Currency` (`src/Core/Epoch/Bank.cs`,
+keyed by currency id, minted 1:1 in `SimState.FoundCurrency`, serialized in a
+new `banks` layer, `SimState.BankOf`). A conversion spread
+(`Economy.ConversionSpread` = 0.005) sequestered into `Bank.Reserve` OUT of
+circulating `Currency.Supply` — so reserve accumulation strengthens a currency's
+FX rate. The reserve funds polity deficits FIRST (a `Reserve → Credits` transfer,
+`FundDeficit` in `Phases.cs`) with the bounded fiat mint (`IssueSovereignCredit`)
+as lender-of-last-resort backstop. A REPL bank surface on the currency line.
+
+**Spread incidence is direction-specific** (spec §3, driven by a real
+conservation fork the audit surfaced): repatriation (money arriving into a
+holder's own currency) NETS the recipient via `SettleConversion`; payment
+(converting own money to pay foreign) GROSSES UP the payer via `SkimToReserve`
++ full `RecordConversion` (payee whole — this is what let the market's
+pay-recipients-gross-then-debit ordering stay correct without reordering).
+Absorption/graduation re-denomination is EXEMPT (`PolityRecord.DepositExempt`),
+as are port-ownership re-denomination and order-post refunds.
+
+**Conservation is reserve-aware**: `SupplyOps.WalkNative` walks circulating
+balances only (so FX tightens); the per-currency residual (`MetricsOps`) adds the
+live `Bank.Reserve` to the balance side. Reserves are provably non-negative (sign
+guards + a full-history guard test). The whole-branch review verified the
+exchange-site inventory is complete and every real cross-currency movement skims
+exactly once.
+
+**The review earned its keep**: it caught a real spec violation mid-audit (the
+absorbed treasury was being clipped — fixed to exempt, Task 4f) and, at the
+whole-branch pass, a latent conservation leak the gross-up had *widened* (corp
+`TreasuryAvailable` returned the raw wallet total while `Corporation.Withdraw`
+yields only `value/(1+spread)` — a fragmented-corp funder could under-provide and
+mint the difference; closed in the fix wave `a534b49`) plus two unregistered
+knobs (a config-artifact-stamping hard-rule violation that also blocked the
+tuning pass — registered in the same wave).
+
+**Acceptance**: FX rates diverge dramatically (0.002–0.473 across currencies in
+one seed-42 history); trade-hub currencies build real reserves while frontier
+ones stay thin (the intended "you earn your monetary backstop" emergence).
+`NegativeTreasuries` breathes; variants diverge sensibly (baseline 854k →
+flush-start 2.8M → lean-labor 29M final supply).
+
+**Filed as follow-ups, NOT resolved this slice**:
+1. **THE big one (user-raised at the eyeball, architectural — see
+   `[[bank-reserve-flow-gap]]` memory)**: the bank's reserve has ONE inflow (the
+   FX spread), but a polity's dominant flows (receipts/taxes/wages/upkeep) go
+   DIRECTLY into `PolityRecord.Credits`, bypassing the bank entirely. So the bank
+   sees only cross-currency activity (~0.1% of deficit funding; even 10× spread →
+   ~1%) and can never be a meaningful monetary intermediary. **No spread value
+   fixes this — it needs a design pass** to route the polity's money flow THROUGH
+   the bank (bank takes deposits, polity draws on the bank). Likely a prerequisite
+   for CU-4's "bank strength → federation" to have teeth. Sequence it before or
+   alongside CU-4. The merged mechanism is correct and conservation-clean — this
+   is about making bank agency *effectual*, not a bug.
+2. **Spread/ratio tuning deferred** (user decision): accepted the 0.005/0.5
+   defaults for CU-2; both are now registered, sweep-tunable knobs. Tuning is best
+   done in a dedicated economic-balance pass informed by CU-3/CU-4 — and is moot
+   until follow-up #1 lands (it can't overcome the scale mismatch).
+3. **Order-cancel-skims vs project-bid-refund-exempt asymmetry** (documented in
+   the spec's settlement section) — a deliberate call, revisit if it feels wrong.
+4. **Observability** (review finding 8, Minor): whole-sim `MoneyRow.Supply`
+   excludes `Bank.Reserve`, so galaxy "total money" slowly under-counts as banks
+   capitalize. NOT a defect (the invariant is per-currency and reserve-aware);
+   consider a `MoneyRow.Reserves` field for SIMHEALTH dashboards.
+5. Two conservation tests (`ServiceLoans_CrossCurrency`, `Dividend`) assert via a
+   MEASURED skim rather than a derived `×(1±spread)` — sibling tests pin the
+   magnitude/direction, so redundant coverage exists; acceptable.
+
+## Slice CU-1 — currency & FX foundation (closed)
 
 ## Slice CU-1 — currency & FX foundation (closed)
 
@@ -427,12 +500,14 @@ the very end.
 1. **User atlas/REPL review** — the user's own call on when to look at both
    mega-slices (Locality, Currency) landed together and decide what to
    prioritize next. Not scripted further here — follow their lead.
-2. **Slice CU-2 (Bank actor)** — the first of Slice CU's own forward
-   roadmap (design doc's "Forward roadmap: CU-2 through CU-4" section):
-   `docs/superpowers/plans/2026-07-15-slice-cu2-bank-actor-kickoff-prompt.md`.
-   A new first-class actor type attached to a `Currency`, taking over the
-   `ConvertCurrency` primitive's exchange-management role CU-1 left as a
-   bare function call with a bookkeeping tally.
+2. **Slice CU-3 (Federation-triggered currency consolidation)** — the next of
+   the CU forward roadmap, kickoff chained:
+   `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. Replaces
+   CU-1's blunt forced-conversion-at-absorption stub with a real mechanic once
+   banks exist to be party to a merger. **Read the CU-2 follow-up #1 first** (the
+   bank-reserve-flow-gap): the design should weigh whether the bank-reserve-flow
+   redesign is a prerequisite that belongs before CU-3/CU-4, or proceeds in
+   parallel.
 3. **Slice L2 (Population/off-lane)** — ready, not started:
    `docs/superpowers/plans/2026-07-15-slice-l2-population-offlane-kickoff-prompt.md`.
    Parallel-safe with CU-2 (worktrees).

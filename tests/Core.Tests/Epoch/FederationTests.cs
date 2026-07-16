@@ -40,6 +40,13 @@ public class FederationTests
             sum += s.Wealth * state.NumeraireRateOf(state.LocalCurrencySafe(s.PortId));
         foreach (var f in state.Factions)
             sum += f.Wealth * state.NumeraireRateOf(PolityCurrency(state, f.PolityId));
+        // the conversion spread federation/absorption/vassalage settlements
+        // pay is sequestered OUT of circulation into Bank.Reserve
+        // (MetricsOps.cs authoritative residual balances Supply + Reserve) —
+        // omitting it here reads as a false leak exactly equal to the skim,
+        // in numeraire terms
+        foreach (var bank in state.Banks)
+            sum += bank.Reserve * state.NumeraireRateOf(bank.CurrencyId);
         return sum;
     }
 
@@ -181,6 +188,12 @@ public class FederationTests
         // mechanics" — a bilateral transfer routed through Deposit).
         double tribute = 100 * share;
         double landed = state.ConvertCurrency(tribute, vr.CurrencyId, or.CurrencyId);
+        // Deposit (slice CU-2) skims the conversion spread off the top into
+        // the destination currency's Bank.Reserve before crediting the net —
+        // ConvertCurrency alone is the pre-skim gross, so a real cross-
+        // currency landing is net of the spread (SimState.SettleConversion).
+        if (vr.CurrencyId != or.CurrencyId)
+            landed *= 1 - state.Config.Economy.ConversionSpread;
         Assert.Equal(vc - tribute, vr.Credits, 9);
         Assert.Equal(oc + landed, or.Credits, 9);
         Assert.Equal(100 * (1 - share), vr.Receipts, 9);

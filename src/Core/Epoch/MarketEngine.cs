@@ -507,15 +507,31 @@ public static class MarketEngine
                     // into market terms so the escrow never outruns the debit.
                     int endCur = state.LocalCurrencySafe(end);
                     int funderCur = ProjectOps.FunderCurrency(state, p);
+                    // slice CU-2: a foreign build port makes this a real
+                    // cross-currency PAYMENT — the funder parks endCur escrow, so
+                    // gross it up (the funder bears the spread, the escrow stays
+                    // WHOLE so fills and refunds are honoured) and skim to the
+                    // endCur reserve. Leave the affordability bound (1+spread) of
+                    // headroom so the grossed debit never overshoots the treasury
+                    // into a corp-wallet cap — a capped SpendTreasury against a
+                    // whole escrow would mint the skim. Same-currency: spread 0,
+                    // byte-identical to the pre-CU-2 raw escrow.
+                    bool crossCur = endCur != funderCur
+                        && endCur >= 0 && funderCur >= 0;
+                    double spread = crossCur ? eco.ConversionSpread : 0.0;
                     double affordable = ProjectOps.TreasuryAvailable(state, p);
                     double affordableInMarket = state.ConvertCurrency(
                         affordable, funderCur, endCur);
-                    double qty = Math.Min(want, affordableInMarket / bid);
+                    double qty = Math.Min(want,
+                        affordableInMarket / (bid * (1.0 + spread)));
                     if (qty <= 1e-9) continue;
                     double escrow = qty * bid;                // market currency
-                    double cost = state.ConvertCurrency(escrow, endCur, funderCur);
+                    double skim = escrow * spread;
+                    double grossEscrow = escrow + skim;
+                    double cost = state.ConvertCurrency(grossEscrow, endCur, funderCur);
                     ProjectOps.SpendTreasury(state, p, cost);
-                    state.RecordConversion(funderCur, cost, endCur, escrow);
+                    state.SkimToReserve(endCur, skim);
+                    state.RecordConversion(funderCur, cost, endCur, grossEscrow);
                     var order = OrderOps.PostBuy(state, p.FunderActorId,
                         end, g, qty, bid, state.WorldYear);
                     scratch.ProjectBids.Add((order, p));
@@ -1044,6 +1060,14 @@ public static class MarketEngine
             int endCur = state.LocalCurrencySafe(order.PortId);
             int funderCur = ProjectOps.FunderCurrency(state, project);
             double back = state.ConvertCurrency(refund, endCur, funderCur);
+            // slice CU-2: the refund is the funder UN-POSTING its own unfilled
+            // escrow, not a payment to a counterparty — the real conversion (and
+            // its spread) was charged once at the gross-up post above. Treat it as
+            // an own-money re-denomination (EXEMPT — like the ownership-seam
+            // re-denominations that keep RecordConversion), so a post+cancel
+            // round-trip is taxed once, not twice on order churn. Conservation-clean
+            // either way; the exemption is the churn-fair, precedent-matching choice
+            // (report: refund-skim decision).
             state.RecordConversion(endCur, refund, funderCur, back);
             ProjectOps.RefundTreasury(state, project, back);
         }

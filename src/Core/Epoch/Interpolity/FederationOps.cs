@@ -410,10 +410,13 @@ public static class FederationOps
         }
         // the absorbed treasury force-converts into the survivor's currency
         // (slice CU-1, currency-and-FX design): a transfer between the two
-        // currencies' supplies via Deposit, never a raw carry-over. An
+        // currencies' supplies, never a raw carry-over. This is the polity's OWN
+        // money moving across the merge seam, so it is EXEMPT from the conversion
+        // spread ("clipping is wrong") — DepositExempt converts + records at plain
+        // rate with NO skim, exactly like the pools right below it (:429-442). An
         // insolvent parent (negative Credits) hands its debt over converted;
-        // Deposit has no non-positive guard, so the debt is never swallowed.
-        into.Deposit(state, from.Credits, from.CurrencyId);
+        // DepositExempt has no non-positive guard, so the debt is never swallowed.
+        into.DepositExempt(state, from.Credits, from.CurrencyId);
         from.Credits = 0;
         into.Receipts += from.Receipts;
         from.Receipts = 0;

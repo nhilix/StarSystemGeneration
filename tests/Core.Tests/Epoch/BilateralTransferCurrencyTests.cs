@@ -20,6 +20,7 @@ public class BilateralTransferCurrencyTests
         var cur = new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -77,8 +78,12 @@ public class BilateralTransferCurrencyTests
         Assert.True(paid >= 1);
         double share = state.Config.Relations.VassalTributeShare;
         double tribute = 100 * share;
+        // distinct currency ids still route the overlord's receipt through
+        // Deposit (slice CU-2), which skims the spread off the top into
+        // Bank(overlord).Reserve before crediting the net, even at a 1:1 rate.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(vc - tribute, vr.Credits, 9);
-        Assert.Equal(oc + tribute, or.Credits, 9);
+        Assert.Equal(oc + tribute * (1 - spread), or.Credits, 9);
         Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
         Assert.Equal(tribute, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
@@ -96,9 +101,12 @@ public class BilateralTransferCurrencyTests
         Assert.True(paid >= 1);
         double share = state.Config.Relations.VassalTributeShare;
         double tribute = 100 * share;              // in the VASSAL's own currency
-        double landed = tribute * 1.0 / 2.0;        // cur(vassal) -> cur(overlord)
+        double landed = tribute * 1.0 / 2.0;        // cur(vassal) -> cur(overlord), gross
+        // Deposit (slice CU-2) skims the spread off the top into
+        // Bank(overlord).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(vc - tribute, vr.Credits, 9);  // the vassal debits its own currency whole
-        Assert.Equal(oc + landed, or.Credits, 9);   // the overlord banks the converted sum
+        Assert.Equal(oc + landed * (1 - spread), or.Credits, 9);  // net of the skim
         Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
         Assert.Equal(landed, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
@@ -132,9 +140,12 @@ public class BilateralTransferCurrencyTests
         Assert.False(war.Active);
         double share = state.Config.War.ReparationsShare;
         double reparations = loserBefore * share;
-        double landed = reparations * 1.0 / 4.0;    // cur(loser) -> cur(winner)
+        double landed = reparations * 1.0 / 4.0;    // cur(loser) -> cur(winner), gross
+        // Deposit (slice CU-2) skims the spread off the top into
+        // Bank(winner).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(loserBefore - reparations, loser.Credits, 6);
-        Assert.Equal(winnerBefore + landed, winner.Credits, 6);
+        Assert.Equal(winnerBefore + landed * (1 - spread), winner.Credits, 6);
         Assert.Equal(reparations,
             Cur(state, loser.ActorId).CumulativeConvertedOut, 6);
         Assert.Equal(landed,
@@ -161,10 +172,14 @@ public class BilateralTransferCurrencyTests
 
         double transfer = 1000.0 * 0.3;             // 300, in the parent's currency
         double landed = transfer * 1.0 / 4.0;        // cur0 -> cur1 = 75
+        // task 4f: a graduation seed is the parent's OWN money splitting off — an
+        // EXEMPT re-denomination (SeedTreasury routes through DepositExempt), so the
+        // child banks the FULL converted sum, no spread clipped, reserve untouched.
         Assert.Equal(1000.0 - transfer, old.Credits, 9);
         Assert.Equal(landed, young.Credits, 9);
         Assert.Equal(transfer, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 9);
+        Assert.Equal(0.0, state.BankOf(1).Reserve, 9);   // exempt: no skim
     }
 
     [Fact]
@@ -184,9 +199,14 @@ public class BilateralTransferCurrencyTests
         // guard must never swallow it (that would leave the debt
         // uncharged on the parent while still crediting the child)
         double transfer = -1000.0 * 0.4;   // -400
+        // task 4f: an EXEMPT re-denomination (DepositExempt on both legs) — the debt
+        // share moves at plain rate with no spread clipped. Same rate here, so the
+        // child banks the full transfer and the two balances conserve exactly, with
+        // NO reserve movement (a debt hand-over must never skim).
         Assert.Equal(-1000.0 - transfer, old.Credits, 9);   // -600
         Assert.Equal(500.0 + transfer, young.Credits, 9);   // 100
         Assert.Equal(totalBefore, old.Credits + young.Credits, 9);   // conserved
+        Assert.Equal(0.0, state.BankOf(young.CurrencyId).Reserve, 9); // exempt: no skim
     }
 
     [Fact]
@@ -251,8 +271,12 @@ public class BilateralTransferCurrencyTests
             ShipmentOps.Advance(state, new MarketStepScratch(state));
 
         Assert.Equal(CourierStatus.Delivered, c.Status);
-        double landed = 10.0 * 1.0 / 2.0;   // cur0 -> cur1
-        Assert.Equal(fulfillerBefore + landed, fulfiller.Credits, 6);
+        double landed = 10.0 * 1.0 / 2.0;   // cur0 -> cur1, gross of the skim
+        // the fulfiller's settlement routes through Deposit (slice CU-2),
+        // which skims the spread off the top into Bank(cur1).Reserve before
+        // crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(fulfillerBefore + landed * (1 - spread), fulfiller.Credits, 6);
         Assert.Equal(10.0, state.CurrencyOf(0).CumulativeConvertedOut, 6);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 6);
     }

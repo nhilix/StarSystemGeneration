@@ -22,6 +22,7 @@ public class CurrencyLedgerTests
     {
         var cur = new Currency(id, $"C{id}", foundingPolityId: id) { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -96,12 +97,19 @@ public class CurrencyLedgerTests
         corp.Deposit(state, 3.0, 2);   // ...and must NOT touch this one
 
         // Need 5 of cur0: 1 comes from the cur0 bucket (drained), the remaining
-        // 4 comes from cur1 (id 1 before id 2). 4 of cur0 = 2 of cur1.
+        // 4 comes from cur1 (id 1 before id 2). 4 of cur0 = 2 of cur1, gross of
+        // the skim: Corporation.Withdraw (slice CU-2) grosses the corp UP by
+        // the spread on the payee's remaining need (the payee still gets the
+        // full amount; the skim lands in Bank(cur0).Reserve), so the bucket
+        // spends slightly more than the bare 2.0 of cur1.
         double provided = corp.Withdraw(state, 5.0, 0);
+        double spread = state.Config.Economy.ConversionSpread;
+        double grossCur0Needed = 4.0 * (1 + spread);          // remaining + skim
+        double spentCur1 = state.ConvertCurrency(grossCur0Needed, 0, 1);
 
         Assert.Equal(5.0, provided, 9);
         Assert.False(corp.Holdings.ContainsKey(0));   // matching bucket drained + removed
-        Assert.Equal(2.0, corp.Holdings[1], 9);       // 4 - 2 spent
+        Assert.Equal(4.0 - spentCur1, corp.Holdings[1], 9);
         Assert.Equal(3.0, corp.Holdings[2], 9);       // higher id never reached
     }
 
@@ -117,7 +125,12 @@ public class CurrencyLedgerTests
 
         double provided = corp.Withdraw(state, 10.0, 0);
 
-        Assert.Equal(5.0, provided, 9);          // capped at what it held
+        // capped at what it held, net of the spread Corporation.Withdraw
+        // (slice CU-2) skims off the whole-bucket conversion into
+        // Bank(cur0).Reserve before the payee's contribution is tallied.
+        double spread = state.Config.Economy.ConversionSpread;
+        double expectedProvided = 2.0 + 3.0 / (1 + spread);
+        Assert.Equal(expectedProvided, provided, 9);
         Assert.Empty(corp.Holdings);             // every bucket drained + removed
         Assert.Equal(0.0, corp.Credits, 9);
     }
@@ -136,9 +149,12 @@ public class CurrencyLedgerTests
         AddCurrency(state, 1, 2.0);
         var pol = new PolityRecord(actorId: 0, speciesId: 0) { CurrencyId = 0, Credits = 100.0 };
 
-        pol.Deposit(state, 10.0, fromCurrencyId: 1);   // 10 cur1 -> 20 cur0
+        pol.Deposit(state, 10.0, fromCurrencyId: 1);   // 10 cur1 -> 20 cur0, gross
 
-        Assert.Equal(120.0, pol.Credits, 9);
+        // PolityRecord.Deposit (slice CU-2) skims the spread off the top into
+        // Bank(cur0).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(100.0 + 20.0 * (1 - spread), pol.Credits, 9);
     }
 
     [Fact]
@@ -149,10 +165,15 @@ public class CurrencyLedgerTests
         AddCurrency(state, 1, 2.0);
         var pol = new PolityRecord(0, 0) { CurrencyId = 0, Credits = 100.0 };
 
-        double provided = pol.Withdraw(state, 5.0, toCurrencyId: 1);   // 5 cur1 costs 10 cur0
+        double provided = pol.Withdraw(state, 5.0, toCurrencyId: 1);   // 5 cur1 costs 10 cur0, gross
 
+        // PolityRecord.Withdraw (slice CU-2) grosses the payer up by the
+        // spread on top of the requested amount (the payee stays whole; the
+        // skim lands in Bank(cur1).Reserve) — the returned `provided` is
+        // still the bare requested amount, but Credits bears the grossed cost.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(5.0, provided, 9);
-        Assert.Equal(90.0, pol.Credits, 9);
+        Assert.Equal(100.0 - 10.0 * (1 + spread), pol.Credits, 9);
     }
 
     [Fact]

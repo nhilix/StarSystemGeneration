@@ -21,6 +21,7 @@ public class CorpWalletTradeTests
         var cur = new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -63,6 +64,7 @@ public class CorpWalletTradeTests
         corp.Deposit(state, 100.0, 1);   // holds ONLY C1 (numeraire 200)
         corp.Receipts = 50.0;            // there is a payout to distribute
         double creditsBefore = corp.Credits;
+        double reserve0Before = state.BankOf(0).Reserve;
 
         CorporationOps.Operate(state);
 
@@ -76,9 +78,13 @@ public class CorpWalletTradeTests
         Assert.True(corp.Holdings[1] < 100.0, "the C1 holding was not drawn down");
         Assert.True(state.CurrencyOf(1).CumulativeConvertedOut > 0,
             "no C1->C0 conversion was recorded for the draw-down");
-        // conservation: what the wallet lost (numeraire, C0 rate 1) is exactly
-        // what the elites gained (their wealth is C0-denominated)
-        Assert.Equal(creditsBefore - corp.Credits, elites.Wealth, 6);
+        // conservation: what the wallet lost (numeraire, C0 rate 1) is what
+        // the elites gained (their wealth is C0-denominated) PLUS the spread
+        // Corporation.Withdraw (slice CU-2) grossed the corp up for and
+        // sequestered into Bank(cur0).Reserve (MetricsOps.cs authoritative
+        // residual balances Supply + Reserve).
+        double skim0 = state.BankOf(0).Reserve - reserve0Before;
+        Assert.Equal(creditsBefore - corp.Credits, elites.Wealth + skim0, 6);
         Assert.True(corp.Active);
     }
 
@@ -209,8 +215,11 @@ public class CorpWalletTradeTests
 
         Assert.True(CorporationOps.Nationalize(state, host, corp.Id));
 
-        // both buckets seized: the C0 bucket at par, the C1 bucket converted
-        Assert.Equal(before + 110.0, pr.Credits, 6);
+        // both buckets seized: the C0 bucket at par (same-currency Deposit, no
+        // skim), the C1 bucket converted and, per slice CU-2, skimmed off the
+        // top into Bank(cur0).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(before + 100.0 + 10.0 * (1 - spread), pr.Credits, 6);
         Assert.Empty(corp.Holdings);
         Assert.Equal(0.0, corp.Credits, 9);
         Assert.False(corp.Active);
