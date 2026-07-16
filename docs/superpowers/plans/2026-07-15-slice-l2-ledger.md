@@ -127,7 +127,25 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
 
 - All 7 tasks done + individually reviewed clean. HEAD `4b702c2`. Suite 1035 pass /
   2 red (golden + FineTick), both awaiting slice-end resolution below.
-- [ ] Resolve FineTick divergence (watch item above) — investigate per-kind breakdown.
+- [~] Resolve FineTick divergence — **INVESTIGATED (Opus, systematic-debugging):
+  REAL invariant break, NOT benign tuning.** Full writeup:
+  `scratchpad/finetick-investigation.md`. Mechanism: facility + port-raise
+  groundbreaking (`Phases.cs:1169 GroundbreakFacility`, `:1205 GroundbreakPortRaise`)
+  has NO world-time cadence gate — it commits one project per due plan entry PER
+  EPOCH-STEP, and the plan reschedules the best candidate at placed=0 every step, so a
+  finer clock breaks ground on more facilities → more shipyards → HullBatch-dominated
+  divergence (coarse 2 hull-units vs fine 43). Facilities built in identical 200y
+  windows: coarse 5 vs fine 15 (3×); hulls 2 vs 48 (24×). Bisection: merge-base PASSES
+  (telescopes, ratio 1.4); failure appears exactly at Task 2 (`4062d8b`) — because
+  per-resource-class claims removed the None-body rejection that had MASKED the extra
+  fine-clock groundbreaks. So it's a PRE-EXISTING un-gated-cadence defect newly
+  unmasked, not introduced by L2's logic. Fix pattern already exists elsewhere: colony
+  foundings gate via `Expansion.FoundingCadenceYears` (`Phases.cs:1366-1375`), hull
+  slots via a cumulative world-time clock (`Planner.cs:88-90`) — facility/port-raise
+  groundbreak is the one hole. **PAUSED FOR USER DECISION: fix the cadence gate in this
+  slice (scope expansion, brainstorm→impl) vs defer to its own slice + skip/split the
+  guard to merge L2.** Violates [[time-not-ticks]] — durations must be world-time state,
+  never step-count artifacts.
 - [ ] Golden re-freeze (once).
 - [ ] Determinism byte-identity check.
 - [ ] Whole-branch fable review + fix wave.
