@@ -636,17 +636,6 @@ public sealed class AllocationPhase : ISimPhase
         pr.MilitaryPoints = DecayOne(pr.MilitaryPoints);
     }
 
-    /// <summary>Bounded sovereign issuance — the second declared mint
-    /// (monetary-equilibrium design §5). Run in its own pass AFTER Borrow (fix
-    /// wave 1), so peer lending gets first refusal on every shortfall and the
-    /// mint only backstops what stays negative — it sees the true end-of-epoch
-    /// shortfall after every bill and every loan. A negative treasury mints up
-    /// to a fraction of its own real receipts (weight, not indebtedness — no
-    /// moral hazard toward the largest debtor), never the whole hole:
-    /// NegativeTreasuries must still breathe. Issuance never covers loan service
-    /// by construction (ServiceLoans runs at the top of the phase against last
-    /// epoch's balance), so default and collateral seizure stay real.
-    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
     /// <summary>Two-stage funding of an end-of-epoch treasury deficit (slice
     /// CU-2 bank-actor, design §5). A negative treasury is covered FIRST from its
     /// own currency's <see cref="Bank.Reserve"/> — a <c>Reserve → Supply</c>
@@ -688,6 +677,17 @@ public sealed class AllocationPhase : ISimPhase
         IssueSovereignCredit(state, pr);
     }
 
+    /// <summary>Bounded sovereign issuance — the second declared mint
+    /// (monetary-equilibrium design §5). Run in its own pass AFTER Borrow (fix
+    /// wave 1), so peer lending gets first refusal on every shortfall and the
+    /// mint only backstops what stays negative — it sees the true end-of-epoch
+    /// shortfall after every bill and every loan. A negative treasury mints up
+    /// to a fraction of its own real receipts (weight, not indebtedness — no
+    /// moral hazard toward the largest debtor), never the whole hole:
+    /// NegativeTreasuries must still breathe. Issuance never covers loan service
+    /// by construction (ServiceLoans runs at the top of the phase against last
+    /// epoch's balance), so default and collateral seizure stay real.
+    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
     private static void IssueSovereignCredit(SimState state, PolityRecord pr)
     {
         if (pr.Credits >= 0) return;
@@ -743,7 +743,21 @@ public sealed class AllocationPhase : ISimPhase
             // same-currency loan converts 1:1, so the solvency gate below is
             // byte-identical to the pre-currency behavior (ME's mechanism).
             double paymentOwn = state.ConvertCurrency(payment, loanCurrencyId, borrower.CurrencyId);
-            if (borrower.Credits >= paymentOwn)
+            // slice CU-2 gross-up incidence: providing X of the loan currency
+            // costs X*(1+spread) of the borrower's OWN currency (the payer bears
+            // the FX spread, the destination Bank keeps the skim). Same-currency
+            // (or pre-genesis) loans do not skim, so the factor is 1. The full
+            // and partial branches below both size against this same factor.
+            double grossFactor =
+                loanCurrencyId != borrower.CurrencyId
+                && loanCurrencyId >= 0 && borrower.CurrencyId >= 0
+                    ? 1.0 + eco.ConversionSpread : 1.0;
+            // slice CU-2 task 8 fix 4: gate the FULL repayment on the GROSS
+            // own-currency cost (the Withdraw at :751 debits paymentOwn*grossFactor,
+            // not paymentOwn), so the full branch is consistent with the gross-sized
+            // partial branch below. A borrower short of the grossed cost falls to
+            // the partial branch (a legitimate insolvency, absorbed by FundDeficit).
+            if (borrower.Credits >= paymentOwn * grossFactor)
             {
                 // full payment: the borrower Withdraws the lender-currency
                 // payment (debiting its converted own-currency cost and booking
@@ -759,18 +773,11 @@ public sealed class AllocationPhase : ISimPhase
                 // worth partLoan in the loan currency — and capitalize the
                 // missed interest (all in the loan currency, as Principal is).
                 double partOwn = borrower.Credits;
-                // slice CU-2 gross-up incidence: providing X of the loan currency
-                // now costs X*(1+spread) of the borrower's OWN currency (the payer
-                // bears the FX spread, the destination Bank keeps the skim). So the
-                // whole balance partOwn funds only partLoan/(1+spread) toward the
+                // gross-up incidence (grossFactor hoisted above the gate): the
+                // whole balance partOwn funds only partLoan/grossFactor toward the
                 // lender — the rest covers the skim. Sizing it down here keeps the
                 // Withdraw's grossed cost at exactly partOwn, so the reset below is
-                // an exact zero, not a phantom mint of partOwn*spread. Same-currency
-                // (or pre-genesis) loans do not skim, so the divisor is 1.
-                double grossFactor =
-                    loanCurrencyId != borrower.CurrencyId
-                    && loanCurrencyId >= 0 && borrower.CurrencyId >= 0
-                        ? 1.0 + eco.ConversionSpread : 1.0;
+                // an exact zero, not a phantom mint of partOwn*spread.
                 double partLoan =
                     state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId)
                     / grossFactor;

@@ -170,7 +170,14 @@ public sealed class Corporation : ICreditLedger
                 if (otherId == toCurrencyId) continue;   // already handled
                 double heldOther = _holdings[otherId];
                 if (heldOther <= 0) continue;
-                double spread = state.Config.Economy.ConversionSpread;
+                // slice CU-2 task 8 fix 3: guard the spread on both ids being
+                // real (matching the sibling sites in FleetOps / MarketEngine /
+                // PolityRecord). In the unowned-port degrade path (toCurrencyId
+                // == -1) SkimToReserve / RecordConversion no-op, so a nonzero
+                // spread would still shrink the payee contribution and silently
+                // vanish the skim. Zero it: no destination Bank means no skim.
+                double spread = (otherId >= 0 && toCurrencyId >= 0)
+                    ? state.Config.Economy.ConversionSpread : 0.0;
                 double valueInTo = state.ConvertCurrency(heldOther, otherId, toCurrencyId);
                 // slice CU-2 gross-up incidence: to PROVIDE `p` of toCurrencyId to
                 // the payee the corp must source p*(1+spread) of it — `p` for the

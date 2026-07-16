@@ -46,6 +46,25 @@ public class KnobRegistryTests
     }
 
     [Fact]
+    public void Cu2Knobs_NonDefault_SurviveArtifactRoundTrip()
+    {
+        // slice CU-2 task 8 fix 1: both bank knobs are registered, so a
+        // non-default value must survive ToText -> Load rather than silently
+        // reverting to the compiled default (the fresh-vs-reloaded divergence).
+        var state = EpochTestKit.Seeded().State;
+        state.Config.Economy.ConversionSpread = 0.0173;      // non-default
+        state.Config.Economy.IssuanceReserveRatio = 0.37;    // non-default
+
+        var text = ArtifactSerializer.ToText(state);
+        Assert.Contains("KNOB|Economy.ConversionSpread|0.0173", text);
+        Assert.Contains("KNOB|Economy.IssuanceReserveRatio|0.37", text);
+
+        var loaded = ArtifactSerializer.Load(new System.IO.StringReader(text));
+        Assert.Equal(0.0173, loaded.Config.Economy.ConversionSpread, 12);
+        Assert.Equal(0.37, loaded.Config.Economy.IssuanceReserveRatio, 12);
+    }
+
+    [Fact]
     public void UnknownKnob_RefusesToLoad()
     {
         var state = EpochTestKit.Seeded().State;

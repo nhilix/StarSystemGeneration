@@ -387,7 +387,37 @@ public static class ProjectOps
     internal static double TreasuryAvailable(SimState state, Project p)
     {
         var corp = state.CorporationOf(p.FunderActorId);
-        if (corp != null) return Math.Max(0, corp.Credits);
+        if (corp != null)
+        {
+            // slice CU-2 task 8 fix 2: provision-aware headroom. A corp provides
+            // its treasury in the funder (build-port) currency via
+            // Corporation.Withdraw, which sources the MATCHED bucket at par but
+            // yields only value/(1+spread) from every OTHER bucket (the gross-up
+            // skim to the destination reserve). Valuing the wallet at raw numeraire
+            // (corp.Credits) over-states what the corp can actually provide by up to
+            // spread × (non-matched mass) — the qty/afford bound would then let the
+            // corp commit more than the Withdraw delivers, minting the shortfall
+            // while the full escrow+skim is booked. Discount the non-matched buckets
+            // by the same (1+spread) so the bound never outruns real provision. A
+            // home-currency-dominated wallet (all mass in the matched bucket) sums to
+            // corp.Credits byte-identically, so the common case is unchanged; only a
+            // currency-fragmented corp funder tightens. Sorted-id sum for determinism
+            // (P6), mirroring Corporation.RefreshNumeraire. An unowned build port
+            // (matched < 0) skims nowhere (Withdraw's spread is zeroed), so spread 0
+            // there values every bucket at par — byte-identical to Credits.
+            int matched = FunderCurrency(state, p);
+            double spread = matched >= 0 ? state.Config.Economy.ConversionSpread : 0.0;
+            var ids = new List<int>(corp.Holdings.Keys);
+            ids.Sort();
+            double total = 0;
+            foreach (int id in ids)
+            {
+                double v = corp.Holdings[id] * state.NumeraireRateOf(id);
+                if (id != matched) v /= (1.0 + spread);   // 1.0 when spread==0: exact
+                total += v;
+            }
+            return Math.Max(0, total);
+        }
         var pr = state.PolityOf(p.FunderActorId);
         return p.Kind switch
         {
