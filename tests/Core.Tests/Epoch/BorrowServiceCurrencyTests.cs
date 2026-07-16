@@ -30,6 +30,7 @@ public class BorrowServiceCurrencyTests
         var cur = new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 

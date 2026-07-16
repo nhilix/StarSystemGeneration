@@ -20,9 +20,12 @@ public class CrossCurrencyMovementTests
             SkeletonBuilder.Build(new GalaxyConfig
             { MasterSeed = 1, GalaxyRadiusCells = 4 }));
 
-    private static void AddCurrency(SimState state, int id, double rate) =>
+    private static void AddCurrency(SimState state, int id, double rate)
+    {
         state.Currencies.Add(new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate });
+        state.Banks.Add(new Bank(id));
+    }
 
     // an Actor + PolityRecord pair (some ops — TransferPort's CapitalPort —
     // resolve a polity's seat through the Actors registry)
