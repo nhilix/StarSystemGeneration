@@ -86,8 +86,13 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   asserts the right value, exercises a narrower path than its name (cheap to strengthen
   by committing the system first); `SupplyLands` now walks `state.Segments` twice per
   facility (flatLabor discarded + WeightedWorkforce) — inherited from the brief's shape.
-- [ ] **Task 4** — Patrol coverage falls off with orbital distance (`PatrolCoverage.At`,
-  `War.PatrolCoverageFalloff`). Gate: coverage + knob green.
+- [x] **Task 4** — Patrol coverage falls off with orbital distance (`PatrolCoverage.At`,
+  `War.PatrolCoverageFalloff`). DONE — commit `2de96a2`. New pure read fn, NO callers
+  yet (Task 6 wires it in) → changed no existing behavior (suite 1026 pass / same 2 red;
+  nothing else moved). `FleetRecord.Body` was pre-added in Plan 1 for exactly this.
+  Review clean (Sonnet, independently re-ran + verified EpochGenesis seeds zero fleets):
+  spec PASS + quality PASS, 0 Critical/Important; 2 trivial Minors (var-eco hoist nit;
+  NoPatrol test's `Assert.Empty(Fleets)` coupling — both acceptable, no fix).
 - [ ] **Task 5** — Off-lane alternative in routing (`OffLaneRoute` + `PlanBestRoute`).
   Gate: off-lane + existing routing suites green.
 - [ ] **Task 6** — Detection roll on off-lane legs (conserved seizure), channel **78**.
