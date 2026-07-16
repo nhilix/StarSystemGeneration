@@ -153,6 +153,17 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   hulls with a filed follow-up for the hull-affordability fix → merge L2; vs (2b) fix hull
   affordability/telescoping in L2 too (deeper planner change).**
 
+- [ ] **Task 9** (added mid-slice — user chose 2b: fix the hull-affordability layer in-slice, no
+  backlog) — hull-batch cost telescopes with world-time. Root cause: `Planner.CostOf` +
+  `ProjectOps.SpawnHullBatch` give a hull batch a size-based (count-independent) duration, so
+  per-year cost = 2·perHull·Count/duration scales with the coarse-bundled Count → coarse bundle
+  costs ~25× per year → dropped by the greedy pack's affordability check; fine slivers fit. Fix:
+  `duration = max(size floor, Count/yardRate)` (yardRate = YardTiers × YardHullsPerTierPerYear),
+  applied CONSISTENTLY in both CostOf and SpawnHullBatch, so per-year cost is yard-throughput-
+  bounded and tick-invariant (total conserved). Acceptance: hulls telescope (6-14 sweep), FineTick
+  honestly green, Conservation+Determinism green, ripple quantified (real coarse sim was under-
+  building navies by dropping bundles). OPUS. Base 30ad58a.
+
 ## Slice-end gates — progress
 
 - All 7 tasks done + individually reviewed clean. HEAD `4b702c2`. Suite 1035 pass /
