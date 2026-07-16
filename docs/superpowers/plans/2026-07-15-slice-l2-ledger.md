@@ -74,9 +74,18 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   barren/farmable test paths asymmetric (barren=full ResolutionPhase path,
   farmable=direct helper call — acceptable given no reachable mineral+biosphere hex);
   `(int)year` narrowing cosmetic (completionYear already int upstream).
-- [ ] **Task 3** — Staffing weights labor by hex-hop + local-hop distance
+- [x] **Task 3** — Staffing weights labor by hex-hop + local-hop distance
   (`StaffingOps`, `Economy.StaffingDistanceFalloff`; `MarketEngine.SupplyLands`).
-  Re-verify against CU-1's wage-conversion. Gate: staffing + conservation + knob green.
+  DONE — commit `2a0f300`. Changes ONLY the production-labor magnitude (swaps the
+  flat pool for `WeightedWorkforce`); `PayWages`/money flow untouched → conservation
+  holds trivially. CU-1 wage-conversion sites confirmed unchanged. Suite 1024 pass /
+  2 red (golden + FineTick). Review clean (Sonnet, independently re-ran tests + verified
+  conservation boundary byte-for-byte): spec PASS + quality PASS, 0 Critical/Important.
+  Minors (for final-review triage): `SegmentOnTheFacilitysBody_WeightsOne` passes via
+  the uncommitted-system fallback (localHop=0) not via OrbitDistance-of-equal-bodies —
+  asserts the right value, exercises a narrower path than its name (cheap to strengthen
+  by committing the system first); `SupplyLands` now walks `state.Segments` twice per
+  facility (flatLabor discarded + WeightedWorkforce) — inherited from the brief's shape.
 - [ ] **Task 4** — Patrol coverage falls off with orbital distance (`PatrolCoverage.At`,
   `War.PatrolCoverageFalloff`). Gate: coverage + knob green.
 - [ ] **Task 5** — Off-lane alternative in routing (`OffLaneRoute` + `PlanBestRoute`).
