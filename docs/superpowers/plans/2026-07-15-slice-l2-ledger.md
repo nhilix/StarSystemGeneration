@@ -116,9 +116,22 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   both. (2) redundant `coveredYears>0 && maxCoverage>0` guard. (3) dual coverage compute
   (accumulator via PatrolCoverage.At, owner-attribution via inline rescan) — agree for
   BodyRef.None, unify if detection ever goes body-aware.
-- [ ] **Task 7** — Courier board routes off-lane when severed (`CourierOps.AcceptOpen`
-  via `PlanBestRoute`). Re-verify against CU-1's CourierOps changes. Gate: courier +
-  conservation green.
+- [x] **Task 7** — Courier board routes off-lane when severed (`CourierOps.AcceptOpen`
+  via `PlanBestRoute`). DONE — commit `4b702c2`. 2-line production change (compute
+  `severed` once, swap PlanRoute→PlanBestRoute); `Accept`/escrow/CU-1 currency untouched.
+  Suite 1035 pass / same 2 red; conservation green. Review clean (Sonnet, independently
+  reproduced RED in an isolated pre-fix worktree): spec PASS + quality PASS, 0
+  Critical/Important; 1 style-nit Minor (hardcoded ids matching fixture convention).
+
+## Slice-end gates — progress
+
+- All 7 tasks done + individually reviewed clean. HEAD `4b702c2`. Suite 1035 pass /
+  2 red (golden + FineTick), both awaiting slice-end resolution below.
+- [ ] Resolve FineTick divergence (watch item above) — investigate per-kind breakdown.
+- [ ] Golden re-freeze (once).
+- [ ] Determinism byte-identity check.
+- [ ] Whole-branch fable review + fix wave.
+- [ ] REPL eyeball (user gate) · merge decision (user gate).
 
 ## Watch items (must resolve before merge)
 
