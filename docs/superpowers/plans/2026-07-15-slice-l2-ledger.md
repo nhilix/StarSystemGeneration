@@ -101,8 +101,21 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   PASS + quality PASS, 0 Critical/Important. Minor (final-review triage): `OffLaneRoute`
   duplicates `PlanRoute`'s inline fallback — deliberate (brief forbade touching PlanRoute);
   natural dedupe = have PlanRoute's fallback call OffLaneRoute in a later touch.
-- [ ] **Task 6** — Detection roll on off-lane legs (conserved seizure), channel **78**.
-  OPUS escalation. Gate: detection + ConservationTests + knob green.
+- [x] **Task 6** — Detection roll on off-lane legs (conserved seizure), channel **78**.
+  DONE — commit `c699d88` (Opus impl + Opus review). `ShipmentDetection = 78` (append-only;
+  77 stays BodyResourceStock), keyed (MasterSeed, ch, EpochIndex, OwnerActorId, s.Id) like
+  piracy/interdiction. Seizure block is a line-for-line mirror of interdiction's conserved
+  transfer (PostSupply→prize port, portless captor takes nothing/cargo continues). Suite
+  1033 pass / same 2 red. **ConservationTests GREEN, DeterminismTests GREEN.** Review clean:
+  spec PASS + quality PASS, 0 Critical/Important. Reviewer verified seizure paths mutually
+  exclusive (off-lane requires empty RouteLaneIds; piracy/interdiction require lane legs),
+  exact-quantity conservation assertion, load-bearing tests. Minors (final-review triage):
+  (1) `Math.Pow` negative-base NaN hazard at `p = 1-(1-rate*cover)^years` — UNREACHABLE at
+  sane config (rate>1 or falloff<0 only), fails safe (no seizure), and PRE-EXISTING
+  identically in the interdiction block (not a regression); a defensive clamp would harden
+  both. (2) redundant `coveredYears>0 && maxCoverage>0` guard. (3) dual coverage compute
+  (accumulator via PatrolCoverage.At, owner-attribution via inline rescan) — agree for
+  BodyRef.None, unify if detection ever goes body-aware.
 - [ ] **Task 7** — Courier board routes off-lane when severed (`CourierOps.AcceptOpen`
   via `PlanBestRoute`). Re-verify against CU-1's CourierOps changes. Gate: courier +
   conservation green.
