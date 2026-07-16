@@ -644,6 +644,7 @@ public static class ProjectOps
             // the expedition cost recycles to the settlers (P4)
             Wealth = cfg.Expansion.ColonyCost,
         };
+        colonySegment.Body = PopulationSiting.Assign(state, port.Id);
         // settlers sent by the state carry the official line (slice G)
         if (record.Interior != null)
             for (int ax = 0; ax < 4; ax++)
