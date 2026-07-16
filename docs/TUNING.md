@@ -369,6 +369,7 @@ set how fast the built world thickens (slice D).
 | `Infrastructure.MaxPortTier` | 3 | (With catalog growth) taller hierarchies. | Flat port ranks. |
 | `Infrastructure.HomeworldPortTier` | 2 | Homeworlds start as hubs. | Everyone starts as an outpost. |
 | `Infrastructure.FacilitiesPerPortTier` | 5 | Denser industrial districts per port. | Development spreads thin or stalls — this was the mid-chain bottleneck once. |
+| `Infrastructure.FacilityGroundbreakCadenceYears` | 25 | Slower per-port build-out; higher throttles a port to fewer new facilities per world-century. | Faster accretion — but drop it too far and a fine clock breaks the time-not-ticks invariant (facilities/shipyards/hulls accrete per step, not per world-year). Mirrors `Expansion.FoundingCadenceYears`; default = `GenerationYears`. |
 | `Infrastructure.ConstructionScoreFloor` | 0.12 | Only prime sites develop. | Junk facilities on marginal rock. |
 | `Infrastructure.FoodSecurityPremium` | 1.25 | Colonies farm unless extraction is overwhelming (safe, boring). | Every belt colony mines and gambles on food imports. |
 

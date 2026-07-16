@@ -1190,6 +1190,18 @@ public sealed class AllocationPhase : ISimPhase
         foreach (var q in def.BuildCost)
             value += q.Quantity * Market.InitialPrice(cfg.Economy, q.Good);
         if (pr.DevelopmentPoints < value) return;
+        // world-time facility cadence (time-not-ticks, P7): a port breaks
+        // ground on one facility per FacilityGroundbreakCadenceYears — without
+        // this a finer clock accretes facilities (and shipyards/hulls) faster
+        // over the same world-years. Per PORT, not per polity, so a multi-port
+        // empire still builds at every port concurrently. Mirrors
+        // Expansion.FoundingCadenceYears (TryFound).
+        foreach (var p in state.Projects)                     // id order (P6)
+            if (p.Kind == ProjectKind.FacilityConstruction
+                && p.OwnerActorId == pr.ActorId
+                && p.PortId == entry.PortId
+                && state.WorldYear - p.StartedYear
+                   < cfg.Infrastructure.FacilityGroundbreakCadenceYears) return;
         // honor the planner's staggered schedule (F3): ground broken at the
         // entry's scheduled year, clamped to now
         ProjectOps.SpawnFacilityConstruction(state, pr.ActorId, pr.ActorId,

@@ -957,6 +957,14 @@ public sealed class InfrastructureKnobs
     /// <summary>Facilities a port's domain supports per port tier — the
     /// construction cap (development concentrates before it sprawls).</summary>
     public int FacilitiesPerPortTier { get; set; } = 5;
+    /// <summary>World-time cadence between facility groundbreaks at ONE port
+    /// (time-not-ticks, P7): a port's crews break ground on at most one new
+    /// facility per this many world-years, so a finer clock does not accrete
+    /// facilities (and downstream shipyards/hull batches) faster than a coarse
+    /// one over the same world-years. Default = GenerationYears, matching
+    /// Expansion.FoundingCadenceYears — the equality that makes both clocks
+    /// telescope.</summary>
+    public double FacilityGroundbreakCadenceYears { get; set; } = 25.0;
     /// <summary>Minimum siting score × price signal before anything gets
     /// built — don't build junk.</summary>
     public double ConstructionScoreFloor { get; set; } = 0.12;
