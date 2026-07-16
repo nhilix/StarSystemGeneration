@@ -112,6 +112,42 @@ public static class ShipmentOps
         return (laneIds, legYears);
     }
 
+    /// <summary>The off-lane crawl alternative for any port pair (locality
+    /// slice §5): a single leg at OffLaneFreightHexesPerYear, empty lane list.
+    /// The existing PlanRoute fallback, promoted to a first-class option
+    /// computed ALONGSIDE the lane path — supply that leaves the highways pays
+    /// for it in years, but a blockade no longer stalls it.</summary>
+    public static (IReadOnlyList<int> LaneIds, IReadOnlyList<double> LegYears)
+        OffLaneRoute(SimState state, int fromPortId, int toPortId)
+    {
+        double hexes = HexGrid.Distance(state.Ports[fromPortId].Hex,
+                                        state.Ports[toPortId].Hex);
+        return (new int[0], new[]
+            { hexes / Math.Max(1e-9,
+                state.Config.Economy.OffLaneFreightHexesPerYear) });
+    }
+
+    /// <summary>Elective routing (locality slice §5): the lane path when it
+    /// exists and its first leg is open; the off-lane alternative when no lane
+    /// path exists OR the lane path's first leg is currently severed,
+    /// quarantined, or dead — a blockaded lane becomes a real second option,
+    /// not a stall. The precise value/urgency-weighted election is deferred
+    /// (design boundary); this is the minimal severed-lane election.</summary>
+    public static (IReadOnlyList<int> LaneIds, IReadOnlyList<double> LegYears)
+        PlanBestRoute(SimState state, int fromPortId, int toPortId,
+                      ISet<int> severed)
+    {
+        var (laneIds, legYears) = PlanRoute(state, fromPortId, toPortId);
+        if (laneIds.Count == 0)
+            return (laneIds, legYears);              // already off-lane
+        var first = state.Lanes[laneIds[0]];
+        bool closed = severed.Contains(first.Id)
+            || first.QuarantinedUntil > state.WorldYear
+            || !LaneMath.IsLive(state, first);
+        return closed ? OffLaneRoute(state, fromPortId, toPortId)
+                      : (laneIds, legYears);
+    }
+
     /// <summary>Sail every in-flight shipment by the step's span, in id
     /// order (P6). A closed current leg — severed by blockade, quarantined,
     /// or dead (a wrecked gate) — stalls the freight where it floats: the
