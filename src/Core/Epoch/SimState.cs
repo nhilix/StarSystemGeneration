@@ -47,6 +47,11 @@ public sealed class SimState
     /// polity, id order (P6). Retired currencies stay as history. Empty until
     /// genesis wiring mints them (a later task).</summary>
     public List<Currency> Currencies { get; } = new List<Currency>();
+    /// <summary>One central bank per Currency (slice CU-2), dense-parallel to
+    /// <see cref="Currencies"/> (id == index) — founded 1:1 alongside its
+    /// currency at <see cref="FoundCurrency"/>. Reserve dynamics are wired by
+    /// later tasks; this registry only tracks the record.</summary>
+    public List<Bank> Banks { get; } = new List<Bank>();
     /// <summary>The keystone registry: political geography derives from it.</summary>
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
@@ -184,6 +189,19 @@ public sealed class SimState
         throw new KeyNotFoundException($"no currency {currencyId}");
     }
 
+    /// <summary>The bank record for a currency id (registry is id-ordered and
+    /// dense once <see cref="FoundCurrency"/> founds them 1:1; a scan covers
+    /// any later interleaving — mirrors <see cref="CurrencyOf"/>).</summary>
+    public Bank BankOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Banks.Count
+            && Banks[currencyId].CurrencyId == currencyId)
+            return Banks[currencyId];
+        foreach (var bank in Banks)
+            if (bank.CurrencyId == currencyId) return bank;
+        throw new KeyNotFoundException($"no bank for currency {currencyId}");
+    }
+
     /// <summary>The numeraire rate of a currency id, defaulting to the dormant 1:1
     /// rate (1.0) for the pre-genesis sentinel (id &lt; 0) or any id not yet in the
     /// registry — the same "no rate exists, treat as 1:1" convention
@@ -219,6 +237,7 @@ public sealed class SimState
         int id = Currencies.Count;
         var currency = new Currency(id, Actors[polityId].Name, polityId);
         Currencies.Add(currency);
+        Banks.Add(new Bank(id));
         pr.CurrencyId = id;
         return currency;
     }
