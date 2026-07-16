@@ -123,6 +123,15 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   reproduced RED in an isolated pre-fix worktree): spec PASS + quality PASS, 0
   Critical/Important; 1 style-nit Minor (hardcoded ids matching fixture convention).
 
+- [ ] **Task 8** (added mid-slice — user approved fixing the FineTick invariant break
+  in-slice) — world-time cadence gate on facility groundbreaking. Per-port gate mirroring
+  `Expansion.FoundingCadenceYears`; new knob `Infrastructure.FacilityGroundbreakCadenceYears`
+  (default 25.0 = GenerationYears). Gate in `GroundbreakFacility` (Phases.cs:1169): hold if
+  this polity has a FacilityConstruction at this port started within the cadence. Acceptance:
+  FineTick telescopes (validated by a 6-14 coarse-step sweep, not band-widening);
+  Conservation + Determinism green; minimal coarse-clock ripple (real sim barely changes).
+  OPUS. Base a9f760b.
+
 ## Slice-end gates — progress
 
 - All 7 tasks done + individually reviewed clean. HEAD `4b702c2`. Suite 1035 pass /
