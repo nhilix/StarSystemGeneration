@@ -712,6 +712,10 @@ public sealed class EconomyKnobs
     /// (intra-system body-to-body movement, locality slice §2). Small: the
     /// local hop is cheap beside a lane-hop.</summary>
     public double LocalHopYearsPerOrbitStep { get; set; } = 0.05;
+    /// <summary>How steeply facility staffing weight falls with hex-hop +
+    /// local-hop distance from the facility's body (locality slice §3):
+    /// weight = 1/(1 + this × distance). 0 recovers flat domain staffing.</summary>
+    public double StaffingDistanceFalloff { get; set; } = 0.15;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

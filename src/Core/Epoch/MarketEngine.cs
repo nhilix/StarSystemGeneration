@@ -159,8 +159,9 @@ public static class MarketEngine
 
             var fields = FieldsAt(state, f.Hex);
             state.SettledSystems.TryGetValue(f.Hex, out var fSystem);
-            double labor = 0;
-            var embodiment = DominantEmbodiment(state, port.Id, ref labor);
+            double flatLabor = 0;
+            var embodiment = DominantEmbodiment(state, port.Id, ref flatLabor);
+            double labor = StaffingOps.WeightedWorkforce(state, f, port.Id);
             double laborFactor = Production.LaborFactor(labor,
                 Potentials.EmbodimentAffinity(embodiment, fields),
                 automationCompute: 0.0, def.LaborRequired);

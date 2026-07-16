@@ -160,6 +160,7 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
 | `Economy.CrossStarHopOrbitSteps` | 8.0 | Multi-star systems effectively widen: every cross-star local hop takes longer. | Companion stars feel almost adjacent to the primary. |
 | `Economy.LocalHopYearsPerOrbitStep` | 0.05 | Intra-system travel gets dearer relative to a lane hop — orbit distance starts to matter. | Local hops approach free; only cross-star and lane geometry matter. |
+| `Economy.StaffingDistanceFalloff` | 0.15 | Facilities off the population core are starved of labor and produce less — a distant airless mine crews poorly and its output falls with hex+local-hop distance from its body. | (Toward 0) staffing goes flat again: every segment in the domain weights equally regardless of distance, recovering pre-locality production magnitudes. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*
