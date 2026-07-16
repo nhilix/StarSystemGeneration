@@ -54,11 +54,22 @@ untouched unless CU-2's work lands in the same code.
 
 3. **Reserve source — a conversion spread.** The Bank of a *target* currency
    skims a small spread on every real cross-currency money movement *into* that
-   currency: on a movement yielding `inB` of currency B, the recipient receives
-   `inB × (1 − spread)` and B's Bank reserve gets `inB × spread`. A sought-after
-   currency's Bank earns from demand for it. (Which currency's bank charges: the
-   **target** currency's — the one being acquired. Symmetric over a full history
-   as flows run both directions.)
+   currency; the **target** currency's Bank charges (the one being acquired),
+   and it earns from demand for it. **Incidence is direction-specific**
+   (refined during implementation, Task 4a — the original uniform
+   "recipient always receives net" could not hold conservation cleanly because
+   the market settles by paying sale recipients gross *before* the buyer is
+   debited; both realizations below are conservation-identical, the target
+   Bank's reserve always gets `spread × inB`, and neither requires reordering
+   market settlement):
+   - **Repatriation (Deposit — earning foreign money and converting it home):**
+     the earner is the terminal recipient, so it banks the **net**
+     `inB × (1 − spread)` and its own Bank keeps `inB × spread`.
+   - **Payment (Withdraw — converting own money to pay in a foreign currency):**
+     the **payer is grossed up** and the payee stays whole — the payer sources
+     `inB` (full) for the payee *plus* `spread × inB` for the destination Bank's
+     reserve, paying the FX spread as a premium on top. (This is why sale
+     recipients paid gross before the buyer debit stay correct.)
 
 4. **Reserve is sequestered OUT of circulating `Supply`.** The spread
    **decrements `Currency.Supply`** and **increments `Bank.Reserve`**. Because
