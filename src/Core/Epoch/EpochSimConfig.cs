@@ -245,6 +245,10 @@ public sealed class WarKnobs
     /// <summary>Seizure probability per world-year sailed on a contested
     /// leg — the piracy pattern, channel 76.</summary>
     public double InterdictionLossPerContestedYear { get; set; } = 0.12;
+    /// <summary>How steeply Patrol enforcement coverage falls with hex-hop +
+    /// local-hop distance from the fleet's dock (locality slice §2):
+    /// coverage = max(0, 1 − this × distance).</summary>
+    public double PatrolCoverageFalloff { get; set; } = 0.1;
     /// <summary>Each friendly war-stationed warship hull near the leg
     /// damps the seizure odds by 1/(1 + this × hulls) — escorts are the
     /// counter, deterministic (no second roll).</summary>

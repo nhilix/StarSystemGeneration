@@ -524,6 +524,7 @@ and the incident freshness window (2 epochs) are structural.
 | `War.InterdictionReachHexes` | 4 | War-stationed squadrons contest lanes farther out — wider denial zones around every front (slice CE). | Interdiction only at the gate's doorstep; convoys route past fleets untouched. |
 | `War.InterdictionLossPerContestedYear` | 0.12 | Contested legs bleed convoys fast: cut supply lines decide wars in epochs. | Interdiction is harassment; fronts supply through enemy fleets. |
 | `War.EscortDampPerHull` | 0.15 | A few escorts near-neutralize seizure (convoy doctrine pays). | Escorts are decoration; only mass decides the lane. |
+| `War.PatrolCoverageFalloff` | 0.1 | Patrols only guard their immediate approaches — off-lane runs get safer the farther they stage from a hostile dock. | (Toward 0) coverage goes flat again: any Patrol fleet blankets its whole reach regardless of hex+local-hop distance. |
 
 **Ignition recalibration (slice t1 — the world-time economy).** `WarTensionFloor`
 0.55 → 0.35 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy
