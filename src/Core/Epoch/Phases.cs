@@ -718,7 +718,21 @@ public sealed class AllocationPhase : ISimPhase
                 // worth partLoan in the loan currency — and capitalize the
                 // missed interest (all in the loan currency, as Principal is).
                 double partOwn = borrower.Credits;
-                double partLoan = state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId);
+                // slice CU-2 gross-up incidence: providing X of the loan currency
+                // now costs X*(1+spread) of the borrower's OWN currency (the payer
+                // bears the FX spread, the destination Bank keeps the skim). So the
+                // whole balance partOwn funds only partLoan/(1+spread) toward the
+                // lender — the rest covers the skim. Sizing it down here keeps the
+                // Withdraw's grossed cost at exactly partOwn, so the reset below is
+                // an exact zero, not a phantom mint of partOwn*spread. Same-currency
+                // (or pre-genesis) loans do not skim, so the divisor is 1.
+                double grossFactor =
+                    loanCurrencyId != borrower.CurrencyId
+                    && loanCurrencyId >= 0 && borrower.CurrencyId >= 0
+                        ? 1.0 + eco.ConversionSpread : 1.0;
+                double partLoan =
+                    state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId)
+                    / grossFactor;
                 double provided = borrower.Withdraw(state, partLoan, loanCurrencyId);
                 RepayLender(state, lender, provided, loanCurrencyId);
                 loan.Principal += interest - Math.Min(interest, provided);

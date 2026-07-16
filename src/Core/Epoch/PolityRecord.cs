@@ -111,9 +111,13 @@ public sealed class PolityRecord : ICreditLedger
         if (fromCurrencyId == CurrencyId || fromCurrencyId < 0 || CurrencyId < 0)
         { Credits += amount; return amount; }
         double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
-        Credits += own;
-        state.RecordConversion(fromCurrencyId, amount, CurrencyId, own);
-        return own;
+        // slice CU-2: the destination is THIS polity's own currency, so its Bank
+        // skims the spread out of what actually banks — the treasury credits and
+        // returns the net (the Receipts mirror thus reflects the net truly held),
+        // the skim sits in this currency's reserve. Records the full amounts.
+        double net = state.SettleConversion(fromCurrencyId, amount, CurrencyId, own);
+        Credits += net;
+        return net;
     }
 
     /// <summary>Debit the treasury to provide <paramref name="amount"/>
@@ -131,9 +135,19 @@ public sealed class PolityRecord : ICreditLedger
         // single-currency path (no FX until both currencies concretely exist).
         if (toCurrencyId == CurrencyId || toCurrencyId < 0 || CurrencyId < 0)
         { Credits -= amount; return amount; }
-        double ownCost = state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
-        Credits -= ownCost;
-        state.RecordConversion(CurrencyId, ownCost, toCurrencyId, amount);
+        // slice CU-2: gross up the PAYER. This polity sources the payee's full
+        // `amount` of toCurrencyId PLUS the spread for that currency's Bank
+        // reserve, so the payee is paid in full (callers stay whole — the return
+        // is still the requested amount) and no skim leaks. Credits bears the
+        // grossed cost (amount + skim, converted), which may go negative (the
+        // existing insolvency path). The FULL grossed sum enters toCurrencyId:
+        // `amount` into the payee's circulation, `skim` into the reserve.
+        double skim = amount * state.Config.Economy.ConversionSpread;
+        double grossTo = amount + skim;
+        double ownCostGross = state.ConvertCurrency(grossTo, toCurrencyId, CurrencyId);
+        Credits -= ownCostGross;
+        state.SkimToReserve(toCurrencyId, skim);
+        state.RecordConversion(CurrencyId, ownCostGross, toCurrencyId, grossTo);
         return amount;
     }
 }

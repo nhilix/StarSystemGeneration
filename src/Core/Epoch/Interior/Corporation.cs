@@ -170,23 +170,43 @@ public sealed class Corporation : ICreditLedger
                 if (otherId == toCurrencyId) continue;   // already handled
                 double heldOther = _holdings[otherId];
                 if (heldOther <= 0) continue;
+                double spread = state.Config.Economy.ConversionSpread;
                 double valueInTo = state.ConvertCurrency(heldOther, otherId, toCurrencyId);
-                if (valueInTo <= remaining + 1e-12)
+                // slice CU-2 gross-up incidence: to PROVIDE `p` of toCurrencyId to
+                // the payee the corp must source p*(1+spread) of it — `p` for the
+                // payee, `p*spread` skimmed onto the destination reserve. So this
+                // bucket's whole converted value valueInTo can finish the request
+                // only if its payee contribution valueInTo/(1+spread) still exceeds
+                // what remains.
+                if (valueInTo <= remaining * (1.0 + spread) + 1e-12)
                 {
-                    // whole bucket consumed — the whole held amount converts out of
-                    // otherId into toCurrencyId (a transfer between their supplies)
+                    // whole bucket consumed: its valueInTo splits into the payee
+                    // contribution (valueInTo/(1+spread)) and the spread skimmed ON
+                    // TOP into the reserve; the loop continues to cover any genuine
+                    // remainder from the next bucket. Books the FULL heldOther out /
+                    // valueInTo in (exact bucket drain), reserve keeps the skim.
+                    double pcontrib = valueInTo / (1.0 + spread);
+                    double skim = valueInTo - pcontrib;
                     _holdings.Remove(otherId);
-                    remaining -= valueInTo;
+                    state.SkimToReserve(toCurrencyId, skim);
                     state.RecordConversion(otherId, heldOther, toCurrencyId, valueInTo);
+                    remaining -= pcontrib;
                 }
                 else
                 {
-                    // partial: spend exactly the source amount worth `remaining`
-                    double spendOther = state.ConvertCurrency(remaining, toCurrencyId, otherId);
+                    // partial: source exactly the payee's `remaining` PLUS its skim
+                    // from this bucket — the payee gets the full remaining, the
+                    // reserve gets the skim, the bucket (which more than covers it)
+                    // keeps the rest. Grossing the payer means the corp bears the
+                    // spread, so the payee is never short-changed.
+                    double skim = remaining * spread;
+                    double grossTo = remaining + skim;
+                    double spendOther = state.ConvertCurrency(grossTo, toCurrencyId, otherId);
                     double left = heldOther - spendOther;
                     if (left > 1e-12) _holdings[otherId] = left;
                     else _holdings.Remove(otherId);
-                    state.RecordConversion(otherId, spendOther, toCurrencyId, remaining);
+                    state.SkimToReserve(toCurrencyId, skim);
+                    state.RecordConversion(otherId, spendOther, toCurrencyId, grossTo);
                     remaining = 0;
                 }
             }

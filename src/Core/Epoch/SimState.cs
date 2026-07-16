@@ -315,6 +315,28 @@ public sealed class SimState
         return inAmount - spread;
     }
 
+    /// <summary>Sequester a cross-currency PAYMENT's spread into the destination
+    /// currency's <see cref="Bank"/> reserve (slice CU-2 bank-actor). This is the
+    /// PAYMENT-direction sibling of <see cref="SettleConversion"/>: where
+    /// <c>SettleConversion</c> is the repatriation shape (money arriving into a
+    /// holder's own currency — the skim comes OUT of what the recipient banks,
+    /// returning the net), a payment grosses the PAYER up instead — the payer
+    /// sources the payee's full amount PLUS this <paramref name="skim"/> on top, so
+    /// the payee/seller stays whole (the pay-recipients-gross settlement sites keep
+    /// crediting the full amount, no leak) and the skim still lands in the
+    /// destination reserve. The caller books the full grossed transfer via
+    /// <see cref="RecordConversion"/> itself (the <c>outAmount</c>/<c>inAmount</c>
+    /// differ per site — a polity's own cost vs a corp bucket's spend — so only the
+    /// reserve write is shared here). A no-op for a pre-genesis id (id &lt; 0) or a
+    /// zero skim — the dormant single-currency world sequesters nothing.</summary>
+    public void SkimToReserve(int toCurrencyId, double skim)
+    {
+        if (toCurrencyId < 0 || skim == 0.0) return;
+        var bank = BankOf(toCurrencyId);
+        bank.Reserve += skim;
+        bank.CumulativeSpreadIntake += skim;
+    }
+
     /// <summary>The currency a port's market is denominated in — the port-owning
     /// polity's <see cref="PolityRecord.CurrencyId"/>. Every price, bid, ask, and
     /// escrow at that port is in this currency. −1 before genesis wires currencies
