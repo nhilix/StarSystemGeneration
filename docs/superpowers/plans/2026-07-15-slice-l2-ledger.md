@@ -37,12 +37,43 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
 
 ## Task ledger
 
-- [ ] **Task 1** — Segments gain a body at creation (`PopulationSiting.Assign`;
+- [x] **Task 1** — Segments gain a body at creation (`PopulationSiting.Assign`;
   4 segment-creation sites: Phases homeworld + `FindOrFoundSegment`, ProjectOps
-  colony segment, NativeOps native segment). Gate: `PopulationSitingTests` green,
-  interior/native suites green.
-- [ ] **Task 2** — Colony-founding reject-on-bodiless (decision above) + verify the
-  claim-aware body assignment Phase 2 already added. Gate: colony/project suites green.
+  colony segment, NativeOps native segment). DONE — commit `f3b2db7`, review clean
+  (spec PASS + quality PASS, zero findings). Golden intentionally red mid-slice
+  (only SEGMENT `Body` lines changed, reviewer-verified) — re-freeze at slice end.
+- [x] **Task 2** — Colony-founding reject-on-bodiless. Impl commit `00352aa`
+  (helper `FoundColonyFacilities` + groundbreaking-mirrored skip; 2 new
+  `ColonyBodyTests` pass). Phase-2 claim-aware assignment confirmed already present.
+  **BLOCKED on a design fork** surfaced by the impl: the skip exposed that
+  `BodySiting.Assign` sites AgriComplex strictly on a biosphere body while
+  `RenewableYield` floors AgriComplex at 0.3 on ANY body → a mineral colony whose
+  Mine takes the only biosphere rock now loses its subsistence farm.
+  `ColonyViabilityTests.MineralColony_FoundsWithAMine_AndASubsistenceFarm` and
+  `FineTickTests` went green→red as a result (both trace to this change; FineTick
+  is a tuned macro band, re-tune at slice end).
+  **User decision (2026-07-15):** neither A nor B — deeper fix. (1) NO 0.3
+  renewable floor: agri yield derives purely from biosphere+water (0 at fully
+  barren) → skipping a barren/bodiless agri is now unambiguously correct. (2) NO
+  cross-type body exclusivity: a rich rocky world hosts BOTH a Mine (depleting ore)
+  and an AgriComplex (farming renewables). Body claims become per-resource-class:
+  {Mine,ExcavationSite} share the single (hex,body) stock so they exclude each
+  other; Skimmer/Agri exclude only their own type; cross-class coexists. This makes
+  the mineral colony's Mine + subsistence farm co-locate on the one biosphere rock,
+  so `MineralColony...` passes without weakening. Design refinement to Phase 2,
+  user-approved — amend body-resource-stock spec. Extending Task 2 impl (same agent).
+  **DONE** — chain `00352aa` (dud skip) → `4062d8b` (per-class claims + drop agri
+  floor + doc amendments: body-resource-stock spec, infrastructure.md, BodySiting
+  class-doc) → `ba00aab` (MineralColony split into two real invariant tests —
+  barren→Mine-only, farmable→Mine+farm via a deterministic injected mine+garden
+  system; seed-42 has 0 reachable mineral+biosphere hexes). Suite 1022 pass / 2 red
+  (golden + FineTick, both deferred to slice-end re-freeze). Review clean (Opus):
+  spec PASS + quality PASS, 0 Critical; Important = the FineTick watch item below.
+  Minors (no fix; for final-review triage): redundant `IsExtraction` in farm guard
+  (intentional symmetry w/ founding guard, ProjectOps.cs:720); MineralColony
+  barren/farmable test paths asymmetric (barren=full ResolutionPhase path,
+  farmable=direct helper call — acceptable given no reachable mineral+biosphere hex);
+  `(int)year` narrowing cosmetic (completionYear already int upstream).
 - [ ] **Task 3** — Staffing weights labor by hex-hop + local-hop distance
   (`StaffingOps`, `Economy.StaffingDistanceFalloff`; `MarketEngine.SupplyLands`).
   Re-verify against CU-1's wage-conversion. Gate: staffing + conservation + knob green.
@@ -55,6 +86,28 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
 - [ ] **Task 7** — Courier board routes off-lane when severed (`CourierOps.AcceptOpen`
   via `PlanBestRoute`). Re-verify against CU-1's CourierOps changes. Gate: courier +
   conservation green.
+
+## Watch items (must resolve before merge)
+
+- **FineTick divergence (raised Task 2).** `FineTickTests.FineTick_ProjectCompletions_LandOnWorldYears_NotSteps`
+  drifted hard: coarse-derived band ~[1,4] vs fine actual ~32 (an 8–32× coarse/fine
+  divergence, up from ~16 earlier in Task 2). Slice L follow-up #4 already flagged this
+  band as toothless (widened 4×, trips past ~6.7× divergence) and said "split into its
+  own guard next time it's touched." We are touching it. **Do NOT just re-freeze it at
+  slice end** — the whole-branch review MUST investigate whether this is a real
+  coarse/fine consistency break (fine completing far more project-completions than the
+  coarse pass predicts) or a benign downstream tuning artifact of colonies building more
+  coexisting facilities. Fix if real; split the guard + re-tune if tuning.
+  **Task-2 review (Opus) pinned the mechanism:** the per-class claim change is shared by
+  `SpawnFacilityConstruction` (ProjectOps.cs:47) — groundbroken facilities that previously
+  resolved a globally-claimed body → None → REJECTED (line 52) now get a shared body and
+  proceed to BUILD. More facility completions is the intended consequence of the cross-type
+  directive. Reviewer caveat: coarse denom is only 2 (band razor-thin, ratio unstable) and
+  seed-42 sits in a near-floor expansion-over-construction regime. **Before slice-end
+  re-freeze: instrument the per-KIND breakdown of fine's ~32 completions** — confirm they're
+  not dominated by a per-step-cadenced groundbreak newly unmasked by body availability (a
+  real time-not-ticks bug in shared groundbreaking, pre-existing but newly exposed) rather
+  than world-time telescoping. Split into its own guard while here (Slice L follow-up #4).
 
 ## Slice-end gates
 
