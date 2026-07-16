@@ -245,6 +245,10 @@ public sealed class WarKnobs
     /// <summary>Seizure probability per world-year sailed on a contested
     /// leg — the piracy pattern, channel 76.</summary>
     public double InterdictionLossPerContestedYear { get; set; } = 0.12;
+    /// <summary>Off-lane seizure probability per world-year sailed under full
+    /// hostile Patrol coverage (locality slice L2 §5) — the smuggling detection
+    /// roll (channel 78), damped by distance from patrol docks (PatrolCoverage).</summary>
+    public double OffLaneDetectionPerCoveredYear { get; set; } = 0.2;
     /// <summary>How steeply Patrol enforcement coverage falls with hex-hop +
     /// local-hop distance from the fleet's dock (locality slice §2):
     /// coverage = max(0, 1 − this × distance).</summary>

@@ -271,6 +271,8 @@ public static class ShipmentOps
         double contestedYears = 0;
         FleetRecord? interdictor = null;
         int escortHulls = 0;
+        double coveredYears = 0;
+        double maxCoverage = 0;
         while (budget > 1e-9 && s.YearsInTransit < s.TotalYears - 1e-9)
         {
             int leg = CurrentLeg(s);
@@ -306,6 +308,20 @@ public static class ShipmentOps
                 {
                     contestedYears += sail;
                     escortHulls = Math.Max(escortHulls, friendly);
+                }
+            }
+            // off-lane legs carry no lane escort or contest — their only
+            // hazard is a covering hostile Patrol at the drop point (locality
+            // slice L2 §5). Accumulate the years sailed under coverage and the
+            // strongest cover seen, for the detection roll below.
+            if (s.RouteLaneIds.Count == 0)
+            {
+                double cover = PatrolCoverage.At(state,
+                    state.Ports[s.DestPortId].Hex, BodyRef.None, s.OwnerActorId);
+                if (cover > 0)
+                {
+                    coveredYears += sail;
+                    if (cover > maxCoverage) maxCoverage = cover;
                 }
             }
             s.YearsInTransit += sail;
@@ -366,6 +382,54 @@ public static class ShipmentOps
                     EventVisibility.Regional,
                     new CargoSeizedPayload(s.Id, interdictor.OwnerActorId,
                                            units)));
+                return SailOutcome.Lost;
+            }
+        }
+        // off-lane detection (locality slice L2 §5), rolled after interdiction:
+        // a covering hostile Patrol seizes the runner's cargo, landed at that
+        // patrol owner's nearest own port as its asks (P4 conserved). A portless
+        // patrol owner has nowhere to land a prize and takes nothing. Only the
+        // owner-excluding strongest Patrol onto the drop point can claim it
+        // (fleet-id order for a deterministic tiebreak).
+        if (coveredYears > 0 && maxCoverage > 0)
+        {
+            int patrolOwner = -1;
+            double bestCover = 0;
+            var war = state.Config.War;
+            foreach (var fleet in state.Fleets)           // id order (P6)
+            {
+                if (fleet.Posture != FleetPosture.Patrol
+                    || fleet.OwnerActorId == s.OwnerActorId) continue;
+                double c = 1.0 - war.PatrolCoverageFalloff
+                    * HexGrid.Distance(fleet.Hex, state.Ports[s.DestPortId].Hex);
+                if (c > bestCover) { bestCover = c; patrolOwner = fleet.OwnerActorId; }
+            }
+            int prizePort = patrolOwner >= 0
+                ? FleetOps.NearestOwnedPortId(state, patrolOwner,
+                    state.Ports[s.DestPortId].Hex)
+                : -1;
+            double p = 1.0 - Math.Pow(
+                1.0 - war.OffLaneDetectionPerCoveredYear * maxCoverage,
+                coveredYears);
+            if (prizePort >= 0
+                && EpochRolls.NextDouble(state.Config.MasterSeed,
+                    Rng.RollChannel.ShipmentDetection, state.EpochIndex,
+                    s.OwnerActorId, s.Id) < p)
+            {
+                double units = 0;
+                for (int g = 0; g < s.Qty.Length; g++)
+                {
+                    if (s.Qty[g] <= 0) continue;
+                    units += s.Qty[g];
+                    BookOps.PostSupply(state, prizePort, patrolOwner,
+                                       g, s.Qty[g], s.Grade[g]);
+                }
+                state.Staged.Add(new StagedEvent(
+                    ClockStratum.Generational, WorldEventType.CargoSeized,
+                    new[] { patrolOwner, s.OwnerActorId },
+                    state.Ports[s.DestPortId].Hex, Magnitude: units, Valence: -0.6,
+                    EventVisibility.Regional,
+                    new CargoSeizedPayload(s.Id, patrolOwner, units)));
                 return SailOutcome.Lost;
             }
         }
