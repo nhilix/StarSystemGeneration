@@ -131,20 +131,35 @@ valuation.
 
 CU-2 introduces **`SimState.SettleConversion(...)`** (the Bank-aware settlement
 path): convert → apply the target Bank's spread → credit that Bank's reserve →
-`RecordConversion`. The real money-movement sites — the ones CU-1 already pairs
-with `RecordConversion` (order-book fills/refunds/cancellations, freight/tariffs,
-migration, construction wages, port-ownership-change wealth transfers, loan
-servicing, corporation wallet draw-down) — route through `SettleConversion`.
+`RecordConversion`. The real money-movement sites route through the spread —
+as implemented (Task 4 audit): order-book fills and cross-currency order
+*cancels* (the return leg skims as a repatriation Deposit), freight/tariffs,
+migration (destination segment banks net), construction wages, loan servicing,
+fleet upkeep, and corporation wallet draw-down. Incidence is **direction-specific**
+(§ Design decision 3): money arriving into a holder's own currency NETS the
+recipient (`SettleConversion`); a payer converting its own money to pay a foreign
+currency is GROSSED UP (`SkimToReserve` + full `RecordConversion`, payee whole).
 
-**Exempted from the spread (per the brainstorm):** the sovereign
-re-denomination transfers at **federation/war absorption and graduation splits**
-(`FederationOps`, `GraduationOps`) — a polity's own money merging or splitting is
-not a market exchange, and clipping it is wrong. These keep the bare
-`ConvertCurrency` + `RecordConversion` pair. This is an explicit, documented
-boundary, not an omission — the implementation must list every conversion site
-and classify it exchange-vs-re-denomination (CU-1's Task 8 "audit every site"
-discipline applies directly: a missed site is a silent conservation or
-behavior bug).
+**Exempted from the spread — as implemented and verified:**
+- **Sovereign re-denomination at federation/war absorption and graduation
+  splits** (`FederationOps`, `GraduationOps`) — a polity's own money merging or
+  splitting is not a market exchange, and clipping it is wrong. The absorbed
+  *treasury* and faction wealth transfers route through a dedicated
+  `PolityRecord.DepositExempt` (convert + record, no skim), matching the always-
+  exempt pool transfers.
+- **Port-ownership-change re-denomination** (`SimState.ConvertPortHoldings`) —
+  the forced re-denomination of resident wealth/escrow at a port whose owner
+  changes is the same sovereign class, exempt.
+- **Project-bid escrow refunds** (`MarketEngine` order-post refund) — un-posting
+  a funder's own unfilled escrow; the real FX (and its single spread) was already
+  charged at the gross-up post, so the refund is exempt. **Note (flagged for the
+  tuning pass):** ordinary order *cancels* skim their return leg while project-bid
+  *refunds* do not — a deliberate asymmetry (a post+cancel round trip is taxed
+  twice on the order book, once on project bids); revisit if it feels wrong.
+
+This is an explicit, documented boundary, not an omission — CU-1's Task 8 "audit
+every site" discipline applies: a missed site is a silent conservation or
+behavior bug.
 
 ## Conservation & determinism
 

@@ -42,14 +42,22 @@ branched from main 81c03c6). L2 is parallel — never share a checkout.
 ## Conversion-site inventory (authoritative — from the CU-1 audit)
 
 **Exchange sites — get the spread (route through `SettleConversion`):**
-`FleetOps.cs:452`, `ProjectOps.cs:463`, `MarketEngine.cs:518`,
-`MarketEngine.cs:1047`, `Phases.cs:1790`, `PolityRecord.cs:115` (Deposit),
+`FleetOps.cs:452`, `ProjectOps.cs:463` (construction WAGES, reduce-recipient —
+not a bid), `MarketEngine.cs:518`, `Phases.cs:1790`, `PolityRecord.cs:115` (Deposit),
+<!-- RECONCILED (Task 8 review finding 6): MarketEngine.cs:1047 is the order-post
+REFUND — moved to Exempt below (un-posting own escrow; FX charged once at the
+gross-up post). Ordinary order *cancels* still skim their return leg. -->
+
 `PolityRecord.cs:136` (Withdraw), `Corporation.cs:180`/`:189` (wallet
 draw-down), `CorporationOps.cs:1058`.
 
-**Exempt — sovereign re-denomination, keep bare `RecordConversion`:**
-`SimState.ConvertPortHoldings` (`:352`/`:359`/`:368`), `FederationOps.cs:389`,
-`FederationOps.cs:441`, `GraduationOps.cs:220`.
+**Exempt — sovereign re-denomination + own-escrow un-posting, no skim:**
+`SimState.ConvertPortHoldings` (`:352`/`:359`/`:368`, port-ownership-change
+re-denomination), `FederationOps.cs:389`/`441` + the absorbed-treasury/faction-
+wealth transfers now via `PolityRecord.DepositExempt` (Task 4f), `GraduationOps`
+seed-treasury + pools (`:220` and the `DepositExempt` legs), and
+`MarketEngine.cs:1047` (order-post REFUND — un-posting a funder's own escrow;
+Task 4b decision, reconciled here per Task 8 finding 6).
 
 **The spread invariant (the whole slice turns on this):** skim exactly **once
 per real cross-currency conversion**, charged by the **destination** currency's
