@@ -32,7 +32,7 @@ public static class ArtifactSerializer
         ("corporations", 4), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
         ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
-        ("bodyresources", 1),
+        ("bodyresources", 1), ("banks", 1),
     };
 
     public static string ToText(SimState state)
@@ -595,6 +595,16 @@ public static class ArtifactSerializer
                 k.Body.SlotIndex.ToString(Inv), ((int)stock.Good).ToString(Inv),
                 R(stock.Quantity), R(stock.Grade)));
         }
+
+        Layer(w, "banks");
+        // one bank per currency, dense by currency id (SimState.Banks, slice
+        // CU-2 bank-actor design) — reserve dynamics are wired by later
+        // tasks, but the registry rides along from the moment it exists so
+        // save/reload never lags the state (the BodyResources lesson).
+        foreach (var bank in state.Banks)
+            w.WriteLine(Join("BANK", bank.CurrencyId.ToString(Inv),
+                R(bank.Reserve), R(bank.CumulativeSpreadIntake),
+                R(bank.CumulativeReserveFunded)));
         w.WriteLine("END");
     }
 
@@ -1264,6 +1274,18 @@ public static class ArtifactSerializer
                             CumulativeConvertedOut = double.Parse(f[8], Inv),
                             NumeraireRate = double.Parse(f[9], Inv),
                             Retired = f[10] == "1",
+                        });
+                        break;
+                    case "BANK":
+                        // banks layer loads late (after currencies), so the
+                        // dense id-order guard is safe here too
+                        if (int.Parse(f[1], Inv) != state!.Banks.Count)
+                            throw new InvalidDataException("bank ids out of order");
+                        state.Banks.Add(new Bank(int.Parse(f[1], Inv))
+                        {
+                            Reserve = double.Parse(f[2], Inv),
+                            CumulativeSpreadIntake = double.Parse(f[3], Inv),
+                            CumulativeReserveFunded = double.Parse(f[4], Inv),
                         });
                         break;
                     case "CULTURE":
