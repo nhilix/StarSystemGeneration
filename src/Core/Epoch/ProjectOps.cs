@@ -86,9 +86,15 @@ public static class ProjectOps
     {
         var system = SystemRegistry.Commit(state, hex);
         var portBody = BodySiting.PortBody(system);
+        // claims are per-resource-CLASS (BodySiting.CompetesForBody): a body a
+        // Mine holds is taken against another Mine but free for an AgriComplex —
+        // one rich rocky world hosts both, ore depletion and biosphere farming
+        // on independent resource classes.
         var claimed = new List<BodyRef>();
         foreach (var other in state.Facilities)           // id order (P6)
-            if (other.Hex.Equals(hex) && !other.Body.IsNone)
+            if (other.Hex.Equals(hex) && !other.Body.IsNone
+                && BodySiting.CompetesForBody(
+                    (Substrate.InfraTypeId)other.TypeId, type))
                 claimed.Add(other.Body);
         var body = BodySiting.Assign(system, type, portBody, claimed);
         BodyResourceOps.Commit(state, hex, body, type, system);

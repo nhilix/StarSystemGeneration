@@ -59,15 +59,17 @@ public class ColonyBodyTests
             if (found.Count > 0) { sited = hex; bodies = found; break; }
         }
         Assert.NotNull(sited);
-        // pre-claim every body at the hex with dummy Facility rows: with every
-        // substrate-appropriate candidate taken, PlaceFacilityBody resolves
-        // None for the founding extraction industry AND the subsistence farm
-        // (both founding types are extraction), so the claim scan in
-        // PlaceFacilityBody finds nothing free.
+        // pre-claim every body at the hex, saturating ALL extraction resource
+        // classes so PlaceFacilityBody resolves None for whichever founding
+        // industry the site picks AND for the subsistence farm. Under the
+        // per-resource-class claim model a dummy blocks only its own class, so
+        // each body needs a Mine (blocks Mine + ExcavationSite, both
+        // depletable), a Skimmer, and an AgriComplex dummy to be fully taken.
         foreach (var b in bodies)
-            state.Facilities.Add(new Facility(state.Facilities.Count,
-                (int)InfraTypeId.Mine, tier: 1, sited!.Value, owner, 100)
-            { Body = b });
+            foreach (var t in new[] { InfraTypeId.Mine, InfraTypeId.Skimmer,
+                                      InfraTypeId.AgriComplex })
+                state.Facilities.Add(new Facility(state.Facilities.Count,
+                    (int)t, tier: 1, sited!.Value, owner, 100) { Body = b });
         int before = state.Facilities.Count;
         ProjectOps.FoundColonyFacilities(state, sited!.Value, owner, 100);
         // the crux: no bodiless extraction dud is ever created
@@ -80,5 +82,39 @@ public class ColonyBodyTests
         }
         // and here nothing founds at all: both founding bodies resolved None
         Assert.Equal(before, state.Facilities.Count);
+    }
+
+    [Fact]
+    public void PlaceFacilityBody_MineAndAgri_ShareOneBody_ButTwoMinesDoNot()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        // a fresh hex with a synthetic single biosphere rocky world (no belt):
+        // a Mine (rocky fallback) and an AgriComplex (biosphere) both want it
+        var hex = new HexCoordinate(9999, -9999);
+        var sys = new StarSystem("COEXIST");
+        var star = new Star();
+        star.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Habitable,
+            Body = new Body { Kind = BodyKind.RockyWorld, Size = 4,
+                Biosphere = Biosphere.Flourishing, Hydrographics = 50 } });
+        sys.Stars.Add(star);
+        state.SettledSystems[hex] = sys;
+        int owner = state.Actors[0].Id;
+
+        // the founding Mine claims the rocky world
+        var mineBody = ProjectOps.PlaceFacilityBody(state, hex, InfraTypeId.Mine);
+        Assert.Equal(new BodyRef(0, 0), mineBody);
+        state.Facilities.Add(new Facility(state.Facilities.Count,
+            (int)InfraTypeId.Mine, tier: 1, hex, owner, 100) { Body = mineBody });
+
+        // the AgriComplex farms the SAME biosphere rock — a different resource
+        // class, no exclusion (per-resource-class claims)
+        var agriBody = ProjectOps.PlaceFacilityBody(state, hex,
+                                                    InfraTypeId.AgriComplex);
+        Assert.Equal(mineBody, agriBody);
+
+        // but a SECOND Mine cannot share the single per-body depletable stock —
+        // it competes with the first Mine and resolves None
+        var mine2 = ProjectOps.PlaceFacilityBody(state, hex, InfraTypeId.Mine);
+        Assert.True(mine2.IsNone);
     }
 }

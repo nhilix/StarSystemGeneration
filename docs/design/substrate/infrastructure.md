@@ -63,7 +63,14 @@ output = base(type, tier) × terrain(claimed body: depletable stock or renewable
   the rock runs dry); a Skimmer/Agri-complex draws a renewable yield from the
   claimed body's own attributes (a gas giant's mass, a world's biosphere and
   water). Output *and grade* still root in geography — now body-native, not the
-  raster aggregate ([commodities.md](commodities.md)).
+  raster aggregate ([commodities.md](commodities.md)). An Agri-complex's yield
+  derives purely from biosphere and water and goes to ~0 on a fully barren, dry
+  body — a barren rock genuinely can't farm, so no subsistence-farm is sited
+  there (no bodiless dud). A Skimmer keeps a floor: any gas giant has mass to
+  skim. Body claims are **per-resource-class**, not global: one rich rocky world
+  can host both a Mine depleting its ore *and* an Agri-complex farming its
+  biosphere at once; only same-class extractors are mutually exclusive
+  (Mine/Excavation share one per-body stock, so they exclude each other too).
 - **Labor**: drawn from the domain's population; Compute-driven automation
   substitutes (machine polities run thin-crewed industry; labor-rich low-tech
   polities cannot run advanced recipes at all).

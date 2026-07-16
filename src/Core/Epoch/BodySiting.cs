@@ -8,11 +8,13 @@ namespace StarGen.Core.Epoch;
 /// per-render guess (locality slice §4). Type affinity — mine → belt else
 /// rock, skimmer → gas giant, agri → richest biosphere, excavation →
 /// wreckage else rock — evaluated against the frozen body list, skipping
-/// bodies already claimed. The terminal fallback to the port body is
-/// claim-checked too, so two same-type facilities can never collapse onto
-/// one body — once every candidate (including the port) is already taken,
-/// assignment yields <see cref="BodyRef.None"/> rather than a collision.
-/// Deterministic first-match in star/slot order.</summary>
+/// bodies already claimed. Claims are per-resource-CLASS, not global (the
+/// caller passes only the competing claims — see <see cref="CompetesForBody"/>):
+/// a Mine and an AgriComplex share one rich rocky world, but two of the same
+/// resource class can never collapse onto one body — once every candidate
+/// (including the port) is already taken by a competitor, assignment yields
+/// <see cref="BodyRef.None"/> rather than a collision. Deterministic
+/// first-match in star/slot order.</summary>
 public static class BodySiting
 {
     public static BodyRef Assign(StarSystem? system, InfraTypeId type,
@@ -47,6 +49,29 @@ public static class BodySiting
         type == InfraTypeId.Mine || type == InfraTypeId.Skimmer
         || type == InfraTypeId.AgriComplex
         || type == InfraTypeId.ExcavationSite;
+
+    /// <summary>Do two facilities of these types contend for the SAME body —
+    /// i.e. must a body one already holds be treated as claimed against the
+    /// other? Body claims are per-resource-CLASS, not global: one rich rocky
+    /// world can host a Mine depleting its ore AND an AgriComplex farming its
+    /// biosphere at once. Contention only within a resource class:
+    ///   • Mine/ExcavationSite (both depletable) share the single per-(hex,body)
+    ///     ore/exotics stock — a second depletable would read the wrong good, so
+    ///     they exclude each other (and themselves).
+    ///   • Skimmer vs Skimmer, AgriComplex vs AgriComplex — same renewable body
+    ///     twice is the generalized two-mines fix, so they exclude.
+    ///   • two non-extraction assets both ride the port body — keep excluding
+    ///     (preserve support-facility placement; don't churn it).
+    ///   • any cross-class pair (Mine vs Agri, Skimmer vs Mine, …) does NOT
+    ///     contend — the bodies' resource classes are independent.</summary>
+    public static bool CompetesForBody(InfraTypeId a, InfraTypeId b)
+    {
+        bool aDepletable = a == InfraTypeId.Mine || a == InfraTypeId.ExcavationSite;
+        bool bDepletable = b == InfraTypeId.Mine || b == InfraTypeId.ExcavationSite;
+        if (aDepletable && bDepletable) return true;   // one shared per-body stock
+        if (!IsExtraction(a) && !IsExtraction(b)) return true; // both ride the port
+        return a == b;                                  // same renewable class only
+    }
 
     private static BodyRef? FirstFree(StarSystem system, BodyKind kind,
                                       HashSet<BodyRef> taken)
@@ -100,14 +125,18 @@ public static class BodySiting
         }
         if (type == InfraTypeId.AgriComplex)
         {
-            // living, watered worlds farm best; a barren dry rock still
-            // subsistence-farms a little. Biosphere 0-3, Hydrographics 0-100.
+            // living, watered worlds farm best; a fully barren, dry rock can't
+            // farm at all — NO renewable floor (a real barren-dry body yields
+            // ~0, so colony founding skips the bodiless-agri dud there).
+            // Biosphere 0-3, Hydrographics 0-100. Deliberate asymmetry with the
+            // Skimmer branch, which keeps its 0.5 mass floor: any gas giant has
+            // mass to skim, a barren rock has no biosphere to farm.
             double bio = System.Math.Max(0.0,
                 System.Math.Min(1.0, (int)b.Biosphere / 3.0));
             double water = System.Math.Max(0.0,
                 System.Math.Min(1.0, b.Hydrographics / 100.0));
             return System.Math.Max(0.0,
-                System.Math.Min(1.0, 0.3 + 0.5 * bio + 0.2 * water));
+                System.Math.Min(1.0, 0.7 * bio + 0.3 * water));
         }
         return 0.0;
     }
