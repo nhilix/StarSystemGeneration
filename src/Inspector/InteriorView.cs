@@ -52,6 +52,17 @@ public static class InteriorView
                 + Invariant($"rate {currency.NumeraireRate:0.000} numeraire · ")
                 + Invariant($"supply {currency.Supply:0}")
                 + (currency.Retired ? " [retired]" : ""));
+
+            // bank / reserve dynamics (bank-actor design, slice CU-2). The
+            // two-stage deficit funding order (Phases.FundDeficit): reserve
+            // draw first (a transfer, bank.CumulativeReserveFunded), the
+            // bounded fiat backstop second (a mint, currency.CumulativeFiatIssued)
+            // — both cumulative levels across the whole sim, never reset.
+            var bank = state.BankOf(pr.CurrencyId);
+            sb.AppendLine(Invariant($"    bank: reserve {bank.Reserve:0} · ")
+                + Invariant($"spread intake {bank.CumulativeSpreadIntake:0} (cum) · ")
+                + Invariant($"reserve-funded {bank.CumulativeReserveFunded:0} (cum) · ")
+                + Invariant($"backstop-minted {currency.CumulativeFiatIssued:0} (cum)"));
         }
 
         // the reign
