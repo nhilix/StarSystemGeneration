@@ -108,9 +108,11 @@ public static class GraduationOps
                                   species.Militancy);
         // the movement's war chest founds the treasury (conserved flow):
         // it was raised in the OLD polity's currency, converting into the
-        // child's own on arrival (currency-and-FX design) — a no-op
-        // conversion when they share one, or pre-genesis (both -1)
-        young.Deposit(state, faction.Wealth, old.CurrencyId);
+        // child's own on arrival (currency-and-FX design) — a no-op conversion
+        // when they share one, or pre-genesis (both -1). This is the seceding
+        // polity's OWN money splitting off, so it is EXEMPT from the spread
+        // ("clipping is wrong"): DepositExempt converts + records at plain rate.
+        young.DepositExempt(state, faction.Wealth, old.CurrencyId);
         faction.Wealth = 0;
 
         // the interior: popular line of its own segments, form reseated,
@@ -274,8 +276,13 @@ public static class GraduationOps
                                     PolityRecord young, double share)
     {
         double transfer = old.Credits * share;
-        old.Deposit(state, -transfer, old.CurrencyId);   // own currency, no guard
-        young.Deposit(state, transfer, old.CurrencyId);  // converts if currencies differ
+        // the parent's OWN money splits to the child across the graduation seam —
+        // EXEMPT from the spread ("clipping is wrong"). DepositExempt on BOTH legs:
+        // the parent leg is same-currency (no conversion either way); the child leg
+        // converts at plain rate. A negative transfer (insolvent parent) hands the
+        // debt over — DepositExempt has no non-positive guard, unlike Withdraw.
+        old.DepositExempt(state, -transfer, old.CurrencyId);   // own currency, no guard
+        young.DepositExempt(state, transfer, old.CurrencyId);  // converts if currencies differ
     }
 
     /// <summary>Which domains walk: frontier ports for a regional schism,

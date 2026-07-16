@@ -77,15 +77,16 @@ public class GenesisLifecycleCurrencyTests
 
         FederationOps.MergeInto(state, fromId: 0, intoId: 1);
 
-        // 1000 of cur0 lands as 1000 * 1.0/2.0 = 500 of cur1, gross of the
-        // skim — into.Deposit (slice CU-2) skims the spread off the top into
-        // Bank(cur1).Reserve before crediting the net.
+        // 1000 of cur0 lands as 1000 * 1.0/2.0 = 500 of cur1 (not a raw carry).
+        // task 4f: the absorbed treasury is the polity's OWN money crossing the
+        // merge seam — an EXEMPT re-denomination (DepositExempt), so the survivor
+        // banks the FULL converted sum, no spread clipped, reserve untouched.
         double landed = 1000.0 * 1.0 / 2.0;
-        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(0.0, from.Credits, 9);
-        Assert.Equal(500.0 + landed * (1 - spread), into.Credits, 9);
+        Assert.Equal(500.0 + landed, into.Credits, 9);
         Assert.Equal(1000.0, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 9);
+        Assert.Equal(0.0, state.BankOf(1).Reserve, 9);   // exempt: no skim
     }
 
     [Fact]
@@ -103,13 +104,13 @@ public class GenesisLifecycleCurrencyTests
 
         FederationOps.MergeInto(state, 0, 1);
 
-        // -200 of cur1, gross — into.Deposit (slice CU-2) still skims the
-        // spread off the top into Bank(cur1).Reserve, signed here since the
-        // absorbed balance itself is negative.
+        // -200 of cur1 — task 4f: an EXEMPT re-denomination (DepositExempt) hands
+        // the debt over at plain rate, no spread clipped (a debt hand-over must
+        // never skim), reserve untouched.
         double landed = -400.0 * 1.0 / 2.0;   // -200 of cur1
-        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(0.0, from.Credits, 9);
-        Assert.Equal(1000.0 + landed * (1 - spread), into.Credits, 9);
+        Assert.Equal(1000.0 + landed, into.Credits, 9);
+        Assert.Equal(0.0, state.BankOf(1).Reserve, 9);   // exempt: no skim
     }
 
     // ---- MergeInto: reissued loans reprice only when the LENDER changed ----
@@ -207,13 +208,12 @@ public class GenesisLifecycleCurrencyTests
         // in the survivor's pools, resident segment wealth stays segment wealth),
         // so this balance check is exact.
         double landed = vassalCredits * 2.0 / 1.0;
-        // the treasury leg routes through into.Deposit inside MergeInto
-        // (slice CU-2), which skims the spread off the top into
-        // Bank(curO).Reserve before crediting the net; the pool legs below
-        // stay raw ConvertCurrency (no Deposit, no skim).
-        double spread = state.Config.Economy.ConversionSpread;
+        // task 4f: the absorbed treasury leg routes through DepositExempt inside
+        // MergeInto — the vassal's OWN money crossing the absorption seam is an
+        // EXEMPT re-denomination (no spread clipped), landing the FULL converted
+        // sum, exactly like the pool legs below (which also stay raw, no skim).
         Assert.Equal(0.0, state.PolityOf(vassal).Credits, 6);
-        Assert.Equal(overlordBefore + landed * (1 - spread),
+        Assert.Equal(overlordBefore + landed,
             state.PolityOf(overlord).Credits, 6);
         // the balance conversion is booked among the survivor's converted-in
         // total. Task 8 broadened absorption to ALSO force-convert the vassal's
@@ -312,13 +312,14 @@ public class GenesisLifecycleCurrencyTests
         double transfer =
             state.CurrencyOf(oldCur).CumulativeConvertedOut - outBefore;
         Assert.True(transfer > 0, "the seed transfer must cross currencies");
-        // young.Deposit inside SeedTreasury (slice CU-2) skims the spread off
-        // the top into Bank(youngCur).Reserve before crediting the net — the
-        // paired counter still books the full gross conversion.
+        // task 4f: SeedTreasury routes through DepositExempt — the parent's OWN
+        // money splitting to the child is an EXEMPT re-denomination, so the child
+        // banks the FULL converted sum (no spread clipped), and the paired counter
+        // books the same full conversion.
         double landed = transfer * 2.0;
-        double spread = state.Config.Economy.ConversionSpread;
-        Assert.Equal(landed * (1 - spread), young.Credits, 6);
+        Assert.Equal(landed, young.Credits, 6);
         Assert.Equal(landed,
             state.CurrencyOf(youngCur).CumulativeConvertedIn, 6);
+        Assert.Equal(0.0, state.BankOf(youngCur).Reserve, 6);   // exempt: no skim
     }
 }

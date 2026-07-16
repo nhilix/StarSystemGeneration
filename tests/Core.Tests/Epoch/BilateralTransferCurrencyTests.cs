@@ -171,15 +171,15 @@ public class BilateralTransferCurrencyTests
         GraduationOps.SeedTreasury(state, old, young, share: 0.3);
 
         double transfer = 1000.0 * 0.3;             // 300, in the parent's currency
-        double landed = transfer * 1.0 / 4.0;        // cur0 -> cur1 = 75, gross of the skim
-        // young.Deposit (slice CU-2) skims the spread off the top into
-        // Bank(cur1).Reserve before crediting the net; the paired counter
-        // below still books the full gross conversion.
-        double spread = state.Config.Economy.ConversionSpread;
+        double landed = transfer * 1.0 / 4.0;        // cur0 -> cur1 = 75
+        // task 4f: a graduation seed is the parent's OWN money splitting off — an
+        // EXEMPT re-denomination (SeedTreasury routes through DepositExempt), so the
+        // child banks the FULL converted sum, no spread clipped, reserve untouched.
         Assert.Equal(1000.0 - transfer, old.Credits, 9);
-        Assert.Equal(landed * (1 - spread), young.Credits, 9);
+        Assert.Equal(landed, young.Credits, 9);
         Assert.Equal(transfer, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 9);
+        Assert.Equal(0.0, state.BankOf(1).Reserve, 9);   // exempt: no skim
     }
 
     [Fact]
@@ -199,21 +199,14 @@ public class BilateralTransferCurrencyTests
         // guard must never swallow it (that would leave the debt
         // uncharged on the parent while still crediting the child)
         double transfer = -1000.0 * 0.4;   // -400
-        Assert.Equal(-1000.0 - transfer, old.Credits, 9);   // -600, same-currency Deposit (no skim)
-        // young.Deposit is cross-currency (distinct ids, even at equal rate):
-        // it skims Config.Economy.ConversionSpread off the converted amount
-        // before crediting the net (slice CU-2's Deposit) — signed here since
-        // the transfer itself is negative.
-        double spread = state.Config.Economy.ConversionSpread;
-        double convertedTransfer =
-            state.ConvertCurrency(transfer, old.CurrencyId, young.CurrencyId);
-        double netTransfer = convertedTransfer * (1 - spread);
-        Assert.Equal(500.0 + netTransfer, young.Credits, 9);
-        // reserve-aware conservation (MetricsOps.cs authoritative residual):
-        // the skim sequestered into Bank(young.CurrencyId).Reserve is still
-        // part of the conserved total, just no longer circulating as Credits.
-        Assert.Equal(totalBefore, old.Credits + young.Credits
-            + state.BankOf(young.CurrencyId).Reserve, 9);
+        // task 4f: an EXEMPT re-denomination (DepositExempt on both legs) — the debt
+        // share moves at plain rate with no spread clipped. Same rate here, so the
+        // child banks the full transfer and the two balances conserve exactly, with
+        // NO reserve movement (a debt hand-over must never skim).
+        Assert.Equal(-1000.0 - transfer, old.Credits, 9);   // -600
+        Assert.Equal(500.0 + transfer, young.Credits, 9);   // 100
+        Assert.Equal(totalBefore, old.Credits + young.Credits, 9);   // conserved
+        Assert.Equal(0.0, state.BankOf(young.CurrencyId).Reserve, 9); // exempt: no skim
     }
 
     [Fact]

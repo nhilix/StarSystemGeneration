@@ -306,8 +306,14 @@ public sealed class SimState
                                    int toCurrencyId, double inAmount)
     {
         RecordConversion(fromCurrencyId, outAmount, toCurrencyId, inAmount);
+        // skim only a real, positive inbound amount: same/pre-genesis currency has
+        // no spread, and a non-positive inAmount (a debt hand-over that slips
+        // through) must never skim — that would push a NEGATIVE spread into the
+        // reserve. The exempt re-denomination sites (DepositExempt) never reach
+        // here; this is the defensive backstop (slice CU-2 task 4f).
         if (fromCurrencyId == toCurrencyId
-            || fromCurrencyId < 0 || toCurrencyId < 0) return inAmount;
+            || fromCurrencyId < 0 || toCurrencyId < 0 || inAmount <= 0)
+            return inAmount;
         double spread = inAmount * Config.Economy.ConversionSpread;
         var bank = BankOf(toCurrencyId);
         bank.Reserve += spread;
@@ -331,7 +337,9 @@ public sealed class SimState
     /// zero skim — the dormant single-currency world sequesters nothing.</summary>
     public void SkimToReserve(int toCurrencyId, double skim)
     {
-        if (toCurrencyId < 0 || skim == 0.0) return;
+        // no-op on a non-positive skim (task 4f defensive guard): a reserve is
+        // sequestered CIRCULATING money and must never go negative.
+        if (toCurrencyId < 0 || skim <= 0.0) return;
         var bank = BankOf(toCurrencyId);
         bank.Reserve += skim;
         bank.CumulativeSpreadIntake += skim;

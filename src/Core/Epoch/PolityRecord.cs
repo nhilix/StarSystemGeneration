@@ -120,6 +120,26 @@ public sealed class PolityRecord : ICreditLedger
         return net;
     }
 
+    /// <summary>Re-denomination deposit that EXEMPTS the conversion spread (slice
+    /// CU-2). The design exempts moving a polity's OWN money as it merges or splits
+    /// (absorption/graduation re-denomination — "clipping is wrong"): the money is
+    /// carried across the seam, not paid to a counterparty, so it converts at plain
+    /// rate with the FULL sum credited and recorded — no <see cref="SimState.
+    /// SkimToReserve"/>. Mirrors the adjacent exempt pool transfers
+    /// (<c>FederationOps.Merge</c>) rather than the skimming <see cref="Deposit"/>.
+    /// Handles a negative <paramref name="amount"/> (an insolvent parent's debt
+    /// hand-over) at plain rate — the debt still moves. Same-currency or pre-genesis
+    /// is byte-identical to a raw carry.</summary>
+    public double DepositExempt(SimState state, double amount, int fromCurrencyId)
+    {
+        if (fromCurrencyId == CurrencyId || fromCurrencyId < 0 || CurrencyId < 0)
+        { Credits += amount; return amount; }
+        double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
+        Credits += own;
+        state.RecordConversion(fromCurrencyId, amount, CurrencyId, own);
+        return own;
+    }
+
     /// <summary>Debit the treasury to provide <paramref name="amount"/>
     /// denominated in <paramref name="toCurrencyId"/>. The polity converts the
     /// needed sum of its own currency out, deducting it from

@@ -94,4 +94,25 @@ public class ConservationTests
         Assert.Equal(emerged,
             state.Health.Rows[^1].EndowedEntries);
     }
+
+    // Slice CU-2 task 4f: a Bank.Reserve is CIRCULATING money sequestered by a
+    // conversion spread — it must never go negative. A skim only lands on a real,
+    // positive inbound conversion (SettleConversion/SkimToReserve sign guards), and
+    // the exempt re-denominations (absorption/graduation of a polity's own money)
+    // never skim at all, so no negative-skim can ever push a reserve below zero.
+    [Fact]
+    public void ReservesAreNonNegativeAcrossAFullSeed42History()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        new EpochEngine().Run(state);
+
+        foreach (var bank in state.Banks)                     // live banks
+            Assert.True(bank.Reserve >= 0.0,
+                $"currency {bank.CurrencyId} reserve went negative: {bank.Reserve:G6}");
+        for (int i = 0; i < state.Health.Rows.Count; i++)     // and every snapshot
+            foreach (var cur in state.Health.Rows[i].Currencies)
+                Assert.True(cur.Reserve >= 0.0,
+                    $"epoch {state.Health.Rows[i].Epoch} currency {cur.CurrencyId} "
+                    + $"reserve negative: {cur.Reserve:G6}");
+    }
 }
