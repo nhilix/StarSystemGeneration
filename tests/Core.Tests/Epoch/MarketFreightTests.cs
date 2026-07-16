@@ -57,7 +57,7 @@ public class MarketFreightTests
         int good, double qty, double bid)
     {
         var owner = state.Ports[portId].OwnerActorId;
-        state.LedgerOf(owner).Credits -= qty * bid;
+        state.PolityOf(owner).Credits -= qty * bid;
         return OrderOps.PostBuy(state, owner, portId, good, qty, bid,
             state.WorldYear + 1000);
     }
@@ -317,14 +317,15 @@ public class MarketFreightTests
             "Test Line", pa.Hex, 0, new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(0, actorId, "Test Line", 0,
-            CorporateNiche.Freight, pa.Id, 0) { Credits = 500 };
+            CorporateNiche.Freight, pa.Id, 0);
         state.Corporations.Add(corp);
+        corp.Deposit(state, 500, 0);   // wallet is the corp's whole balance now
         EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
 
         EpochTestKit.Stock(state, 0, g, 1000, 0.6);
-        state.LedgerOf(0).Credits += 4000;
+        state.PolityOf(0).Credits += 4000;
         double bid = state.Markets[0].Price[g] * 4;
-        state.LedgerOf(0).Credits -= 300 * bid;
+        state.PolityOf(0).Credits -= 300 * bid;
         OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
 
         var scratch = new MarketStepScratch(state);
@@ -365,13 +366,13 @@ public class MarketFreightTests
             "Empty Pockets", pa.Hex, 0, new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(0, actorId, "Empty Pockets", 0,
-            CorporateNiche.Freight, pa.Id, 0) { Credits = 0 };
+            CorporateNiche.Freight, pa.Id, 0);   // empty wallet == 0 Credits
         state.Corporations.Add(corp);
         EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
         EpochTestKit.Stock(state, 0, g, 1000, 0.6);
-        state.LedgerOf(0).Credits += 4000;
+        state.PolityOf(0).Credits += 4000;
         double bid = state.Markets[0].Price[g] * 4;
-        state.LedgerOf(0).Credits -= 300 * bid;
+        state.PolityOf(0).Credits -= 300 * bid;
         OrderOps.PostBuy(state, 0, 1, g, 300, bid, state.WorldYear + 1000);
 
         var scratch = new MarketStepScratch(state);
@@ -380,6 +381,98 @@ public class MarketFreightTests
         Assert.Equal(0.0, corp.Credits, 9);
         Assert.DoesNotContain(state.Orders, o => o.Side == OrderSide.Sell
             && o.PortId == 1 && o.OwnerActorId == actorId);
+    }
+
+    private static Currency AddCurrency(SimState state, int id, double rate)
+    {
+        var cur = new Currency(id, $"C{id}", foundingPolityId: id)
+        { NumeraireRate = rate };
+        state.Currencies.Add(cur);
+        return cur;
+    }
+
+    /// <summary>Task 6b: a corp trader whose wallet cannot cover the whole
+    /// freight run pays exactly what it holds — no overdraft — and every
+    /// counterparty across the SEQUENCED spend (goods seller, tariff collector,
+    /// fuel seller) is credited only what the corp actually paid, never the full
+    /// requested amount. The pre-fix bug settled goods/fuel sellers and the
+    /// tariff collector at full value while the corp's capped debit discarded the
+    /// shortfall, minting money whenever the cap bit. Single active currency
+    /// (rate 1.0) so face value IS numeraire and conservation is exact.</summary>
+    [Fact]
+    public void SpreadRun_CorpCappedByWallet_ConservesAcrossTheWholeSequence()
+    {
+        var state = EpochTestKit.Seeded().State;
+        var a0 = state.Actors[0];          // source-port owner
+        var a1 = state.Actors[1];          // dest-port owner (tariff collector)
+        a0.Entered = true;
+        a1.Entered = true;
+        foreach (var sp in state.Skeleton.Species)
+            sp.Embodiment = Embodiment.TerranAnalog;
+        AddCurrency(state, 0, 1.0);        // the one live currency, numeraire 1:1
+        state.PolityOf(a0.Id).CurrencyId = 0;
+        state.PolityOf(a1.Id).CurrencyId = 0;
+        var pa = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        var pb = new Port(1, a1.Id,
+            new HexCoordinate(a0.Seat.Q + 10, a0.Seat.R), tier: 2, 0);
+        state.Ports.Add(pa);
+        state.Ports.Add(pb);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        state.Markets.Add(new Market(1, state.Config.Economy));
+        EpochTestKit.AddLane(state, 0, 1);
+        int s0 = state.PolityOf(a0.Id).SpeciesId;
+        int s1 = state.PolityOf(a1.Id).SpeciesId;
+        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });
+        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0) { Wealth = 500 });
+        state.WorldYear = 100;
+        int g = (int)GoodId.Provisions;
+
+        // dest polity charges a 10% tariff — the crossing fee that leaked
+        state.Actors[a1.Id].Policies = PolityPolicies.Default with
+        {
+            TariffSchedule = new System.Collections.Generic.Dictionary<int, double>
+            { [g] = 0.10 },
+        };
+
+        // the corp trader on the lane, funded with a SMALL C0 wallet the goods
+        // leg alone will exhaust (a cheap sliver, then a dear wall of asks)
+        int actorId = state.Actors.Count;
+        state.Actors.Add(new Actor(actorId, ActorKind.Corporation,
+            "Capped Line", pa.Hex, 0, new CorporateController(state.Config))
+        { Entered = true });
+        var corp = new Corporation(0, actorId, "Capped Line", a0.Id,
+            CorporateNiche.Freight, pa.Id, 0);
+        state.Corporations.Add(corp);
+        corp.Deposit(state, 50.0, 0);      // wallet = 50 C0, funded into holdings
+        EpochTestKit.PostFreight(state, actorId, laneId: 0, hulls: 6);
+
+        // source book: a tiny cheap ask sets the best-ask/cost estimate low, a
+        // fat dear ask is what the lift actually walks into — so the goods spend
+        // eats the whole 50 wallet, leaving nothing for tariff/fuel
+        EpochTestKit.Stock(state, 0, g, 0.5, 0.6, ask: 2.0);
+        EpochTestKit.Stock(state, 0, g, 1000, 0.6, ask: 50.0);
+        // fuel for sale at the source, dear — the fuel leg that also leaked
+        EpochTestKit.Stock(state, 0, (int)GoodId.Fuel, 100, 0.5, ask: 20.0);
+        // a dear resting bid at the dest pulls the run
+        double bid = 200.0;
+        state.PolityOf(a1.Id).Credits += 200_000;
+        state.PolityOf(a1.Id).Credits -= 500 * bid;
+        OrderOps.PostBuy(state, a1.Id, 1, g, 500, bid, state.WorldYear + 1000);
+
+        double before = Total(state);
+        MarketEngine.MoveFreight(state, new MarketStepScratch(state));
+        double after = Total(state);
+
+        // the run actually happened and the cap actually bit (wallet drained)
+        Assert.True(BookOps.AskQty(state, 0, g) < 1000.5,
+            "the corp should have lifted goods off the source book");
+        Assert.True(corp.Credits <= 0.5,
+            "the goods leg should have drained the corp's small wallet");
+        // no overdraft — a corp never goes below zero
+        Assert.True(corp.Credits >= -1e-9,
+            "the corp must never overdraft (no negative wallet)");
+        // and conservation holds end-to-end: nothing minted by the capped legs
+        Assert.Equal(before, after, System.Math.Max(1.0, before) * 1e-9);
     }
 
     [Fact]

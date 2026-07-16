@@ -67,9 +67,11 @@ public class CharacterCorpPoiPanelTests
         state.Actors.Add(new Actor(corpActorId, ActorKind.Corporation,
             "Vex Combine", default, state.EpochIndex,
             new CorporateController(state.Config)) { Entered = true });
-        state.Corporations.Add(new Corporation(0, corpActorId,
+        var vex = new Corporation(0, corpActorId,
             "Vex Combine", host, CorporateNiche.Freight, 0,
-            state.WorldYear) { Credits = 300 });
+            state.WorldYear);
+        state.Corporations.Add(vex);
+        vex.Deposit(state, 300, 0);   // wallet is the corp's whole balance now
         state.Facilities.Add(new Facility(0,
             (int)InfraTypeId.Depot, 1, default, corpActorId, 0));
         state.Projects.Add(new Project(0,

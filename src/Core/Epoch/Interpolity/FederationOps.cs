@@ -127,6 +127,12 @@ public static class FederationOps
                                              parentB.TechProgress[d]);
         }
         state.Polities.Add(young);
+        // the union mints a brand-new currency before either parent merges in
+        // (slice CU-1 genesis): the two MergeInto calls below force-convert
+        // each parent's balance into THIS fresh currency (two conversions into
+        // a new currency, not one absorption into a pre-existing one), and both
+        // parent currencies retire when their actors do.
+        state.FoundCurrency(newId);
 
         // parent politics dissolve while their treasuries and ports are
         // still theirs (war chests return to their own segments)
@@ -248,10 +254,13 @@ public static class FederationOps
                 || !state.Actors[overlord.ActorId].Entered) continue;
             double tribute = Math.Max(0.0, vassal.Receipts) * share;
             if (tribute <= 0) continue;
-            vassal.Credits -= tribute;
+            // the vassal's own currency leaves, converting into the
+            // overlord's own on arrival (currency-and-FX design) — a no-op
+            // conversion when they share one, or pre-genesis (both -1)
+            vassal.Withdraw(state, tribute, vassal.CurrencyId);
             vassal.Receipts -= tribute;   // the budget base shrinks with it
-            overlord.Credits += tribute;
-            overlord.Receipts += tribute;
+            double banked = overlord.Deposit(state, tribute, vassal.CurrencyId);
+            overlord.Receipts += banked;
             paid++;
         }
         return paid;
@@ -337,7 +346,20 @@ public static class FederationOps
         var into = state.PolityOf(intoId);
 
         foreach (var port in state.Ports)
-            if (port.OwnerActorId == fromId) port.OwnerActorId = intoId;
+            if (port.OwnerActorId == fromId)
+            {
+                // the port's resident households (and any resting order/courier
+                // escrow at its market) now hold and earn the survivor's currency:
+                // force-convert every port-resolved holder at the frozen rate and
+                // record the transfers, so a conquered/absorbed population's wealth
+                // isn't silently re-denominated 1:1 the instant the owner changes
+                // (currency-and-FX design, "Data model"). Factions follow their
+                // PolityId (dissolved by the caller into same-currency segments, or
+                // left attributed to the absorbed polity's own currency), handled
+                // separately from these port-owner-resolved holders.
+                port.OwnerActorId = intoId;
+                state.ConvertPortHoldings(port.Id, from.CurrencyId, into.CurrencyId);
+            }
         foreach (var facility in state.Facilities)
             if (facility.OwnerActorId == fromId) facility.OwnerActorId = intoId;
         // in-flight work follows the merge like its facilities do (owner AND
@@ -352,6 +374,20 @@ public static class FederationOps
             {
                 ProjectOps.Cancel(state, p);
                 continue;
+            }
+            // a ColonyExpedition's in-flight purse (ColonyCost) is resolved LIVE
+            // by SupplyOps through p.FunderActorId's currency; reassigning the
+            // funder re-denominates that purse from the absorbed polity's currency
+            // to the survivor's, so record the transfer at nominal parity (the
+            // forced-conversion absorption stub — the purse is a fixed nominal, not
+            // a converted value) before the funder changes, or it leaks.
+            if (p.Kind == ProjectKind.ColonyExpedition
+                && p.FunderActorId == fromId
+                && from.CurrencyId != into.CurrencyId)
+            {
+                double purse = state.Config.Expansion.ColonyCost;
+                state.RecordConversion(from.CurrencyId, purse,
+                                       into.CurrencyId, purse);
             }
             if (p.OwnerActorId == fromId) p.OwnerActorId = intoId;
             if (p.FunderActorId == fromId) p.FunderActorId = intoId;
@@ -372,18 +408,38 @@ public static class FederationOps
                 fleet.TargetId = -1;
             }
         }
-        into.Credits += from.Credits;
+        // the absorbed treasury force-converts into the survivor's currency
+        // (slice CU-1, currency-and-FX design): a transfer between the two
+        // currencies' supplies via Deposit, never a raw carry-over. An
+        // insolvent parent (negative Credits) hands its debt over converted;
+        // Deposit has no non-positive guard, so the debt is never swallowed.
+        into.Deposit(state, from.Credits, from.CurrencyId);
         from.Credits = 0;
         into.Receipts += from.Receipts;
         from.Receipts = 0;
-        into.ExpansionPoints += from.ExpansionPoints;
+        // the investment pools are the absorbed polity's money in its OWN currency
+        // too (SupplyOps sums them into Currency.Supply), so they force-convert into
+        // the survivor's currency and record the transfer exactly like the treasury
+        // above — a raw 1:1 carry-over would silently re-denominate a whole
+        // treasury's worth of pooled budget at a polity's death (currency-and-FX
+        // design, "Conservation & determinism"). ConvertCurrency is linear, so the
+        // per-pool converts sum to the aggregate recorded out/in.
+        double poolsOut = from.ExpansionPoints + from.DevelopmentPoints
+            + from.MilitaryPoints + from.ReservePoints;
+        double eIn = state.ConvertCurrency(from.ExpansionPoints, from.CurrencyId, into.CurrencyId);
+        double dIn = state.ConvertCurrency(from.DevelopmentPoints, from.CurrencyId, into.CurrencyId);
+        double mIn = state.ConvertCurrency(from.MilitaryPoints, from.CurrencyId, into.CurrencyId);
+        double rIn = state.ConvertCurrency(from.ReservePoints, from.CurrencyId, into.CurrencyId);
+        into.ExpansionPoints += eIn;
         from.ExpansionPoints = 0;
-        into.DevelopmentPoints += from.DevelopmentPoints;
+        into.DevelopmentPoints += dIn;
         from.DevelopmentPoints = 0;
-        into.MilitaryPoints += from.MilitaryPoints;
+        into.MilitaryPoints += mIn;
         from.MilitaryPoints = 0;
-        into.ReservePoints += from.ReservePoints;
+        into.ReservePoints += rIn;
         from.ReservePoints = 0;
+        state.RecordConversion(from.CurrencyId, poolsOut,
+                               into.CurrencyId, eIn + dIn + mIn + rIn);
         into.HullsBuilt += from.HullsBuilt;
         into.HullsWrecked += from.HullsWrecked;
         into.HullsScrapped += from.HullsScrapped;
@@ -408,9 +464,36 @@ public static class FederationOps
             int newLender = lender ? intoId : loan.LenderActorId;
             int newBorrower = borrower ? intoId : loan.BorrowerActorId;
             if (newLender == newBorrower) continue;   // internal debt cancels
+            // A loan denominates in the LENDER's currency for a polity lender,
+            // but in the BORROWER's currency for a corporation lender (design,
+            // "Loans across currencies"; Phases.Borrow/ServiceLoans). Reprice the
+            // principal into the survivor's currency whenever the side that
+            // DENOMINATES the loan is the one being absorbed: a changed
+            // polity-lender, OR a changed borrower under a corp lender. Otherwise
+            // the denominating currency is untouched and the principal carries.
+            // The old code repriced only on a lender change, silently
+            // re-denominating a corp-lent (borrower-denominated) loan 1:1 when its
+            // borrower was absorbed — the exact absorption-time leak this slice
+            // exists to close.
+            bool corpLender = state.CorporationOf(loan.LenderActorId) != null;
+            bool denomChanged = (lender && !corpLender) || (borrower && corpLender);
+            double principal = denomChanged
+                ? state.ConvertCurrency(loan.Principal, from.CurrencyId,
+                                        into.CurrencyId)
+                : loan.Principal;
+            // preserve the capitalization ceiling's fixed reference across the
+            // reissue: scale OriginalPrincipal by the same conversion factor so the
+            // loan keeps its real "2x runway". A bare reissue defaulted
+            // OriginalPrincipal to the current (possibly already-capitalized)
+            // principal, handing every absorbed loan a fresh ceiling at each
+            // absorption — a pre-existing ME follow-up the serializer already
+            // guards against on load (markets v4).
+            double newOriginal = loan.Principal != 0
+                ? loan.OriginalPrincipal * (principal / loan.Principal)
+                : loan.OriginalPrincipal;
             state.Loans.Add(new Loan(state.Loans.Count, newLender, newBorrower,
-                loan.Principal, loan.RatePerYear, loan.TermYears,
-                loan.IssuedYear));
+                principal, loan.RatePerYear, loan.TermYears,
+                loan.IssuedYear, originalPrincipal: newOriginal));
         }
     }
 
@@ -431,6 +514,14 @@ public static class FederationOps
                 rel.VassalSinceYear = -1;
             }
         var pr = state.PolityOf(polityId);
+        // the polity's currency retires with it (slice CU-1): no new money
+        // mints into a dead polity's currency, though the record lives on as
+        // history (and any dangling foreign-held balances resolve through it).
+        // The single death chokepoint — reached from federation fusion (both
+        // parents), vassal absorption, and war submission/annexation — so this
+        // one line retires every absorbed currency, the whole exhaustive list.
+        if (pr.CurrencyId >= 0)
+            state.CurrencyOf(pr.CurrencyId).Retired = true;
         if (pr.Interior is { } interior && interior.RulerCharacterId >= 0)
         {
             var ruler = state.Characters[interior.RulerCharacterId];

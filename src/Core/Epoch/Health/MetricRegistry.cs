@@ -29,7 +29,8 @@ public static class MetricRegistry
 
         // ---- Money (the holder classes — conserved credit stores) ----
         M("Money.ConservationResidual",
-          "supply delta minus known mints — nonzero means an unknown leak",
+          "worst per-currency supply delta minus known mints and net of "
+          + "conversions — nonzero means an unknown leak in some currency",
           r => r.ConservationResidual),
         M("Money.CorpCredits", "corporation treasuries summed",
           r => r.Money.CorpCredits),

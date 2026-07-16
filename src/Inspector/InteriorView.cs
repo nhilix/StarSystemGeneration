@@ -44,6 +44,16 @@ public static class InteriorView
             + Invariant($"open {1 - interior.OfficialIdeology[2]:0.00} · ")
             + Invariant($"sacral {1 - interior.OfficialIdeology[3]:0.00}"));
 
+        // currency (currency-and-FX design, slice CU-1)
+        if (pr.CurrencyId >= 0)
+        {
+            var currency = state.CurrencyOf(pr.CurrencyId);
+            sb.AppendLine(Invariant($"  currency: {currency.Name} #{currency.Id} — ")
+                + Invariant($"rate {currency.NumeraireRate:0.000} numeraire · ")
+                + Invariant($"supply {currency.Supply:0}")
+                + (currency.Retired ? " [retired]" : ""));
+        }
+
         // the reign
         if (interior.RulerCharacterId >= 0)
         {
@@ -198,7 +208,26 @@ public static class InteriorView
                     ? Invariant($"credits {corp.Credits,8:0} · {facilities} facilities · ")
                       + Invariant($"{hulls} hulls · exec {exec}")
                     : Invariant($"[dead, founded {SimTraceView.YearLabel(corp.FoundedYear)}]")));
+            if (corp.Active && corp.Holdings.Count > 0)
+                sb.AppendLine("      holdings: " + Holdings(state, corp));
         }
         return sb.ToString();
+    }
+
+    /// <summary>A corporation's per-currency wallet breakdown (currency-and-FX
+    /// design, slice CU-1) — ascending currency-id order, matching
+    /// <see cref="Corporation.RefreshNumeraire"/>'s deterministic iteration so
+    /// the printed order is stable across runs.</summary>
+    private static string Holdings(SimState state, Corporation corp)
+    {
+        var ids = new List<int>(corp.Holdings.Keys);
+        ids.Sort();
+        var parts = new List<string>();
+        foreach (int id in ids)
+        {
+            string name = state.CurrencyOf(id).Name;
+            parts.Add(Invariant($"{name} {corp.Holdings[id]:0}"));
+        }
+        return string.Join(" · ", parts);
     }
 }

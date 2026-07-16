@@ -349,18 +349,25 @@ public static class ProjectOps
             }
         if (wages > 0 && fraction > 0)
         {
-            SpendTreasury(state, p, wages * fraction);
+            double spent = wages * fraction;
+            SpendTreasury(state, p, spent);
+            // SpendTreasury debited the funder in ITS OWN currency (a polity's
+            // pool) or in the building port's currency (a corp, via DebitLocal at
+            // p.PortId); PayWages credits the households in the PAID port's own
+            // local currency. Convert the wage across that boundary and record the
+            // transfer, so a foreign-port (or a GatePair spanning two currencies)
+            // wage isn't silently re-denominated 1:1 (currency-and-FX design,
+            // "Conversion mechanics" — the omitted construction-wage channel).
+            int fromCur = FunderCurrency(state, p);
             if (p.Kind == ProjectKind.GatePair && p.TargetId >= 0)
             {
                 // the crews split the stream: half to each end's households
                 var lane = state.Lanes[p.TargetId];
-                MarketEngine.PayWages(state, lane.PortAId,
-                                      0.5 * wages * fraction);
-                MarketEngine.PayWages(state, lane.PortBId,
-                                      0.5 * wages * fraction);
+                PayConvertedWages(state, fromCur, lane.PortAId, 0.5 * spent);
+                PayConvertedWages(state, fromCur, lane.PortBId, 0.5 * spent);
             }
             else
-                MarketEngine.PayWages(state, p.PortId, wages * fraction);
+                PayConvertedWages(state, fromCur, p.PortId, spent);
         }
         p.YearsDelivered = Math.Min(p.YearsRequired,
             p.YearsDelivered + fraction * needYears);
@@ -394,7 +401,28 @@ public static class ProjectOps
     internal static void SpendTreasury(SimState state, Project p, double amount)
     {
         var corp = state.CorporationOf(p.FunderActorId);
-        if (corp != null) { corp.Credits -= amount; return; }
+        if (corp != null)
+        {
+            // corporate works stream wages / escrow bids in the building port's
+            // currency — the wallet draws that bucket down, converting when short.
+            // A NEGATIVE amount is a refund (RefundTreasury reverses a bid escrow):
+            // it must CREDIT the wallet back, not draw it — Corporation.Withdraw
+            // no-ops on a non-positive amount (a corp has no overdraft), so routing
+            // a refund through DebitLocal would silently swallow it and destroy the
+            // escrowed credits (a conservation leak). Deposit banks it back
+            // symmetrically, the corp mirror of the polity pool's `-= -amount`.
+            // Safe, not the throwing LocalCurrencyOf: FunderCurrency resolves this
+            // exact same p.PortId/corp-funder lookup with LocalCurrencySafe, and
+            // this call happens first in the chain (line ~321 above FunderCurrency
+            // at ~329) — an unowned port must degrade to the dormant -1 no-op here
+            // too, not throw before FunderCurrency's defensive path is ever reached.
+            int localCurrency = state.LocalCurrencySafe(p.PortId);
+            if (amount >= 0)
+                state.DebitLocal(p.FunderActorId, amount, localCurrency);
+            else
+                state.CreditLocal(p.FunderActorId, -amount, localCurrency);
+            return;
+        }
         var pr = state.PolityOf(p.FunderActorId);
         switch (p.Kind)
         {
@@ -403,6 +431,37 @@ public static class ProjectOps
             case ProjectKind.ColonyExpedition: break;
             default: pr.DevelopmentPoints -= amount; break;
         }
+    }
+
+    /// <summary>The currency a project's funder is debited in when it spends
+    /// its treasury: a polity spends its own single currency (pool debits are in
+    /// <see cref="PolityRecord.CurrencyId"/>); a corporation's
+    /// <see cref="SpendTreasury"/> draws its wallet down in the project HOME
+    /// port's currency (<c>DebitLocal</c> at <c>p.PortId</c>). The build-market
+    /// bid escrow and the construction wages may be denominated in a DIFFERENT
+    /// currency (a foreign build port, or a GatePair end in another polity) —
+    /// this is the boundary those conversion sites convert across so the funder's
+    /// debit and the market-currency credit/escrow don't re-denominate 1:1.</summary>
+    internal static int FunderCurrency(SimState state, Project p) =>
+        state.CorporationOf(p.FunderActorId) != null
+            ? state.LocalCurrencySafe(p.PortId)
+            : state.PolityOf(p.FunderActorId).CurrencyId;
+
+    /// <summary>Pay <paramref name="amount"/> of construction wages — debited
+    /// from the funder in <paramref name="fromCur"/> — into the building port's
+    /// households, converting across the currency boundary at the frozen rate and
+    /// recording the transfer before crediting (a conversion is a transfer, not a
+    /// mint), so the per-currency conservation residual nets it out. Same-currency
+    /// (or an unowned port, id −1) degrades to the dormant 1:1 no-op; PayWages then
+    /// credits the households in the port's own local currency.</summary>
+    private static void PayConvertedWages(SimState state, int fromCur,
+                                          int portId, double amount)
+    {
+        if (amount <= 0) return;
+        int toCur = state.LocalCurrencySafe(portId);
+        double credit = state.ConvertCurrency(amount, fromCur, toCur);
+        state.RecordConversion(fromCur, amount, toCur, credit);
+        MarketEngine.PayWages(state, portId, credit);
     }
 
     /// <summary>Return unspent bid escrow to the pool it came from — the
@@ -667,6 +726,19 @@ public static class ProjectOps
     /// feeding it.</summary>
     public static void Cancel(SimState state, Project p)
     {
+        // a colony convoy carries its founding purse (ColonyCost, charged from the
+        // funder's expansion pool at dispatch and counted in-flight by SupplyOps in
+        // the funder's currency): cancelling turns the convoy back, so the purse
+        // returns to the funder's pool rather than vanishing (P4 — credits are
+        // never destroyed; the same recycle the turn-back path in CompleteExpedition
+        // already does). Without this the per-currency residual prints a real sink
+        // (currency-and-FX conservation). Refund BEFORE flipping Cancelled, while
+        // the expedition still reads in-flight.
+        if (p.Kind == ProjectKind.ColonyExpedition && p.InFlight)
+        {
+            var funder = state.PolityOf(p.FunderActorId);
+            funder.ExpansionPoints += state.Config.Expansion.ColonyCost;
+        }
         p.Cancelled = true;
         // the laydown yard doesn't evaporate (P4): abandoned materials bank
         // in the site port's larder — salvage goes to whoever holds the

@@ -230,8 +230,12 @@ public static class WarResolution
                 var loserRecord = state.PolityOf(war.DefenderId);
                 reparations = Math.Max(0.0, loserRecord.Credits)
                               * knobs.ReparationsShare;
-                loserRecord.Credits -= reparations;
-                state.PolityOf(war.AttackerId).Credits += reparations;
+                // the loser's own currency leaves, converting into the
+                // victor's own on arrival (currency-and-FX design) — a
+                // no-op conversion when they share one, or pre-genesis
+                loserRecord.Withdraw(state, reparations, loserRecord.CurrencyId);
+                state.PolityOf(war.AttackerId)
+                    .Deposit(state, reparations, loserRecord.CurrencyId);
             }
             if (outcome == WarOutcome.Vassalized && relation != null)
                 FederationOps.Bind(state, relation, war.DefenderId);

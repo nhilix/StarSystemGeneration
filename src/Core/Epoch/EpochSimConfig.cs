@@ -865,6 +865,19 @@ public sealed class EconomyKnobs
     /// principal has doubled from its issued size is written off.</summary>
     public double LoanCapitalizationCeiling { get; set; } = 2.0;
 
+    // -- FX (slice CU-1: per-polity currencies) --
+    /// <summary>How sharply a currency's numeraire rate reacts to its
+    /// supply-over-output density — higher means a given money-supply glut (or
+    /// output slump) weakens the currency more. Read by <see cref="FxOps"/>'s
+    /// once-per-epoch rate recompute (rate = 1 / (1 + FxSensitivity × density));
+    /// 0 pins every rate at parity. Tuned against the committed sweep like every
+    /// other dial, not hand-picked.</summary>
+    public double FxSensitivity { get; set; } = 1.0;
+    /// <summary>Floor applied to a currency's real receipts in the FX-rate
+    /// denominator (<see cref="FxOps"/>), so a freshly split polity with
+    /// near-zero receipts neither divides by zero nor blows its rate up.</summary>
+    public double FxReceiptsFloor { get; set; } = 1.0;
+
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites
     /// (subsistence households untouched).</summary>

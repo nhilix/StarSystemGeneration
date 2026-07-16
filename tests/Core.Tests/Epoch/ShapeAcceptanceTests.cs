@@ -72,43 +72,31 @@ public class ShapeAcceptanceTests
     [InlineData(1234ul)]
     public void FortyEpochs_CreditsConserveToTheMint(ulong seed)
     {
+        // Per-currency conservation (currency-and-FX design, "Conservation &
+        // determinism"). With real FX rates live, the old single lump sum of NATIVE
+        // credits across currencies is no longer a conserved quantity — a recorded
+        // conversion legitimately changes the native sum (X of A ↔ X·rate of B), so
+        // MetricsOps.Money.Supply is now an informative display figure, not the
+        // invariant. The invariant is N per-currency residuals, each zero on a real
+        // history: every Currency grows only through its own declared mints
+        // (sovereign + steady issuance INTO it) and every cross-currency move is a
+        // transfer that nets across the CumulativeConvertedIn/Out pair. This is the
+        // same bar the dedicated ConservationTests hold on seed 42 — checked here
+        // across the full acceptance sweep (seeds 42/7/1234, radius 10).
         var state = Run(seed);
-        var eco = state.Config.Economy;
-        // the mint fires once per schedule emergence — schism states (slice
-        // G) split existing ledgers instead of minting
-        double minted = 0;
-        foreach (var e in state.Log.Events)
-            if (e.Type == StarGen.Core.Epoch.WorldEventType.PolityEmerged)
-                minted += eco.InitialCreditsPerPolity
-                          + state.Config.Expansion.HomeworldSegmentSize
-                            * eco.InitialWealthPerPop;
-        // slice ME §5: bounded sovereign issuance is the second declared mint —
-        // the running total is minted credit, held somewhere in the economy
-        minted += state.CumulativeFiatIssued;
-        // Part B: the always-on steady issuance channel is the third declared
-        // mint — its running total is likewise minted credit held in the economy
-        minted += state.CumulativeSteadyIssuance;
-        double held = 0;
-        foreach (var p in state.Polities)
-            held += p.Credits + p.ExpansionPoints + p.DevelopmentPoints
-                    + p.MilitaryPoints + p.ReservePoints;
-        foreach (var s in state.Segments)
-            held += s.Wealth;
-        foreach (var f in state.Factions)
-            held += f.Wealth;   // appeasement is a flow, not a sink (slice G)
-        foreach (var c in state.Corporations)
-            held += c.Credits;  // corporate books are conserved too (slice G)
-        // a colony expedition in flight carries the settlers' stake between
-        // treasuries: ExpansionPoints was charged at dispatch, the colony
-        // segment's Wealth is minted only on arrival (Task 9 — founding runs
-        // in world-time), so the in-transit ColonyCost is held by the voyage
-        foreach (var p in state.Projects)
-            if (p.InFlight && p.Kind == StarGen.Core.Epoch.ProjectKind.ColonyExpedition)
-                held += state.Config.Expansion.ColonyCost;
-        // courier fees are escrowed credits in flight (slice CE)
-        foreach (var c in state.Couriers)
-            held += c.FeeEscrow;
-        Assert.True(minted > 0);
-        Assert.Equal(minted, held, minted * 1e-9);
+        Assert.True(state.Health.Rows.Count >= 10, "history too short");
+        for (int i = 1; i < state.Health.Rows.Count; i++)
+        {
+            var row = state.Health.Rows[i];
+            foreach (var cur in row.Currencies)
+            {
+                double scale = System.Math.Max(1.0, System.Math.Abs(cur.Supply));
+                Assert.True(
+                    System.Math.Abs(cur.Residual) <= 1.3e-9 * scale,
+                    $"seed {seed} epoch {row.Epoch} currency {cur.CurrencyId}: "
+                    + $"residual {cur.Residual:G6} on supply {cur.Supply:G6} — "
+                    + "an unknown mint or leak in this currency");
+            }
+        }
     }
 }

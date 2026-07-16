@@ -106,8 +106,11 @@ public static class GraduationOps
         string name = state.Cultures[cultureId].Name;
         var young = FoundSplinter(state, old, seceding, name,
                                   species.Militancy);
-        // the movement's war chest founds the treasury (conserved flow)
-        young.Credits += faction.Wealth;
+        // the movement's war chest founds the treasury (conserved flow):
+        // it was raised in the OLD polity's currency, converting into the
+        // child's own on arrival (currency-and-FX design) — a no-op
+        // conversion when they share one, or pre-genesis (both -1)
+        young.Deposit(state, faction.Wealth, old.CurrencyId);
         faction.Wealth = 0;
 
         // the interior: popular line of its own segments, form reseated,
@@ -178,6 +181,12 @@ public static class GraduationOps
             young.TechProgress[d] = old.TechProgress[d];
         }
         state.Polities.Add(young);
+        // the splinter mints its own currency the instant it exists (slice
+        // CU-1 genesis) — SeedTreasury below force-converts the parent's
+        // population share into it, so it must be concrete first. This one
+        // site serves every realm split: schisms AND civil-war loyalist
+        // provisional polities (CivilWarOps reuses FoundSplinter).
+        state.FoundCurrency(newId);
 
         // people decide the split fraction; every ledger moves by it (P4)
         double totalPop = 0, secededPop = 0;
@@ -189,21 +198,43 @@ public static class GraduationOps
             if (seceding.Contains(s.PortId)) secededPop += s.Size;
         }
         double share = totalPop > 0 ? secededPop / totalPop : 0.5;
-        young.Credits = old.Credits * share;
-        old.Credits -= young.Credits;
-        young.ExpansionPoints = old.ExpansionPoints * share;
-        old.ExpansionPoints -= young.ExpansionPoints;
-        young.DevelopmentPoints = old.DevelopmentPoints * share;
-        old.DevelopmentPoints -= young.DevelopmentPoints;
-        young.MilitaryPoints = old.MilitaryPoints * share;
-        old.MilitaryPoints -= young.MilitaryPoints;
-        young.ReservePoints = old.ReservePoints * share;
-        old.ReservePoints -= young.ReservePoints;
+        SeedTreasury(state, old, young, share);
+        // the child's pool share is the parent's money in the PARENT's currency;
+        // it force-converts into the child's brand-new currency and records the
+        // transfer, exactly like SeedTreasury's treasury leg — a raw 1:1 split
+        // would silently re-denominate the seceding share of every pool
+        // (currency-and-FX design, "Conservation & determinism"). ConvertCurrency
+        // is linear, so the per-pool converts sum to the aggregate recorded out/in.
+        double eMove = old.ExpansionPoints * share;
+        double dMove = old.DevelopmentPoints * share;
+        double mMove = old.MilitaryPoints * share;
+        double rMove = old.ReservePoints * share;
+        young.ExpansionPoints = state.ConvertCurrency(eMove, old.CurrencyId, young.CurrencyId);
+        old.ExpansionPoints -= eMove;
+        young.DevelopmentPoints = state.ConvertCurrency(dMove, old.CurrencyId, young.CurrencyId);
+        old.DevelopmentPoints -= dMove;
+        young.MilitaryPoints = state.ConvertCurrency(mMove, old.CurrencyId, young.CurrencyId);
+        old.MilitaryPoints -= mMove;
+        young.ReservePoints = state.ConvertCurrency(rMove, old.CurrencyId, young.CurrencyId);
+        old.ReservePoints -= rMove;
+        state.RecordConversion(old.CurrencyId, eMove + dMove + mMove + rMove,
+            young.CurrencyId, young.ExpansionPoints + young.DevelopmentPoints
+                + young.MilitaryPoints + young.ReservePoints);
         // located stockpiles need no split (spec §4b): the seceding ports
         // change owner below and carry their own banked stock with them
 
         foreach (var port in state.Ports)
-            if (seceding.Contains(port.Id)) port.OwnerActorId = newId;
+            if (seceding.Contains(port.Id))
+            {
+                // the seceding port's households (and any resting order/courier
+                // escrow at its market) now hold and earn the splinter's brand-new
+                // currency: force-convert every port-resolved holder at the frozen
+                // rate and record the transfers, so nothing is silently
+                // re-denominated 1:1 at secession (currency-and-FX design, "Data
+                // model"). Shared by schisms AND civil-war loyalist provisionals.
+                port.OwnerActorId = newId;
+                state.ConvertPortHoldings(port.Id, old.CurrencyId, young.CurrencyId);
+            }
         foreach (var facility in state.Facilities)
             if (facility.OwnerActorId == old.ActorId
                 && seceding.Contains(MarketEngine.AttachedMarketIndex(state, facility)))
@@ -222,6 +253,29 @@ public static class GraduationOps
         young.HullsBuilt += hullsMoved;
         DesignRegistry.RegisterEntryDesigns(state, newId, militancy);
         return young;
+    }
+
+    /// <summary>Seed the new polity's treasury with its population share of
+    /// the parent's (slice CU-1 task 5, currency-and-FX design): the
+    /// transfer leaves the parent's currency and lands converted into the
+    /// child's own — one <see cref="SimState.ConvertCurrency"/> call via
+    /// <see cref="PolityRecord.Deposit"/>. Assumes the child's
+    /// <see cref="Currency"/> already exists by the time this runs (task 6's
+    /// genesis wiring establishes that ordering for graduation); pre-genesis
+    /// (both sides' <see cref="PolityRecord.CurrencyId"/> still −1) this is
+    /// byte-identical to a raw same-currency split. Uses <c>Deposit</c> on
+    /// BOTH legs, never <c>Withdraw</c>: an insolvent parent's share is
+    /// negative (the existing "goes negative, no cap" convention), and
+    /// <see cref="PolityRecord.Withdraw"/> silently no-ops on a
+    /// non-positive amount — which would leave the debt uncharged on the
+    /// parent while still crediting (or debiting) the child, breaking
+    /// conservation. Depositing the negated transfer has no such guard.</summary>
+    public static void SeedTreasury(SimState state, PolityRecord old,
+                                    PolityRecord young, double share)
+    {
+        double transfer = old.Credits * share;
+        old.Deposit(state, -transfer, old.CurrencyId);   // own currency, no guard
+        young.Deposit(state, transfer, old.CurrencyId);  // converts if currencies differ
     }
 
     /// <summary>Which domains walk: frontier ports for a regional schism,

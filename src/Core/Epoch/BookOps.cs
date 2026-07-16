@@ -57,10 +57,12 @@ public static class BookOps
 
     /// <summary>Buy up to qty off the port's asks, cheapest first, within
     /// the budget — the immediate-consumption path (recipe inputs, upkeep,
-    /// a fleet provisioning). Sellers are paid at their ask and settled
-    /// (tax, wages) like any fill; the caller owns debiting the buyer for
-    /// the returned cost. Returns what was drawn, its blended grade, and
-    /// what it cost.</summary>
+    /// a fleet provisioning). Sellers are settled through <see cref="OrderOps.
+    /// SettleSale"/> like any fill (tax and wages stay local, the seller's net
+    /// converts into their own currency); the caller owns debiting the buyer for
+    /// the returned cost — which is in the port's LOCAL currency, so a foreign
+    /// buyer converts it before paying (design §1). Returns what was drawn, its
+    /// blended grade, and what it cost.</summary>
     public static (double Drawn, double Grade, double Cost) LiftAsks(
         SimState state, int portId, int good, double qty, double budget)
     {
@@ -76,9 +78,8 @@ public static class BookOps
                                                  // beyond the budget
             double paid = take * o.LimitPrice;
             o.QtyRemaining -= take;
-            var seller = state.LedgerOf(o.OwnerActorId);
-            seller.Credits += paid;
-            seller.Receipts += paid;
+            // SettleSale credits the seller their net (converted to their own
+            // currency) — the gross no longer lands then gets clawed back
             OrderOps.SettleSale(state, portId, o.OwnerActorId, paid);
             state.Markets[portId].LastCleared[good] += take;
             drawn += take;

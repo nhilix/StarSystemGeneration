@@ -43,6 +43,10 @@ public sealed class SimState
     public List<Actor> Actors { get; } = new List<Actor>();
     /// <summary>Polity-specific state beside the actor substrate, actor-id order.</summary>
     public List<PolityRecord> Polities { get; } = new List<PolityRecord>();
+    /// <summary>The currencies in circulation (slice CU-1) — one per living
+    /// polity, id order (P6). Retired currencies stay as history. Empty until
+    /// genesis wiring mints them (a later task).</summary>
+    public List<Currency> Currencies { get; } = new List<Currency>();
     /// <summary>The keystone registry: political geography derives from it.</summary>
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
@@ -166,6 +170,204 @@ public sealed class SimState
         foreach (var r in Relations)
             if (r.PolityAId == a && r.PolityBId == b) return r;
         return null;
+    }
+
+    /// <summary>The currency record for an id (registry is id-ordered and
+    /// dense once genesis mints them; a scan covers any later interleaving).</summary>
+    public Currency CurrencyOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Currencies.Count
+            && Currencies[currencyId].Id == currencyId)
+            return Currencies[currencyId];
+        foreach (var cur in Currencies)
+            if (cur.Id == currencyId) return cur;
+        throw new KeyNotFoundException($"no currency {currencyId}");
+    }
+
+    /// <summary>The numeraire rate of a currency id, defaulting to the dormant 1:1
+    /// rate (1.0) for the pre-genesis sentinel (id &lt; 0) or any id not yet in the
+    /// registry — the same "no rate exists, treat as 1:1" convention
+    /// <see cref="ConvertCurrency"/> applies to an unwired id. Lets a numeraire
+    /// read (a corporation's wallet total) stay well-defined in the dormant
+    /// single-currency world before genesis mints the currency table, without the
+    /// throwing <see cref="CurrencyOf"/> lookup. In a live post-genesis run every
+    /// held currency is registered, so this is byte-identical to the direct rate.</summary>
+    public double NumeraireRateOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Currencies.Count
+            && Currencies[currencyId].Id == currencyId)
+            return Currencies[currencyId].NumeraireRate;
+        foreach (var cur in Currencies)
+            if (cur.Id == currencyId) return cur.NumeraireRate;
+        return 1.0;
+    }
+
+    /// <summary>Mint a brand-new currency for a freshly founded polity and assign
+    /// it as that polity's own (slice CU-1 genesis). The single chokepoint every
+    /// polity-creation path routes through — entry (<c>InteriorPhase</c>),
+    /// graduation splits (<c>GraduationOps.FoundSplinter</c>, so schisms and civil
+    /// wars alike), and federation fusion (<c>FederationOps.Federate</c>). Registry
+    /// id = list index (dense, id order P6); the currency starts at
+    /// <see cref="Currency.NumeraireRate"/> = 1.0 and is recomputed next epoch by
+    /// <see cref="FxOps"/>. Named after the polity for the REPL/inspection surface;
+    /// the id, not the name, is the key. Must run before anything converts money
+    /// against the new polity's currency (e.g. before a splinter's
+    /// <see cref="GraduationOps.SeedTreasury"/>).</summary>
+    public Currency FoundCurrency(int polityId)
+    {
+        var pr = PolityOf(polityId);
+        int id = Currencies.Count;
+        var currency = new Currency(id, Actors[polityId].Name, polityId);
+        Currencies.Add(currency);
+        pr.CurrencyId = id;
+        return currency;
+    }
+
+    /// <summary>The one shared FX primitive (currency-and-FX design): value of
+    /// <paramref name="amount"/> of <paramref name="fromCurrencyId"/> expressed
+    /// in <paramref name="toCurrencyId"/>, via the numeraire ratio. A conversion
+    /// is a transfer between two currencies' supplies, not a mint — the
+    /// per-currency conserved-transfer counters
+    /// (<see cref="Currency.CumulativeConvertedIn"/>/<c>Out</c>) are wired by
+    /// the conversion-integration and conservation tasks; this slice keeps the
+    /// primitive pure arithmetic so the ledger draw-down can use it.</summary>
+    public double ConvertCurrency(double amount, int fromCurrencyId, int toCurrencyId)
+    {
+        if (fromCurrencyId == toCurrencyId) return amount;
+        // pre-genesis sentinel on either side (a not-yet-minted or a loaded-but-
+        // not-yet-deserialized currency, task 10): no rate exists, so a transfer
+        // touching it is dormant 1:1 — the single-currency era, byte-identical to
+        // the old raw path. RecordConversion likewise no-ops on a negative id, so
+        // the pair stays consistent. Once BOTH sides are real, FX applies.
+        if (fromCurrencyId < 0 || toCurrencyId < 0) return amount;
+        var from = CurrencyOf(fromCurrencyId);
+        var to = CurrencyOf(toCurrencyId);
+        return amount * from.NumeraireRate / to.NumeraireRate;
+    }
+
+    /// <summary>Record a cross-currency transfer between two currencies' supplies
+    /// (design "Conservation &amp; determinism": a conversion is a transfer, never
+    /// a mint) — <paramref name="outAmount"/> of <paramref name="fromCurrencyId"/>
+    /// leaves circulation and <paramref name="inAmount"/> of
+    /// <paramref name="toCurrencyId"/> enters, tracked by the paired
+    /// <see cref="Currency.CumulativeConvertedOut"/>/<c>In</c> counters so the
+    /// per-currency residual nets it out. Amounts are each in their OWN currency's
+    /// units (the conversion direction, not the arithmetic direction, decides which
+    /// side is out vs in). A no-op when the currencies match or either side is
+    /// unwired (id &lt; 0, i.e. pre-genesis) — the single-currency world records
+    /// nothing.</summary>
+    public void RecordConversion(int fromCurrencyId, double outAmount,
+                                 int toCurrencyId, double inAmount)
+    {
+        if (fromCurrencyId == toCurrencyId
+            || fromCurrencyId < 0 || toCurrencyId < 0) return;
+        CurrencyOf(fromCurrencyId).CumulativeConvertedOut += outAmount;
+        CurrencyOf(toCurrencyId).CumulativeConvertedIn += inAmount;
+    }
+
+    /// <summary>The currency a port's market is denominated in — the port-owning
+    /// polity's <see cref="PolityRecord.CurrencyId"/>. Every price, bid, ask, and
+    /// escrow at that port is in this currency. −1 before genesis wires currencies
+    /// (the dormant single-currency world), which every conversion site treats as
+    /// "no conversion".</summary>
+    public int LocalCurrencyOf(int portId) =>
+        PolityOf(Ports[portId].OwnerActorId).CurrencyId;
+
+    /// <summary>The currency a port's market is denominated in, or −1 when the
+    /// port sits unowned (no live-polity owner) or the id is out of range — the
+    /// non-throwing counterpart to <see cref="LocalCurrencyOf"/>. The
+    /// ownership-change and migration conversion sites use this so a transfer
+    /// touching an unowned port degrades to the dormant 1:1 path (which
+    /// <see cref="ConvertCurrency"/>/<see cref="RecordConversion"/> both treat as
+    /// a no-op) rather than throwing — matching how the conservation walk
+    /// (<c>SupplyOps</c>) resolves the same wealth to −1.</summary>
+    public int LocalCurrencySafe(int portId)
+    {
+        if (portId < 0 || portId >= Ports.Count) return -1;
+        int owner = Ports[portId].OwnerActorId;
+        if (owner < 0) return -1;
+        if (owner < Polities.Count && Polities[owner].ActorId == owner)
+            return Polities[owner].CurrencyId;
+        foreach (var p in Polities)
+            if (p.ActorId == owner) return p.CurrencyId;
+        return -1;
+    }
+
+    /// <summary>Credit <paramref name="amount"/> of a market's local currency
+    /// (<paramref name="localCurrencyId"/>) to an earner, converting into the
+    /// earner's own currency where it differs (a polity) or banking the local
+    /// currency unconverted (a corporation), and recording the transfer. Returns
+    /// the amount banked in the earner ledger's own denomination, for a
+    /// Receipts mirror. Pre-genesis (<paramref name="localCurrencyId"/> &lt; 0)
+    /// this is the old raw single-currency credit — byte-identical, and it keeps a
+    /// corporation's empty <see cref="Corporation.Holdings"/> off the (nonexistent)
+    /// currency table.</summary>
+    public double CreditLocal(int earnerActorId, double amount, int localCurrencyId)
+    {
+        // Deposit handles every case, including the pre-genesis sentinel
+        // (localCurrencyId < 0): a polity banks it raw same-currency, a corporation
+        // banks it into the matching wallet bucket with the dormant 1:1 numeraire
+        // rate (SimState.NumeraireRateOf). Genesis now wires a currency to every
+        // polity before any market/courier/corp activity, so a live run only ever
+        // passes a real (>= 0) id here; the sentinel path survives for pre-genesis
+        // unit states. The transitional raw-Credits bridge is gone (task 7).
+        return LedgerOf(earnerActorId).Deposit(this, amount, localCurrencyId);
+    }
+
+    /// <summary>Debit enough of a payer's ledger to provide <paramref name="amount"/>
+    /// of a market's local currency (<paramref name="localCurrencyId"/>), converting
+    /// out of the payer's own currency (a polity, which may go negative) or drawing
+    /// the wallet down (a corporation, which caps at what it holds), and recording
+    /// the transfer. Returns the amount actually provided in local-currency terms.
+    /// Pre-genesis (<paramref name="localCurrencyId"/> &lt; 0) this is the old raw
+    /// single-currency debit — byte-identical.</summary>
+    public double DebitLocal(int payerActorId, double amount, int localCurrencyId)
+    {
+        // Withdraw handles every case, including the pre-genesis sentinel
+        // (localCurrencyId < 0): a polity pays raw same-currency (and may go
+        // negative), a corporation draws its wallet down with the dormant 1:1 rate.
+        // See CreditLocal above — a live run only ever passes a real id.
+        return LedgerOf(payerActorId).Withdraw(this, amount, localCurrencyId);
+    }
+
+    /// <summary>Force-convert every port-resolved money holder at a port whose
+    /// owner is changing — resident <see cref="PopulationSegment.Wealth"/> AND any
+    /// resting buy-order escrow (<see cref="MarketOrder.EscrowCredits"/>) or courier
+    /// fee escrow (<see cref="Courier.FeeEscrow"/>) denominated in that port's
+    /// market currency — from the old owner's currency into the new owner's,
+    /// recording each transfer. <c>SupplyOps</c> resolves ALL of these by the port's
+    /// current owner-currency, so a bare owner swap re-denominates them 1:1 and
+    /// leaks per-currency conservation; this is the shared conversion the three
+    /// ownership-change seams (federation/absorption, war capture, secession) apply
+    /// at the moment of transfer (currency-and-FX design, "Data model" /
+    /// "Conservation &amp; determinism"). A same-currency change, or an unwired side
+    /// (id &lt; 0), is a no-op via <see cref="ConvertCurrency"/>/<see cref="RecordConversion"/>.</summary>
+    public void ConvertPortHoldings(int portId, int fromCurrencyId, int toCurrencyId)
+    {
+        if (fromCurrencyId == toCurrencyId) return;
+        foreach (var s in Segments)                           // id order (P6)
+            if (s.PortId == portId && s.Wealth != 0)
+            {
+                double c = ConvertCurrency(s.Wealth, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, s.Wealth, toCurrencyId, c);
+                s.Wealth = c;
+            }
+        foreach (var o in Orders)                             // id order (P6)
+            if (o.PortId == portId && o.EscrowCredits != 0)
+            {
+                double c = ConvertCurrency(o.EscrowCredits, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, o.EscrowCredits, toCurrencyId, c);
+                o.EscrowCredits = c;
+            }
+        foreach (var cr in Couriers)                          // id order (P6)
+            if ((cr.Status == CourierStatus.Open
+                 || cr.Status == CourierStatus.InTransit)
+                && cr.OriginPortId == portId && cr.FeeEscrow != 0)
+            {
+                double c = ConvertCurrency(cr.FeeEscrow, fromCurrencyId, toCurrencyId);
+                RecordConversion(fromCurrencyId, cr.FeeEscrow, toCurrencyId, c);
+                cr.FeeEscrow = c;
+            }
     }
 
     /// <summary>The corporation record behind an actor id, or null.</summary>

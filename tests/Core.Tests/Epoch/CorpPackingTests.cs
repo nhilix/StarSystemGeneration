@@ -29,8 +29,9 @@ public class CorpPackingTests
         var corp = new Corporation(0, actor.Id, "Hollow Combine",
             hostPolityId: host.Id, CorporateNiche.Extraction,
             homePortId: 0, foundedYear: 0)
-        { Credits = 1e6, LastIncomePerYear = 0 };
+        { LastIncomePerYear = 0 };
         state.Corporations.Add(corp);
+        corp.Deposit(state, 1e6, 0);   // wallet is the corp's whole balance now
 
         int Funded()
         {
@@ -63,7 +64,7 @@ public class CorpPackingTests
         Assert.Equal(2, Funded());
 
         // a broke corp with no income packs nothing new
-        corp.Credits = 0;
+        corp.Withdraw(state, corp.Credits, 0);   // drain the wallet to zero
         corp.LastIncomePerYear = 0;
         int before = Funded();
         Cycle();

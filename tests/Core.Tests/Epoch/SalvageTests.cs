@@ -50,8 +50,9 @@ public class SalvageTests
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId,
             "Test Salvors", hostId, CorporateNiche.Salvage, homePort, 0)
-        { Credits = 100, TargetId = poiId };
+        { TargetId = poiId };
         state.Corporations.Add(corp);
+        corp.Deposit(state, 100, 0);   // wallet is the corp's whole balance now
         return corp;
     }
 

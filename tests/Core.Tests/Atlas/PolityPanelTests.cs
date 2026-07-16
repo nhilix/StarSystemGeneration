@@ -138,9 +138,10 @@ public class PolityPanelTests
             Strength = 0.5, Grievance = 0.2, Militancy = 0.1,
             Wealth = 30, LeaderCharacterId = leader.Id,
         });
-        state.Corporations.Add(new Corporation(0, 99, "Vex Combine",
-            actor.Id, CorporateNiche.Freight, 0, state.WorldYear)
-        { Credits = 500 });
+        var vex = new Corporation(0, 99, "Vex Combine",
+            actor.Id, CorporateNiche.Freight, 0, state.WorldYear);
+        state.Corporations.Add(vex);
+        vex.Deposit(state, 500, 0);
 
         var card = PolityPanel.Card(new AtlasReadModel(state),
             EyeContext.God(state.WorldYear), actor.Id)!;

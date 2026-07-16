@@ -137,13 +137,28 @@ public class CivilWarTests
             new[] { 0.5, 0.5, 0.5, 0.5 }, GovernmentFormId.Autocracy, 0.6));
     }
 
+    // Numeraire-weighted money total (currency-and-FX design): a contested coup
+    // founds the loyalist provisional through the schism splinter flow, minting it
+    // a brand-new currency and force-converting the seceding ports' treasury,
+    // pools, and resident segment wealth into it — a recorded transfer that changes
+    // the NATIVE sum across currencies but preserves the numeraire VALUE (a
+    // conversion scales by rateA/rateB, so amount·rate is invariant).
     private static double Credits(SimState state)
     {
         double sum = 0;
-        foreach (var p in state.Polities) sum += p.Credits;
-        foreach (var c in state.Corporations) sum += c.Credits;
-        foreach (var s in state.Segments) sum += s.Wealth;
-        foreach (var f in state.Factions) sum += f.Wealth;
+        foreach (var p in state.Polities)
+            sum += p.Credits * state.NumeraireRateOf(p.CurrencyId);
+        foreach (var c in state.Corporations)
+            sum += c.Credits;   // already numeraire (wallet total)
+        foreach (var s in state.Segments)
+            sum += s.Wealth * state.NumeraireRateOf(state.LocalCurrencySafe(s.PortId));
+        foreach (var f in state.Factions)
+        {
+            int cur = -1;
+            foreach (var p in state.Polities)
+                if (p.ActorId == f.PolityId) { cur = p.CurrencyId; break; }
+            sum += f.Wealth * state.NumeraireRateOf(cur);
+        }
         return sum;
     }
 }

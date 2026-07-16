@@ -254,7 +254,6 @@ public static class MarketEngine
         // inputs are bought on working capital: the owner's ledger may dip
         // within the step — sales land as its own sell orders' fills, and
         // insolvency is Allocation's credit problem
-        var owner = state.LedgerOf(f.OwnerActorId);
         double costPerUnit = 0;
         foreach (var q in pick.Inputs)
             costPerUnit += q.Quantity * market.Price[(int)q.Good];
@@ -263,13 +262,26 @@ public static class MarketEngine
         // working capital does not fund value destruction
         if (market.Price[(int)pick.Output] <= costPerUnit) return;
         double qty = pickQty;
+        // a CORP owner fronts inputs from its own wallet and has no overdraft
+        // (unlike a polity, whose ledger may dip): bound the run to what it can
+        // actually pay, so its input sellers — settled in full inside LiftAsks —
+        // are never paid past the corp's holdings while its capped debit
+        // silently keeps the shortfall (that mints money). Inputs and output
+        // scale together off this bounded qty, so goods conserve too. Matches
+        // the freight spread run's own affordability clamp.
+        if (state.CorporationOf(f.OwnerActorId) is { } prodCorp)
+            qty = Math.Min(qty, Math.Max(0.0, prodCorp.Credits)
+                                / Math.Max(1e-9, costPerUnit));
+        if (qty <= 1e-9) return;
 
         double gradeSum = 0, weightSum = 0;
         foreach (var q in pick.Inputs)
         {
             var (_, grade0, cost0) = BookOps.LiftAsks(state, mIx,
                 (int)q.Good, qty * q.Quantity, budget: double.MaxValue);
-            owner.Credits -= cost0;
+            // the input cost is in the attached market's local currency — a
+            // foreign owner (a cross-border corp) draws it down, converting
+            state.DebitLocal(f.OwnerActorId, cost0, state.LocalCurrencyOf(mIx));
             gradeSum += grade0 * q.Quantity;
             weightSum += q.Quantity;
         }
@@ -483,11 +495,27 @@ public static class MarketEngine
                     if (want <= 1e-9) continue;
                     double bid = Math.Max(eco.PriceFloor,
                         market.Price[g] * eco.ProjectBidPremium);
-                    // the treasury escrows the bid — goods cost money now
+                    // the treasury escrows the bid — goods cost money now. The bid
+                    // (and the resting escrow it becomes) is in the BUILD MARKET's
+                    // currency, but SpendTreasury debits the funder in ITS currency
+                    // (a polity's pool, or a corp's home-port wallet). For a foreign
+                    // build port — or a GatePair end in another polity — those
+                    // differ, so convert across the boundary and record the transfer
+                    // (order entry, currency-and-FX design §1): a raw 1:1 escrow
+                    // would silently re-denominate the funder's spend into the
+                    // market's currency. The affordability bound converts the pool
+                    // into market terms so the escrow never outruns the debit.
+                    int endCur = state.LocalCurrencySafe(end);
+                    int funderCur = ProjectOps.FunderCurrency(state, p);
                     double affordable = ProjectOps.TreasuryAvailable(state, p);
-                    double qty = Math.Min(want, affordable / bid);
+                    double affordableInMarket = state.ConvertCurrency(
+                        affordable, funderCur, endCur);
+                    double qty = Math.Min(want, affordableInMarket / bid);
                     if (qty <= 1e-9) continue;
-                    ProjectOps.SpendTreasury(state, p, qty * bid);
+                    double escrow = qty * bid;                // market currency
+                    double cost = state.ConvertCurrency(escrow, endCur, funderCur);
+                    ProjectOps.SpendTreasury(state, p, cost);
+                    state.RecordConversion(funderCur, cost, endCur, escrow);
                     var order = OrderOps.PostBuy(state, p.FunderActorId,
                         end, g, qty, bid, state.WorldYear);
                     scratch.ProjectBids.Add((order, p));
@@ -716,7 +744,12 @@ public static class MarketEngine
                                       state.Markets[hub].Price[g]);
                 qty = Math.Min(qty, Math.Max(0.0, owner.Credits) / bid);
                 if (qty <= 1e-9) continue;
-                owner.Credits -= qty * bid;               // real escrow
+                // real escrow, drawn as local currency (order entry, design §1):
+                // the hub's own sovereign posts here, so this is same-currency
+                // today, but the escrow rides the book in local terms and the
+                // draw goes through the currency-aware debit for robustness
+                state.DebitLocal(owner.ActorId, qty * bid,
+                                 state.LocalCurrencyOf(hub));
                 var order = OrderOps.PostBuy(state, owner.ActorId, hub, g,
                     qty, bid, state.WorldYear);
                 scratch.RelayBids.Add((order, hub));
@@ -832,29 +865,49 @@ public static class MarketEngine
                 var (drawn, grade, cost) = BookOps.LiftAsks(state, src.Id,
                     g, qty, budget);
                 if (drawn <= 0) continue;
-                trader.Credits -= cost;
+                // the trader pays in each market's LOCAL currency, converting out
+                // of its own ledger first (design §1 — the freight bypass mirrors
+                // order entry): a corp draws its wallet down, a polity marine
+                // converts and may go negative. Goods+fuel price at the source
+                // book, the crossing fees at the destination.
+                int srcLocal = state.LocalCurrencyOf(src.Id);
+                int dstLocal = state.LocalCurrencyOf(dst.Id);
+                state.DebitLocal(fleet.OwnerActorId, cost, srcLocal);
+                // the goods leg above is bounded upfront by `budget` (a corp's
+                // own wallet), so its pre-paid sellers never outrun the capped
+                // debit. The sequential fees below CAN drain a corp's wallet
+                // further, so each credits its collector only the amount the
+                // capped debit actually provided — a corp has no overdraft, and
+                // settling a counterparty past the corp's holdings mints money
                 if (tariff > 0 && feeTo >= 0)
                 {
-                    trader.Credits -= drawn * tariff;
-                    var collector = state.LedgerOf(feeTo);
-                    collector.Credits += drawn * tariff;
-                    collector.Receipts += drawn * tariff;
+                    double fee = drawn * tariff;
+                    double feePaid = state.DebitLocal(fleet.OwnerActorId, fee,
+                                                      dstLocal);
+                    state.CreditLocal(feeTo, feePaid, dstLocal);
+                    state.LedgerOf(feeTo).Receipts += feePaid;
                 }
                 if (friction > 0)
                 {
                     // friction burns as fees at the destination port
-                    trader.Credits -= drawn * friction;
+                    double burn = drawn * friction;
+                    double burnPaid = state.DebitLocal(fleet.OwnerActorId, burn,
+                                                       dstLocal);
                     var dstOwner = state.PolityOf(dst.OwnerActorId);
-                    dstOwner.Credits += drawn * friction;
-                    dstOwner.Receipts += drawn * friction;
+                    dstOwner.Credits += burnPaid;  // dstOwner IS the local polity
+                    dstOwner.Receipts += burnPaid;
                 }
                 // movement is never free: the fuel burn is bought off the
                 // source book at real asks — a fuel-dry port's crawl shows
-                // in its fuel prints
+                // in its fuel prints. The lift is bounded to a corp's REMAINING
+                // wallet (a polity marine still fronts unbounded, on its own
+                // solvency plumbing) so the fuel sellers, pre-paid inside
+                // LiftAsks, are never settled past what the corp can pay
+                double fuelBudget = state.CorporationOf(fleet.OwnerActorId) != null
+                    ? Math.Max(0.0, trader.Credits) : double.MaxValue;
                 var (_, _, fuelCost) = BookOps.LiftAsks(state, src.Id,
-                    (int)GoodId.Fuel, drawn * fuelUnits,
-                    budget: double.MaxValue);
-                trader.Credits -= fuelCost;
+                    (int)GoodId.Fuel, drawn * fuelUnits, fuelBudget);
+                state.DebitLocal(fleet.OwnerActorId, fuelCost, srcLocal);
                 // transit time (spec §4b): a hop inside the step posts the
                 // cargo at the destination now (sub-step blur, sells into
                 // whatever book exists); a longer haul rides a shipment —
@@ -983,7 +1036,16 @@ public static class MarketEngine
         foreach (var (order, project) in scratch.ProjectBids)
         {
             double refund = OrderOps.CancelBuy(state, order);
-            if (refund > 0) ProjectOps.RefundTreasury(state, project, refund);
+            if (refund <= 0) continue;
+            // the unfilled escrow is in the build MARKET's currency; convert it
+            // back into the funder's currency and record the reverse transfer
+            // before returning it to the pool, symmetric with the entry conversion
+            // in PostProjectBids (a raw 1:1 refund would re-denominate it).
+            int endCur = state.LocalCurrencySafe(order.PortId);
+            int funderCur = ProjectOps.FunderCurrency(state, project);
+            double back = state.ConvertCurrency(refund, endCur, funderCur);
+            state.RecordConversion(endCur, refund, funderCur, back);
+            ProjectOps.RefundTreasury(state, project, back);
         }
         foreach (var (order, pr, _) in scratch.ProcureBids)
         {
@@ -994,7 +1056,10 @@ public static class MarketEngine
         {
             double refund = OrderOps.CancelBuy(state, order);
             if (refund > 0)
-                state.LedgerOf(order.OwnerActorId).Credits += refund;
+                // the escrow is local currency; refund back into the poster's own
+                // (same-currency for the hub sovereign, but symmetric with entry)
+                state.CreditLocal(order.OwnerActorId, refund,
+                                  state.LocalCurrencyOf(order.PortId));
         }
 
         // consequences: famine arithmetic and the SoL drift

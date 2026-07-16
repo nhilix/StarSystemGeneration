@@ -327,7 +327,11 @@ public sealed class MarketsPhase : ISimPhase
                                   spanYears));
             if (levy <= 0) continue;
             seg.Wealth -= levy;
-            var sovereign = state.LedgerOf(state.Ports[seg.PortId].OwnerActorId);
+            // the port's sovereign is always the owning polity — a segment's wealth
+            // and its sovereign share the same currency, so this is a raw
+            // same-currency credit (PolityOf, not the ICreditLedger handle, since
+            // Corporation.Credits is read-only)
+            var sovereign = state.PolityOf(state.Ports[seg.PortId].OwnerActorId);
             sovereign.Credits += levy;
             sovereign.Receipts += levy;
         }
@@ -417,6 +421,12 @@ public sealed class AllocationPhase : ISimPhase
             {
                 pr.Credits += steadyIssuance;
                 state.CumulativeSteadyIssuance += steadyIssuance;
+                // per-currency mirror (slice CU-1 task 9): the mint lands in
+                // THIS polity's own currency; the per-currency conservation
+                // residual nets it out just as the galaxy-wide field does
+                if (pr.CurrencyId >= 0)
+                    state.CurrencyOf(pr.CurrencyId).CumulativeSteadyIssuance
+                        += steadyIssuance;
             }
             double allocatable = Math.Max(0.0,
                 pr.Receipts + pr.BorrowedThisEpoch + steadyIssuance);
@@ -647,6 +657,11 @@ public sealed class AllocationPhase : ISimPhase
         if (issued <= 0) return;
         pr.Credits += issued;
         state.CumulativeFiatIssued += issued;
+        // per-currency mirror (slice CU-1 task 9): sovereign issuance mints
+        // into this polity's own currency, so the per-currency residual can
+        // net the same mint the galaxy-wide field already tracks
+        if (pr.CurrencyId >= 0)
+            state.CurrencyOf(pr.CurrencyId).CumulativeFiatIssued += issued;
     }
 
     /// <summary>Interest and amortization flow lender-ward; a borrower who
@@ -662,6 +677,14 @@ public sealed class AllocationPhase : ISimPhase
             if (loan.Closed || loan.Principal <= 0) continue;
             var borrower = state.PolityOf(loan.BorrowerActorId);
             var lender = state.LedgerOf(loan.LenderActorId);
+            // The loan is denominated in the LENDER's currency (design, "Loans
+            // across currencies"): a polity lender imposes its own single
+            // currency; a multi-currency corporation lends — and denominates —
+            // in the borrower's currency it fronted (its Withdraw target at
+            // issue). The amortization schedule below computes in that currency.
+            int loanCurrencyId = lender is Corporation
+                ? borrower.CurrencyId
+                : ((PolityRecord)lender).CurrencyId;
             // compounded per world-year (P7): a 25-year step accrues exactly
             // what twenty-five 1-year steps compounding would, not a flat
             // rate*years multiply. amort decays the principal-owed fraction with
@@ -671,26 +694,42 @@ public sealed class AllocationPhase : ISimPhase
             double interest = loan.Principal * (Math.Pow(1.0 + loan.RatePerYear, years) - 1.0);
             double amort = loan.Principal
                 * (1.0 - Math.Pow(Math.Max(0.0, 1.0 - 1.0 / loan.TermYears), years));
-            double payment = interest + amort;
-            if (borrower.Credits >= payment)
+            double payment = interest + amort;           // lender currency
+            // FX risk sits with the borrower: convert this epoch's fixed
+            // lender-currency payment into the borrower's own currency AT THE
+            // CURRENT RATE (not the issuance rate), so a rate drift changes how
+            // much of its own currency the same foreign payment costs. A
+            // same-currency loan converts 1:1, so the solvency gate below is
+            // byte-identical to the pre-currency behavior (ME's mechanism).
+            double paymentOwn = state.ConvertCurrency(payment, loanCurrencyId, borrower.CurrencyId);
+            if (borrower.Credits >= paymentOwn)
             {
-                borrower.Credits -= payment;
-                lender.Credits += payment;
+                // full payment: the borrower Withdraws the lender-currency
+                // payment (debiting its converted own-currency cost and booking
+                // the transfer); the lender banks the lender-currency amount.
+                double provided = borrower.Withdraw(state, payment, loanCurrencyId);
+                RepayLender(state, lender, provided, loanCurrencyId);
                 loan.Principal -= amort;
                 if (loan.Principal <= 1e-9) loan.Closed = true;
             }
             else if (borrower.Credits > 0)
             {
-                // partial: pay what exists, capitalize the missed interest
-                lender.Credits += borrower.Credits;
-                loan.Principal += interest - Math.Min(interest, borrower.Credits);
+                // partial: pay every own-currency credit the borrower holds —
+                // worth partLoan in the loan currency — and capitalize the
+                // missed interest (all in the loan currency, as Principal is).
+                double partOwn = borrower.Credits;
+                double partLoan = state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId);
+                double provided = borrower.Withdraw(state, partLoan, loanCurrencyId);
+                RepayLender(state, lender, provided, loanCurrencyId);
+                loan.Principal += interest - Math.Min(interest, provided);
                 borrower.Credits = 0;
                 // a loan whose principal has capitalized past a bounded multiple
                 // of its issued size is forced to default rather than compounding
                 // toward millions forever — the borrower can still be nominally
                 // solvent (some Credits) yet never service a debt this deep, so
                 // the ceiling is a second default trigger beside the zero-Credits
-                // one, seizing collateral exactly the same way
+                // one, seizing collateral exactly the same way. The ceiling test
+                // is entirely in the loan currency, unchanged by the FX layer.
                 if (loan.Principal > eco.LoanCapitalizationCeiling * loan.OriginalPrincipal)
                     ForceDefault(state, loan, ref defaults);
             }
@@ -723,6 +762,21 @@ public sealed class AllocationPhase : ISimPhase
                                      loan.BorrowerActorId)));
     }
 
+    /// <summary>Credit a loan repayment to the lender, denominated in the loan's
+    /// (lender's) currency (<paramref name="currencyId"/>). Routes through
+    /// <see cref="ICreditLedger.Deposit"/> for both lender kinds: a corporation
+    /// banks that currency into its wallet bucket, a polity banks it into its
+    /// single balance (a same-currency Deposit, since the loan denominates in the
+    /// polity lender's own currency — no spurious conversion). Symmetric with the
+    /// draw-down on the lend side in <see cref="Borrow"/>. The old polity path was
+    /// currency-blind raw arithmetic; this routes it through the ledger so a
+    /// genuine divergence books the transfer instead of silently leaking.</summary>
+    private static void RepayLender(SimState state, ICreditLedger lender,
+                                    double amount, int currencyId)
+    {
+        lender.Deposit(state, amount, currencyId);
+    }
+
     /// <summary>Insolvent polities borrow from whoever holds surplus — the
     /// richest entered candidate, polity or corporation, able to front the
     /// principal twice over (economy/markets.md §Credit: "lenders are
@@ -741,38 +795,96 @@ public sealed class AllocationPhase : ISimPhase
             // receipts) is locked out of NEW credit until amortization services the
             // debt down. This touches nothing in ServiceLoans — existing loans keep
             // accruing/amortizing/defaulting; it only refuses to pile on MORE.
+            // A loan's principal is denominated in the LENDER's currency for a
+            // polity lender, but in the BORROWER's own currency for a corporation
+            // lender (design "Loans across currencies"; ServiceLoans derives
+            // loanCurrencyId the same way). Numeraire-convert each open loan by ITS
+            // OWN currency rate before summing against the debt ceiling — valuing a
+            // foreign-polity-lender loan at the borrower's rate (the old code)
+            // systematically mis-prices foreign debt exactly when the borrower's
+            // currency has drifted from the lender's, letting an over-leveraged
+            // borrower stack past the gate. Single-currency: every rate is equal,
+            // so this is byte-identical to the old common-factor form.
+            double borrowerRate = state.NumeraireRateOf(pr.CurrencyId);
             double existingPrincipal = 0;
             foreach (var open in state.Loans)                 // id order (P6)
                 if (open.BorrowerActorId == pr.ActorId && !open.Closed)
-                    existingPrincipal += open.Principal;
+                {
+                    int openCur = state.LedgerOf(open.LenderActorId) is Corporation
+                        ? pr.CurrencyId
+                        : ((PolityRecord)state.LedgerOf(open.LenderActorId)).CurrencyId;
+                    existingPrincipal += open.Principal * state.NumeraireRateOf(openCur);
+                }
             double debtCeiling = eco.MaxDebtToIncomeRatio
-                * Math.Max(0.0, pr.LastIncomePerYear) * years;
+                * Math.Max(0.0, pr.LastIncomePerYear) * years * borrowerRate;
             if (existingPrincipal > debtCeiling) continue;
-            double principal = -pr.Credits * 1.2;
+            // the shortfall-derived draw, in the BORROWER's own currency — the
+            // amount the borrower needs to cover its deficit. The loan that funds
+            // it denominates in the LENDER's currency (below), so FX risk sits
+            // with the borrower (design, "Loans across currencies").
+            double borrowerAmount = -pr.Credits * 1.2;
+            // rank lenders in a common (numeraire) unit: `borrowerAmount` is in
+            // the borrower's currency; a polity candidate's Credits is in its OWN
+            // currency; a corporation's Credits is already the numeraire wallet
+            // total. Convert every quantity to numeraire before comparing so a
+            // rich polity is not passed over for a nominally-larger foreign balance.
+            double principalNum = borrowerAmount * borrowerRate;
             ICreditLedger? lender = null;
             int lenderActorId = -1;
+            double bestNum = 0;
             foreach (var candidate in state.Polities)
+            {
+                double candNum = candidate.Credits
+                    * state.NumeraireRateOf(candidate.CurrencyId);
                 if (candidate.ActorId != pr.ActorId
                     && state.Actors[candidate.ActorId].Entered
-                    && candidate.Credits >= principal * 2
-                    && (lender == null || candidate.Credits > lender.Credits))
-                { lender = candidate; lenderActorId = candidate.ActorId; }
+                    && candNum >= principalNum * 2
+                    && (lender == null || candNum > bestNum))
+                { lender = candidate; lenderActorId = candidate.ActorId; bestNum = candNum; }
+            }
             // the corp pass runs after the polity pass, so on an exact-credit
             // tie a polity lender is kept over a corp one — a stable, seeded
             // tiebreak that does not depend on actor-id interleaving (schism and
             // graduation polities can be minted after early corps)
             foreach (var candidate in state.Corporations)
+            {
+                double candNum = candidate.Credits;   // already numeraire
                 if (candidate.ActorId != pr.ActorId
                     && state.Actors[candidate.ActorId].Entered
-                    && candidate.Credits >= principal * 2
-                    && (lender == null || candidate.Credits > lender.Credits))
-                { lender = candidate; lenderActorId = candidate.ActorId; }
+                    && candNum >= principalNum * 2
+                    && (lender == null || candNum > bestNum))
+                { lender = candidate; lenderActorId = candidate.ActorId; bestNum = candNum; }
+            }
             if (lender == null) continue;
-            lender.Credits -= principal;
-            pr.Credits += principal;
-            // mark THIS epoch's borrowing so the same epoch's allocation base
-            // can route the principal into the investment pools (Part A)
-            pr.BorrowedThisEpoch += principal;
+            // The loan denominates in the LENDER's currency: a polity lender
+            // imposes its own currency (real FX risk on the borrower); a
+            // corporation is multi-currency and lends in the borrower's own
+            // currency it fronts (it banks whatever it is paid), so its
+            // denomination is pr.CurrencyId — the Withdraw target the corp path
+            // already used, byte-identical for the single-currency case.
+            int lenderCurrencyId = lender is Corporation
+                ? pr.CurrencyId
+                : ((PolityRecord)lender).CurrencyId;
+            // convert the borrower's own-currency need into the lender-currency
+            // principal at the issuance rate; THAT converted amount is the debt.
+            double principal = state.ConvertCurrency(
+                borrowerAmount, pr.CurrencyId, lenderCurrencyId);
+            // the lender fronts the principal in its OWN currency: a corporation
+            // draws it from its multi-currency wallet (Withdraw's draw-down rule),
+            // so the money leaves real Holdings; the lender-selection 2× gate
+            // guarantees the wallet covers it, so the draw never caps. A polity
+            // lender debits its single balance (may go negative — the existing
+            // insolvency path). Both now route through Withdraw, so the polity
+            // path books the transfer instead of the old currency-blind arithmetic.
+            lender.Withdraw(state, principal, lenderCurrencyId);
+            // the borrower receives the proceeds converted BACK into its own
+            // currency at the issuance rate — only the DEBT is lender-denominated,
+            // not the cash the borrower holds. In the single-currency case this is
+            // a same-currency Deposit, byte-identical to the old `Credits += `.
+            double proceeds = pr.Deposit(state, principal, lenderCurrencyId);
+            // mark THIS epoch's borrowing (in the borrower's own currency) so the
+            // same epoch's allocation base can route it into the investment pools.
+            pr.BorrowedThisEpoch += proceeds;
             var loan = new Loan(state.Loans.Count, lenderActorId, pr.ActorId,
                 principal, eco.LoanRatePerYear, eco.LoanTermYears, state.WorldYear);
             state.Loans.Add(loan);
@@ -1404,6 +1516,11 @@ public sealed class InteriorPhase : ISimPhase
                 continue;
             a.Entered = true;
             entered++;
+            // every polity mints its own currency at founding (slice CU-1
+            // genesis): this is the primary genesis point (original and
+            // native-born polities), wired before the credit endowment below
+            // so the treasury is denominated in a real currency from birth
+            state.FoundCurrency(a.Id);
             var port = new Port(state.Ports.Count, a.Id, a.Seat,
                 state.Config.Infrastructure.HomeworldPortTier, state.WorldYear);
             state.Ports.Add(port);
@@ -1659,7 +1776,19 @@ public sealed class InteriorPhase : ISimPhase
             seg.Wealth -= wealthShare;
             var home = FindOrFoundSegment(state, bestPort, seg);
             home.Size += flow;
-            home.Wealth += wealthShare;
+            // the migrants' wealth crosses a currency boundary whenever the
+            // destination belongs to a different-currency polity — the gradient
+            // path above (unlike the refugee off-lane branch, which stays
+            // same-owner) freely picks a lane-neighbour of any polity. Convert at
+            // the frozen rate and record the transfer so per-currency conservation
+            // nets it out, instead of silently re-denominating 1:1 (currency-and-FX
+            // design, "Conversion mechanics"). Same-currency or an unowned port
+            // (id −1) degrades to the dormant 1:1 no-op.
+            int fromCur = state.LocalCurrencySafe(seg.PortId);
+            int toCur = state.LocalCurrencySafe(bestPort);
+            double moved = state.ConvertCurrency(wealthShare, fromCur, toCur);
+            state.RecordConversion(fromCur, wealthShare, toCur, moved);
+            home.Wealth += moved;
             flows++;
             if (refugees)
                 state.Staged.Add(new StagedEvent(

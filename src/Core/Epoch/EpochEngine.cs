@@ -29,6 +29,12 @@ public sealed class EpochEngine
     /// <summary>Integrates one epoch: YearsPerEpoch world-years of every rate.</summary>
     public void Step(SimState state)
     {
+        // FX rates recompute once, at the very start of the epoch, from the
+        // state left at the END of the prior epoch — BEFORE Markets clears and
+        // rebuilds Receipts and before any conversion (Borrow/ServiceLoans/
+        // PayTribute/market fills) reads the table, so the whole epoch converts
+        // against one frozen table (currency-and-FX design, "FX rate").
+        FxOps.RecomputeRates(state);
         foreach (var phase in _phases)
         {
             state.Trace.Add(new PhaseTraceEntry(state.EpochIndex, phase.Name,
@@ -37,6 +43,12 @@ public sealed class EpochEngine
             // the per-phase money rows attribute treasury motion
             state.Health.MoneyRows.Add(MetricsOps.Money(state, phase.Name));
         }
+        // the epoch's money has all moved: write each currency's ending supply
+        // back onto the live record so NEXT epoch's FxOps.RecomputeRates reads a
+        // fresh, diverging value (currency-and-FX design, slice CU-1 task 9) —
+        // and so this epoch's Snapshot can measure the per-currency residual
+        // against it
+        SupplyOps.Recompute(state);
         state.Health.Rows.Add(MetricsOps.Snapshot(state));
         state.Health.PolityRows.AddRange(MetricsOps.PolityRows(state));
         state.EpochIndex++;
