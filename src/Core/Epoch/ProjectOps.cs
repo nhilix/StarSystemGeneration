@@ -460,8 +460,16 @@ public static class ProjectOps
         if (amount <= 0) return;
         int toCur = state.LocalCurrencySafe(portId);
         double credit = state.ConvertCurrency(amount, fromCur, toCur);
-        state.RecordConversion(fromCur, amount, toCur, credit);
-        MarketEngine.PayWages(state, portId, credit);
+        // slice CU-2: the wage crosses into the build port's OWN currency (the
+        // workers' currency) — money ARRIVING into the recipients' own
+        // denomination, the reduce-recipient (repatriation) shape, exactly like a
+        // seller's net in SettleSale. The workers bank the NET; the build-port Bank
+        // keeps the skim. The funder's outlay is already fixed by SpendTreasury
+        // (debited before this call), so grossing up here would need a second debit
+        // and risk a corp-wallet cap — SettleConversion is the clean drop-in that
+        // keeps the fixed funder spend and books the full transfer.
+        double net = state.SettleConversion(fromCur, amount, toCur, credit);
+        MarketEngine.PayWages(state, portId, net);
     }
 
     /// <summary>Return unspent bid escrow to the pool it came from — the
