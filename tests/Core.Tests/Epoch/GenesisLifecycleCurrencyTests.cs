@@ -77,10 +77,13 @@ public class GenesisLifecycleCurrencyTests
 
         FederationOps.MergeInto(state, fromId: 0, intoId: 1);
 
-        // 1000 of cur0 lands as 1000 * 1.0/2.0 = 500 of cur1 (not a raw carry)
+        // 1000 of cur0 lands as 1000 * 1.0/2.0 = 500 of cur1, gross of the
+        // skim — into.Deposit (slice CU-2) skims the spread off the top into
+        // Bank(cur1).Reserve before crediting the net.
         double landed = 1000.0 * 1.0 / 2.0;
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(0.0, from.Credits, 9);
-        Assert.Equal(500.0 + landed, into.Credits, 9);
+        Assert.Equal(500.0 + landed * (1 - spread), into.Credits, 9);
         Assert.Equal(1000.0, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 9);
     }
@@ -100,9 +103,13 @@ public class GenesisLifecycleCurrencyTests
 
         FederationOps.MergeInto(state, 0, 1);
 
+        // -200 of cur1, gross — into.Deposit (slice CU-2) still skims the
+        // spread off the top into Bank(cur1).Reserve, signed here since the
+        // absorbed balance itself is negative.
         double landed = -400.0 * 1.0 / 2.0;   // -200 of cur1
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(0.0, from.Credits, 9);
-        Assert.Equal(1000.0 + landed, into.Credits, 9);
+        Assert.Equal(1000.0 + landed * (1 - spread), into.Credits, 9);
     }
 
     // ---- MergeInto: reissued loans reprice only when the LENDER changed ----
@@ -200,8 +207,14 @@ public class GenesisLifecycleCurrencyTests
         // in the survivor's pools, resident segment wealth stays segment wealth),
         // so this balance check is exact.
         double landed = vassalCredits * 2.0 / 1.0;
+        // the treasury leg routes through into.Deposit inside MergeInto
+        // (slice CU-2), which skims the spread off the top into
+        // Bank(curO).Reserve before crediting the net; the pool legs below
+        // stay raw ConvertCurrency (no Deposit, no skim).
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(0.0, state.PolityOf(vassal).Credits, 6);
-        Assert.Equal(overlordBefore + landed, state.PolityOf(overlord).Credits, 6);
+        Assert.Equal(overlordBefore + landed * (1 - spread),
+            state.PolityOf(overlord).Credits, 6);
         // the balance conversion is booked among the survivor's converted-in
         // total. Task 8 broadened absorption to ALSO force-convert the vassal's
         // investment pools, resident segment wealth, and any resting order/courier
@@ -299,8 +312,13 @@ public class GenesisLifecycleCurrencyTests
         double transfer =
             state.CurrencyOf(oldCur).CumulativeConvertedOut - outBefore;
         Assert.True(transfer > 0, "the seed transfer must cross currencies");
-        Assert.Equal(transfer * 2.0, young.Credits, 6);
-        Assert.Equal(young.Credits,
+        // young.Deposit inside SeedTreasury (slice CU-2) skims the spread off
+        // the top into Bank(youngCur).Reserve before crediting the net — the
+        // paired counter still books the full gross conversion.
+        double landed = transfer * 2.0;
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(landed * (1 - spread), young.Credits, 6);
+        Assert.Equal(landed,
             state.CurrencyOf(youngCur).CumulativeConvertedIn, 6);
     }
 }

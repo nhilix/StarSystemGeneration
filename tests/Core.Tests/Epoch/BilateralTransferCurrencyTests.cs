@@ -78,8 +78,12 @@ public class BilateralTransferCurrencyTests
         Assert.True(paid >= 1);
         double share = state.Config.Relations.VassalTributeShare;
         double tribute = 100 * share;
+        // distinct currency ids still route the overlord's receipt through
+        // Deposit (slice CU-2), which skims the spread off the top into
+        // Bank(overlord).Reserve before crediting the net, even at a 1:1 rate.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(vc - tribute, vr.Credits, 9);
-        Assert.Equal(oc + tribute, or.Credits, 9);
+        Assert.Equal(oc + tribute * (1 - spread), or.Credits, 9);
         Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
         Assert.Equal(tribute, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
@@ -97,9 +101,12 @@ public class BilateralTransferCurrencyTests
         Assert.True(paid >= 1);
         double share = state.Config.Relations.VassalTributeShare;
         double tribute = 100 * share;              // in the VASSAL's own currency
-        double landed = tribute * 1.0 / 2.0;        // cur(vassal) -> cur(overlord)
+        double landed = tribute * 1.0 / 2.0;        // cur(vassal) -> cur(overlord), gross
+        // Deposit (slice CU-2) skims the spread off the top into
+        // Bank(overlord).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(vc - tribute, vr.Credits, 9);  // the vassal debits its own currency whole
-        Assert.Equal(oc + landed, or.Credits, 9);   // the overlord banks the converted sum
+        Assert.Equal(oc + landed * (1 - spread), or.Credits, 9);  // net of the skim
         Assert.Equal(tribute, Cur(state, vassal).CumulativeConvertedOut, 9);
         Assert.Equal(landed, Cur(state, overlord).CumulativeConvertedIn, 9);
     }
@@ -133,9 +140,12 @@ public class BilateralTransferCurrencyTests
         Assert.False(war.Active);
         double share = state.Config.War.ReparationsShare;
         double reparations = loserBefore * share;
-        double landed = reparations * 1.0 / 4.0;    // cur(loser) -> cur(winner)
+        double landed = reparations * 1.0 / 4.0;    // cur(loser) -> cur(winner), gross
+        // Deposit (slice CU-2) skims the spread off the top into
+        // Bank(winner).Reserve before crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(loserBefore - reparations, loser.Credits, 6);
-        Assert.Equal(winnerBefore + landed, winner.Credits, 6);
+        Assert.Equal(winnerBefore + landed * (1 - spread), winner.Credits, 6);
         Assert.Equal(reparations,
             Cur(state, loser.ActorId).CumulativeConvertedOut, 6);
         Assert.Equal(landed,
@@ -161,9 +171,13 @@ public class BilateralTransferCurrencyTests
         GraduationOps.SeedTreasury(state, old, young, share: 0.3);
 
         double transfer = 1000.0 * 0.3;             // 300, in the parent's currency
-        double landed = transfer * 1.0 / 4.0;        // cur0 -> cur1 = 75
+        double landed = transfer * 1.0 / 4.0;        // cur0 -> cur1 = 75, gross of the skim
+        // young.Deposit (slice CU-2) skims the spread off the top into
+        // Bank(cur1).Reserve before crediting the net; the paired counter
+        // below still books the full gross conversion.
+        double spread = state.Config.Economy.ConversionSpread;
         Assert.Equal(1000.0 - transfer, old.Credits, 9);
-        Assert.Equal(landed, young.Credits, 9);
+        Assert.Equal(landed * (1 - spread), young.Credits, 9);
         Assert.Equal(transfer, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 9);
     }
@@ -185,9 +199,21 @@ public class BilateralTransferCurrencyTests
         // guard must never swallow it (that would leave the debt
         // uncharged on the parent while still crediting the child)
         double transfer = -1000.0 * 0.4;   // -400
-        Assert.Equal(-1000.0 - transfer, old.Credits, 9);   // -600
-        Assert.Equal(500.0 + transfer, young.Credits, 9);   // 100
-        Assert.Equal(totalBefore, old.Credits + young.Credits, 9);   // conserved
+        Assert.Equal(-1000.0 - transfer, old.Credits, 9);   // -600, same-currency Deposit (no skim)
+        // young.Deposit is cross-currency (distinct ids, even at equal rate):
+        // it skims Config.Economy.ConversionSpread off the converted amount
+        // before crediting the net (slice CU-2's Deposit) — signed here since
+        // the transfer itself is negative.
+        double spread = state.Config.Economy.ConversionSpread;
+        double convertedTransfer =
+            state.ConvertCurrency(transfer, old.CurrencyId, young.CurrencyId);
+        double netTransfer = convertedTransfer * (1 - spread);
+        Assert.Equal(500.0 + netTransfer, young.Credits, 9);
+        // reserve-aware conservation (MetricsOps.cs authoritative residual):
+        // the skim sequestered into Bank(young.CurrencyId).Reserve is still
+        // part of the conserved total, just no longer circulating as Credits.
+        Assert.Equal(totalBefore, old.Credits + young.Credits
+            + state.BankOf(young.CurrencyId).Reserve, 9);
     }
 
     [Fact]
@@ -252,8 +278,12 @@ public class BilateralTransferCurrencyTests
             ShipmentOps.Advance(state, new MarketStepScratch(state));
 
         Assert.Equal(CourierStatus.Delivered, c.Status);
-        double landed = 10.0 * 1.0 / 2.0;   // cur0 -> cur1
-        Assert.Equal(fulfillerBefore + landed, fulfiller.Credits, 6);
+        double landed = 10.0 * 1.0 / 2.0;   // cur0 -> cur1, gross of the skim
+        // the fulfiller's settlement routes through Deposit (slice CU-2),
+        // which skims the spread off the top into Bank(cur1).Reserve before
+        // crediting the net.
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(fulfillerBefore + landed * (1 - spread), fulfiller.Credits, 6);
         Assert.Equal(10.0, state.CurrencyOf(0).CumulativeConvertedOut, 6);
         Assert.Equal(landed, state.CurrencyOf(1).CumulativeConvertedIn, 6);
     }

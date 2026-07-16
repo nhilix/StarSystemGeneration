@@ -159,6 +159,13 @@ public class CivilWarTests
                 if (p.ActorId == f.PolityId) { cur = p.CurrencyId; break; }
             sum += f.Wealth * state.NumeraireRateOf(cur);
         }
+        // the conversion spread the schism's force-conversions pay is
+        // sequestered OUT of circulation into Bank.Reserve (MetricsOps.cs
+        // authoritative residual balances Supply + Reserve) — omitting it
+        // here reads as a false leak exactly equal to the skim, in
+        // numeraire terms
+        foreach (var bank in state.Banks)
+            sum += bank.Reserve * state.NumeraireRateOf(bank.CurrencyId);
         return sum;
     }
 }

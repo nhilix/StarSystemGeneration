@@ -18,19 +18,26 @@ public class FleetSupplyCurrencyTests
 {
     private readonly struct Snap
     {
-        public readonly double[] Supply, Fiat, Steady, ConvIn, ConvOut;
+        public readonly double[] Supply, Fiat, Steady, ConvIn, ConvOut, Reserve;
         public Snap(SimState s)
         {
             Supply = SupplyOps.WalkNative(s);
             int n = s.Currencies.Count;
             Fiat = new double[n]; Steady = new double[n];
             ConvIn = new double[n]; ConvOut = new double[n];
+            Reserve = new double[n];
             for (int i = 0; i < n; i++)
             {
                 Fiat[i] = s.Currencies[i].CumulativeFiatIssued;
                 Steady[i] = s.Currencies[i].CumulativeSteadyIssuance;
                 ConvIn[i] = s.Currencies[i].CumulativeConvertedIn;
                 ConvOut[i] = s.Currencies[i].CumulativeConvertedOut;
+                // the conversion spread is sequestered OUT of Supply into
+                // Bank.Reserve (MetricsOps.cs authoritative residual) — the
+                // native-supply walk stays circulating-only, so the residual
+                // must balance against Supply + Reserve or a nonzero skim
+                // reads as a false leak (see MetricsOps.cs:188-191)
+                Reserve[i] = s.BankOf(i).Reserve;
             }
         }
     }
@@ -101,7 +108,8 @@ public class FleetSupplyCurrencyTests
         // explained by its mints and its net conversions — no leak
         for (int i = 0; i < state.Currencies.Count; i++)
         {
-            double residual = (after.Supply[i] - before.Supply[i])
+            double residual = ((after.Supply[i] + after.Reserve[i])
+                - (before.Supply[i] + before.Reserve[i]))
                 - (after.Fiat[i] - before.Fiat[i])
                 - (after.Steady[i] - before.Steady[i])
                 - (after.ConvIn[i] - before.ConvIn[i])
