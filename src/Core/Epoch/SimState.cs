@@ -284,6 +284,37 @@ public sealed class SimState
         CurrencyOf(toCurrencyId).CumulativeConvertedIn += inAmount;
     }
 
+    /// <summary>The spread-skimming settle for a cross-currency transfer (slice
+    /// CU-2 bank-actor): records the transfer exactly as <see cref="RecordConversion"/>
+    /// does — the FULL <paramref name="outAmount"/> as this source's
+    /// <see cref="Currency.CumulativeConvertedOut"/> and the FULL
+    /// <paramref name="inAmount"/> as the destination's
+    /// <see cref="Currency.CumulativeConvertedIn"/> — then skims
+    /// <c>inAmount × <see cref="EconomyKnobs.ConversionSpread"/></c> off the top
+    /// into the destination currency's <see cref="Bank.Reserve"/> and returns the
+    /// NET (<paramref name="inAmount"/> − spread) that actually lands in a wallet.
+    /// The skim is money SEQUESTERED out of the circulating
+    /// <see cref="Currency.Supply"/> (<c>SupplyOps</c> stays circulating-only), so
+    /// the counters still book the full amounts and the reserve-aware residual
+    /// (<c>MetricsOps</c>) nets the reserve back on the balance side. A no-op skim
+    /// when the currencies match or either side is pre-genesis (id &lt; 0) — the
+    /// full amount returns unchanged and the reserve is untouched, byte-identical
+    /// to <see cref="RecordConversion"/> + a raw pass-through. This is the
+    /// spread-charging sibling of <see cref="RecordConversion"/>; the exempt sites
+    /// (internal re-denominations at ownership seams) keep using the latter.</summary>
+    public double SettleConversion(int fromCurrencyId, double outAmount,
+                                   int toCurrencyId, double inAmount)
+    {
+        RecordConversion(fromCurrencyId, outAmount, toCurrencyId, inAmount);
+        if (fromCurrencyId == toCurrencyId
+            || fromCurrencyId < 0 || toCurrencyId < 0) return inAmount;
+        double spread = inAmount * Config.Economy.ConversionSpread;
+        var bank = BankOf(toCurrencyId);
+        bank.Reserve += spread;
+        bank.CumulativeSpreadIntake += spread;
+        return inAmount - spread;
+    }
+
     /// <summary>The currency a port's market is denominated in — the port-owning
     /// polity's <see cref="PolityRecord.CurrencyId"/>. Every price, bid, ask, and
     /// escrow at that port is in this currency. −1 before genesis wires currencies
