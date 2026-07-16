@@ -131,6 +131,27 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   FineTick telescopes (validated by a 6-14 coarse-step sweep, not band-widening);
   Conservation + Determinism green; minimal coarse-clock ripple (real sim barely changes).
   OPUS. Base a9f760b.
+  **LANDED (commit `c59dafe`) — correct & keeps hard gates, but FineTick still RED for a
+  SEPARATE reason.** Facility gate works: facilities AND shipyard counts now telescope
+  (yards 8 vs 8 across clocks); knob + 3 focused `FacilityCadenceTests` (within-window
+  one-build / post-window second / two-ports-not-cross-blocked) TDD'd RED→GREEN; port-raise
+  NOT gated (0-vs-0, correct); Conservation + Determinism GREEN. Ripple near-minimal: full
+  suite 1037 pass / 3 red — FineTick (still red), Golden (deferred), and ONE new mover
+  `WarResolutionTests.FullHistory_WarsStartANDEnd` (gate-caused but benign boundary
+  butterfly: seed-42 at exactly 40 epochs has 2 fresh unsettled wars; 45→10/10, 50→20/20,
+  60→25/26 — same category as the golden shift, re-assess at slice-end).
+  **NEW FINDING (2nd invariant layer):** the residual FineTick divergence is NOT facilities/
+  yards — it's HULL-BATCH affordability not telescoping. Coarse spawns ~1 hull batch, fine 38,
+  with IDENTICAL yards, over identical world-years. Root cause: planner greedy per-year
+  income-capacity packing + groundbreak affordability (`Planner.cs:150-171`; `SpawnHullBatch`
+  basket = comp·count/years, build-years size-scaled not count-scaled) — a coarse step's
+  bundled slots cost ~25× per-year and get dropped (treasury short); fine's per-year slivers
+  fit. Pre-existing planner logic, exposed by L2's economic shifts (hulls telescoped at
+  merge-base: 5 vs 8). A hull cadence gate is the WRONG tool (would throttle fine down to
+  coarse's broken-low rate). **PAUSED FOR USER DECISION: (2a) keep facility gate + narrow
+  FineTick built-world scope to facilities+port-raise [which now telescope] + Skip-guard
+  hulls with a filed follow-up for the hull-affordability fix → merge L2; vs (2b) fix hull
+  affordability/telescoping in L2 too (deeper planner change).**
 
 ## Slice-end gates — progress
 
