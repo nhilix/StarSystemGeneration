@@ -505,7 +505,7 @@ public sealed class AllocationPhase : ISimPhase
         // service
         foreach (var pr in state.Polities)                    // actor-id order
             if (state.Actors[pr.ActorId].Entered)
-                IssueSovereignCredit(state, pr);
+                FundDeficit(state, pr);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
@@ -647,6 +647,47 @@ public sealed class AllocationPhase : ISimPhase
     /// by construction (ServiceLoans runs at the top of the phase against last
     /// epoch's balance), so default and collateral seizure stay real.
     /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
+    /// <summary>Two-stage funding of an end-of-epoch treasury deficit (slice
+    /// CU-2 bank-actor, design §5). A negative treasury is covered FIRST from its
+    /// own currency's <see cref="Bank.Reserve"/> — a <c>Reserve → Supply</c>
+    /// TRANSFER, conservation-neutral under the reserve-aware residual
+    /// (<c>SupplyOps</c> walks Credits, the residual adds Reserve), so it never
+    /// touches <see cref="Currency.CumulativeFiatIssued"/>. The single-epoch draw
+    /// is bounded by <see cref="EconomyKnobs.IssuanceReserveRatio"/> of the live
+    /// reserve, so a deep deficit cannot drain a well-capitalized bank in one
+    /// epoch — the reserve is a consequential, slowly-spent buffer. Whatever stays
+    /// negative after the draw falls through to the unchanged bounded fiat
+    /// backstop (<see cref="IssueSovereignCredit"/>), the lender-of-last-resort
+    /// floor that preserves ME's spiral cure. Steady issuance (the money-base
+    /// mint) is deliberately NOT routed here — it is growth, not backstopping.</summary>
+    private static void FundDeficit(SimState state, PolityRecord pr)
+    {
+        // stage 1 — reserve funding (a transfer, not a mint). Only a polity with
+        // a founded currency has a Bank; a pre-genesis treasury (CurrencyId < 0)
+        // skips straight to the fiat backstop, byte-identical to the pre-task path.
+        if (pr.Credits < 0 && pr.CurrencyId >= 0)
+        {
+            var bank = state.BankOf(pr.CurrencyId);
+            // draw = min(shortfall, ratio*reserve, reserve). The ratio (≤ 1)
+            // already keeps the draw ≤ reserve, but clamp to reserve defensively;
+            // every term is non-negative (reserves are non-negative), so draw is
+            // too, and the reserve can never be pushed below zero.
+            double shortfall = -pr.Credits;
+            double ratioCap = state.Config.Economy.IssuanceReserveRatio * bank.Reserve;
+            double draw = Math.Min(shortfall, Math.Min(ratioCap, bank.Reserve));
+            if (draw > 0)
+            {
+                bank.Reserve -= draw;
+                pr.Credits += draw;
+                bank.CumulativeReserveFunded += draw;
+            }
+        }
+        // stage 2 — fiat backstop: the bounded mint covers whatever is still
+        // negative (a no-op when the reserve already cleared the hole, since
+        // IssueSovereignCredit returns early on a non-negative treasury).
+        IssueSovereignCredit(state, pr);
+    }
+
     private static void IssueSovereignCredit(SimState state, PolityRecord pr)
     {
         if (pr.Credits >= 0) return;
