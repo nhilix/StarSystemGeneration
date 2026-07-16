@@ -24,7 +24,13 @@ Deterministic procedural galaxy generator + epoch history simulation. C# —
 
 ## The slice-session workflow (lighter protocol, adopted 2026-07-09)
 
-One session per slice. Each session:
+One session per slice. The orchestrator spawns each slice session as a fresh
+`claude` window-worker in the primary psmux session (see **Spawning worker
+Claude sessions** below), pointed at the slice's kickoff prompt. Within the
+slice session, subagents handle individual task work and parallel lanes
+(subagent-driven-development) — the two layers never swap roles: the
+orchestrator doesn't implement slices inline, and slice sessions don't spawn
+psmux windows of their own. Each slice session:
 
 1. **Read the kickoff prompt** named in HANDOFF's next-up (reading list, scope,
    boundary). Confirm scope with the user in one message (the **scope nod**).
@@ -34,8 +40,8 @@ One session per slice. Each session:
    reviews first). TDD, frequent commits. Maintain a committed **task ledger**
    (`docs/superpowers/plans/YYYY-MM-DD-slice-<x>-ledger.md`): ordered checklist
    with gates, updated as you work — the resumability record if the session dies.
-   Always routed through subagent-driven-development, never inline orchestrator
-   edits — see **Model usage** below.
+   Always routed through subagent-driven-development, never inline edits by
+   the slice session itself — see **Model usage** below.
 4. **Subagents only where they pay**: genuinely parallel independent lanes
    (e.g., independent catalogs), plus exactly one **fresh-eyes whole-branch
    review** subagent before merge, followed by one fix wave. The review
@@ -64,12 +70,16 @@ Full rationale: `docs/superpowers/specs/2026-07-12-model-usage-guidelines-design
 The main session is the **orchestrator** and stays on Fable (weekly-capped,
 user-driven via `/model` — not something Claude switches itself). Keep the
 orchestrator's own direct spend to low-volume, high-judgment work only: user
-dialogue, brainstorming Q&A, scope/merge decisions, kickoff-prompt authoring,
-HANDOFF.md wrap-up. Delegate everything else to subagents with an explicit
-model per role, so volume work never touches the Fable budget:
+dialogue, brainstorming Q&A, slice sequencing and spawn decisions, reviewing
+the next kickoff prompt before spawning. Slice-session duties (scope nod,
+task ledger, HANDOFF.md wrap-up, authoring the next kickoff prompt) belong to
+the spawned worker. Slices are delegated whole, as window-worker sessions;
+those in turn delegate task work to subagents with an explicit model per
+role, so volume work never touches the Fable budget:
 
 | Role | Model |
 |---|---|
+| Slice session (window-worker; runs the slice, dispatches its subagents) | Opus |
 | Spec authoring (brainstorming's design doc) | Opus |
 | Plan authoring (writing-plans' implementation plan) | Opus |
 | Slice implementation tasks (subagent-driven-development) | Sonnet default, Opus escalation |
@@ -81,6 +91,48 @@ conservation/determinism invariants (money, hash rolls, iteration order);
 spans multiple `src/Core` subsystems in one task; or is itself a design
 judgment call rather than mechanical implementation. Decide this per task at
 dispatch time, not up front for the whole slice.
+
+## Spawning worker Claude sessions (psmux)
+
+This machine runs psmux (Windows tmux clone; `tmux`-compatible CLI). The
+orchestrator spawns full `claude` sessions as **windows inside the primary
+attached session** so the user can flip to any worker and watch. The canonical
+use is kicking off a slice: one window per slice session, named `slice-<x>`,
+opened with that slice's kickoff prompt. Only the orchestrator spawns windows;
+slice sessions delegate downward via subagents, not sideways via psmux.
+
+- **Never `new-session`** — no headless/detached sessions. Workers are always
+  windows (or panes) of the session this orchestrator is running in. Get the
+  current session name with `psmux display -p '#S'` and target `<session>:<name>`.
+- Spawn without stealing focus, then kick off (quoting rules are load-bearing:
+  send command text with `-l`, and Enter as a **separate** send-keys call —
+  combined forms get mangled going through PowerShell):
+
+  ```powershell
+  psmux new-window -d -n slice-c -c C:\Users\Jaaco\Documents\Dev\StarSystemGeneration
+  psmux send-keys -t "$(psmux display -p '#S'):slice-c" -l 'claude --model opus --permission-mode auto --remote-control slice-c "Read docs/superpowers/plans/2026-XX-XX-slice-c-kickoff-prompt.md and run the slice-session workflow from CLAUDE.md."'
+  psmux send-keys -t "$(psmux display -p '#S'):slice-c" Enter
+  ```
+
+  The worker's first act is the scope nod (workflow step 1) — it will state
+  scope and wait; the user confirms by flipping to the window or from their
+  phone via Remote Control. Announce the spawn to the user so they know a
+  worker is waiting on them.
+
+- An untrusted working dir shows a folder-trust prompt ~5–10s after launch; a
+  plain `Enter` via send-keys accepts it (one-time per folder).
+- Launch workers with `--permission-mode auto` (the user's standing preference:
+  full autonomy for all claude sessions) — a worker in manual mode stalls on
+  the first prompt nobody's watching.
+- Launch workers with `--remote-control <window-name>` (another standing
+  preference) so the user can monitor threads and answer worker questions —
+  scope nods included — from their phone. Always pass the name explicitly
+  (matching the psmux window name), otherwise the kickoff prompt gets parsed
+  as the optional session-name argument.
+- Long kickoff prompts: point the worker at a committed kickoff-prompt file
+  (the existing pattern) rather than inlining multi-line text through send-keys.
+- Monitor with `psmux capture-pane -p -t <target>`; clean up finished workers
+  with `psmux kill-window -t <target>`.
 
 ## Hard rules
 
