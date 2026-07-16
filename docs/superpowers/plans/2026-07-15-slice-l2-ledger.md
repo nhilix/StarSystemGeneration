@@ -93,8 +93,14 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   Review clean (Sonnet, independently re-ran + verified EpochGenesis seeds zero fleets):
   spec PASS + quality PASS, 0 Critical/Important; 2 trivial Minors (var-eco hoist nit;
   NoPatrol test's `Assert.Empty(Fleets)` coupling — both acceptable, no fix).
-- [ ] **Task 5** — Off-lane alternative in routing (`OffLaneRoute` + `PlanBestRoute`).
-  Gate: off-lane + existing routing suites green.
+- [x] **Task 5** — Off-lane alternative in routing (`OffLaneRoute` + `PlanBestRoute`).
+  DONE — commit `1f23962` (ShipmentOps, CU-1-clean). `PlanRoute` untouched; new methods
+  no callers yet (Task 7 wires them). Suite 1029 pass / same 2 red; nothing else moved.
+  Severed-check predicate matches Sail's in-flight check exactly (first-leg-only, by
+  design). Review clean (Sonnet, independently re-ran + traced AddLane→live-lane): spec
+  PASS + quality PASS, 0 Critical/Important. Minor (final-review triage): `OffLaneRoute`
+  duplicates `PlanRoute`'s inline fallback — deliberate (brief forbade touching PlanRoute);
+  natural dedupe = have PlanRoute's fallback call OffLaneRoute in a later touch.
 - [ ] **Task 6** — Detection roll on off-lane legs (conserved seizure), channel **78**.
   OPUS escalation. Gate: detection + ConservationTests + knob green.
 - [ ] **Task 7** — Courier board routes off-lane when severed (`CourierOps.AcceptOpen`
