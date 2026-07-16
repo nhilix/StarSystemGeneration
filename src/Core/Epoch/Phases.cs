@@ -1801,8 +1801,14 @@ public sealed class InteriorPhase : ISimPhase
             int fromCur = state.LocalCurrencySafe(seg.PortId);
             int toCur = state.LocalCurrencySafe(bestPort);
             double moved = state.ConvertCurrency(wealthShare, fromCur, toCur);
-            state.RecordConversion(fromCur, wealthShare, toCur, moved);
-            home.Wealth += moved;
+            // slice CU-2: the migrants' wealth ARRIVES into the destination port's
+            // own currency and the destination segment banks it — the
+            // reduce-recipient (repatriation) shape, like construction wages and a
+            // seller's net. The destination segment banks the NET; the destination
+            // currency's Bank keeps the skim. Same-currency (or an unowned port,
+            // id −1) is a no-op: SettleConversion returns the full moved amount.
+            double net = state.SettleConversion(fromCur, wealthShare, toCur, moved);
+            home.Wealth += net;
             flows++;
             if (refugees)
                 state.Staged.Add(new StagedEvent(
