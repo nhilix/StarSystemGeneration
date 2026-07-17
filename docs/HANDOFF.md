@@ -1,4 +1,104 @@
-# Session Handoff — 2026-07-16 (Slice CU-2, the Bank actor — MERGED)
+# Session Handoff — 2026-07-16 (Slice BF — PARKED behind a market-engine defect)
+
+**NEXT UP: Slice MC — P7-clean nominal price formation.**
+Kickoff: `docs/superpowers/plans/2026-07-16-slice-mc-kickoff-prompt.md`.
+Nothing is merged from this session; `main` is unmoved at `768a8e4`.
+
+## Slice BF — the bank as monetary authority (PARKED, not abandoned)
+
+Branch `slice-bf-bank-flow` (worktree `.worktrees/slice-cu3` — the directory
+name is a stale artifact of the CU-3 pivot; `git worktree move` was blocked by an
+open handle. Cosmetic only). Base `768a8e4`. **Not merged, not pushed.**
+Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`; ledger
+`docs/superpowers/plans/2026-07-16-slice-bf-ledger.md` (its header carries the
+full park notice and the resume point).
+
+**Sequencing:** this session opened as **CU-3** (currency consolidation). Its
+kickoff demanded a sequencing decision on CU-2 follow-up #1
+(`[[bank-reserve-flow-gap]]`). The orchestrator recommended CU-3-first; **the
+user chose to fix the prerequisite first**, so the session pivoted to BF and
+CU-3's kickoff (`2026-07-16-slice-cu3-kickoff-prompt.md`) stays on disk,
+unstarted, still valid. BF then hit its *own* prerequisite and the user made the
+same call a second time — hence Slice MC. The chain is now
+**MC → BF (resume at task 6) → CU-3 → CU-4.**
+
+**What BF is:** closes CU-2 follow-up #1 (the bank's reserve had one inflow, the
+FX spread, ~0.1% of deficit funding, so it could never intermediate). Rather than
+levying every receipt site, it makes the sim's existing dominant chokepoint a
+bank operation: `IssueSovereignCredit` → `Bank.LendToState`, moving the bank to
+~100% of deficit funding without touching a receipt site. The bank gains an asset
+side (`ClaimOnState` — a claim, not a holder); servicing is surplus-only and
+interest **never capitalizes** (no compounding term exists anywhere, which is the
+whole spiral-proofness argument); principal repayment **destroys money** — the
+sim's first monetary sink. Backing ratio feeds the FX rate; no reserve gate, so
+ME's lender-of-last-resort floor stays absolute.
+
+**Landed (tasks 1–5b, all committed):** data model `aaefa5f` · serialization
+`b2dea02` (banks v1→v2, markets v5→v6) · knobs `feb8abe` · `LendToState`
+`82cc074` · servicing pass + money sink `65cdf4a` · design amendment §4a
+`3983ec2` · year-scaled servicing `6b5bb49` · park `aa5ce62`.
+
+**NOT started: tasks 6–13** (residual term, FX backing term, REPL, sweep +
+backing activation, eyeball, whole-branch fable review, golden freeze, merge).
+
+**Known-red on the branch, all expected and understood** (see the ledger header):
+the standing mid-slice golden; 6 *negative* conservation residuals (the task-6
+gap — the residual does not yet subtract `CumulativeFiatRetired`; task 6 closes
+them); and `FineTick_ProjectCompletions`, which only Slice MC can green.
+
+**Why parked (user decision):** BF's task-5b clock-invariance probe surfaced a
+**pre-existing P7 violation BF did not cause and cannot fix** — see
+`docs/superpowers/specs/2026-07-16-market-clock-dependence-investigation.md`. It
+is upstream of every monetary channel, so no BF sweep or tuning claim is
+meaningful until it lands. **On resume, re-baseline BF's knob defaults (§9)
+before task 9's sweep** — the MC fix will move every price and receipt.
+
+### The two design findings BF earned (both from real evidence, not review)
+
+1. **§4a — "time, not ticks" (amended in-branch, `3983ec2`).** The original §4
+   charged a fraction of a treasury *stock* once *per epoch*, so servicing
+   intensity scaled as 1/`YearsPerEpoch` (treasury diverged 4× between clocks).
+   Now: the share compounds per world-year (`1 − (1 − s)^years`,
+   `DecayIdlePools`' precedent) while **interest stays LINEAR in years** —
+   because rule 2 forbids compounding, so each world-year accrues on the same
+   principal. Knobs renamed to the repo's `PerYear` convention. Both hard rules
+   still hold structurally, not by a clamp.
+2. **§3's freeze of ME's issuance cap is CORRECT and stands.** Two plausible
+   diagnoses were refuted by experiment (see the investigation): the cap **never
+   binds at 25y, not once**; and zeroing both mints still leaves receipts
+   diverging 16×. Do not amend §3.
+
+## Slice MC — P7-clean nominal price formation (NEXT, kickoff written)
+
+**The defect:** `MarketEngine.DriftReferencePrices` (`MarketEngine.cs:1130–1167`)
+normalizes *demand* per generation (`/StepFraction`) but takes *supply* as the
+raw resting-ask stock, whose size scales with step length. A 25y step dumps 25
+years of production into one clearing → permanent glut → prices pinned at 1.000.
+A 1y step trickles → stock-outs → prices at the 59–100 ceiling. **The two clocks
+sit in opposite saturated price regimes.** Nominal receipts/yr diverge **68×**
+while the real economy diverges only 2–3× — the tell that this is nominal, not
+real. Structural across seeds (16×/24×/60×/23× on 42/7/99/2024); seed 13, a dead
+world, diverges 1.0× as a clean control.
+
+**The obvious fix is already tested and REFUTED** (investigation Finding 6): drop
+`/StepFraction` and compound `factor^years` — the formula correct on paper —
+improves 16×→5× but does not converge and *inverts*. `unsoldAsks` is inherently
+step-length-dependent, so no reformulation of the drift alone works. A real fix
+must address supply batching (flow-vs-flow, or a normalized ask window) — a
+design question, hence a brainstorm, hence a slice.
+
+**Not in tension with the LOLR floor** (Finding 7): the cause is upstream and
+monetary-policy-agnostic. The converse risk is the one to watch — a fix raising
+coarse receipts ~16× moves ME's monetary operating point, and *that* needs
+ensemble validation per the SH bar.
+
+**Also this slice's job:** `FineTickTests`' docstring asserts *"confirmed: no
+per-tick-vs-per-year formula defect ... legitimate economy-trajectory drift"* —
+and its band has been widened **three times (0.6→0.85)** absorbing this exact
+defect under that false explanation. Correct the record; re-tighten the bands to
+what the fixed engine supports.
+
+## Slice CU-2 — the Bank actor (closed, MERGED to main at 768a8e4)
 
 State: `slice-cu2-bank-actor` merged to `main` locally with `--no-ff`
 (main had NOT moved from the branch base 81c03c6 — L2 still in flight in its
