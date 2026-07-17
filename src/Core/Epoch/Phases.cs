@@ -739,6 +739,13 @@ public sealed class AllocationPhase : ISimPhase
     /// sink, and the reason <see cref="Currency.CumulativeFiatIssued"/> stops
     /// being a one-way ratchet.
     ///
+    /// BOTH rates are per-WORLD-YEAR and scaled to the epoch's length (design
+    /// §4a, P7 / "time, not ticks"): a 25-year step services exactly what
+    /// twenty-five 1-year steps would, so the clock stays a sampling choice and
+    /// never a rule. The share COMPOUNDS (it applies to a stock this same
+    /// operation depletes — identical in form to <see cref="DecayIdlePools"/>);
+    /// the interest is LINEAR (see rule 2 and the note at the interest line).
+    ///
     /// Two hard rules, both load-bearing against the sim-health slice's
     /// structurally-diagnosed debt spiral, and both properties of the ARITHMETIC
     /// rather than of any clamp:
@@ -747,9 +754,10 @@ public sealed class AllocationPhase : ISimPhase
     ///    treasury services nothing — it borrows more (that is what
     ///    <see cref="FundDeficit"/>, which has already run, is for). Servicing
     ///    can never drive a treasury negative: <c>budget ≤ Credits</c> (the
-    ///    share is ≤ 1) and <c>interest + principal ≤ budget</c>, so Credits is
-    ///    provably still positive afterward. There is no floor guard because
-    ///    none is reachable.
+    ///    year-compounded share is &lt; 1 for ANY epoch length) and
+    ///    <c>interest + principal ≤ budget</c>, so Credits is provably still
+    ///    positive afterward. There is no floor guard because none is
+    ///    reachable.
     /// 2. <b>Interest NEVER capitalizes.</b> Unpaid interest is DISCARDED, not
     ///    accrued: the <c>Math.Min</c> against the budget charges what the
     ///    polity can afford and simply drops the rest — it is never added to the
@@ -780,11 +788,24 @@ public sealed class AllocationPhase : ISimPhase
         var bank = state.BankOf(pr.CurrencyId);
         if (bank.ClaimOnState <= 0) return;
         var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        // the share COMPOUNDS per world-year like PoolIdleDecayPerYear (P7): a
+        // 25-year step services exactly what twenty-five 1-year steps would. It
+        // stays < 1 for any epoch length, which is what keeps budget <= Credits
+        // structurally rather than by a clamp.
+        double share = 1.0 - Math.Pow(Math.Max(0.0, 1.0 - eco.ClaimServicingSharePerYear),
+                                      years);
         // evaluate the budget BEFORE any mutation of Credits (see above)
-        double budget = pr.Credits * eco.ClaimServicingShare;
+        double budget = pr.Credits * share;
+        // Interest is LINEAR in years, deliberately NOT compounded: rule 2
+        // forbids compounding, and the claim cannot grow between world-years
+        // within an epoch (unpaid interest is discarded, never accrued), so
+        // every world-year accrues on the same principal. Compounding here
+        // would smuggle in exactly the growth term rule 2 exists to forbid.
         // rule 2: what the polity cannot afford is not charged — and NOT accrued
-        double interest = Math.Min(bank.ClaimOnState * eco.SovereignClaimInterestRate,
-                                   budget);
+        double interest = Math.Min(
+            bank.ClaimOnState * eco.SovereignClaimInterestRatePerYear * years,
+            budget);
         pr.Credits -= interest;
         bank.Reserve += interest;             // internal, conservation-neutral
         // the rest of the same budget amortizes, never more than is owed

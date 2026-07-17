@@ -47,6 +47,17 @@ the escalation bar is met more often than usual — noted per task.
       Gate: servicing never drives `Credits` negative; no capitalization on an
       insolvent polity; residual holds across a repayment epoch.
 
+- [x] **5b. Servicing is per world-year** (design **§4a**, the amendment the
+      Task 5 probe forced — commit `3983ec2`). Knob renames to the repo's
+      `PerYear` convention: `ClaimServicingSharePerYear` (**0.01**, compounds:
+      `share = 1 − (1 − s)^years`) and `SovereignClaimInterestRatePerYear`
+      (**0.001**, **LINEAR** in years — rule 2 forbids compounding). Follows
+      `DecayIdlePools` (`Phases.cs:632`). Both hard rules stay structural — no
+      clamp, floor, or ceiling added. *Opus* (P7 invariant + money).
+      Gate: `FineTickTests.FineTick_ProjectCompletions_LandOnWorldYears_NotSteps`
+      green. **⚠ NOT met — see the log; the residual cause is a separate,
+      pre-existing clock-dependence in issuance, not in servicing.**
+
 - [ ] **6. Residual** — add `CumulativeFiatRetired` to `CurrencyResidualRow` AND
       the baseline carry (`MetricsOps.cs:195` is a **delta** form). Design §6
       names this the single easiest way to get the slice wrong. *Opus*.
@@ -177,3 +188,48 @@ REPL surface works.
   preserves both hard rules structurally (the factor stays in [0,1], so
   `budget ≤ Credits`; interest stays `Math.Min`-capped by budget) but changes
   knob semantics. **Flagged to the user for a design decision.**
+- 2026-07-16 — Task 5b (§4a year-scaling) done: `ClaimServicingShare` →
+  `ClaimServicingSharePerYear` (0.25 → **0.01**, compounded
+  `1 − (1 − s)^years` per `DecayIdlePools`' precedent) and
+  `SovereignClaimInterestRate` → `SovereignClaimInterestRatePerYear`
+  (0.02 → **0.001**, **linear** `claim × r × years` — rule 2 forbids
+  compounding, so each world-year accrues on the same principal). Renamed in
+  `EpochSimConfig.cs`, **re-registered in `KnobRegistry.cs`** (name-sorted; a
+  missed registration silently reverts on reload), XML docs restated as
+  per-world-year. Both hard rules still structural: `share < 1` for ANY epoch
+  length keeps `budget ≤ Credits`; `interest + principal ≤ budget`. No clamp,
+  floor, ceiling, or write-off added.
+  `dotnet test`: **1062 passed, 8 red — all expected, no new failures.**
+  1 standing frozen-golden diff (goldens NOT regenerated, Task 12 re-freezes);
+  6 conservation residuals, every one **negative** (−20.2 … −34.8), the Task 6
+  gap (the residual does not yet subtract `CumulativeFiatRetired`) —
+  `MetricsOps.cs` untouched. The canary
+  `PrincipalRepayment_ResidualIsExactlyTheNotYetWiredRetirement` left for Task 6
+  to flip.
+  **Clock-invariance evidence** (isolated servicing harness, steady real income
+  of 100 credits/world-year, 200 world-years, claim 20 000):
+  treasury 7713.57 @25y/epoch vs 8707.58 @1y/epoch (**11.4%**), principal
+  retired 9915.82 vs 8967.82 (9.6%), claim 10084.18 vs 11032.18. Pre-amendment
+  the same harness settles to ~10 000 vs ~400 — a **~25× clock-dependence**. The
+  residual ~12% is irreducible, not a defect: it is the discretization gap of any
+  per-year-compounded share against income arriving between draws (steady state
+  solves to 8750 @25y vs 9900 @1y — the observed figures exactly), and
+  `DecayIdlePools` shares it. Three new tests pin this permanently: the share's
+  compounding and the interest's linearity each **exactly**, plus the history-level
+  band at 20%.
+  **⚠ `FineTick_ProjectCompletions_LandOnWorldYears_NotSteps` did NOT go green,
+  and §4a cannot green it.** Task 5's log attributed it to servicing; that is
+  half right. Probe at world-year 450 with servicing DISABLED from genesis
+  reproduces Task 5's pre-servicing figures exactly (treasury 4514.8 @25y vs
+  4515.6 @1y) — but issuance is *already* clock-dependent there: 6259 issued
+  @25y vs **18104** @1y (2.9×), because `IssueSovereignCredit`'s cap
+  (`SovereignIssuanceRate × Receipts`, `Phases.cs:715`) is applied once per
+  EPOCH, so a 1-year clock gets 25× the borrowing opportunities. Servicing does
+  not cause this; it *amplifies* it by creating recurring deficits (issued 7225
+  @25y vs 52614 @1y). Built units: 7 coarse / 9 fine with servicing off (band
+  passes); 2 coarse / 21 fine with it on — the coarse side starves because it
+  cannot re-borrow, and the test's `coarse×0.5 … coarse×2` band is brittle at
+  such small counts. §4a made the servicing arithmetic itself clock-invariant
+  (4× → ~12%); the remaining failure is **the per-epoch issuance cap**, which
+  design §3 explicitly freezes ("ME's cap and floor are untouched") — so fixing
+  it is a design decision, not this task's. **Flagged to the user.**

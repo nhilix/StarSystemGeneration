@@ -10,7 +10,12 @@ namespace StarGen.Core.Tests.Epoch;
 /// surplus, and principal repayment DESTROYS money (the sim's first monetary
 /// sink). These tests pin the two hard rules the design calls load-bearing
 /// against slice SH's structural debt-spiral finding: servicing is surplus-only
-/// and never forced, and interest never capitalizes.</summary>
+/// and never forced, and interest never capitalizes.
+///
+/// Task 5b (design §4a) added the clock contract: both rates are per-WORLD-YEAR
+/// and scaled to the epoch's length (P7 / "time, not ticks"). The share
+/// compounds, the interest is linear — see the three tests at the foot of this
+/// class, which pin each half exactly and the whole to a band.</summary>
 public class SovereignClaimServicingTests
 {
     /// <summary>An entered polity with its own currency, its parallel
@@ -32,6 +37,20 @@ public class SovereignClaimServicingTests
         pr.Credits = credits;
         state.WorldYear = 100;
         return (state, pr, bank);
+    }
+
+    /// <summary>The design's §4a year-scaling, mirrored here so every
+    /// expectation below states the PROPERTY rather than a magic number: the
+    /// servicing share compounds per world-year (a stock the same operation
+    /// depletes, exactly like DecayIdlePools), while the interest rate is
+    /// LINEAR in years — rule 2 forbids compounding, and the claim cannot grow
+    /// between world-years, so each year accrues on the same principal.</summary>
+    private static (double Share, double InterestRate) Scaled(SimState state)
+    {
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        return (1.0 - System.Math.Pow(1.0 - eco.ClaimServicingSharePerYear, years),
+                eco.SovereignClaimInterestRatePerYear * years);
     }
 
     private static void Service(SimState state, PolityRecord pr)
@@ -125,11 +144,12 @@ public class SovereignClaimServicingTests
     [Fact]
     public void CannotAffordFullInterest_ClaimIsUnchanged_NoCapitalization()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
-        // interest due = 1_000_000 × 0.02 = 20_000; budget = 100 × 0.25 = 25
+        // at the default 25y epoch: interest due = 1_000_000 × 0.025 = 25_000;
+        // budget = 100 × 0.222 ≈ 22.2
         var (state, pr, bank) = Fixture(credits: 100, claim: 1_000_000);
-        double interestDue = 1_000_000 * eco.SovereignClaimInterestRate;
-        double budget = 100 * eco.ClaimServicingShare;
+        var (share, rate) = Scaled(state);
+        double interestDue = 1_000_000 * rate;
+        double budget = 100 * share;
         Assert.True(budget < interestDue, "fixture precondition: interest unaffordable");
 
         Service(state, pr);
@@ -165,19 +185,20 @@ public class SovereignClaimServicingTests
     [Fact]
     public void Interest_MovesCreditsToReserve_WithNoCounterMotion()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
-        // claim 1000 → interest 20; budget = 100 × 0.25 = 25 ≥ 20, so the
-        // interest is paid in full and 5 remains for principal
-        var (state, pr, bank) = Fixture(credits: 100, claim: 1000);
-        double interest = 1000 * eco.SovereignClaimInterestRate;
-        double budget = 100 * eco.ClaimServicingShare;
+        // at the default 25y epoch: claim 1000 → interest 25; budget =
+        // 100 × 0.222 ≈ 22.2 — so pick credits that afford both comfortably
+        var (state, pr, bank) = Fixture(credits: 1000, claim: 1000);
+        var (share, rate) = Scaled(state);
+        double interest = 1000 * rate;
+        double budget = 1000 * share;
         double principal = budget - interest;
+        Assert.True(interest < budget, "fixture precondition: interest affordable");
         var cur = state.CurrencyOf(pr.CurrencyId);
 
         Service(state, pr);
 
         Assert.Equal(interest, bank.Reserve, 9);           // the reserve's first
-        Assert.Equal(100.0 - budget, pr.Credits, 9);       // real-economy inflow
+        Assert.Equal(1000.0 - budget, pr.Credits, 9);      // real-economy inflow
         // the interest moved no counter — only the principal is a mint/burn
         Assert.Equal(principal, cur.CumulativeFiatRetired, 9);
         Assert.Equal(0.0, cur.CumulativeFiatIssued, 9);
@@ -190,10 +211,9 @@ public class SovereignClaimServicingTests
     [Fact]
     public void PrincipalRepayment_MovesClaimAndRetiredByTheSameAmount()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
-        var (state, pr, bank) = Fixture(credits: 100, claim: 1000);
-        double interest = 1000 * eco.SovereignClaimInterestRate;
-        double principal = 100 * eco.ClaimServicingShare - interest;
+        var (state, pr, bank) = Fixture(credits: 1000, claim: 1000);
+        var (share, rate) = Scaled(state);
+        double principal = 1000 * share - 1000 * rate;
         var cur = state.CurrencyOf(pr.CurrencyId);
 
         Service(state, pr);
@@ -213,12 +233,13 @@ public class SovereignClaimServicingTests
     [Fact]
     public void ServicingBudget_IsComputedOnce_BeforeAnyCreditsMutation()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
         var (state, pr, bank) = Fixture(credits: 1000, claim: 2000);
-        double budget = 1000 * eco.ClaimServicingShare;          // 250
-        double interest = 2000 * eco.SovereignClaimInterestRate; // 40
-        double principal = budget - interest;                    // 210 — NOT
-        // (1000 − 40) × 0.25 − 40 = 200, which is what a re-read would give
+        var (share, rate) = Scaled(state);
+        double budget = 1000 * share;            // ≈ 222.2 at the default clock
+        double interest = 2000 * rate;           // = 50
+        double principal = budget - interest;    // ≈ 172.2 — NOT
+        // (1000 − 50) × share − 50, which is what a re-read would give
+        Assert.True(interest < budget, "fixture precondition: interest affordable");
 
         Service(state, pr);
 
@@ -232,15 +253,15 @@ public class SovereignClaimServicingTests
     [Fact]
     public void SmallClaim_IsRepaidInFull_AndStopsAtZero()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
         var (state, pr, bank) = Fixture(credits: 10_000, claim: 10);
-        double interest = 10 * eco.SovereignClaimInterestRate;   // 0.2
+        var (_, rate) = Scaled(state);
+        double interest = 10 * rate;             // = 0.25 at the default clock
 
         Service(state, pr);
 
         Assert.Equal(0.0, bank.ClaimOnState, 9);                 // fully repaid
         Assert.Equal(10.0, bank.CumulativeRetired, 9);
-        // budget was 2500; only interest + the 10 of principal was spent
+        // the budget was ~2222; only interest + the 10 of principal was spent
         Assert.Equal(10_000.0 - interest - 10.0, pr.Credits, 9);
     }
 
@@ -254,13 +275,14 @@ public class SovereignClaimServicingTests
     [Fact]
     public void InterestOnly_KeepsPerCurrencyResidualZero()
     {
-        var eco = EpochTestKit.Seeded().State.Config.Economy;
         // budget exactly equals the interest due, so no principal is repaid and
-        // no retirement term is needed: claim × rate == credits × share
-        // 1000 × 0.02 = 20; credits 80 × 0.25 = 20
-        var (state, pr, bank) = Fixture(credits: 80, claim: 1000);
-        Assert.Equal(1000 * eco.SovereignClaimInterestRate,
-                     80 * eco.ClaimServicingShare, 9);
+        // no retirement term is needed: claim × rate == credits × share. The
+        // balance is SOLVED for from the year-scaled knobs rather than written
+        // as a literal, so it stays exact at any epoch length (§4a).
+        var (state, pr, bank) = Fixture(credits: 1, claim: 1000);
+        var (share, rate) = Scaled(state);
+        pr.Credits = 1000 * rate / share;
+        Assert.Equal(1000 * rate, pr.Credits * share, 9);
 
         SupplyOps.Recompute(state);
         state.Health.Rows.Add(MetricsOps.Snapshot(state));
@@ -300,5 +322,129 @@ public class SovereignClaimServicingTests
         // the identity's balance side is short by exactly the retirement the
         // residual does not yet subtract (task 6 wires it and this goes to 0)
         Assert.Equal(-cur.CumulativeFiatRetired, curRow.Residual, 6);
+    }
+
+    // ---- §4a: time, not ticks ----
+
+    /// <summary>A polity with a claim and a STEADY REAL INCOME of 100 credits
+    /// per world-year, serviced for `steps` epochs of `ype` years each. The
+    /// income is stated per world-year and scaled to the epoch, so the only
+    /// thing under test is whether servicing itself tracks the clock. Deliberately
+    /// NOT the full engine: at engine level the claim book is fed by
+    /// IssueSovereignCredit, whose cap is applied once per EPOCH rather than per
+    /// world-year, so a fine clock gets 25x the borrowing opportunities and the
+    /// claim book diverges ~3x between clocks BEFORE this pass ever runs. That
+    /// is a real, separate, pre-existing clock-dependence (measured with
+    /// servicing disabled: 6259 issued at 25y/epoch vs 18104 at 1y/epoch); a
+    /// test that swept it in would be measuring someone else's defect.</summary>
+    private static (double Credits, double Claim, double Retired, double Reserve)
+        ServiceWithSteadyIncome(int steps, int ype, double claim,
+                                double credits = 1000, double incomePerYear = 100)
+    {
+        var state = EpochTestKit.Seeded().State;
+        state.Config.Sim.YearsPerEpoch = ype;
+        var actor = state.Actors[0];
+        actor.Entered = true;
+        var pr = state.PolityOf(actor.Id);
+        state.FoundCurrency(actor.Id);
+        var bank = state.BankOf(pr.CurrencyId);
+        bank.ClaimOnState = claim;
+        pr.Credits = credits;
+        for (int i = 0; i < steps; i++)
+        {
+            pr.Credits += incomePerYear * ype;
+            Service(state, pr);
+        }
+        return (pr.Credits, bank.ClaimOnState,
+                state.CurrencyOf(pr.CurrencyId).CumulativeFiatRetired,
+                bank.Reserve);
+    }
+
+    /// <summary>§4a, half 1: the servicing SHARE compounds per world-year, so a
+    /// single 25-year step services EXACTLY what twenty-five 1-year steps would
+    /// — asserted exactly, not within a band. With no income the budget is the
+    /// pure statement of the compounding identity `1 − (1 − s)^25 == 1 − 0.99^25`.
+    /// This is the DecayIdlePools invariant (Phases.cs) applied to the claim
+    /// book. The pre-amendment code charged a flat per-epoch share and fails
+    /// this outright.</summary>
+    [Fact]
+    public void ServicingShare_CompoundsPerWorldYear_TwentyFiveOneYearStepsEqualOne25YearStep()
+    {
+        // a claim far larger than any budget, so the whole budget is spent every
+        // step and the claim never moves — isolating the SHARE from everything else
+        var coarse = ServiceWithSteadyIncome(steps: 1, ype: 25, claim: 1_000_000,
+                                             incomePerYear: 0);
+        var fine = ServiceWithSteadyIncome(steps: 25, ype: 1, claim: 1_000_000,
+                                           incomePerYear: 0);
+
+        Assert.Equal(coarse.Credits, fine.Credits, 6);
+        // the whole budget was spent in both, and identically
+        Assert.Equal(coarse.Retired + coarse.Reserve,
+                     fine.Retired + fine.Reserve, 6);
+        Assert.Equal(1000.0 * (1.0 - System.Math.Pow(0.99, 25)), coarse.Reserve, 6);
+    }
+
+    /// <summary>§4a, half 2: interest is LINEAR in years, never compounded. A
+    /// 25-year epoch charges exactly 25x what a 1-year epoch charges on the same
+    /// starting claim — asserted exactly, on a single step from an identical
+    /// state, with the budget deliberately non-binding so the Math.Min does not
+    /// mask the rate. A compound form (`claim × ((1+r)^25 − 1)`) is ~1.2% higher
+    /// and fails this; that form is FORBIDDEN by rule 2, which is what makes the
+    /// mechanism structurally spiral-proof.</summary>
+    [Fact]
+    public void Interest_IsLinearInYears_NeverCompounded()
+    {
+        // credits are huge so the budget never binds; claim 1000 → interest is
+        // 1000 × 0.001 × years exactly
+        var coarse = ServiceWithSteadyIncome(steps: 1, ype: 25, claim: 1000,
+                                             credits: 100_000, incomePerYear: 0);
+        var fine = ServiceWithSteadyIncome(steps: 1, ype: 1, claim: 1000,
+                                           credits: 100_000, incomePerYear: 0);
+
+        // the reserve receives interest and nothing else
+        Assert.Equal(25.0, coarse.Reserve, 9);            // 1000 × 0.001 × 25
+        Assert.Equal(1.0, fine.Reserve, 9);               // 1000 × 0.001 × 1
+        Assert.Equal(25.0 * fine.Reserve, coarse.Reserve, 9);   // LINEAR
+    }
+
+    /// <summary>The regression guard for the amendment (design §4a, P7 "time,
+    /// not ticks"), at the level of a whole serviced history. The original §4
+    /// charged a fraction of a treasury STOCK once per EPOCH, so servicing
+    /// intensity scaled as 1/YearsPerEpoch — under this harness it settles to a
+    /// treasury of ~10000 at 25y/epoch against ~400 at 1y/epoch, a ~25x
+    /// clock-dependence. Year-scaled, the two clocks agree to ~12%.
+    ///
+    /// The residual ~12% is NOT a defect and cannot be tuned away: it is the
+    /// irreducible discretization gap of any per-year-compounded share against
+    /// income arriving between draws (steady state solves to 8750 at 25y vs 9900
+    /// at 1y — the observed figures exactly). DecayIdlePools, the precedent this
+    /// follows, has the identical characteristic. The band is set at 20%: wide
+    /// enough for that gap, ~2 orders tighter than the regression it catches.</summary>
+    [Fact]
+    public void Servicing_IsClockInvariant_AcrossEpochLengths()
+    {
+        // 200 world-years of the same history on two clocks, claim large enough
+        // that it is never fully repaid (so servicing is live throughout)
+        var coarse = ServiceWithSteadyIncome(steps: 8, ype: 25, claim: 20_000);
+        var fine = ServiceWithSteadyIncome(steps: 200, ype: 1, claim: 20_000);
+
+        void AssertAgrees(string what, double a, double b)
+        {
+            double scale = System.Math.Max(System.Math.Abs(a), System.Math.Abs(b));
+            if (scale < 1e-9) return;
+            double rel = System.Math.Abs(a - b) / scale;
+            Assert.True(rel < 0.20,
+                $"{what} is clock-dependent: {a} at 25y/epoch vs {b} at 1y/epoch " +
+                $"({rel:P1} apart) — servicing must not scale with the clock (§4a)");
+        }
+
+        AssertAgrees("treasury", coarse.Credits, fine.Credits);
+        AssertAgrees("claim book", coarse.Claim, fine.Claim);
+        AssertAgrees("principal retired", coarse.Retired, fine.Retired);
+        AssertAgrees("interest taken", coarse.Reserve, fine.Reserve);
+
+        // not vacuous: both clocks actually serviced, and neither repaid it all
+        Assert.True(coarse.Retired > 0.0 && fine.Retired > 0.0);
+        Assert.True(coarse.Claim > 0.0 && fine.Claim > 0.0);
     }
 }
