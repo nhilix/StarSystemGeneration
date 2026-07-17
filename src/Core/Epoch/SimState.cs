@@ -47,6 +47,11 @@ public sealed class SimState
     /// polity, id order (P6). Retired currencies stay as history. Empty until
     /// genesis wiring mints them (a later task).</summary>
     public List<Currency> Currencies { get; } = new List<Currency>();
+    /// <summary>One central bank per Currency (slice CU-2), dense-parallel to
+    /// <see cref="Currencies"/> (id == index) — founded 1:1 alongside its
+    /// currency at <see cref="FoundCurrency"/>. Reserve dynamics are wired by
+    /// later tasks; this registry only tracks the record.</summary>
+    public List<Bank> Banks { get; } = new List<Bank>();
     /// <summary>The keystone registry: political geography derives from it.</summary>
     public List<Port> Ports { get; } = new List<Port>();
     public List<Lane> Lanes { get; } = new List<Lane>();
@@ -184,6 +189,19 @@ public sealed class SimState
         throw new KeyNotFoundException($"no currency {currencyId}");
     }
 
+    /// <summary>The bank record for a currency id (registry is id-ordered and
+    /// dense once <see cref="FoundCurrency"/> founds them 1:1; a scan covers
+    /// any later interleaving — mirrors <see cref="CurrencyOf"/>).</summary>
+    public Bank BankOf(int currencyId)
+    {
+        if (currencyId >= 0 && currencyId < Banks.Count
+            && Banks[currencyId].CurrencyId == currencyId)
+            return Banks[currencyId];
+        foreach (var bank in Banks)
+            if (bank.CurrencyId == currencyId) return bank;
+        throw new KeyNotFoundException($"no bank for currency {currencyId}");
+    }
+
     /// <summary>The numeraire rate of a currency id, defaulting to the dormant 1:1
     /// rate (1.0) for the pre-genesis sentinel (id &lt; 0) or any id not yet in the
     /// registry — the same "no rate exists, treat as 1:1" convention
@@ -219,6 +237,7 @@ public sealed class SimState
         int id = Currencies.Count;
         var currency = new Currency(id, Actors[polityId].Name, polityId);
         Currencies.Add(currency);
+        Banks.Add(new Bank(id));
         pr.CurrencyId = id;
         return currency;
     }
@@ -263,6 +282,67 @@ public sealed class SimState
             || fromCurrencyId < 0 || toCurrencyId < 0) return;
         CurrencyOf(fromCurrencyId).CumulativeConvertedOut += outAmount;
         CurrencyOf(toCurrencyId).CumulativeConvertedIn += inAmount;
+    }
+
+    /// <summary>The spread-skimming settle for a cross-currency transfer (slice
+    /// CU-2 bank-actor): records the transfer exactly as <see cref="RecordConversion"/>
+    /// does — the FULL <paramref name="outAmount"/> as this source's
+    /// <see cref="Currency.CumulativeConvertedOut"/> and the FULL
+    /// <paramref name="inAmount"/> as the destination's
+    /// <see cref="Currency.CumulativeConvertedIn"/> — then skims
+    /// <c>inAmount × <see cref="EconomyKnobs.ConversionSpread"/></c> off the top
+    /// into the destination currency's <see cref="Bank.Reserve"/> and returns the
+    /// NET (<paramref name="inAmount"/> − spread) that actually lands in a wallet.
+    /// The skim is money SEQUESTERED out of the circulating
+    /// <see cref="Currency.Supply"/> (<c>SupplyOps</c> stays circulating-only), so
+    /// the counters still book the full amounts and the reserve-aware residual
+    /// (<c>MetricsOps</c>) nets the reserve back on the balance side. A no-op skim
+    /// when the currencies match or either side is pre-genesis (id &lt; 0) — the
+    /// full amount returns unchanged and the reserve is untouched, byte-identical
+    /// to <see cref="RecordConversion"/> + a raw pass-through. This is the
+    /// spread-charging sibling of <see cref="RecordConversion"/>; the exempt sites
+    /// (internal re-denominations at ownership seams) keep using the latter.</summary>
+    public double SettleConversion(int fromCurrencyId, double outAmount,
+                                   int toCurrencyId, double inAmount)
+    {
+        RecordConversion(fromCurrencyId, outAmount, toCurrencyId, inAmount);
+        // skim only a real, positive inbound amount: same/pre-genesis currency has
+        // no spread, and a non-positive inAmount (a debt hand-over that slips
+        // through) must never skim — that would push a NEGATIVE spread into the
+        // reserve. The exempt re-denomination sites (DepositExempt) never reach
+        // here; this is the defensive backstop (slice CU-2 task 4f).
+        if (fromCurrencyId == toCurrencyId
+            || fromCurrencyId < 0 || toCurrencyId < 0 || inAmount <= 0)
+            return inAmount;
+        double spread = inAmount * Config.Economy.ConversionSpread;
+        var bank = BankOf(toCurrencyId);
+        bank.Reserve += spread;
+        bank.CumulativeSpreadIntake += spread;
+        return inAmount - spread;
+    }
+
+    /// <summary>Sequester a cross-currency PAYMENT's spread into the destination
+    /// currency's <see cref="Bank"/> reserve (slice CU-2 bank-actor). This is the
+    /// PAYMENT-direction sibling of <see cref="SettleConversion"/>: where
+    /// <c>SettleConversion</c> is the repatriation shape (money arriving into a
+    /// holder's own currency — the skim comes OUT of what the recipient banks,
+    /// returning the net), a payment grosses the PAYER up instead — the payer
+    /// sources the payee's full amount PLUS this <paramref name="skim"/> on top, so
+    /// the payee/seller stays whole (the pay-recipients-gross settlement sites keep
+    /// crediting the full amount, no leak) and the skim still lands in the
+    /// destination reserve. The caller books the full grossed transfer via
+    /// <see cref="RecordConversion"/> itself (the <c>outAmount</c>/<c>inAmount</c>
+    /// differ per site — a polity's own cost vs a corp bucket's spend — so only the
+    /// reserve write is shared here). A no-op for a pre-genesis id (id &lt; 0) or a
+    /// zero skim — the dormant single-currency world sequesters nothing.</summary>
+    public void SkimToReserve(int toCurrencyId, double skim)
+    {
+        // no-op on a non-positive skim (task 4f defensive guard): a reserve is
+        // sequestered CIRCULATING money and must never go negative.
+        if (toCurrencyId < 0 || skim <= 0.0) return;
+        var bank = BankOf(toCurrencyId);
+        bank.Reserve += skim;
+        bank.CumulativeSpreadIntake += skim;
     }
 
     /// <summary>The currency a port's market is denominated in — the port-owning

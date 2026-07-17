@@ -505,7 +505,7 @@ public sealed class AllocationPhase : ISimPhase
         // service
         foreach (var pr in state.Polities)                    // actor-id order
             if (state.Actors[pr.ActorId].Entered)
-                IssueSovereignCredit(state, pr);
+                FundDeficit(state, pr);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
@@ -636,6 +636,47 @@ public sealed class AllocationPhase : ISimPhase
         pr.MilitaryPoints = DecayOne(pr.MilitaryPoints);
     }
 
+    /// <summary>Two-stage funding of an end-of-epoch treasury deficit (slice
+    /// CU-2 bank-actor, design §5). A negative treasury is covered FIRST from its
+    /// own currency's <see cref="Bank.Reserve"/> — a <c>Reserve → Supply</c>
+    /// TRANSFER, conservation-neutral under the reserve-aware residual
+    /// (<c>SupplyOps</c> walks Credits, the residual adds Reserve), so it never
+    /// touches <see cref="Currency.CumulativeFiatIssued"/>. The single-epoch draw
+    /// is bounded by <see cref="EconomyKnobs.IssuanceReserveRatio"/> of the live
+    /// reserve, so a deep deficit cannot drain a well-capitalized bank in one
+    /// epoch — the reserve is a consequential, slowly-spent buffer. Whatever stays
+    /// negative after the draw falls through to the unchanged bounded fiat
+    /// backstop (<see cref="IssueSovereignCredit"/>), the lender-of-last-resort
+    /// floor that preserves ME's spiral cure. Steady issuance (the money-base
+    /// mint) is deliberately NOT routed here — it is growth, not backstopping.</summary>
+    private static void FundDeficit(SimState state, PolityRecord pr)
+    {
+        // stage 1 — reserve funding (a transfer, not a mint). Only a polity with
+        // a founded currency has a Bank; a pre-genesis treasury (CurrencyId < 0)
+        // skips straight to the fiat backstop, byte-identical to the pre-task path.
+        if (pr.Credits < 0 && pr.CurrencyId >= 0)
+        {
+            var bank = state.BankOf(pr.CurrencyId);
+            // draw = min(shortfall, ratio*reserve, reserve). The ratio (≤ 1)
+            // already keeps the draw ≤ reserve, but clamp to reserve defensively;
+            // every term is non-negative (reserves are non-negative), so draw is
+            // too, and the reserve can never be pushed below zero.
+            double shortfall = -pr.Credits;
+            double ratioCap = state.Config.Economy.IssuanceReserveRatio * bank.Reserve;
+            double draw = Math.Min(shortfall, Math.Min(ratioCap, bank.Reserve));
+            if (draw > 0)
+            {
+                bank.Reserve -= draw;
+                pr.Credits += draw;
+                bank.CumulativeReserveFunded += draw;
+            }
+        }
+        // stage 2 — fiat backstop: the bounded mint covers whatever is still
+        // negative (a no-op when the reserve already cleared the hole, since
+        // IssueSovereignCredit returns early on a non-negative treasury).
+        IssueSovereignCredit(state, pr);
+    }
+
     /// <summary>Bounded sovereign issuance — the second declared mint
     /// (monetary-equilibrium design §5). Run in its own pass AFTER Borrow (fix
     /// wave 1), so peer lending gets first refusal on every shortfall and the
@@ -702,7 +743,21 @@ public sealed class AllocationPhase : ISimPhase
             // same-currency loan converts 1:1, so the solvency gate below is
             // byte-identical to the pre-currency behavior (ME's mechanism).
             double paymentOwn = state.ConvertCurrency(payment, loanCurrencyId, borrower.CurrencyId);
-            if (borrower.Credits >= paymentOwn)
+            // slice CU-2 gross-up incidence: providing X of the loan currency
+            // costs X*(1+spread) of the borrower's OWN currency (the payer bears
+            // the FX spread, the destination Bank keeps the skim). Same-currency
+            // (or pre-genesis) loans do not skim, so the factor is 1. The full
+            // and partial branches below both size against this same factor.
+            double grossFactor =
+                loanCurrencyId != borrower.CurrencyId
+                && loanCurrencyId >= 0 && borrower.CurrencyId >= 0
+                    ? 1.0 + eco.ConversionSpread : 1.0;
+            // slice CU-2 task 8 fix 4: gate the FULL repayment on the GROSS
+            // own-currency cost (the Withdraw at :751 debits paymentOwn*grossFactor,
+            // not paymentOwn), so the full branch is consistent with the gross-sized
+            // partial branch below. A borrower short of the grossed cost falls to
+            // the partial branch (a legitimate insolvency, absorbed by FundDeficit).
+            if (borrower.Credits >= paymentOwn * grossFactor)
             {
                 // full payment: the borrower Withdraws the lender-currency
                 // payment (debiting its converted own-currency cost and booking
@@ -718,7 +773,14 @@ public sealed class AllocationPhase : ISimPhase
                 // worth partLoan in the loan currency — and capitalize the
                 // missed interest (all in the loan currency, as Principal is).
                 double partOwn = borrower.Credits;
-                double partLoan = state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId);
+                // gross-up incidence (grossFactor hoisted above the gate): the
+                // whole balance partOwn funds only partLoan/grossFactor toward the
+                // lender — the rest covers the skim. Sizing it down here keeps the
+                // Withdraw's grossed cost at exactly partOwn, so the reset below is
+                // an exact zero, not a phantom mint of partOwn*spread.
+                double partLoan =
+                    state.ConvertCurrency(partOwn, borrower.CurrencyId, loanCurrencyId)
+                    / grossFactor;
                 double provided = borrower.Withdraw(state, partLoan, loanCurrencyId);
                 RepayLender(state, lender, provided, loanCurrencyId);
                 loan.Principal += interest - Math.Min(interest, provided);
@@ -1817,8 +1879,14 @@ public sealed class InteriorPhase : ISimPhase
             int fromCur = state.LocalCurrencySafe(seg.PortId);
             int toCur = state.LocalCurrencySafe(bestPort);
             double moved = state.ConvertCurrency(wealthShare, fromCur, toCur);
-            state.RecordConversion(fromCur, wealthShare, toCur, moved);
-            home.Wealth += moved;
+            // slice CU-2: the migrants' wealth ARRIVES into the destination port's
+            // own currency and the destination segment banks it — the
+            // reduce-recipient (repatriation) shape, like construction wages and a
+            // seller's net. The destination segment banks the NET; the destination
+            // currency's Bank keeps the skim. Same-currency (or an unowned port,
+            // id −1) is a no-op: SettleConversion returns the full moved amount.
+            double net = state.SettleConversion(fromCur, wealthShare, toCur, moved);
+            home.Wealth += net;
             flows++;
             if (refugees)
                 state.Staged.Add(new StagedEvent(

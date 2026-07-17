@@ -443,13 +443,28 @@ public static class FleetOps
         // discipline every other foreign-market payer applies). Same-currency (an
         // own port) is byte-identical: both conversions and the record are no-ops.
         int localCur = state.LocalCurrencySafe(market.PortId);
+        // slice CU-2: victualling at a FOREIGN port is a real cross-currency
+        // PAYMENT — the book's sellers were pre-paid the gross `cost` (LiftAsks),
+        // so gross up the payer (the polity bears the spread, the local Bank keeps
+        // the skim) rather than shrinking what the sellers got. Bound the lift by
+        // the pool with (1+spread) of headroom so the grossed debit never drives
+        // MilitaryPoints negative (a pool clamp would mint the skim — the
+        // balance-sized-payment trap). Same-currency (an own port) keeps spread 0
+        // and is byte-identical to the CU-1 fix (foreign cost charged to the pool).
+        bool crossCur = localCur != pr.CurrencyId
+            && localCur >= 0 && pr.CurrencyId >= 0;
+        double spread = crossCur ? state.Config.Economy.ConversionSpread : 0.0;
         double budgetLocal = state.ConvertCurrency(
-            Math.Max(0.0, pr.MilitaryPoints), pr.CurrencyId, localCur);
+            Math.Max(0.0, pr.MilitaryPoints), pr.CurrencyId, localCur)
+            / (1.0 + spread);
         var (drawn, _, cost) = BookOps.LiftAsks(state, market.PortId, good,
             need, budget: budgetLocal);
-        double ownCost = state.ConvertCurrency(cost, localCur, pr.CurrencyId);
-        pr.MilitaryPoints -= ownCost;
-        state.RecordConversion(pr.CurrencyId, ownCost, localCur, cost);
+        double skim = cost * spread;
+        double grossLocal = cost + skim;
+        double ownCostGross = state.ConvertCurrency(grossLocal, localCur, pr.CurrencyId);
+        pr.MilitaryPoints -= ownCostGross;
+        state.SkimToReserve(localCur, skim);
+        state.RecordConversion(pr.CurrencyId, ownCostGross, localCur, grossLocal);
         double shortfall = need - drawn;
         if (shortfall > 0)
             drawn += state.Ports[market.PortId].DrawStock(good, shortfall);

@@ -889,6 +889,21 @@ public sealed class EconomyKnobs
     /// denominator (<see cref="FxOps"/>), so a freshly split polity with
     /// near-zero receipts neither divides by zero nor blows its rate up.</summary>
     public double FxReceiptsFloor { get; set; } = 1.0;
+    /// <summary>Fraction of every cross-currency conversion's incoming amount the
+    /// destination currency's <see cref="Bank"/> skims into its reserve as spread
+    /// (slice CU-2 bank-actor): <c>spread = inAmount × ConversionSpread</c>, taken
+    /// by <see cref="SimState.SettleConversion"/>. This money is SEQUESTERED out of
+    /// the circulating <see cref="Currency.Supply"/> (SupplyOps stays
+    /// circulating-only), so accumulating reserve tightens the FX rate — the
+    /// intended lever. FLAGGED for the post-impl tuning pass — a placeholder rate,
+    /// not yet swept.</summary>
+    public double ConversionSpread { get; set; } = 0.005;
+    /// <summary>Per-epoch cap on how much of a <see cref="Bank"/>'s reserve a
+    /// single deficit may draw to fund itself (slice CU-2 bank-actor): a fraction
+    /// of the live reserve. Wired by the reserve-funding task; declared here with
+    /// the other bank knobs. FLAGGED for the post-impl tuning pass — a placeholder
+    /// ratio, not yet swept.</summary>
+    public double IssuanceReserveRatio { get; set; } = 0.5;
 
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites

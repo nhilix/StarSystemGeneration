@@ -43,12 +43,17 @@ public sealed record MoneyRow(
 /// residual is that currency's own supply delta minus its mints and net of its
 /// conversions; nonzero means a per-currency leak. Defined 0 on a currency's
 /// first observed epoch (no prior baseline — the same convention the whole-sim
-/// first row uses), which also absorbs the one-time founding endowment/seed.</summary>
+/// first row uses), which also absorbs the one-time founding endowment/seed.
+/// <see cref="Reserve"/> is the currency's <see cref="Bank.Reserve"/> — money
+/// SEQUESTERED out of the walked (circulating-only) <see cref="Currency.Supply"/>
+/// by conversion spread (slice CU-2 bank-actor); the residual balances against
+/// <c>Supply + Reserve</c> so a nonzero reserve is not read as a leak, and the
+/// baseline row carries it so the delta stays correct.</summary>
 public sealed record CurrencyResidualRow(
     int CurrencyId, double Supply,
     double CumulativeFiatIssued, double CumulativeSteadyIssuance,
     double CumulativeConvertedIn, double CumulativeConvertedOut,
-    double Residual);
+    double Residual, double Reserve);
 
 /// <summary>One epoch's macro snapshot — a pure function of the state at
 /// capture (levels and counts only; per-epoch deltas are the reader's
@@ -180,9 +185,14 @@ public static class MetricsOps
                 foreach (var row in prev.Currencies)
                     if (row.CurrencyId == cur.Id) { baseline = row; break; }
 
+            // The bank reserve is money sequestered OUT of the walked Supply
+            // (SupplyOps stays circulating-only), so the residual balances
+            // against Supply + Reserve — the SAME bank SettleConversion writes.
+            // Otherwise a nonzero reserve reads as a false leak.
+            double reserve = state.BankOf(cur.Id).Reserve;
             double residual = 0.0;
             if (baseline != null)
-                residual = cur.Supply - baseline.Supply
+                residual = (cur.Supply + reserve) - (baseline.Supply + baseline.Reserve)
                     - (cur.CumulativeFiatIssued - baseline.CumulativeFiatIssued)
                     - (cur.CumulativeSteadyIssuance - baseline.CumulativeSteadyIssuance)
                     - (cur.CumulativeConvertedIn - baseline.CumulativeConvertedIn)
@@ -190,7 +200,8 @@ public static class MetricsOps
 
             currencyRows.Add(new CurrencyResidualRow(cur.Id, cur.Supply,
                 cur.CumulativeFiatIssued, cur.CumulativeSteadyIssuance,
-                cur.CumulativeConvertedIn, cur.CumulativeConvertedOut, residual));
+                cur.CumulativeConvertedIn, cur.CumulativeConvertedOut, residual,
+                reserve));
             double abs = residual < 0 ? -residual : residual;
             if (abs > worstResidual) worstResidual = abs;
         }

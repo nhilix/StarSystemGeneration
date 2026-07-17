@@ -30,6 +30,7 @@ public class BorrowServiceCurrencyTests
         var cur = new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -275,16 +276,25 @@ public class BorrowServiceCurrencyTests
         c1.CumulativeConvertedIn = c1.CumulativeConvertedOut = 0;
         double bBefore = state.PolityOf(0).Credits;
         double lBefore = state.PolityOf(1).Credits;
+        double reserve1Before = state.BankOf(1).Reserve;
 
         InvokeService(state);
 
         double borrowerPaidOwn = bBefore - state.PolityOf(0).Credits;  // C0 out
         double lenderGot = state.PolityOf(1).Credits - lBefore;         // C1 in
+        // Withdraw (slice CU-2) grosses the payer up and books the FULL
+        // grossed transfer (payment + skim) as the paired conversion counters,
+        // then sequesters the skim into the destination currency's
+        // Bank.Reserve before the lender's Deposit ever sees it — so the
+        // lender's actual receipt is the counter net of that reserve delta
+        // (MetricsOps.cs authoritative residual balances Supply + Reserve).
+        double skim1 = state.BankOf(1).Reserve - reserve1Before;
         Assert.Equal(borrowerPaidOwn, c0.CumulativeConvertedOut, 9);
-        Assert.Equal(lenderGot, c1.CumulativeConvertedIn, 9);
-        // conservation: numeraire value out of C0 == numeraire value into C1
+        Assert.Equal(lenderGot + skim1, c1.CumulativeConvertedIn, 9);
+        // conservation: numeraire value out of C0 == numeraire value landed in
+        // C1 plus the numeraire value of the skim sequestered into its reserve
         Assert.Equal(borrowerPaidOwn * c0.NumeraireRate,
-                     lenderGot * c1.NumeraireRate, 9);
+                     (lenderGot + skim1) * c1.NumeraireRate, 9);
     }
 
     /// <summary>At issuance a cross-currency loan denominates its DEBT in the
@@ -314,8 +324,13 @@ public class BorrowServiceCurrencyTests
         Assert.Equal(1, loan.LenderActorId);
         // 120 C0 -> C1 at 1/2 = 60: the DEBT is lender-denominated
         Assert.Equal(60.0, loan.Principal, 9);
-        // the borrower's CASH rose by the full 120 of its OWN currency
-        Assert.Equal(-100 + 120.0, state.PolityOf(0).Credits, 9);
+        // the borrower's CASH rose by the 120 converted, net of the spread
+        // Deposit (slice CU-2) skims off the top into Bank(C0).Reserve before
+        // crediting — the counter below still books the FULL 120 (Deposit's
+        // SettleConversion records the gross transfer; only the credited net
+        // is smaller, per MetricsOps.cs's reserve-aware residual)
+        double spread = state.Config.Economy.ConversionSpread;
+        Assert.Equal(-100 + 120.0 * (1 - spread), state.PolityOf(0).Credits, 9);
         // the lender fronted 60 of its OWN currency (Withdraw, same currency)
         Assert.Equal(lenderBefore - 60.0, state.PolityOf(1).Credits, 9);
         // one conversion booked: C1 out 60, C0 in 120

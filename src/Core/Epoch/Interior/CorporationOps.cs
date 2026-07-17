@@ -1052,10 +1052,15 @@ public static class CorporationOps
             double amt = corp.Holdings[cid];
             if (amt <= 0) continue;
             double inTarget = state.ConvertCurrency(amt, cid, toCurrencyId);
-            corp.Withdraw(state, amt, cid);       // empties the bucket
-            total += inTarget;
-            if (cid != toCurrencyId)
-                state.RecordConversion(cid, amt, toCurrencyId, inTarget);
+            corp.Withdraw(state, amt, cid);       // empties the bucket (matching, no skim)
+            // slice CU-2: each bucket converts INTO the home-port currency the
+            // dissolution residue settles in — the recipients' OWN currency (the
+            // home-port segments, or the polity), the reduce-recipient shape like
+            // wages and migration: they bank the NET, the home-port Bank keeps the
+            // skim. SettleConversion no-ops on a same-currency bucket (returns
+            // inTarget, no skim, no record), so `total` accrues net cross-currency
+            // and gross same-currency — the old `if (cid != toCurrencyId)` guard.
+            total += state.SettleConversion(cid, amt, toCurrencyId, inTarget);
         }
         return total;
     }

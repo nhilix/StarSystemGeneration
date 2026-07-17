@@ -24,6 +24,7 @@ public class OrderBookCurrencyTests
         var cur = new Currency(id, $"C{id}", foundingPolityId: id)
         { NumeraireRate = rate };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -76,11 +77,17 @@ public class OrderBookCurrencyTests
         double tax = 30.0 * 0.1;
         double wages = (30.0 - tax) * laborShare;
         double netLocal = 30.0 - tax - wages;
-        double netSeller = netLocal * 1.0 / 2.0;   // cur0 -> cur1
+        double netSeller = netLocal * 1.0 / 2.0;   // cur0 -> cur1, gross of the skim
+        // SettleSale credits the seller via CreditLocal -> Deposit (slice
+        // CU-2), which skims the spread off the top into Bank(cur1).Reserve
+        // before crediting the NET — the paired counter below still books
+        // the full gross conversion.
+        double netSellerCredited =
+            netSeller * (1 - state.Config.Economy.ConversionSpread);
 
         Assert.Equal(sovBefore + tax, sovereign.Credits, 9);       // local, no FX
         Assert.Equal(segBefore + wages, state.Segments[0].Wealth, 9); // local, no FX
-        Assert.Equal(sellerBefore + netSeller, seller.Credits, 9);  // converted
+        Assert.Equal(sellerBefore + netSellerCredited, seller.Credits, 9);  // converted
         // the conversion is booked as a transfer, not a mint: cur0 out, cur1 in
         Assert.Equal(netLocal, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(netSeller, state.CurrencyOf(1).CumulativeConvertedIn, 9);
@@ -120,10 +127,16 @@ public class OrderBookCurrencyTests
     {
         double r0 = state.CurrencyOf(0).NumeraireRate;
         double r1 = state.CurrencyOf(1).NumeraireRate;
+        // the seller's net-conversion spread is sequestered OUT of circulation
+        // into Bank.Reserve (MetricsOps.cs authoritative residual balances
+        // Supply + Reserve) — omitting it here reads as a false leak exactly
+        // equal to the skim, in numeraire terms
         return buy.EscrowCredits * r0
              + state.PolityOf(0).Credits * r0
              + state.Segments[0].Wealth * r0
-             + state.PolityOf(1).Credits * r1;
+             + state.PolityOf(1).Credits * r1
+             + state.BankOf(0).Reserve * r0
+             + state.BankOf(1).Reserve * r1;
     }
 
     // ---- CancelBuy/ExpireOrders: refund back into the buyer's currency ----
@@ -143,9 +156,13 @@ public class OrderBookCurrencyTests
         int expired = OrderOps.ExpireOrders(state);
 
         Assert.Equal(1, expired);
-        // refund converts cur0 -> cur1 at the current rate (1/2): 40 -> 20
+        // refund converts cur0 -> cur1 at the current rate (1/2): 40 -> 20 gross.
+        // CreditLocal routes through Deposit (slice CU-2), which skims the
+        // spread off the top into Bank(cur1).Reserve before crediting the
+        // NET — the paired counter still books the full gross conversion.
         double refundSeller = escrowLocal * 1.0 / 2.0;
-        Assert.Equal(buyerBefore + refundSeller, buyer.Credits, 9);
+        double refundNet = refundSeller * (1 - state.Config.Economy.ConversionSpread);
+        Assert.Equal(buyerBefore + refundNet, buyer.Credits, 9);
         Assert.Equal(escrowLocal, state.CurrencyOf(0).CumulativeConvertedOut, 9);
         Assert.Equal(refundSeller, state.CurrencyOf(1).CumulativeConvertedIn, 9);
     }
@@ -173,11 +190,18 @@ public class OrderBookCurrencyTests
 
         Assert.Equal(5.0, drawn, 9);
         Assert.Equal(15.0, cost, 9);           // 5 * 3.0, in cur0
-        // the buyer paid 15 cur0 by converting from cur1: 15 cur0 = 7.5 cur1
-        double ownCost = cost * 1.0 / 2.0;     // cur0 -> cur1
+        // the buyer paid 15 cur0 by converting from cur1: 15 cur0 = 7.5 cur1.
+        // DebitLocal routes through Withdraw (slice CU-2), which grosses the
+        // PAYER up by the conversion spread on top of the requested amount
+        // (the skim lands in Bank(cur0).Reserve, the payee stays whole) — so
+        // both the payer's actual cost and the booked cur0-in counter are the
+        // GROSSED amount, not the bare `cost`.
+        double spread = state.Config.Economy.ConversionSpread;
+        double grossTo = cost * (1 + spread);  // cur0, gross of the skim
+        double ownCost = grossTo * 1.0 / 2.0;  // cur0 (grossed) -> cur1
         Assert.Equal(buyerBefore - ownCost, state.PolityOf(1).Credits, 9);
         Assert.Equal(ownCost, state.CurrencyOf(1).CumulativeConvertedOut, 9);
-        Assert.Equal(cost, state.CurrencyOf(0).CumulativeConvertedIn, 9);
+        Assert.Equal(grossTo, state.CurrencyOf(0).CumulativeConvertedIn, 9);
         // the local seller kept its gross-minus-local-split, all in cur0
         double tax = 15.0 * 0.1;
         double wages = (15.0 - tax) * laborShare;

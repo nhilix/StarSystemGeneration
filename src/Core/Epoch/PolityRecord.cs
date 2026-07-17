@@ -111,6 +111,30 @@ public sealed class PolityRecord : ICreditLedger
         if (fromCurrencyId == CurrencyId || fromCurrencyId < 0 || CurrencyId < 0)
         { Credits += amount; return amount; }
         double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
+        // slice CU-2: the destination is THIS polity's own currency, so its Bank
+        // skims the spread out of what actually banks — the treasury credits and
+        // returns the net (the Receipts mirror thus reflects the net truly held),
+        // the skim sits in this currency's reserve. Records the full amounts.
+        double net = state.SettleConversion(fromCurrencyId, amount, CurrencyId, own);
+        Credits += net;
+        return net;
+    }
+
+    /// <summary>Re-denomination deposit that EXEMPTS the conversion spread (slice
+    /// CU-2). The design exempts moving a polity's OWN money as it merges or splits
+    /// (absorption/graduation re-denomination — "clipping is wrong"): the money is
+    /// carried across the seam, not paid to a counterparty, so it converts at plain
+    /// rate with the FULL sum credited and recorded — no <see cref="SimState.
+    /// SkimToReserve"/>. Mirrors the adjacent exempt pool transfers
+    /// (<c>FederationOps.Merge</c>) rather than the skimming <see cref="Deposit"/>.
+    /// Handles a negative <paramref name="amount"/> (an insolvent parent's debt
+    /// hand-over) at plain rate — the debt still moves. Same-currency or pre-genesis
+    /// is byte-identical to a raw carry.</summary>
+    public double DepositExempt(SimState state, double amount, int fromCurrencyId)
+    {
+        if (fromCurrencyId == CurrencyId || fromCurrencyId < 0 || CurrencyId < 0)
+        { Credits += amount; return amount; }
+        double own = state.ConvertCurrency(amount, fromCurrencyId, CurrencyId);
         Credits += own;
         state.RecordConversion(fromCurrencyId, amount, CurrencyId, own);
         return own;
@@ -131,9 +155,19 @@ public sealed class PolityRecord : ICreditLedger
         // single-currency path (no FX until both currencies concretely exist).
         if (toCurrencyId == CurrencyId || toCurrencyId < 0 || CurrencyId < 0)
         { Credits -= amount; return amount; }
-        double ownCost = state.ConvertCurrency(amount, toCurrencyId, CurrencyId);
-        Credits -= ownCost;
-        state.RecordConversion(CurrencyId, ownCost, toCurrencyId, amount);
+        // slice CU-2: gross up the PAYER. This polity sources the payee's full
+        // `amount` of toCurrencyId PLUS the spread for that currency's Bank
+        // reserve, so the payee is paid in full (callers stay whole — the return
+        // is still the requested amount) and no skim leaks. Credits bears the
+        // grossed cost (amount + skim, converted), which may go negative (the
+        // existing insolvency path). The FULL grossed sum enters toCurrencyId:
+        // `amount` into the payee's circulation, `skim` into the reserve.
+        double skim = amount * state.Config.Economy.ConversionSpread;
+        double grossTo = amount + skim;
+        double ownCostGross = state.ConvertCurrency(grossTo, toCurrencyId, CurrencyId);
+        Credits -= ownCostGross;
+        state.SkimToReserve(toCurrencyId, skim);
+        state.RecordConversion(CurrencyId, ownCostGross, toCurrencyId, grossTo);
         return amount;
     }
 }
