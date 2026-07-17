@@ -260,11 +260,14 @@ public static class Planner
             case PlanEntryKind.HullBatch:
             {
                 var (role, size) = DesignOf(view, entry.TypeId);
-                double medium = DesignMath.ComponentsPerHull(cfg.Fleet,
-                                                             ShipSize.Medium);
                 double comp = DesignMath.ComponentsPerHull(cfg.Fleet, size);
-                double duration = Math.Max(1.0,
-                    cfg.Fleet.HullBuildYearsBase * (comp / medium));
+                // the SAME duration the spawn will run for: the size floor OR
+                // the yard's throughput time (Count / rate), whichever is
+                // longer — so the packer schedules against the yard-rate-
+                // bounded per-year cost the project actually draws, and hull
+                // commissioning telescopes across tick resolutions (Task 9).
+                double duration = DesignMath.HullBatchYears(cfg.Fleet, size,
+                    Math.Max(1, entry.Count), YardTiersOf(view, entry.PortId));
                 double perHull =
                     comp * Market.InitialPrice(eco, Substrate.GoodId.ShipComponents)
                     + DesignMath.ArmamentsPerHull(cfg.Fleet, role, size)
@@ -367,6 +370,18 @@ public static class Planner
         foreach (var p in view.OwnPorts)
             if (p.PortId == portId) return p.Tier;
         return 1;
+    }
+
+    /// <summary>The entry's port's active own-shipyard tiers as the view
+    /// reports them (PortBrief.YardTiers — assembled in Perception exactly as
+    /// GroundbreakHullBatch re-sums it at the spawn, so the cost estimate and
+    /// the actual batch read one yard rate). 0 if the port is unknown — the
+    /// hull-batch duration then falls back to the size floor.</summary>
+    private static int YardTiersOf(PerceptionView view, int portId)
+    {
+        foreach (var p in view.OwnPorts)
+            if (p.PortId == portId) return p.YardTiers;
+        return 0;
     }
 
     private static (ShipRole Role, ShipSize Size) DesignOf(

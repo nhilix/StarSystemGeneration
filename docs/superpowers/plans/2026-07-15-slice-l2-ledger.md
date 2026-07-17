@@ -153,16 +153,31 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   hulls with a filed follow-up for the hull-affordability fix → merge L2; vs (2b) fix hull
   affordability/telescoping in L2 too (deeper planner change).**
 
-- [ ] **Task 9** (added mid-slice — user chose 2b: fix the hull-affordability layer in-slice, no
+- [x] **Task 9** (added mid-slice — user chose 2b: fix the hull-affordability layer in-slice, no
   backlog) — hull-batch cost telescopes with world-time. Root cause: `Planner.CostOf` +
   `ProjectOps.SpawnHullBatch` give a hull batch a size-based (count-independent) duration, so
   per-year cost = 2·perHull·Count/duration scales with the coarse-bundled Count → coarse bundle
   costs ~25× per year → dropped by the greedy pack's affordability check; fine slivers fit. Fix:
   `duration = max(size floor, Count/yardRate)` (yardRate = YardTiers × YardHullsPerTierPerYear),
-  applied CONSISTENTLY in both CostOf and SpawnHullBatch, so per-year cost is yard-throughput-
-  bounded and tick-invariant (total conserved). Acceptance: hulls telescope (6-14 sweep), FineTick
-  honestly green, Conservation+Determinism green, ripple quantified (real coarse sim was under-
-  building navies by dropping bundles). OPUS. Base 30ad58a.
+  via shared helper `DesignMath.HullBatchYears`, applied in BOTH `Planner.CostOf` (yardTiers from
+  the entry's `view.OwnPorts` brief) and `ProjectOps.SpawnHullBatch` (new `yardTiers` param passed
+  from `GroundbreakHullBatch`, same sum it gates yard-capacity on) — per-year cost yard-throughput-
+  bounded and tick-invariant, total conserved. **DONE (TDD) — DONE_WITH_CONCERNS.** New focused
+  `HullBatchTelescopeTests` (3, green): per-year draw batch-size-independent + total conserved,
+  size floor still dominates a fast yard, and CostOf agrees with the spawn on duration AND cost.
+  FineTick target GREEN honestly (steps=8: coarse=23, fine=13, band [11,46]); 6-14 sweep steps
+  7-14 all PASS (only step 6 fails at the low floor — 8 sits inside the plateau, docstring intact).
+  Conservation + Determinism GREEN. Coarse-sim hull delta: over the 8×25y=200y window the real
+  (coarse) sim now builds ~22 hull-completions vs ~2 pre-fix (~11×) — the bundles it used to drop
+  now build (intended). Movers: `WarResolutionTests.FullHistory_WarsStartANDEnd` RECOVERED to
+  green; **NEW red `WarConductTests.Siege_FallsThePort_SegmentsIntact`** — a documented serial
+  seed-42 boundary-mover (re-tuned 4× before). Diagnosed: attacker strength irrelevant (5000 staged
+  hulls still doesn't fall the target), so it's geography/pairing drift not force imbalance — the
+  larger navies shift seed-42's mid-history so `FirstLiveRelation`'s pair transfers no target port
+  at any zero-active-war epoch (13-25 zero-war but target never falls; 26+ falls but active wars +
+  pop=0). Siege MECHANISM intact (events fire, captures at high epochs). NOT hacked green — left for
+  slice-end re-tune alongside the golden re-freeze / user assessment. Golden stays red (deferred).
+  OPUS. Base b66cc97.
 
 ## Slice-end gates — progress
 

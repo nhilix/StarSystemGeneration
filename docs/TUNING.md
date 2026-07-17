@@ -461,7 +461,7 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.YardHullsPerTierPerYear` | 0.2 | Bigger navies and merchant marines per yard tier (components permitting). | Hulls trickle; expansion and freight both thin. |
 | `Fleet.HullComponentsBase` | 3 | Dearer hulls: yards drain components and treasuries faster, fleets stay small. | Cheap hulls; the components market barely notices a navy. |
 | `Fleet.HullArmamentsBase` | 1.5 | Warships bid up armaments — arsenals pay (H inherits armed yards). | Guns nearly free at the slip. |
-| `Fleet.HullBuildYearsBase` | 1.5 | Hull batches take longer to build (scaled by size) — the planner reserves more of the income rate per batch. | Near-instant hulls; yards spit out batches each step. |
+| `Fleet.HullBuildYearsBase` | 1.5 | The hull-batch build-time SIZE FLOOR (scaled by size). Actual build years = `max(size floor, Count / yard rate)`, so per-year cost is yard-throughput-bounded and navy output telescopes across tick resolutions. | Near-instant hulls; yards spit out batches each step. |
 | `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
 | `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
 | `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |

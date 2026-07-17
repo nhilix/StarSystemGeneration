@@ -1156,9 +1156,12 @@ public sealed class AllocationPhase : ISimPhase
         if (inFlightBatches >= yardTiers) return;
         // honor the planner's staggered schedule: break ground at the entry's
         // scheduled year (clamped to now — never before this step), so a
-        // coarse step that straddles the start only delivers the overlap (F3)
+        // coarse step that straddles the start only delivers the overlap (F3).
+        // Pass the SAME yardTiers the capacity gate used so the build duration
+        // (Count / yard rate, size-floored) matches the planner's estimate and
+        // hull commissioning telescopes across tick resolutions (Task 9).
         ProjectOps.SpawnHullBatch(state, pr.ActorId, port.Id, design, count,
-            entry.Priority, planOrder,
+            entry.Priority, planOrder, yardTiers,
             Math.Max(state.WorldYear, entry.StartYear));
     }
 

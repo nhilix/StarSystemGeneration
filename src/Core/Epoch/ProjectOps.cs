@@ -104,18 +104,23 @@ public static class ProjectOps
     /// <summary>Groundbreak a hull batch: the yard commits to <paramref
     /// name="count"/> hulls of one design, paid as a wage stream over the
     /// build years (fleets/ships-and-fleets.md, time-and-logistics.md) —
-    /// the navy arrives late by design, no instant laydown. Duration scales
-    /// with the design's size (bigger hulls take longer, medium-size is the
-    /// base); basket/wages are per world-year across the whole batch.</summary>
+    /// the navy arrives late by design, no instant laydown. Duration is the
+    /// max of the design's size floor (bigger hulls take longer, medium-size
+    /// is the base) and the yard's throughput time — Count / rate at
+    /// <paramref name="yardTiers"/> tiers (DesignMath.HullBatchYears), so a
+    /// coarse bundle's per-year draw matches a fine sliver's and hull
+    /// production telescopes across tick resolutions. The caller passes the
+    /// SAME yardTiers it checks the yard-capacity gate against so the two read
+    /// one definition; basket/wages are per world-year across the whole
+    /// batch.</summary>
     public static Project SpawnHullBatch(SimState state, int ownerActorId,
         int portId, ShipDesign design, int count, ProjectPriority priority,
-        int planOrder, int startedYear = int.MinValue)
+        int planOrder, int yardTiers = 0, int startedYear = int.MinValue)
     {
         var cfg = state.Config;
-        double medium = DesignMath.ComponentsPerHull(cfg.Fleet, ShipSize.Medium);
         double comp = DesignMath.ComponentsPerHull(cfg.Fleet, design.Size);
-        double years = Math.Max(1.0,
-            cfg.Fleet.HullBuildYearsBase * (comp / medium));
+        double years = DesignMath.HullBatchYears(cfg.Fleet, design.Size,
+                                                 count, yardTiers);
         double armaments = DesignMath.ArmamentsPerHull(cfg.Fleet, design.Role,
                                                         design.Size);
         var p = SpawnAt(state, ProjectKind.HullBatch, ownerActorId, ownerActorId,

@@ -58,7 +58,19 @@ Shipyards convert Ship Components (+ Armaments for warships, + Compute for advan
 designs) into hulls. A lay-down is a **hull-batch project** anchored at a yard: it
 draws the recipe's goods as a per-year basket over the batch's build years and
 commissions the hulls into reserve on completion, at the component grade
-accumulated over the build. Yard tier caps how much batch work runs concurrently;
+accumulated over the build. A batch's **build years** are
+`max(size floor, Count / yard rate)` — the size floor
+(`HullBuildYearsBase × components-per-hull ÷ medium`; bigger hulls take longer)
+or the yard's throughput time, whichever is longer, where
+`yard rate = yard tiers × YardHullsPerTierPerYear`. A yard consumes materials at
+its throughput: laying down N hulls takes N ÷ rate world-years (a yard building 25
+ships takes longer than one), so a batch's per-year materials draw is
+yard-rate-bounded regardless of how many matured slots the scheduler buckets into
+it. This makes hull production **world-time-honest**: a coarse clock's bundle of
+Count = rate × span over duration = span costs — and builds — exactly what a fine
+clock's per-year slivers do, so navy output telescopes across tick resolutions
+(total cost per batch is conserved either way; only the spread over world-time
+changes). Yard tier caps how much batch work runs concurrently;
 the standing plan schedules batches into that capacity, excess entries starting in
 later years. Built → assigned to a fleet → lost to attrition/battle or scrapped
 (partial alloy recovery). Every hull traces to an ore field through a 4-node chain.
