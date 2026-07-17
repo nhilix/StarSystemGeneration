@@ -92,6 +92,14 @@ Known **designed sinks and limits**:
   expiry) pays out or refunds the fee before the record retires. The
   HANDOFF's stalled-InTransit flag is about *locked* escrow on a dead
   lane, which the `CourierEscrow` class keeps counting — held, not lost.
+- **Cargo seizures do not sink goods.** Piracy (channel 75), war
+  interdiction (76), and off-lane smuggling **detection** (78) each take an
+  in-transit shipment's cargo and re-post it on a captor's port book via
+  `PostSupply` — a conserved redistribution of goods (P4), never a mint or a
+  sink; no money moves. A captor with nowhere to land a prize (a portless
+  interdictor or patrol owner) simply takes nothing, and the cargo sails on.
+  These touch goods, not credits, so they leave `ConservationResidual`
+  (a money detector) untouched.
 - Expedition purses are valued at the **current** `Expansion.ColonyCost`;
   changing that knob while expeditions are in flight mis-books the
   residual by Δcost × in-flight count until they land. Latent today (no

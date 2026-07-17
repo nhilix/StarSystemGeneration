@@ -185,3 +185,42 @@ Golden re-frozen once, at the end of this work.
   depletes `BodyResources`; for Skimmer/AgriComplex reads the claimed body's
   own attributes directly. `RichnessModifier` and `CellFields`-based
   `ExtractionPotential` are retired from the extraction path entirely.
+
+## Amendment (2026-07-15, Slice L2) — agri yield floor + per-resource-class claims
+
+Two refinements landed in Slice L2 (colony-founding follow-ups), user-approved,
+amending this design in-branch:
+
+**(a) AgriComplex renewable yield has no floor.** `BodySiting.RenewableYield`
+for AgriComplex now derives purely from the body's biosphere and water —
+`Clamp01(0.7·bio + 0.3·water)`, `bio = (int)Biosphere/3`, `water = Hydrographics/100`
+— and reaches **0 at a fully barren, dry body**. A barren rock genuinely can't
+farm, so colony founding (and groundbreaking) sites no subsistence AgriComplex
+there rather than shipping equipment for a bodiless dud. This is a **deliberate
+asymmetry** with the Skimmer branch, which *retains* its 0.5 mass floor: any gas
+giant has mass to skim (physically justified), whereas a barren rock has no
+biosphere to farm. (Consequence: a mineral colony at a system whose bodies are
+all Barren founds a Mine but **no** farm — correct, not a regression; the old
+0.3 floor manufactured a non-functional farm facility there.)
+
+**(b) Body claims are per-resource-CLASS, not global.** A single body can host
+multiple facilities of *different* resource classes: one rich rocky world runs a
+Mine depleting its ore **and** an AgriComplex farming its (renewable) biosphere
+at the same time — the two never touch each other's resource (`BodyResourceOps.Commit`
+no-ops for Skimmer/AgriComplex, so an Agri sharing a Mine's body never reads the
+Mine's stock). Contention is now within a class only:
+- **Mine ↔ ExcavationSite** (both depletable) exclude each other and themselves:
+  the depletable stock is keyed `(hex, body)` with a single good, so a second
+  depletable extractor on one body would read the wrong good — they *must* stay
+  mutually exclusive.
+- **Skimmer ↔ Skimmer**, **AgriComplex ↔ AgriComplex** exclude (the two-mines
+  fix, generalized to each renewable class).
+- **Two non-extraction** support assets exclude (both ride the port body —
+  unchanged).
+- **Any cross-class pair** (Mine↔Agri, Skimmer↔Mine, …) does **not** contend.
+
+New surface: `BodySiting.CompetesForBody(InfraTypeId a, InfraTypeId b)` encodes
+the rule; `ProjectOps.PlaceFacilityBody`'s claim scan now collects a placed
+facility's body as "taken" only when it competes with the type being placed
+(was: every co-located body, globally). `BodySiting.Assign`'s contract is
+unchanged — the caller still passes the (now class-filtered) claimed set.

@@ -116,6 +116,7 @@ public static class NativeOps
                     genesis.NativePopulationSize);
                 var tilt = GovernmentForms.SpeciesIdeologyTilt(species);
                 for (int ax = 0; ax < 4; ax++) segment.Ideology[ax] = tilt[ax];
+                segment.Body = PopulationSiting.Assign(state, port);
                 state.Segments.Add(segment);
 
                 if (policy == NativePolicy.Integrate

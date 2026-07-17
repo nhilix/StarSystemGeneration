@@ -245,6 +245,14 @@ public sealed class WarKnobs
     /// <summary>Seizure probability per world-year sailed on a contested
     /// leg — the piracy pattern, channel 76.</summary>
     public double InterdictionLossPerContestedYear { get; set; } = 0.12;
+    /// <summary>Off-lane seizure probability per world-year sailed under full
+    /// hostile Patrol coverage (locality slice L2 §5) — the smuggling detection
+    /// roll (channel 78), damped by distance from patrol docks (PatrolCoverage).</summary>
+    public double OffLaneDetectionPerCoveredYear { get; set; } = 0.2;
+    /// <summary>How steeply Patrol enforcement coverage falls with hex-hop +
+    /// local-hop distance from the fleet's dock (locality slice §2):
+    /// coverage = max(0, 1 − this × distance).</summary>
+    public double PatrolCoverageFalloff { get; set; } = 0.1;
     /// <summary>Each friendly war-stationed warship hull near the leg
     /// damps the seizure odds by 1/(1 + this × hulls) — escorts are the
     /// counter, deterministic (no second roll).</summary>
@@ -712,6 +720,10 @@ public sealed class EconomyKnobs
     /// (intra-system body-to-body movement, locality slice §2). Small: the
     /// local hop is cheap beside a lane-hop.</summary>
     public double LocalHopYearsPerOrbitStep { get; set; } = 0.05;
+    /// <summary>How steeply facility staffing weight falls with hex-hop +
+    /// local-hop distance from the facility's body (locality slice §3):
+    /// weight = 1/(1 + this × distance). 0 recovers flat domain staffing.</summary>
+    public double StaffingDistanceFalloff { get; set; } = 0.15;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year
@@ -960,6 +972,14 @@ public sealed class InfrastructureKnobs
     /// <summary>Facilities a port's domain supports per port tier — the
     /// construction cap (development concentrates before it sprawls).</summary>
     public int FacilitiesPerPortTier { get; set; } = 5;
+    /// <summary>World-time cadence between facility groundbreaks at ONE port
+    /// (time-not-ticks, P7): a port's crews break ground on at most one new
+    /// facility per this many world-years, so a finer clock does not accrete
+    /// facilities (and downstream shipyards/hull batches) faster than a coarse
+    /// one over the same world-years. Default = GenerationYears, matching
+    /// Expansion.FoundingCadenceYears — the equality that makes both clocks
+    /// telescope.</summary>
+    public double FacilityGroundbreakCadenceYears { get; set; } = 25.0;
     /// <summary>Minimum siting score × price signal before anything gets
     /// built — don't build junk.</summary>
     public double ConstructionScoreFloor { get; set; } = 0.12;

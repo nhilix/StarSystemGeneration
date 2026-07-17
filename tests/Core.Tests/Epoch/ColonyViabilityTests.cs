@@ -62,9 +62,41 @@ public class ColonyViabilityTests
         return default;
     }
 
-    [Fact]
-    public void MineralColony_FoundsWithAMine_AndASubsistenceFarm()
+    // The mineral colony's founding industry is a Mine (ore-dominant raster).
+    // NEW invariant (Slice L2 — AgriComplex renewable yield has no floor, so a
+    // barren-dry body farms nothing): the colony seeds a subsistence AgriComplex
+    // IFF its hex has a farmable (biosphere) body. A fully-barren mineral system
+    // founds a Mine and NO farm — it imports food — rather than shipping the
+    // equipment for a permanently non-functional (bodiless) dud farm.
+    //
+    // (This replaces the old "always founds a farm" expectation, which only held
+    // because the retired 0.3 renewable floor manufactured a bodiless dud farm.
+    // At seed 42 every hex in colonization reach is biosphere-barren, so the
+    // farmable half is exercised with an injected mine+garden system at the same
+    // ore-dominant hex — its raster keeps FoundingIndustry = Mine.)
+
+    private static HexCoordinate FirstMineralHexInReach(SimState state)
     {
+        foreach (var cell in state.Skeleton.Cells)
+        {
+            if (cell.IsVoid) continue;
+            bool mineral = false;
+            foreach (var a in cell.Anchors)
+                if (a.Type == AnchorType.MineralRich) mineral = true;
+            if (!mineral) continue;
+            var hex = HexGrid.CellCenter(cell.Coord);
+            if (HexGrid.Distance(state.Actors[0].Seat, hex)
+                > state.Config.Expansion.ColonizationReachHexes) continue;
+            return hex;
+        }
+        return default;
+    }
+
+    [Fact]
+    public void MineralColony_AtABarrenHex_FoundsAMine_ButNoFarm()
+    {
+        // real founding path (ResolutionPhase -> CompleteExpedition): the sole
+        // mineral hex in reach at this seed is fully biosphere-barren.
         var state = EnteredFixture();
         var hex = FoundAt(state, c =>
         {
@@ -72,7 +104,14 @@ public class ColonyViabilityTests
                 if (a.Type == AnchorType.MineralRich) return true;
             return false;
         });
-        if (hex.Equals(default(HexCoordinate))) return;  // no such cell in reach
+        Assert.False(hex.Equals(default(HexCoordinate)));   // a mineral hex exists
+        // precondition: no farmable body in this committed system
+        var sys = SystemRegistry.Commit(state, hex);
+        Assert.NotNull(sys);
+        foreach (var star in sys!.Stars)
+            foreach (var slot in star.Slots)
+                if (slot.Body != null)
+                    Assert.Equal(Biosphere.Barren, slot.Body.Biosphere);
 
         bool mine = false, farm = false;
         foreach (var f in state.Facilities)
@@ -81,8 +120,42 @@ public class ColonyViabilityTests
                 if (f.TypeId == (int)InfraTypeId.Mine) mine = true;
                 if (f.TypeId == (int)InfraTypeId.AgriComplex) farm = true;
             }
-        Assert.True(mine, "the expedition ships the equipment for what it came for");
-        Assert.True(farm, "and seeds against the food risk");
+        Assert.True(mine, "the ore colony founds its mine");
+        Assert.False(farm, "a fully-barren hex farms nothing — no bodiless dud farm");
+    }
+
+    [Fact]
+    public void MineralColony_AtAFarmableHex_FoundsAMine_AndASubsistenceFarm()
+    {
+        var state = EpochTestKit.Seeded().State;
+        var hex = FirstMineralHexInReach(state);       // ore-dominant raster => Mine
+        Assert.False(hex.Equals(default(HexCoordinate)));
+        // keep the ore-dominant raster (FoundingIndustry stays Mine) but give the
+        // hex a system that DOES carry a biosphere world for the subsistence farm.
+        var sys = new StarSystem("MINE_AND_GARDEN");
+        var star = new Star();
+        star.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Inner,
+            Body = new Body { Kind = BodyKind.PlanetoidBelt, Size = 5 } });
+        star.Slots.Add(new OrbitSlot { Index = 1, Band = OrbitBand.Habitable,
+            Body = new Body { Kind = BodyKind.RockyWorld, Size = 4,
+                Biosphere = Biosphere.Flourishing, Hydrographics = 60 } });
+        sys.Stars.Add(star);
+        state.SettledSystems[hex] = sys;
+
+        int before = state.Facilities.Count;
+        ProjectOps.FoundColonyFacilities(state, hex, state.Actors[0].Id, 100);
+        bool mine = false, farm = false;
+        for (int i = before; i < state.Facilities.Count; i++)
+        {
+            var f = state.Facilities[i];
+            if (f.TypeId == (int)InfraTypeId.Mine)
+            { mine = true; Assert.False(f.Body.IsNone); }
+            if (f.TypeId == (int)InfraTypeId.AgriComplex)
+            { farm = true; Assert.False(f.Body.IsNone); }
+        }
+        Assert.True(mine, "the ore colony founds its mine");
+        Assert.True(farm,
+            "and seeds a subsistence farm on the biosphere body (food risk)");
     }
 
     [Fact]

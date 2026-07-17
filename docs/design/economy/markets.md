@@ -92,7 +92,14 @@ stalls the freight where it floats (the fortress starves at the pace of its
 last delivery); a leg hunted by a raiding band rolls piracy for the years
 sailed under its guns (the loot posts as the band's asks at its haven); a
 leg contested by an enemy of the owner rolls war interdiction, escorts
-damping ([../interpolity/war.md](../interpolity/war.md)). A transit that
+damping ([../interpolity/war.md](../interpolity/war.md)); a leg that leaves
+the lane network entirely (an off-lane crawl) rolls a smuggling **detection**
+seizure for the years sailed under the strongest hostile Patrol coverage onto
+the drop point — a hit lands the cargo at that patrol owner's nearest own port
+as its asks (a portless patrol takes nothing). This off-lane detection roll is
+the real supply path behind smuggler-supplied prohibited goods: the cargo that
+evades detection arrives; the leakage the strain model already nets out is the
+freight that does. A transit that
 fits inside the current step on an open, lucky route is sub-step blur and
 delivers within the step. In-transit cargo is conserved, visible state
 (P1). Freight is what drags connected markets together; interdiction is

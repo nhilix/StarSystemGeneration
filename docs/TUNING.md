@@ -160,6 +160,7 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.ProjectAbandonYears` | 30 | Starved works squat on yard slots for generations before the abandon clock cancels them. | Hopeless work cancels fast — ruins appear sooner, slots free up. |
 | `Economy.CrossStarHopOrbitSteps` | 8.0 | Multi-star systems effectively widen: every cross-star local hop takes longer. | Companion stars feel almost adjacent to the primary. |
 | `Economy.LocalHopYearsPerOrbitStep` | 0.05 | Intra-system travel gets dearer relative to a lane hop — orbit distance starts to matter. | Local hops approach free; only cross-star and lane geometry matter. |
+| `Economy.StaffingDistanceFalloff` | 0.15 | Facilities off the population core are starved of labor and produce less — a distant airless mine crews poorly and its output falls with hex+local-hop distance from its body. | (Toward 0) staffing goes flat again: every segment in the domain weights equally regardless of distance, recovering pre-locality production magnitudes. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*
@@ -368,6 +369,7 @@ set how fast the built world thickens (slice D).
 | `Infrastructure.MaxPortTier` | 3 | (With catalog growth) taller hierarchies. | Flat port ranks. |
 | `Infrastructure.HomeworldPortTier` | 2 | Homeworlds start as hubs. | Everyone starts as an outpost. |
 | `Infrastructure.FacilitiesPerPortTier` | 5 | Denser industrial districts per port. | Development spreads thin or stalls — this was the mid-chain bottleneck once. |
+| `Infrastructure.FacilityGroundbreakCadenceYears` | 25 | Slower per-port build-out; higher throttles a port to fewer new facilities per world-century. | Faster accretion — but drop it too far and a fine clock breaks the time-not-ticks invariant (facilities/shipyards/hulls accrete per step, not per world-year). Mirrors `Expansion.FoundingCadenceYears`; default = `GenerationYears`. |
 | `Infrastructure.ConstructionScoreFloor` | 0.12 | Only prime sites develop. | Junk facilities on marginal rock. |
 | `Infrastructure.FoodSecurityPremium` | 1.25 | Colonies farm unless extraction is overwhelming (safe, boring). | Every belt colony mines and gambles on food imports. |
 
@@ -459,7 +461,7 @@ the shipment volume in the Markets note, and the `fleet` readiness column.
 | `Fleet.YardHullsPerTierPerYear` | 0.2 | Bigger navies and merchant marines per yard tier (components permitting). | Hulls trickle; expansion and freight both thin. |
 | `Fleet.HullComponentsBase` | 3 | Dearer hulls: yards drain components and treasuries faster, fleets stay small. | Cheap hulls; the components market barely notices a navy. |
 | `Fleet.HullArmamentsBase` | 1.5 | Warships bid up armaments — arsenals pay (H inherits armed yards). | Guns nearly free at the slip. |
-| `Fleet.HullBuildYearsBase` | 1.5 | Hull batches take longer to build (scaled by size) — the planner reserves more of the income rate per batch. | Near-instant hulls; yards spit out batches each step. |
+| `Fleet.HullBuildYearsBase` | 1.5 | The hull-batch build-time SIZE FLOOR (scaled by size). Actual build years = `max(size floor, Count / yard rate)`, so per-year cost is yard-throughput-bounded and navy output telescopes across tick resolutions. | Near-instant hulls; yards spit out batches each step. |
 | `Fleet.FreightTripsPerYearBase` | 0.3 | More capacity per posted hull (fewer hulls needed per lane). **The freight-throughput master dial.** | Lanes need big fleets to matter. |
 | `Fleet.EnduranceHexesPerPoint` | 3 | Longer off-lane legs: convoys reach past the colonization radius easily. | Below ~2.7, Medium pioneers can't cover the default 24-hex reach — expansion stalls hard. |
 | `Fleet.FuelPerHullPerHexMoved` | 0.02 | Expeditions burn real fuel; staging ports feel convoys. | Movement approaches free. |
@@ -523,6 +525,8 @@ and the incident freshness window (2 epochs) are structural.
 | `War.InterdictionReachHexes` | 4 | War-stationed squadrons contest lanes farther out — wider denial zones around every front (slice CE). | Interdiction only at the gate's doorstep; convoys route past fleets untouched. |
 | `War.InterdictionLossPerContestedYear` | 0.12 | Contested legs bleed convoys fast: cut supply lines decide wars in epochs. | Interdiction is harassment; fronts supply through enemy fleets. |
 | `War.EscortDampPerHull` | 0.15 | A few escorts near-neutralize seizure (convoy doctrine pays). | Escorts are decoration; only mass decides the lane. |
+| `War.PatrolCoverageFalloff` | 0.1 | Patrols only guard their immediate approaches — off-lane runs get safer the farther they stage from a hostile dock. | (Toward 0) coverage goes flat again: any Patrol fleet blankets its whole reach regardless of hex+local-hop distance. |
+| `War.OffLaneDetectionPerCoveredYear` | 0.2 | Off-lane runs under full hostile patrol cover are risky per year — smuggling past a watched drop point is a real gamble (channel 78; seizure lands the cargo at the patrol owner's nearest port). | Off-lane freight sails unmolested; patrols never catch a runner and smuggling is free. |
 
 **Ignition recalibration (slice t1 — the world-time economy).** `WarTensionFloor`
 0.55 → 0.35 and `WarAppetiteThreshold` 0.60 → 0.38. The project-model economy

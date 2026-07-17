@@ -81,4 +81,73 @@ public class BodySitingTests
         Assert.True(BodySiting.Assign(null, InfraTypeId.Mine, BodyRef.None,
             new List<BodyRef>()).IsNone);
     }
+
+    private static StarSystem WithOneBody(Body body)
+    {
+        var sys = new StarSystem("TEST");
+        var s0 = new Star();
+        s0.Slots.Add(new OrbitSlot { Index = 0, Band = OrbitBand.Habitable,
+            Body = body });
+        sys.Stars.Add(s0);
+        return sys;
+    }
+
+    [Fact]
+    public void RenewableYield_AgriComplex_IsZeroAtAFullyBarrenDryBody()
+    {
+        // a barren, waterless rock genuinely can't farm — no renewable floor
+        var sys = WithOneBody(new Body { Kind = BodyKind.RockyWorld,
+            Biosphere = Biosphere.Barren, Hydrographics = 0 });
+        double yield = BodySiting.RenewableYield(sys, new BodyRef(0, 0),
+                                                 InfraTypeId.AgriComplex);
+        Assert.Equal(0.0, yield, 9);
+    }
+
+    [Fact]
+    public void RenewableYield_AgriComplex_ApproachesOne_AtARichWateredGarden()
+    {
+        var sys = WithOneBody(new Body { Kind = BodyKind.RockyWorld,
+            Biosphere = Biosphere.Sapient, Hydrographics = 100 });
+        double yield = BodySiting.RenewableYield(sys, new BodyRef(0, 0),
+                                                 InfraTypeId.AgriComplex);
+        Assert.Equal(1.0, yield, 6);              // 0.7*1 + 0.3*1
+    }
+
+    [Fact]
+    public void RenewableYield_Skimmer_KeepsItsMassFloor_AtALeanGiant()
+    {
+        // deliberate asymmetry: a gas giant always has mass to skim (floor 0.5)
+        var sys = WithOneBody(new Body { Kind = BodyKind.GasGiant, Size = 10 });
+        double yield = BodySiting.RenewableYield(sys, new BodyRef(0, 0),
+                                                 InfraTypeId.Skimmer);
+        Assert.Equal(0.5, yield, 9);
+    }
+
+    [Fact]
+    public void CompetesForBody_SameResourceClass_Competes_CrossClass_DoesNot()
+    {
+        // depletable vs depletable share one per-body stock — must exclude
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.Mine, InfraTypeId.Mine));
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.Mine,
+                                               InfraTypeId.ExcavationSite));
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.ExcavationSite,
+                                               InfraTypeId.ExcavationSite));
+        // same-type renewables still exclude (the two-mines fix, generalized)
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.Skimmer,
+                                               InfraTypeId.Skimmer));
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.AgriComplex,
+                                               InfraTypeId.AgriComplex));
+        // both non-extraction ride the port body — keep excluding
+        Assert.True(BodySiting.CompetesForBody(InfraTypeId.Refinery,
+                                               InfraTypeId.Shipyard));
+        // cross-class: different resources on one body coexist
+        Assert.False(BodySiting.CompetesForBody(InfraTypeId.Mine,
+                                                InfraTypeId.AgriComplex));
+        Assert.False(BodySiting.CompetesForBody(InfraTypeId.Skimmer,
+                                                InfraTypeId.Mine));
+        Assert.False(BodySiting.CompetesForBody(InfraTypeId.Skimmer,
+                                                InfraTypeId.AgriComplex));
+        Assert.False(BodySiting.CompetesForBody(InfraTypeId.ExcavationSite,
+                                                InfraTypeId.AgriComplex));
+    }
 }

@@ -48,7 +48,8 @@ public class BodyYieldTests
         double barren = BodySiting.RenewableYield(World(Biosphere.Barren, 0),
             new BodyRef(0, 0), InfraTypeId.AgriComplex);
         Assert.True(lush > barren);
-        Assert.True(barren > 0.0);               // subsistence floor: farmable
+        Assert.Equal(0.0, barren, 9);            // NO floor: a barren, dry rock
+                                                 // genuinely can't farm (L2)
         Assert.InRange(lush, 0.0, 1.0);
     }
 

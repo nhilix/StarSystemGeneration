@@ -116,4 +116,35 @@ public static class DesignMath
         ShipCatalog.IsWarship(role)
             ? knobs.HullArmamentsBase * ShipCatalog.SizeCostFactor(size)
             : 0.0;
+
+    /// <summary>The world-time a yard takes to build a batch of <paramref
+    /// name="count"/> hulls of <paramref name="size"/> — the SINGLE source of
+    /// truth the planner's cost estimate and the actual project both read, so a
+    /// hull batch is scheduled against exactly the duration it will run for.
+    ///
+    /// A yard consumes materials at its throughput: building N hulls takes
+    /// N / rate world-years (rate = <paramref name="yardTiers"/> ×
+    /// YardHullsPerTierPerYear — a yard building 25 ships takes longer than 1),
+    /// floored by the size cost (bigger hulls take longer to lay down; medium
+    /// is the base). Making the duration count-aware is what makes hull
+    /// production world-time-honest and TELESCOPE across tick resolutions
+    /// (time-not-ticks, P7): per-year cost is then yard-rate-bounded, the same
+    /// whether the planner buckets a step's matured slots into one coarse
+    /// bundle or a fine clock spreads them into slivers — total cost
+    /// (perYear × years = perHull × count) is conserved either way.
+    ///
+    /// A non-positive <paramref name="yardTiers"/> (an unknown/absent yard —
+    /// a real hull groundbreak never has one, the yard-capacity gate blocks
+    /// first) falls back to the size floor alone.</summary>
+    public static double HullBatchYears(FleetKnobs knobs, ShipSize size,
+                                        int count, int yardTiers)
+    {
+        double medium = ComponentsPerHull(knobs, ShipSize.Medium);
+        double comp = ComponentsPerHull(knobs, size);
+        double sizeFloor = Math.Max(1.0, knobs.HullBuildYearsBase * (comp / medium));
+        double rate = yardTiers * knobs.YardHullsPerTierPerYear;
+        if (rate <= 0) return sizeFloor;
+        double throughputYears = Math.Max(1, count) / rate;
+        return Math.Max(sizeFloor, throughputYears);
+    }
 }

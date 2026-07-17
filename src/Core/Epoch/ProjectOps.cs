@@ -86,9 +86,15 @@ public static class ProjectOps
     {
         var system = SystemRegistry.Commit(state, hex);
         var portBody = BodySiting.PortBody(system);
+        // claims are per-resource-CLASS (BodySiting.CompetesForBody): a body a
+        // Mine holds is taken against another Mine but free for an AgriComplex —
+        // one rich rocky world hosts both, ore depletion and biosphere farming
+        // on independent resource classes.
         var claimed = new List<BodyRef>();
         foreach (var other in state.Facilities)           // id order (P6)
-            if (other.Hex.Equals(hex) && !other.Body.IsNone)
+            if (other.Hex.Equals(hex) && !other.Body.IsNone
+                && BodySiting.CompetesForBody(
+                    (Substrate.InfraTypeId)other.TypeId, type))
                 claimed.Add(other.Body);
         var body = BodySiting.Assign(system, type, portBody, claimed);
         BodyResourceOps.Commit(state, hex, body, type, system);
@@ -98,18 +104,23 @@ public static class ProjectOps
     /// <summary>Groundbreak a hull batch: the yard commits to <paramref
     /// name="count"/> hulls of one design, paid as a wage stream over the
     /// build years (fleets/ships-and-fleets.md, time-and-logistics.md) —
-    /// the navy arrives late by design, no instant laydown. Duration scales
-    /// with the design's size (bigger hulls take longer, medium-size is the
-    /// base); basket/wages are per world-year across the whole batch.</summary>
+    /// the navy arrives late by design, no instant laydown. Duration is the
+    /// max of the design's size floor (bigger hulls take longer, medium-size
+    /// is the base) and the yard's throughput time — Count / rate at
+    /// <paramref name="yardTiers"/> tiers (DesignMath.HullBatchYears), so a
+    /// coarse bundle's per-year draw matches a fine sliver's and hull
+    /// production telescopes across tick resolutions. The caller passes the
+    /// SAME yardTiers it checks the yard-capacity gate against so the two read
+    /// one definition; basket/wages are per world-year across the whole
+    /// batch.</summary>
     public static Project SpawnHullBatch(SimState state, int ownerActorId,
         int portId, ShipDesign design, int count, ProjectPriority priority,
-        int planOrder, int startedYear = int.MinValue)
+        int planOrder, int yardTiers = 0, int startedYear = int.MinValue)
     {
         var cfg = state.Config;
-        double medium = DesignMath.ComponentsPerHull(cfg.Fleet, ShipSize.Medium);
         double comp = DesignMath.ComponentsPerHull(cfg.Fleet, design.Size);
-        double years = Math.Max(1.0,
-            cfg.Fleet.HullBuildYearsBase * (comp / medium));
+        double years = DesignMath.HullBatchYears(cfg.Fleet, design.Size,
+                                                 count, yardTiers);
         double armaments = DesignMath.ArmamentsPerHull(cfg.Fleet, design.Role,
                                                         design.Size);
         var p = SpawnAt(state, ProjectKind.HullBatch, ownerActorId, ownerActorId,
@@ -682,31 +693,16 @@ public static class ProjectOps
             // the expedition cost recycles to the settlers (P4)
             Wealth = cfg.Expansion.ColonyCost,
         };
+        colonySegment.Body = PopulationSiting.Assign(state, port.Id);
         // settlers sent by the state carry the official line (slice G)
         if (record.Interior != null)
             for (int ax = 0; ax < 4; ax++)
                 colonySegment.Ideology[ax] = record.Interior.OfficialIdeology[ax];
         state.Segments.Add(colonySegment);
-        // the expedition ships the equipment for what it came for: the founding
-        // facility matches the site's best extraction potential, plus a
-        // subsistence farm when that isn't farming. Each founding asset decides
-        // its body and rolls its stock at birth, exactly like a groundbroken
-        // one (body-resource-stock design — a founding Mine is a real depletable
-        // rock, not a bodiless dud). The Mine is added before the farm's body is
-        // placed so the farm's claim scan skips the Mine's body.
-        var founding = FoundingIndustry(state, p.Hex);
-        var foundingBody = PlaceFacilityBody(state, p.Hex, founding);
-        state.Facilities.Add(new Facility(state.Facilities.Count,
-            (int)founding, tier: 1, p.Hex, p.OwnerActorId, completionYear)
-        { Body = foundingBody });
-        if (founding != Substrate.InfraTypeId.AgriComplex)
-        {
-            var farmBody = PlaceFacilityBody(state, p.Hex,
-                                             Substrate.InfraTypeId.AgriComplex);
-            state.Facilities.Add(new Facility(state.Facilities.Count,
-                (int)Substrate.InfraTypeId.AgriComplex, tier: 1, p.Hex,
-                p.OwnerActorId, completionYear) { Body = farmBody });
-        }
+        // the expedition ships the equipment for what it came for (see
+        // FoundColonyFacilities) — the founding industry plus a subsistence
+        // farm, each a real claim-aware body, no bodiless duds.
+        FoundColonyFacilities(state, p.Hex, p.OwnerActorId, completionYear);
         // the convoy's survivors dock as the colony's first reserve fleet
         if (convoy != null)
         {
@@ -736,6 +732,39 @@ public static class ProjectOps
             if (relation != null)
                 relation.Tension = Math.Min(1.0, relation.Tension
                     + cfg.Relations.EncroachmentTensionBump);
+        }
+    }
+
+    /// <summary>Found a colony's opening facilities at a hex with decided,
+    /// claim-aware body refs (locality slice §3/§4, body-resource-stock design):
+    /// the founding industry plus a subsistence agri complex when the industry
+    /// isn't farming. Each asset decides its body and rolls its stock at birth,
+    /// exactly like a groundbroken one; two same-type extractors never collapse
+    /// onto one body. An extraction asset whose body resolves None is SKIPPED —
+    /// no bodiless dud — mirroring SpawnFacilityConstruction's reject (colony
+    /// founding no longer ships equipment to a hex that holds nothing). Commits
+    /// the hex.</summary>
+    public static void FoundColonyFacilities(SimState state, HexCoordinate hex,
+        int ownerActorId, long year)
+    {
+        var founding = FoundingIndustry(state, hex);
+        var foundingBody = PlaceFacilityBody(state, hex, founding);
+        // skip a bodiless extraction dud (same guard as groundbreaking); the
+        // Mine is added before the farm's body is placed so the farm's claim
+        // scan skips the Mine's body.
+        if (!(foundingBody.IsNone && BodySiting.IsExtraction(founding)))
+            state.Facilities.Add(new Facility(state.Facilities.Count,
+                (int)founding, tier: 1, hex, ownerActorId, (int)year)
+            { Body = foundingBody });
+        if (founding != Substrate.InfraTypeId.AgriComplex)
+        {
+            var farmBody = PlaceFacilityBody(state, hex,
+                                             Substrate.InfraTypeId.AgriComplex);
+            if (!(farmBody.IsNone
+                  && BodySiting.IsExtraction(Substrate.InfraTypeId.AgriComplex)))
+                state.Facilities.Add(new Facility(state.Facilities.Count,
+                    (int)Substrate.InfraTypeId.AgriComplex, tier: 1, hex,
+                    ownerActorId, (int)year) { Body = farmBody });
         }
     }
 
