@@ -5,13 +5,14 @@ using Xunit;
 
 namespace StarGen.Core.Tests.Epoch;
 
-/// <summary>Frozen at slice MC's end (re-frozen; originally slice B): the
-/// reference artifact for seed 42, radius 12, default epoch config. Slice MC
-/// moved it deliberately — the polity entry gate now uses a true world-year
-/// (<see cref="Actor.EntryYear"/>) instead of a truncated epoch index, so the
-/// default 25y galaxy no longer admits polities up to 24 years early. A diff
-/// here means history changed for existing configs — deliberate changes
-/// regenerate the golden in the same commit and say why.</summary>
+/// <summary>Frozen at slice BF's end (re-frozen; earlier slice MC, originally
+/// slice B): the reference artifact for seed 42, radius 12, default epoch
+/// config. Slice BF moved it — the per-currency <c>Bank</c> now lends to the
+/// state (a claim book), the polity services and retires that claim (the money
+/// sink, <see cref="Currency.CumulativeFiatRetired"/>), and the CURRENCY/BANK
+/// serializer lines carry the new fields (markets v6, banks v2). A diff here
+/// means history changed for existing configs — deliberate changes regenerate
+/// the golden in the same commit and say why.</summary>
 public class GoldenTests
 {
     [Fact]

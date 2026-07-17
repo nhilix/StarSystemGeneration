@@ -30,6 +30,16 @@ public sealed class Currency
     public double CumulativeConvertedIn { get; set; }
     /// <summary>Value ever converted OUT of this currency.</summary>
     public double CumulativeConvertedOut { get; set; }
+    /// <summary>Running total destroyed when the polity repays its bank's
+    /// <see cref="Bank.ClaimOnState"/> principal (slice BF bank-flow design)
+    /// — the sim's first monetary sink. Unlike every other cumulative counter
+    /// here, this is the <b>negative</b> term in the per-currency conservation
+    /// identity:
+    /// <c>Supply + Reserve == endowment + CumulativeFiatIssued +
+    /// CumulativeSteadyIssuance + CumulativeConvertedIn − CumulativeConvertedOut
+    /// − CumulativeFiatRetired</c> (later task wires the servicing pass that
+    /// grows it).</summary>
+    public double CumulativeFiatRetired { get; set; }
     /// <summary>This currency's value in the shared synthetic numeraire unit —
     /// converting between A and B is amount × A.NumeraireRate / B.NumeraireRate
     /// (O(N) state, not an N×N table). Starts at 1.0 at founding; recomputed

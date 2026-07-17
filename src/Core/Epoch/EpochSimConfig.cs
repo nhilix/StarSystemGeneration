@@ -905,6 +905,37 @@ public sealed class EconomyKnobs
     /// ratio, not yet swept.</summary>
     public double IssuanceReserveRatio { get; set; } = 0.5;
 
+    // -- Bank monetary authority (slice BF: the bank as lender/claim-holder) --
+    /// <summary>Interest charged per WORLD-YEAR on <c>Bank.ClaimOnState</c>,
+    /// paid only out of a positive treasury balance. Scaled LINEARLY to the
+    /// epoch's length (P7 / "time, not ticks", design §4a): a 25-year step
+    /// charges exactly what twenty-five 1-year steps would. Linear, NOT
+    /// compounded — the claim cannot grow between world-years (unpaid interest
+    /// is discarded, never accrued), so every year accrues on the same
+    /// principal; a compound form would smuggle in exactly the growth term
+    /// rule 2 exists to forbid. Never capitalizes, so the claim cannot compound.
+    /// FLAGGED for the post-impl tuning pass — a placeholder rate, not yet
+    /// swept.</summary>
+    public double SovereignClaimInterestRatePerYear { get; set; } = 0.001;
+    /// <summary>Maximum share of a positive treasury balance a polity spends
+    /// servicing its bank's claim, per WORLD-YEAR (interest + principal
+    /// combined). Compounded to the epoch's length like
+    /// <see cref="PoolIdleDecayPerYear"/> (P7 / "time, not ticks", design §4a):
+    /// a 25-year step services exactly what twenty-five 1-year steps would.
+    /// Compounding is right here because the share applies to a stock the same
+    /// operation depletes. Must be &lt; 1, which keeps the scaled share &lt; 1
+    /// for ANY epoch length and is what makes servicing provably unable to
+    /// drive the treasury negative. FLAGGED for the post-impl tuning pass — a
+    /// placeholder share, not yet swept.</summary>
+    public double ClaimServicingSharePerYear { get; set; } = 0.01;
+    /// <summary>How heavily a bank's unbacked claim book
+    /// (<c>max(0, ClaimOnState - Reserve)</c>) weighs on its currency's FX
+    /// rate, as supply-equivalent money. 0.0 reproduces slice CU-2's FX
+    /// behavior byte-identically — a deliberate inert landing; a later task
+    /// raises it. FLAGGED for the post-impl tuning pass — a placeholder
+    /// sensitivity, not yet swept.</summary>
+    public double FxBackingSensitivity { get; set; } = 0.0;
+
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites
     /// (subsistence households untouched).</summary>

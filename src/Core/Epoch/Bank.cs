@@ -18,9 +18,49 @@ public sealed class Bank
     /// <summary>Running total the bank has ever funded out of its reserve —
     /// a level across the whole sim, never reset per epoch (later task).</summary>
     public double CumulativeReserveFunded { get; set; }
+    /// <summary>The bank's outstanding claim against its own polity (slice BF
+    /// bank-flow design) — <b>NOT money</b>. Mirrors the reasoning already
+    /// documented at <see cref="MoneyRow.LoanPrincipal"/>: "LoanPrincipal
+    /// rides beside the classes as a claim, not a holder: loans move credits
+    /// between ledgers, the principal is memory." <see cref="ClaimOnState"/>
+    /// never enters <see cref="Currency.Supply"/>, is never walked by
+    /// <see cref="SupplyOps"/>, and never appears on the conservation
+    /// residual's balance side. Grown by <see cref="LendToState"/>; shrunk by
+    /// the servicing pass (later task).</summary>
+    public double ClaimOnState { get; set; }
+    /// <summary>Running total ever lent to the polity's state — a level
+    /// across the whole sim, never reset per epoch. Unlike
+    /// <see cref="ClaimOnState"/>, repayment never draws it down.</summary>
+    public double CumulativeLentToState { get; set; }
+    /// <summary>Running total of claim principal ever destroyed on
+    /// repayment — a level across the whole sim, never reset per epoch
+    /// (later task). The bank-side mirror of <see cref="Currency.CumulativeFiatRetired"/>.</summary>
+    public double CumulativeRetired { get; set; }
 
     public Bank(int currencyId)
     {
         CurrencyId = currencyId;
+    }
+
+    /// <summary>Book this bank as the creditor of a sovereign mint (slice BF
+    /// bank-flow design §3) — the CLAIM half only. The money creation itself
+    /// stays where it has always been, at the
+    /// <c>AllocationPhase.IssueSovereignCredit</c> chokepoint: same trigger,
+    /// same <see cref="EconomyKnobs.SovereignIssuanceRate"/> cap, same
+    /// magnitude, same <see cref="Currency.CumulativeFiatIssued"/> counter.
+    /// What this adds is a creditor beside it, moving the bank from ~0.1% of
+    /// deficit funding (the FX spread alone) to ~100% without touching a single
+    /// receipt site (design §1). Deliberately NOT gated on
+    /// <see cref="Reserve"/>: the backstop is absolute and a polity is never cut
+    /// off for want of reserve — the monetary-equilibrium slice's debt-spiral
+    /// cure rests on that lender-of-last-resort floor, and a reserve gate
+    /// re-lights precisely the spiral ME was built to cure (design §3, §5).
+    /// Backing discipline is endogenous instead, via the FX coupling (§5).
+    /// <paramref name="amount"/> is the amount minted; the caller has already
+    /// established it is positive.</summary>
+    public void LendToState(double amount)
+    {
+        ClaimOnState += amount;
+        CumulativeLentToState += amount;
     }
 }

@@ -507,6 +507,15 @@ public sealed class AllocationPhase : ISimPhase
         foreach (var pr in state.Polities)                    // actor-id order
             if (state.Actors[pr.ActorId].Entered)
                 FundDeficit(state, pr);
+        // claim servicing runs LAST, in its OWN pass after every deficit is
+        // funded (slice BF, bank-flow design §4) — the same discipline that put
+        // issuance after Borrow: it sees the true end-of-epoch balance, so a
+        // polity never services out of money it is about to be lent, and every
+        // reserve draw (FundDeficit stage 1) lands before any polity pays back
+        // into its own reserve here
+        foreach (var pr in state.Polities)                    // actor-id order
+            if (state.Actors[pr.ActorId].Entered)
+                ServiceSovereignClaim(state, pr);
         string note = earning == 0 ? "quiet"
             : $"income allocated for {earning} " + (earning == 1 ? "polity" : "polities");
         if (lanesBuilt > 0) note += $", {lanesBuilt} " + (lanesBuilt == 1 ? "lane built" : "lanes built");
@@ -688,7 +697,18 @@ public sealed class AllocationPhase : ISimPhase
     /// NegativeTreasuries must still breathe. Issuance never covers loan service
     /// by construction (ServiceLoans runs at the top of the phase against last
     /// epoch's balance), so default and collateral seizure stay real.
-    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
+    /// CumulativeFiatIssued tracks the mint for the conservation residual.
+    ///
+    /// Slice BF (bank-flow design §3) made this a BANK operation: the money
+    /// creation below is unchanged in every respect — same trigger, same cap,
+    /// same magnitude, same counters — but the currency's <see cref="Bank"/>
+    /// now books a matching claim (<see cref="Bank.LendToState"/>), so the sim's
+    /// dominant monetary flow finally belongs to an actor (design §1). The cap
+    /// is deliberately NOT reserve-aware and the backstop stays absolute: the
+    /// reserve neither gates nor enlarges the mint, because ME's spiral cure
+    /// rests on that floor. The claim is not money — it never enters Supply, is
+    /// never walked by SupplyOps, and never appears on the residual's balance
+    /// side, so conservation is exactly as it was.</summary>
     private static void IssueSovereignCredit(SimState state, PolityRecord pr)
     {
         if (pr.Credits >= 0) return;
@@ -703,7 +723,99 @@ public sealed class AllocationPhase : ISimPhase
         // into this polity's own currency, so the per-currency residual can
         // net the same mint the galaxy-wide field already tracks
         if (pr.CurrencyId >= 0)
+        {
             state.CurrencyOf(pr.CurrencyId).CumulativeFiatIssued += issued;
+            // slice BF: same mint, now with a creditor. A pre-genesis treasury
+            // (CurrencyId < 0) has no currency and hence no bank to book the
+            // claim against, so it mints with no creditor — byte-identical to
+            // the pre-BF path, the same fall-through FundDeficit stage 1 takes.
+            state.BankOf(pr.CurrencyId).LendToState(issued);
+        }
+    }
+
+    /// <summary>The tail of the lending relationship
+    /// <see cref="Bank.LendToState"/> opens (slice BF, bank-flow design §4): the
+    /// polity services its own bank's <see cref="Bank.ClaimOnState"/> out of
+    /// surplus. Principal repayment DESTROYS money — the sim's first monetary
+    /// sink, and the reason <see cref="Currency.CumulativeFiatIssued"/> stops
+    /// being a one-way ratchet.
+    ///
+    /// BOTH rates are per-WORLD-YEAR and scaled to the epoch's length (design
+    /// §4a, P7 / "time, not ticks"): a 25-year step services exactly what
+    /// twenty-five 1-year steps would, so the clock stays a sampling choice and
+    /// never a rule. The share COMPOUNDS (it applies to a stock this same
+    /// operation depletes — identical in form to <see cref="DecayIdlePools"/>);
+    /// the interest is LINEAR (see rule 2 and the note at the interest line).
+    ///
+    /// Two hard rules, both load-bearing against the sim-health slice's
+    /// structurally-diagnosed debt spiral, and both properties of the ARITHMETIC
+    /// rather than of any clamp:
+    ///
+    /// 1. <b>Surplus-only, never forced.</b> A polity with a non-positive
+    ///    treasury services nothing — it borrows more (that is what
+    ///    <see cref="FundDeficit"/>, which has already run, is for). Servicing
+    ///    can never drive a treasury negative: <c>budget ≤ Credits</c> (the
+    ///    year-compounded share is &lt; 1 for ANY epoch length) and
+    ///    <c>interest + principal ≤ budget</c>, so Credits is provably still
+    ///    positive afterward. There is no floor guard because none is
+    ///    reachable.
+    /// 2. <b>Interest NEVER capitalizes.</b> Unpaid interest is DISCARDED, not
+    ///    accrued: the <c>Math.Min</c> against the budget charges what the
+    ///    polity can afford and simply drops the rest — it is never added to the
+    ///    claim. A permanently broke polity never pays and its claim never
+    ///    grows; <see cref="Bank.ClaimOnState"/> grows ONLY via
+    ///    <see cref="Bank.LendToState"/>. This is what makes the mechanism
+    ///    spiral-proof — there is no compounding term anywhere in it — and why
+    ///    it needs no analogue of the loan-capitalization ceiling, which
+    ///    ordinary loans need precisely BECAUSE they capitalize.
+    ///
+    /// The budget is computed ONCE, before Credits is mutated: re-reading
+    /// <c>Credits × share</c> after the interest debit would silently shrink the
+    /// principal budget — the compound-assignment trap already documented (and
+    /// once a real credit leak) at the appeasement line in Allocate.
+    ///
+    /// Conservation (design §6): interest is an internal <c>Credits → Reserve</c>
+    /// move — <see cref="SupplyOps"/> walks Credits while Reserve is sequestered
+    /// out of Supply and added back by the residual, so <c>Supply + Reserve</c>
+    /// is unchanged and no counter moves. Principal moves both sides of the
+    /// identity by the same p (<c>Supply −= p</c> via Credits,
+    /// <c>CumulativeFiatRetired += p</c>). <c>ClaimOnState −= p</c> is not money
+    /// and appears in neither side. A pre-genesis treasury
+    /// (<c>CurrencyId &lt; 0</c>) has no currency and hence no bank — no claim,
+    /// nothing to service.</summary>
+    private static void ServiceSovereignClaim(SimState state, PolityRecord pr)
+    {
+        if (pr.Credits <= 0 || pr.CurrencyId < 0) return;
+        var bank = state.BankOf(pr.CurrencyId);
+        if (bank.ClaimOnState <= 0) return;
+        var eco = state.Config.Economy;
+        int years = state.Config.Sim.YearsPerEpoch;
+        // the share COMPOUNDS per world-year like PoolIdleDecayPerYear (P7): a
+        // 25-year step services exactly what twenty-five 1-year steps would. It
+        // stays < 1 for any epoch length, which is what keeps budget <= Credits
+        // structurally rather than by a clamp.
+        double share = 1.0 - Math.Pow(Math.Max(0.0, 1.0 - eco.ClaimServicingSharePerYear),
+                                      years);
+        // evaluate the budget BEFORE any mutation of Credits (see above)
+        double budget = pr.Credits * share;
+        // Interest is LINEAR in years, deliberately NOT compounded: rule 2
+        // forbids compounding, and the claim cannot grow between world-years
+        // within an epoch (unpaid interest is discarded, never accrued), so
+        // every world-year accrues on the same principal. Compounding here
+        // would smuggle in exactly the growth term rule 2 exists to forbid.
+        // rule 2: what the polity cannot afford is not charged — and NOT accrued
+        double interest = Math.Min(
+            bank.ClaimOnState * eco.SovereignClaimInterestRatePerYear * years,
+            budget);
+        pr.Credits -= interest;
+        bank.Reserve += interest;             // internal, conservation-neutral
+        // the rest of the same budget amortizes, never more than is owed
+        double principal = Math.Min(bank.ClaimOnState, budget - interest);
+        pr.Credits -= principal;
+        bank.ClaimOnState -= principal;
+        // the sink: this money leaves the economy and does not come back
+        state.CurrencyOf(pr.CurrencyId).CumulativeFiatRetired += principal;
+        bank.CumulativeRetired += principal;
     }
 
     /// <summary>Interest and amortization flow lender-ward; a borrower who

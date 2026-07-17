@@ -91,25 +91,28 @@ the escalation bar is met more often than usual — noted per task.
       green. **⚠ NOT met — see the log; the residual cause is a separate,
       pre-existing clock-dependence in issuance, not in servicing.**
 
-- [ ] **6. Residual** — add `CumulativeFiatRetired` to `CurrencyResidualRow` AND
+- [x] **6. Residual** — add `CumulativeFiatRetired` to `CurrencyResidualRow` AND
       the baseline carry (`MetricsOps.cs:195` is a **delta** form). Design §6
       names this the single easiest way to get the slice wrong. *Opus*.
       Gate: residual ~0 across repayment epochs; **32-run sweep** (first run).
 
-- [ ] **7. FX backing term** — `unbacked = max(0, ClaimOnState − Reserve)`;
+- [x] **7. FX backing term** — `unbacked = max(0, ClaimOnState − Reserve)`;
       `effectiveMoney = Supply + FxBackingSensitivity × unbacked` into
       `FxOps.cs:59`. *Opus* (determinism formula + design judgment).
       Gate: `FxBackingSensitivity = 0` reproduces CU-2 **byte-identically**.
 
-- [ ] **8. REPL surface** — claim book, backing ratio, retired-to-date on the
+- [x] **8. REPL surface** — claim book, backing ratio, retired-to-date on the
       currency line. *Sonnet*.
       Gate: the REPL surface works (piped via bash `printf`, not PowerShell).
 
-- [ ] **9. Sweep + backing activation** — run the 32-run committed sweep; then
+- [x] **9. Sweep + backing activation** — run the 32-run committed sweep; then
       raise `FxBackingSensitivity` off 0 to a defensible value and re-run.
       **The eyeball needs a non-zero run** — at 0 the FX coupling is inert.
       *Opus* (tuning claim ⇒ ensemble bar, SIMHEALTH.md).
-      Gate: worst per-currency residual ~1e-9 abs / ~1e-16 relative.
+      Gate: worst per-currency residual ~1e-9 abs / ~1e-16 relative. **MET** —
+      worst relative 2.15e-15 at knob 0 (reproduces task 6); holds 4e-16…1.8e-15
+      across a {0,0.5,1,2,5} mini-sweep. Recommended DEMONSTRATION value **1.0**
+      (committed default LEFT at 0.0 — eyeball decides; §9 defers final tuning).
 
 - [ ] **10. USER: REPL eyeball acceptance** (the taste gate).
 
@@ -266,3 +269,96 @@ REPL surface works.
   (4× → ~12%); the remaining failure is **the per-epoch issuance cap**, which
   design §3 explicitly freezes ("ME's cap and floor are untouched") — so fixing
   it is a design decision, not this task's. **Flagged to the user.**
+- 2026-07-17 — Task 6 (residual wiring) done, on **main folded in** (post-MC:
+  branch now carries L2, CU-2, DX, MC). Pure observability wiring in
+  `MetricsOps.cs` — no money moved, no serializer/version change.
+  `CurrencyResidualRow` gains a `CumulativeFiatRetired` field (grouped with the
+  other cumulative counters, before `Residual`/`Reserve`; the single
+  construction site updated in step), the delta form gains
+  `+ (cur.CumulativeFiatRetired − baseline.CumulativeFiatRetired)` — the one
+  SUBTRACTIVE counter enters with a PLUS sign to cancel the Supply drop
+  (`(−p) + (p) = 0`), and the baseline row carries it, exactly as `Reserve` did
+  in CU-2. Doc comment extended to name the retirement term. The canary
+  `PrincipalRepayment_ResidualIsExactlyTheNotYetWiredRetirement` FLIPPED (not
+  deleted) to `PrincipalRepayment_ResidualIsZero_RetirementWired`, now asserting
+  `residual == 0` (tol 6) — green.
+  `dotnet test`: **1126 passed, 1 red** — ONLY the standing frozen-golden diff
+  (`GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden`, re-frozen at Task 12,
+  NOT regenerated). All 6 Task-6-gap conservation tests now green.
+  **32-run sweep** (first run since the money sink landed AND since MC changed
+  the polity entry schedule): worst per-currency `Money.ConservationResidual`
+  = **1.81e-07 abs** at Supply 5.43e+08 (cheap-credit/31337 epoch 33), worst
+  **relative 2.15e-15** (cheap-credit/9091 epoch 33) — a few ULPs, FP noise, not
+  a leak. Conservation holds across the merged reality, not just seed 42.
+- 2026-07-17 — Task 7 (FX backing term) done: the unbacked claim book now weighs
+  on its currency's FX rate (design §5). `FxOps.RecomputeRates` (`FxOps.cs:55-71`)
+  reads `state.BankOf(cur.Id)` per currency (id order, P6 — safe registry-wide
+  since every currency, Retired included, is founded 1:1 with a bank) and forms
+  `unbacked = max(0, ClaimOnState − Reserve)`,
+  `effectiveMoney = max(0, Supply) + FxBackingSensitivity × unbacked` before the
+  unchanged density/rate step. Reserve now offsets the claim DIRECTLY on top of
+  its sequestration effect; `unbacked` clamps at 0 so a fully-backed bank is
+  inert. Class doc-comment extended with the backing block and the §5 cite. NO
+  gate on lending — discipline is endogenous via FX (ME's floor stays absolute).
+  **Byte-identity at the default `FxBackingSensitivity = 0`**: at 0 the term is
+  `Supply + 0.0 × unbacked ≡ Supply` bit-for-bit, so every rate reproduces CU-2.
+  Proven by the full suite, NOT assumed: `dotnet test` = **1129 passed, 1 red**
+  — the red is ONLY the standing frozen-golden diff
+  (`ReferenceArtifact_MatchesTheFrozenGolden`, first mismatch at the
+  `ClaimServicingSharePerYear` knob line from task 5b, unrelated to FX; goldens
+  re-freeze at Task 12, NOT regenerated). Task 6 ended 1126 passed / same 1 red;
+  +3 new tests ⇒ 1129, and NO currency/FX/conservation test flipped (the 130-test
+  Currency|Fx|Conservation|Sovereign|Bank filter is all-green). Every existing
+  numeric FX assertion (0.5, 0.2, …) still holds unchanged. Three new tests in
+  `FxRateTests`: the term BITES when the knob > 0 (unbacked claim ⇒ strictly lower
+  rate, pinned at 1/3.25), a fully-backed bank is unaffected even at backing 5.0
+  (unbacked clamps to 0), and an empty claim book at the default knob is
+  BitConverter-identical to the pure supply/output rate. Harness `AddCurrency`
+  now founds the 1:1 bank alongside the currency (mirrors `FoundCurrency`) so the
+  pass can read `BankOf` — bank starts empty, rate unchanged. Scope held: knob
+  stayed at 0 (task 9 activates), no touch to `Bank`/`Currency`/serializer/
+  `Phases`/`MetricsOps`.
+- 2026-07-17 — Task 8 (REPL surface) done: `InteriorView.RenderPolity`
+  (`src/Inspector/InteriorView.cs`) gains a new `claims:` line directly below
+  CU-2's `bank:` line, inside the same `pr.CurrencyId >= 0` guard, reusing the
+  existing `bank`/`currency` locals — `book {ClaimOnState}`, a guarded
+  `backing {Reserve/ClaimOnState}` (`—` when `ClaimOnState == 0`, avoiding a
+  divide-by-zero/NaN), `lent {CumulativeLentToState} (cum)`,
+  `retired {CumulativeRetired} (cum)`. Display only — no behavior, no
+  serialization, no knob. `dotnet test`: **1129 passed, 1 red** — only the
+  standing `GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden` (not
+  regenerated). REPL driven via bash `printf 'epoch 42 40\nestep 60\npolity\nquit\n'
+  | dotnet run --project src/Inspector -c Release` (100 epochs total, since a
+  bare 40-epoch run left every claim book at 0 — sovereign lending needs a
+  deficit to fire): claims lines render with real non-zero numbers, e.g.
+  polity #25 Shano — `bank: reserve 44612 · spread intake 236 (cum) ·
+  reserve-funded 8462 (cum) · backstop-minted 77589 (cum)` /
+  `claims: book 62484 · backing 0.71 · lent 77589 (cum) · retired 15105 (cum)`.
+  The guarded `backing —` path was also exercised (every polity with a zero
+  claim book prints it, e.g. #68 Selsel).
+- 2026-07-17 — Task 9 (sweep + backing activation) done. Measurement only, no
+  product code changed; every knob run used a temporary one-line
+  `EpochSimConfig` default flip reverted via `git checkout` (tasks-4/5 pattern),
+  tree left pristine. `dotnet test`: **1129 passed, 1 red** — only the standing
+  frozen-golden diff (re-frozen at task 12, NOT regenerated).
+  **Conservation (the gate):** 32-run committed sweep at default `0.0` — worst
+  per-currency `Money.ConservationResidual` **relative 2.15e-15** (cheap-credit/
+  9091/epoch 33), absolute 1.81e-07 — reproduces task 6 to the digit; conservation
+  holds at this tip. A `{0,0.5,1,2,5}` FxBackingSensitivity mini-sweep (variant
+  JSON over the same runner, kept in scratchpad) holds relative **4e-16…1.8e-15**
+  at every value — a nonzero backing term does NOT leak (it only re-weights FX
+  density, which is not in the §6 identity). **Coupling bites (measured through
+  the real REPL render):** clean short-horizon A/B on Kaal #4 (seed 42, N=12 —
+  the identical-state window before feedback diverges the runs; book 1165 ≈ 55%
+  of supply 2107, reserve≈0): rate falls 0.260→0.256→0.250→0.241→0.225→0.198 for
+  k=0/0.1/0.25/0.5/1/2 — monotonic, sane; a fully-backed currency is unaffected
+  (`unbacked` clamps to 0). The coupling is self-amplifying over a full history
+  (low rate → costly imports → wider deficit → more lending → lower rate), so at
+  100 epochs k≥0.5 drives extreme outliers into divergent trajectories — real, not
+  an instability, but the reason to keep the value modest. **Recommended
+  DEMONSTRATION value 1.0** (design §5's literal 1:1 "supply-equivalent" weight;
+  ~13.5% instantaneous haircut on a maximally over-lent currency — visible, not
+  dominating; conservation green). **Committed default LEFT at 0.0** — the eyeball
+  decides and §9 defers the production value to the economic-balance pass (which
+  should validate on the ensemble and may land lower, 0.25–0.5). Full report:
+  scratchpad `bf/task-9-report.md`.

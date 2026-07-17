@@ -27,12 +27,12 @@ public static class ArtifactSerializer
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
         ("actors", 10), ("ports", 2), ("lanes", 3), ("facilities", 3),
-        ("fleets", 3), ("segments", 3), ("events", 1), ("markets", 5),
+        ("fleets", 3), ("segments", 3), ("events", 1), ("markets", 6),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 4), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
         ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
-        ("bodyresources", 1), ("banks", 1),
+        ("bodyresources", 1), ("banks", 2),
     };
 
     public static string ToText(SimState state)
@@ -255,12 +255,15 @@ public static class ArtifactSerializer
         // polity's minted currency plus retired history, id order (P6). Must
         // precede the corporations layer (a wallet's numeraire read resolves
         // against this registry).
+        // markets v6 (slice BF): CumulativeFiatRetired rides along, trailing
+        // after Retired — the negative term in the per-currency conservation
+        // identity, destroyed when the polity repays its bank's ClaimOnState.
         foreach (var cur in state.Currencies)
             w.WriteLine(Join("CURRENCY", cur.Id.ToString(Inv), Name(cur.Name),
                 cur.FoundingPolityId.ToString(Inv), R(cur.Supply),
                 R(cur.CumulativeFiatIssued), R(cur.CumulativeSteadyIssuance),
                 R(cur.CumulativeConvertedIn), R(cur.CumulativeConvertedOut),
-                R(cur.NumeraireRate), B(cur.Retired)));
+                R(cur.NumeraireRate), B(cur.Retired), R(cur.CumulativeFiatRetired)));
         foreach (var c in state.Cultures)
             w.WriteLine(Join("CULTURE", c.Id.ToString(Inv), Name(c.Name),
                 c.SpeciesId.ToString(Inv)));
@@ -606,10 +609,14 @@ public static class ArtifactSerializer
         // CU-2 bank-actor design) — reserve dynamics are wired by later
         // tasks, but the registry rides along from the moment it exists so
         // save/reload never lags the state (the BodyResources lesson).
+        // banks v2 (slice BF): the claim-book rides along — ClaimOnState is
+        // the bank's outstanding (non-money) claim against its own polity,
+        // CumulativeLentToState/CumulativeRetired are its running levels.
         foreach (var bank in state.Banks)
             w.WriteLine(Join("BANK", bank.CurrencyId.ToString(Inv),
                 R(bank.Reserve), R(bank.CumulativeSpreadIntake),
-                R(bank.CumulativeReserveFunded)));
+                R(bank.CumulativeReserveFunded), R(bank.ClaimOnState),
+                R(bank.CumulativeLentToState), R(bank.CumulativeRetired)));
         w.WriteLine("END");
     }
 
@@ -1279,6 +1286,9 @@ public static class ArtifactSerializer
                             CumulativeConvertedOut = double.Parse(f[8], Inv),
                             NumeraireRate = double.Parse(f[9], Inv),
                             Retired = f[10] == "1",
+                            // markets v6 (slice BF): CumulativeFiatRetired
+                            // trails after Retired
+                            CumulativeFiatRetired = double.Parse(f[11], Inv),
                         });
                         break;
                     case "BANK":
@@ -1291,6 +1301,11 @@ public static class ArtifactSerializer
                             Reserve = double.Parse(f[2], Inv),
                             CumulativeSpreadIntake = double.Parse(f[3], Inv),
                             CumulativeReserveFunded = double.Parse(f[4], Inv),
+                            // banks v2 (slice BF): the claim-book trails after
+                            // the reserve fields
+                            ClaimOnState = double.Parse(f[5], Inv),
+                            CumulativeLentToState = double.Parse(f[6], Inv),
+                            CumulativeRetired = double.Parse(f[7], Inv),
                         });
                         break;
                     case "CULTURE":

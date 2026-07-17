@@ -30,12 +30,18 @@ public class BankArtifactTests
             Reserve = 12345.6789012345,
             CumulativeSpreadIntake = 42.000000001,
             CumulativeReserveFunded = 9999.9999999999,
+            ClaimOnState = 777.777777777,
+            CumulativeLentToState = 888.888888888,
+            CumulativeRetired = 111.111111111,
         });
         state.Banks.Add(new Bank(1)
         {
             Reserve = 0.0,
             CumulativeSpreadIntake = 3.140000000001,
             CumulativeReserveFunded = 0.333333333333333,
+            ClaimOnState = 22.22,
+            CumulativeLentToState = 33.33,
+            CumulativeRetired = 44.44,
         });
 
         var text1 = ArtifactSerializer.ToText(state);
@@ -48,11 +54,17 @@ public class BankArtifactTests
         Assert.Equal(12345.6789012345, b0.Reserve);
         Assert.Equal(42.000000001, b0.CumulativeSpreadIntake);
         Assert.Equal(9999.9999999999, b0.CumulativeReserveFunded);
+        Assert.Equal(777.777777777, b0.ClaimOnState);
+        Assert.Equal(888.888888888, b0.CumulativeLentToState);
+        Assert.Equal(111.111111111, b0.CumulativeRetired);
         var b1 = loaded.Banks[1];
         Assert.Equal(1, b1.CurrencyId);
         Assert.Equal(0.0, b1.Reserve);
         Assert.Equal(3.140000000001, b1.CumulativeSpreadIntake);
         Assert.Equal(0.333333333333333, b1.CumulativeReserveFunded);
+        Assert.Equal(22.22, b1.ClaimOnState);
+        Assert.Equal(33.33, b1.CumulativeLentToState);
+        Assert.Equal(44.44, b1.CumulativeRetired);
 
         // the strongest available equivalence gate — nothing silently dropped
         Assert.Equal(text1, text2);
@@ -79,6 +91,9 @@ public class BankArtifactTests
             Assert.Equal(b.Reserve, l.Reserve);
             Assert.Equal(b.CumulativeSpreadIntake, l.CumulativeSpreadIntake);
             Assert.Equal(b.CumulativeReserveFunded, l.CumulativeReserveFunded);
+            Assert.Equal(b.ClaimOnState, l.ClaimOnState);
+            Assert.Equal(b.CumulativeLentToState, l.CumulativeLentToState);
+            Assert.Equal(b.CumulativeRetired, l.CumulativeRetired);
         }
         Assert.Equal(ArtifactSerializer.ToText(state), ArtifactSerializer.ToText(loaded));
     }
