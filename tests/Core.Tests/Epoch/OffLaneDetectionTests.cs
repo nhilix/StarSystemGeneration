@@ -58,10 +58,19 @@ public class OffLaneDetectionTests
         return (state, home, dest, prize);
     }
 
+    /// <summary>An ACTIVE war between the shipment owner and the patrol
+    /// owner — detection is hostile-only (§5), so nothing is seized in
+    /// peacetime.</summary>
+    private static void StageWar(SimState state, int attacker, int defender)
+        => state.Wars.Add(new War(state.Wars.Count, "the Smuggling War",
+            attacker, defender, CasusBelli.BorderIncident, -1,
+            WarDemand.CedeObjectives, state.WorldYear));
+
     [Fact]
     public void OffLaneRun_UnderFullPatrolCover_IsSeized_ToThePatrolsPort()
     {
         var (state, home, dest, prize) = OffLaneUnderPatrol();
+        StageWar(state, prize.OwnerActorId, home.OwnerActorId);
         state.Config.War.OffLaneDetectionPerCoveredYear = 1.0;  // certain
         state.Config.War.PatrolCoverageFalloff = 0.0;           // full cover
 
@@ -86,6 +95,9 @@ public class OffLaneDetectionTests
     public void OffLaneRun_ArrivesUnmolested_WhenNoHostilePatrolCovers()
     {
         var (state, home, dest, prize) = OffLaneUnderPatrol();
+        // a real war IS on, so the only thing saving this run is ownership —
+        // without the self-exclusion the cargo would be seized
+        StageWar(state, prize.OwnerActorId, home.OwnerActorId);
         state.Config.War.OffLaneDetectionPerCoveredYear = 1.0;
         state.Config.War.PatrolCoverageFalloff = 0.0;
         // the only patrol belongs to the SHIPMENT OWNER — it never covers
@@ -107,10 +119,42 @@ public class OffLaneDetectionTests
             e => e.Type == WorldEventType.CargoSeized);
     }
 
+    /// <summary>The hostile-only contract (§5, markets.md:97): detection
+    /// gates on an ACTIVE WAR, so a FOREIGN patrol at peace with the shipment
+    /// owner — an ally, a federation partner, a neutral — seizes NOTHING even
+    /// sitting on the drop point with certain detection and full cover. Every
+    /// polity stations escorts at its capital, so without this a frontier
+    /// colony's founding-era supply runs would be looted by its friends.</summary>
+    [Fact]
+    public void PeacetimeForeignPatrol_SeizesNothing_CargoDelivers()
+    {
+        var (state, home, dest, prize) = OffLaneUnderPatrol();
+        state.Config.War.OffLaneDetectionPerCoveredYear = 1.0;  // certain
+        state.Config.War.PatrolCoverageFalloff = 0.0;           // full cover
+        // NO war staged: the rival patrol is merely foreign, not hostile.
+        Assert.NotEqual(home.OwnerActorId, state.Fleets[0].OwnerActorId);
+
+        var basket = new List<(int Good, double Qty, double Grade)>
+            { ((int)GoodId.Provisions, 100.0, 0.5) };
+        var s = ShipmentOps.Dispatch(state, home.OwnerActorId,
+            ShipmentChannel.Freight, home.Id, dest.Id, basket);
+
+        // delivered untouched — nothing landed on the foreigner's book
+        Assert.Null(s);
+        Assert.Equal(100.0, BookOps.AskQty(state, dest.Id,
+            (int)GoodId.Provisions), 6);
+        Assert.Equal(0.0, BookOps.AskQty(state, prize.Id,
+            (int)GoodId.Provisions), 6);
+        Assert.DoesNotContain(state.Staged,
+            e => e.Type == WorldEventType.CargoSeized);
+    }
+
     [Fact]
     public void PortlessPatrol_TakesNothing_CargoRunsThrough()
     {
-        var (state, home, dest, _) = OffLaneUnderPatrol();
+        var (state, home, dest, prize) = OffLaneUnderPatrol();
+        // a real war IS on — only the missing prize port stops the seizure
+        StageWar(state, prize.OwnerActorId, home.OwnerActorId);
         state.Config.War.OffLaneDetectionPerCoveredYear = 1.0;
         state.Config.War.PatrolCoverageFalloff = 0.0;
         // strip the patrol owner's only port: it has nowhere to land a prize

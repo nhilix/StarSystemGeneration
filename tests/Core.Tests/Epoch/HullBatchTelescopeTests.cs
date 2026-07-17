@@ -115,4 +115,126 @@ public class HullBatchTelescopeTests
                 * Market.InitialPrice(state.Config.Economy, (GoodId)g);
         Assert.Equal(actualPerYear, costPerYear, 6);
     }
+
+    // ---- the GROUNDBREAK treasury gate telescopes too (fix wave) ----
+
+    /// <summary>An isolated own port carrying exactly one commissioned tier-1
+    /// yard, plus one HullBatch plan entry of <paramref name="count"/> hulls.
+    /// Returns the batch's full administered value and the per-year draw the
+    /// project will actually make, so a test can straddle the two.</summary>
+    private static (SimState State, PolityRecord Polity, Port Port,
+                    ShipDesign Design, double Value, double PerYear)
+        YardPortWithPlan(int count)
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        ProjectOpsTests.RunHistory(state);
+        var pr = state.Polities[ProjectOpsTests.FirstEnteredPolity(state)];
+        var actor = state.Actors[pr.ActorId];
+        int home = ProjectOpsTests.OwnPort(state, pr.ActorId);
+        var hex = new HexCoordinate(state.Ports[home].Hex.Q + 40,
+                                    state.Ports[home].Hex.R);
+        var yardPort = new Port(state.Ports.Count, pr.ActorId, hex,
+                                tier: 1, state.WorldYear);
+        state.Ports.Add(yardPort);
+        state.Markets.Add(new Market(yardPort.Id, state.Config.Economy));
+        state.Facilities.Add(new Facility(state.Facilities.Count,
+            (int)InfraTypeId.Shipyard, tier: 1, hex, pr.ActorId,
+            state.WorldYear) { CommissionedYear = state.WorldYear });
+        ShipDesign? design = null;
+        foreach (var d in state.Designs)
+            if (d.OwnerActorId == pr.ActorId) { design = d; break; }
+        Assert.NotNull(design);
+        actor.Policies = PolityPolicies.Default with
+        {
+            Plan = new StandingPlan(new[]
+            {
+                new PlanEntry(PlanEntryKind.HullBatch, ProjectPriority.Growth,
+                    state.WorldYear, design!.Id, yardPort.Id,
+                    new HexCoordinate(0, 0), count),
+            }),
+        };
+        // the same value the gate administers, and the same duration the spawn
+        // and the planner use (one tier-1 yard is attached)
+        double comp = DesignMath.ComponentsPerHull(state.Config.Fleet, design.Size);
+        double armaments = DesignMath.ArmamentsPerHull(state.Config.Fleet,
+            design.Role, design.Size);
+        double value = count * (
+            comp * Market.InitialPrice(state.Config.Economy, GoodId.ShipComponents)
+            + armaments * Market.InitialPrice(state.Config.Economy,
+                GoodId.Armaments));
+        double years = DesignMath.HullBatchYears(state.Config.Fleet, design.Size,
+                                                 count, yardTiers: 1);
+        // AllocationPhase tops the pools up from receipts (`MilitaryPoints +=
+        // allocatable * budget.Military`) BEFORE Groundbreak runs, which would
+        // swamp any treasury a test stages. Zero the receipts so `allocatable`
+        // is 0 and the staged MilitaryPoints is what the gate actually sees.
+        // (The pools only decay in DecayIdlePools, which runs AFTER Groundbreak.)
+        pr.Receipts = 0;
+        return (state, pr, yardPort, design, value, value / years);
+    }
+
+    private static int BatchesAt(SimState state, int portId)
+    {
+        int n = 0;
+        foreach (var p in state.Projects)
+            if (p.Kind == ProjectKind.HullBatch && p.PortId == portId) n++;
+        return n;
+    }
+
+    /// <summary>The groundbreak treasury gate must bite on the PER-YEAR draw,
+    /// not the lump: the project draws PerYearBasket = comp·count/years, so
+    /// gating on the whole batch value made a coarse bundle need ~span× the
+    /// treasury of a fine sliver AT THE SAME INSTANT — the coarse clock dropped
+    /// bundles the fine clock built. A treasury that covers the per-year draw
+    /// but NOT the lump must now break ground.</summary>
+    [Fact]
+    public void GroundbreakHullBatch_TreasuryGate_IsPerYear_NotLump()
+    {
+        var (state, pr, port, _, value, perYear) = YardPortWithPlan(count: 5);
+        // comfortably above the per-year draw, far below the lump
+        pr.MilitaryPoints = perYear * 1.5;
+        Assert.True(pr.MilitaryPoints < value,
+            "staging must straddle the gate: below the lump");
+
+        new AllocationPhase().Run(state);
+
+        Assert.Equal(1, BatchesAt(state, port.Id));
+    }
+
+    /// <summary>The gate still bites — a treasury below even the per-year draw
+    /// breaks no ground. Without this the test above would pass on a gate that
+    /// was simply deleted.</summary>
+    [Fact]
+    public void GroundbreakHullBatch_BelowThePerYearDraw_BreaksNoGround()
+    {
+        var (state, pr, port, _, _, perYear) = YardPortWithPlan(count: 5);
+        pr.MilitaryPoints = perYear * 0.5;
+
+        new AllocationPhase().Run(state);
+
+        Assert.Equal(0, BatchesAt(state, port.Id));
+    }
+
+    /// <summary>Tick-invariance itself: a coarse bundle (count=5, years=25) and
+    /// a fine sliver (count=1, years=5) face the SAME per-year bar at a 1-tier
+    /// yard, so one treasury admits both.</summary>
+    [Fact]
+    public void GroundbreakHullBatch_BundleAndSliver_FaceTheSamePerYearBar()
+    {
+        var bundle = YardPortWithPlan(count: 5);
+        var sliver = YardPortWithPlan(count: 1);
+        // the bar is identical — that IS the telescoping property
+        Assert.Equal(sliver.PerYear, bundle.PerYear, 6);
+        // ...and the lumps are NOT (the pre-fix gate's 5x divergence)
+        Assert.True(bundle.Value > sliver.Value * 4);
+
+        double treasury = bundle.PerYear * 1.5;
+        bundle.Polity.MilitaryPoints = treasury;
+        sliver.Polity.MilitaryPoints = treasury;
+        new AllocationPhase().Run(bundle.State);
+        new AllocationPhase().Run(sliver.State);
+
+        Assert.Equal(1, BatchesAt(bundle.State, bundle.Port.Id));
+        Assert.Equal(1, BatchesAt(sliver.State, sliver.Port.Id));
+    }
 }

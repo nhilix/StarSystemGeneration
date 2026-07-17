@@ -23,12 +23,20 @@ public class PatrolCoverageTests
             BodyRef.None, ownerActorId: 1), 9);
     }
 
+    /// <summary>An ACTIVE war between two polities — coverage is hostile-only
+    /// (§5), so a patrol projects nothing without one.</summary>
+    private static void StageWar(SimState state, int attacker, int defender)
+        => state.Wars.Add(new War(state.Wars.Count, "the Coverage War",
+            attacker, defender, CasusBelli.BorderIncident, -1,
+            WarDemand.CedeObjectives, state.WorldYear));
+
     [Fact]
     public void CoverageFallsOffWithDistanceFromTheDock()
     {
         var (_, state) = EpochTestKit.Seeded();
         var hex = new HexCoordinate(0, 0);
         var enemy = 2;
+        StageWar(state, attacker: enemy, defender: 1);
         var patrol = new FleetRecord(state.Fleets.Count, ownerActorId: enemy, hex)
         { Posture = FleetPosture.Patrol, Body = BodyRef.None };
         state.Fleets.Add(patrol);
@@ -38,5 +46,21 @@ public class PatrolCoverageTests
         Assert.True(atDock > far);
         Assert.Equal(0.0, PatrolCoverage.At(state, hex, BodyRef.None,
             ownerActorId: enemy), 9);      // own patrol never "covers" against self
+    }
+
+    /// <summary>The hostile-only contract (§5): a FOREIGN patrol not at war
+    /// with the owner projects nothing — a peacetime run past an allied or
+    /// neutral capital is safe. Without the war gate this returns full
+    /// coverage, so the assertion is load-bearing.</summary>
+    [Fact]
+    public void PeacetimeForeignPatrol_ProjectsNoCoverage()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var hex = new HexCoordinate(0, 0);
+        state.Fleets.Add(new FleetRecord(state.Fleets.Count, ownerActorId: 2, hex)
+        { Posture = FleetPosture.Patrol, Body = BodyRef.None });
+        // no war staged → nothing to evade, even docked on the very hex
+        Assert.Equal(0.0, PatrolCoverage.At(state, hex, BodyRef.None,
+            ownerActorId: 1), 9);
     }
 }

@@ -389,8 +389,11 @@ public static class ShipmentOps
         // a covering hostile Patrol seizes the runner's cargo, landed at that
         // patrol owner's nearest own port as its asks (P4 conserved). A portless
         // patrol owner has nowhere to land a prize and takes nothing. Only the
-        // owner-excluding strongest Patrol onto the drop point can claim it
-        // (fleet-id order for a deterministic tiebreak).
+        // strongest HOSTILE Patrol onto the drop point can claim it (fleet-id
+        // order for a deterministic tiebreak) — this rescan must filter the
+        // SAME set PatrolCoverage.At scored (own patrols and any polity not at
+        // active war excluded), or it would attribute a prize to a patrol that
+        // never earned the coverage that triggered the roll.
         if (coveredYears > 0 && maxCoverage > 0)
         {
             int patrolOwner = -1;
@@ -400,6 +403,8 @@ public static class ShipmentOps
             {
                 if (fleet.Posture != FleetPosture.Patrol
                     || fleet.OwnerActorId == s.OwnerActorId) continue;
+                if (WarOps.ActiveWarBetween(state, fleet.OwnerActorId,
+                                            s.OwnerActorId) == null) continue;
                 double c = 1.0 - war.PatrolCoverageFalloff
                     * HexGrid.Distance(fleet.Hex, state.Ports[s.DestPortId].Hex);
                 if (c > bestCover) { bestCover = c; patrolOwner = fleet.OwnerActorId; }

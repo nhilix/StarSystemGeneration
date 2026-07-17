@@ -1116,9 +1116,11 @@ public sealed class AllocationPhase : ISimPhase
 
     /// <summary>Hull-batch groundbreak: an owned port with a design the
     /// polity still holds (a stale plan's design may have been superseded
-    /// or belong to an actor no longer entered) and the military treasury
-    /// to cover the administered value — the batch commissions when its
-    /// build span delivers (Task 8).</summary>
+    /// or belong to an actor no longer entered), yard capacity to run the
+    /// batch, and the military treasury to cover the administered value's
+    /// PER-YEAR draw (not the lump — the gate telescopes like the draw it
+    /// guards) — the batch commissions when its build span delivers
+    /// (Task 8).</summary>
     private static void GroundbreakHullBatch(SimState state, PolityRecord pr,
                                               PlanEntry entry, int planOrder)
     {
@@ -1137,7 +1139,6 @@ public sealed class AllocationPhase : ISimPhase
                 Substrate.GoodId.ShipComponents)
             + armaments * Market.InitialPrice(state.Config.Economy,
                 Substrate.GoodId.Armaments));
-        if (pr.MilitaryPoints < value) return;
         // yard-capacity truth (F4, plan-mandated): a port runs no more
         // concurrent hull batches than the active own-shipyard tier attached
         // to it — one tier-1 yard = one batch at a time
@@ -1153,7 +1154,20 @@ public sealed class AllocationPhase : ISimPhase
             if (p.InFlight && p.Kind == ProjectKind.HullBatch
                 && p.PortId == port.Id)
                 inFlightBatches++;
+        // no yard (yardTiers == 0) returns HERE, so the duration below never
+        // divides by a zero rate
         if (inFlightBatches >= yardTiers) return;
+        // the treasury gate bites on the PER-YEAR draw, not the lump: the
+        // project draws PerYearBasket = comp*count/years over its build span,
+        // so gating on the whole batch value made a coarse bundle need ~span x
+        // the treasury of a fine sliver AT THE SAME INSTANT — the coarse clock
+        // dropped bundles a fine clock built. Using the SAME duration the spawn
+        // and the planner use makes affordability telescope across tick
+        // resolutions (time-not-ticks, P7): count=5/years=25 and count=1/years=5
+        // both face 0.2*perHull/yr at a 1-tier yard.
+        double years = DesignMath.HullBatchYears(state.Config.Fleet, design.Size,
+                                                 count, yardTiers);
+        if (pr.MilitaryPoints < value / years) return;
         // honor the planner's staggered schedule: break ground at the entry's
         // scheduled year (clamped to now — never before this step), so a
         // coarse step that straddles the start only delivers the overlap (F3).
