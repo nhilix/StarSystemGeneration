@@ -1,20 +1,72 @@
-# Session Handoff — 2026-07-16 (L2 MERGED · BF PARKED · next up: Slice MC)
+# Session Handoff — 2026-07-17 (Slice MC MERGED · BF unblocked · next up: BF resume or WT)
 
-**NEXT UP: Slice MC — P7-clean nominal price formation.**
-Kickoff: `docs/superpowers/plans/2026-07-16-slice-mc-kickoff-prompt.md`.
-Run it **alone** — its blast radius is every price, every price-sensitive golden,
-and ME's monetary operating point.
+**Slice MC — P7-clean polity entry + the clock-invariance instrument — MERGED**
+to `main` locally at `0d93250` with `--no-ff` (main had moved: folded in main's
+docs-only DX chain, no code conflict). **Not pushed** — push on say-so.
+1104/1104 `dotnet test` on the merged tip · determinism byte-identity verified
+(two independent seed-42 runs) · one fable whole-branch review (MERGE WITH FIXES,
+0 Critical, 1 Important + 3 Minor, all fixed in one wave) · golden re-frozen once
+at slice end. Ledger `docs/superpowers/plans/2026-07-17-slice-mc-ledger.md`.
 
-**Two chains are live; MC goes first (user call, 2026-07-16).** L2's wrap-up
-chained **Slice WT** (war termination,
-`2026-07-15-slice-wt-kickoff-prompt.md`) — still valid, still queued, just not
-next. MC wins the tie because it **blocks BF, which blocks CU-3 and CU-4** — the
-entire CU chain is stalled behind it.
+**NEXT UP — a fork for the user/orchestrator:**
+1. **Resume Slice BF** at its task 6 — MC was BF's blocker and is now cleared.
+   BF's branch is based on `768a8e4` and must fold in main first (it has never
+   folded in L2, CU-2's docs, DX, or MC). See the BF section below.
+2. **Slice WT** (war termination) — chained by L2, still valid, different
+   subsystem, parallel-safe.
+3. **Slice DX** (domain hex expansion) — still **HELD** (see the tail Next-up
+   list); its hold was pinned to "CU-3's hiccups resolved", which have now
+   resolved into the MC→BF chain — confirm the hold is lifted before spawning.
 
-**Chain: MC → BF (resume at task 6) → CU-3 → CU-4.** WT runs when MC is clear.
+**Chain: MC ✅ → BF (resume at task 6) → CU-3 → CU-4.**
 
-This commit is **docs-only**. No code from the BF session is on main; BF's code is
-parked on its own branch (below).
+## Slice MC — P7-clean polity entry + clock-invariance instrument (MERGED)
+
+**The defect (proven):** the sim's economy was clock-dependent (differed between
+25y/epoch and 1y/epoch) — a P7 violation. The polity entry gate mis-multiplied
+units: `EpochGenesis` wrote `EntryEpoch = entryYear / YearsPerEpoch`, while
+`Phases`/`NativeOps` read `EntryEpoch × GenerationYears` — agreeing **only** at the
+default `YearsPerEpoch == GenerationYears == 25`. Invisible at the default clock;
+at 1y it stretched the whole emergence schedule 25×, admitting ~25× fewer
+polities.
+
+**The fix:** replaced `Actor.EntryEpoch` with `Actor.EntryYear` (an unambiguous
+world-year). Genesis is now **clock-invariant by construction** (that division was
+its only clock read). Killed the **collapse regime** entirely (5 seeds where the
+fine clock's *real* economy died) and made the ports ratio ≥1.0 on 20/20 seeds.
+Deliberately moved the default 25y product (polities no longer enter up to 24
+years early via truncation) — **user-approved**; golden re-frozen.
+
+**The instrument (the durable deliverable):** the project's first **committed
+clock-invariance sweep** — `src/Core/Epoch/ClockPlan.cs` + a `SweepRunner` clock
+mode + `docs/superpowers/plans/2026-07-17-clock-invariance-experiment.json` (20
+seeds × {25y,5y,1y}, ~5s). It holds world-time constant by construction
+(`epochs × YearsPerEpoch = span`, refusing the epochs+worldYears mix, non-divisible
+spans, duplicate clocks) and reports **nominal vs real divergence separately** —
+the analytical frame that **five prior throwaway-harness diagnoses all blurred**.
+On its first use it settled a 5× disagreement between two prior harnesses. No P7
+claim should ever again be made with a throwaway harness — extend this instead.
+
+**The lesson of this slice (write it on the wall):** **five successive diagnoses
+of the clock-dependence were each refuted** — the issuance cap (never binds at
+25y), mint feedback (zeroing both mints leaves 16×), price drift (~11%; a demoted
+symptom), the band-bid budget cap (neutralizing it: 61.5×→61.5×), and one whole
+investigation invalidated by its own harness applying the clock after genesis.
+Every one was plausible; instrumentation killed each. The root cause only fell to
+a **removal test** (a no-op at 25y; `live_polities` → exactly 1.000× on 20/20) that
+no prior candidate survived. This is `[[market-clock-dependence]]`'s real ending.
+
+**Handed on as its own slice (characterized, not chased):** the surviving
+"diverge regime" is a **nominal price-level divergence** — the *same goods* change
+hands ~1.5× more (real, ≈ clock-invariant) at ~10.7× the value per unit (nominal).
+The churn hypothesis (receipts double-counting) was measured dead (churn multiple
+1.02× against a clock ratio of 25). The sharp lead for that slice: **re-measure
+demoted diagnosis #3 (price drift) with a volume-weighted realized clearing
+price** — it was demoted on an *unweighted reference* price, a different statistic,
+measured pre-instrument. New instrument metrics `Economy.GoodsTransacted` (real)
+and `GoodsValueCleared` (nominal) are in place for it.
+
+## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
 
 ## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
 
@@ -780,14 +832,15 @@ the very end.
    (measured pre/post). The kickoff carries the evidence, the four candidate
    models, and the pre/post table as the acceptance instrument. Parallel-safe
    with the CU lineage (different subsystems) — worktrees.
-3. **Slice CU-3 (Federation-triggered currency consolidation)** — **IN
-   PROGRESS** (worker spawned 2026-07-16, psmux `slice-cu3`):
-   `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. Replaces
-   CU-1's blunt forced-conversion-at-absorption stub with a real mechanic once
-   banks exist to be party to a merger. **Read the CU-2 follow-up #1 first** (the
-   bank-reserve-flow-gap): the design should weigh whether the bank-reserve-flow
-   redesign is a prerequisite that belongs before CU-3/CU-4, or proceeds in
-   parallel.
+3. **Slice CU-3 (Federation-triggered currency consolidation)** — **NOT started;
+   back in Kickoff Ready.** The 2026-07-16 spawn opened as CU-3 but its
+   sequencing decision (CU-2 follow-up #1) resolved to "fix the prerequisite
+   first" → it pivoted to **BF**, which then chained **MC**. CU-3 now sits behind
+   BF in the chain (MC ✅ → BF → CU-3 → CU-4). Kickoff still valid:
+   `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. When it runs,
+   it merges banks that have gained an asset side and a money sink (BF), so it
+   consolidates **reserves AND claim books** — richer than its original scope
+   (see BF design §8).
 4. **Slice DX (Domain hex expansion)** — spec approved + committed
    (`docs/superpowers/specs/2026-07-16-domain-hex-expansion-design.md`),
    kickoff chained
