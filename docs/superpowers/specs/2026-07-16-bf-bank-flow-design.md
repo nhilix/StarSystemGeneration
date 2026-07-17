@@ -76,12 +76,17 @@ phase (so it sees the true end-of-epoch balance, the same discipline that put
 
 ```
 if (pr.Credits > 0 && bank.ClaimOnState > 0):
+    years     = Config.Sim.YearsPerEpoch
+    # BOTH rates are per-WORLD-YEAR and scaled to the epoch's length (§4a) —
+    # a 25-year step must service exactly what twenty-five 1-year steps would
+    share     = 1 − (1 − ClaimServicingSharePerYear) ^ years
     # the servicing budget is computed ONCE, before any mutation of Credits —
     # re-reading `Credits × share` after the interest debit would silently
     # shrink the principal budget (the compound-assignment trap already
     # documented at Phases.cs:444, where it was a real bug)
-    budget    = Credits × ClaimServicingShare
-    interest  = min(ClaimOnState × SovereignClaimInterestRate, budget)
+    budget    = Credits × share
+    interest  = min(ClaimOnState × SovereignClaimInterestRatePerYear × years,
+                    budget)
     Credits  -= interest;  Reserve += interest          # internal, neutral
     principal = min(ClaimOnState, budget − interest)
     Credits  -= principal;  ClaimOnState −= principal
@@ -89,9 +94,60 @@ if (pr.Credits > 0 && bank.ClaimOnState > 0):
     CumulativeRetired     += principal
 ```
 
-`budget ≤ Credits` (share ≤ 1) and `interest + principal ≤ budget`, so `Credits`
-is provably still positive after servicing — rule 1 holds by construction, not by
-a guard.
+`share ∈ [0,1)` so `budget ≤ Credits`, and `interest + principal ≤ budget`, so
+`Credits` is provably still positive after servicing — rule 1 holds by
+construction, not by a guard.
+
+### §4a. Time, not ticks (amendment, 2026-07-16)
+
+**This section amends the original §4, which was wrong.** It charged a fraction
+of a treasury *stock* once *per epoch*, making servicing intensity scale as
+1/`YearsPerEpoch` — a violation of this project's P7 / "time, not ticks"
+principle (durations and rates are world-time state, never step counts).
+
+Caught during Task 5 implementation by a clock-invariance probe at world-year
+450: total treasury is clock-invariant on the pre-servicing branch (4514.8 at
+25y/epoch vs 4515.6 at 1y/epoch) but diverged **4×** with the unscaled pass
+(6879.8 vs 1704.4). Every other stock-fraction operation in the sim already
+year-scales — `DecayIdlePools` (`Phases.cs:636`), `StockpileDecayPerYear`,
+`ConditionDecayPerYear`. The original §4 simply did not consider epoch length.
+
+The fix follows `DecayIdlePools`'s exact precedent, whose doc states the
+invariant: *"Compounded per world-year like StockpileDecayPerYear (P7): a
+25-year step recirculates exactly what twenty-five 1-year steps would."*
+
+- **The servicing share compounds** per world-year:
+  `share = 1 − (1 − ClaimServicingSharePerYear)^years`. Compounding is correct
+  here because the share applies to a *stock that the same operation depletes* —
+  identical in form to idle-pool decay.
+- **Interest is LINEAR in years**, not compounded:
+  `ClaimOnState × SovereignClaimInterestRatePerYear × years`. This is not an
+  oversight — **rule 2 forbids compounding**. The claim does not grow between
+  world-years within an epoch (unpaid interest is discarded, never accrued), so
+  each world-year accrues interest on the same principal. Compounding the
+  interest here would smuggle in exactly the growth term rule 2 exists to
+  forbid, and would reintroduce the spiral risk the mechanism is designed
+  around.
+
+Both hard rules survive **structurally**: `share < 1` keeps `budget ≤ Credits`
+for any epoch length, and interest remains bounded by `budget`.
+
+**Knob renames** (repo convention is an explicit `PerYear` suffix —
+`StockpileDecayPerYear`, `PoolIdleDecayPerYear`, `ConditionDecayPerYear`):
+
+| Was (per-epoch) | Now (per-world-year) | Default | At 25y/epoch |
+|---|---|---|---|
+| `ClaimServicingShare` = 0.25 | `ClaimServicingSharePerYear` | **0.01** | share ≈ 0.222 |
+| `SovereignClaimInterestRate` = 0.02 | `SovereignClaimInterestRatePerYear` | **0.001** | 0.025 × claim |
+
+The per-year defaults are calibrated to reproduce the original §4 intent at the
+default `YearsPerEpoch = 25` (0.222 ≈ the intended quarter-of-surplus; 0.025 ≈
+the intended 2%), so this amendment is a clock-invariance fix rather than a
+behavior change at default settings. Both remain placeholders for the
+economic-balance tuning pass.
+
+**This must land before the §6 acceptance sweep** — otherwise every swept result
+is `YearsPerEpoch`-dependent and the tuning claims are meaningless.
 
 Two hard rules, both load-bearing against SH's structural debt-spiral finding:
 
@@ -238,11 +294,14 @@ determinism *and* blocking the tuning sweep:
 
 | Knob | Default | Note |
 |---|---|---|
-| `SovereignClaimInterestRate` | 0.02 | interest on the claim book; cannot compound (§4) |
-| `ClaimServicingShare` | 0.25 | max share of a positive balance spent servicing |
+| `SovereignClaimInterestRatePerYear` | 0.001 | interest on the claim book; **linear** in years, cannot compound (§4, §4a) |
+| `ClaimServicingSharePerYear` | 0.01 | max share of a positive balance spent servicing; **compounds** per world-year (§4a) |
 | `FxBackingSensitivity` | 0 → tuned | 0 = CU-2 byte-identical; raised once the sweep is green |
 
-All three are placeholders flagged for the economic-balance pass, not swept values.
+All three are placeholders flagged for the economic-balance pass, not swept
+values. The first two are per-**world-year** rates scaled to epoch length per
+§4a (P7 / "time, not ticks") — they are NOT per-epoch. An earlier draft of this
+spec had them per-epoch; see §4a for why that was wrong and how it was caught.
 
 **Serialization:** three new `Bank` fields + one `Currency` counter
 (`CumulativeFiatRetired`). Extend the `BANK` and `CURRENCY` lines
