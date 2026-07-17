@@ -40,7 +40,7 @@ the escalation bar is met more often than usual — noted per task.
       Gate: `dotnet test`; issuance magnitudes byte-identical to CU-2 (only the
       claim is new).
 
-- [ ] **5. ServiceSovereignClaim** — the servicing pass, ordered **after**
+- [x] **5. ServiceSovereignClaim** — the servicing pass, ordered **after**
       `FundDeficit` in Allocation. Budget computed ONCE before mutation (design
       §4 — the `Phases.cs:444` compound-assignment trap). Surplus-only; interest
       never capitalizes. *Opus* (the money sink + both hard rules).
@@ -132,3 +132,48 @@ REPL surface works.
   (`CumulativeFiatIssued` included), every treasury, every metric: identical.
   Issuance magnitudes provably unmoved. `dotnet test`: 1053 passed, 1 expected
   red (the same Task-2/3 frozen-golden format diff) — no new failures.
+- 2026-07-16 — Task 5 (ServiceSovereignClaim) done: the money sink lands.
+  A new private `AllocationPhase.ServiceSovereignClaim` runs in its OWN pass
+  after the `FundDeficit` loop (actor-id order, P6) — a separate loop, not a
+  tail call, so co-tenants of one currency all draw on the reserve before any
+  of them pays into it. Budget computed ONCE before any `Credits` mutation
+  (the `Phases.cs:444` trap). Both hard rules are properties of the
+  arithmetic, NOT clamps: `budget = Credits × share ≤ Credits` and
+  `interest + principal ≤ budget` ⇒ `Credits` provably still positive (no
+  floor guard exists because none is reachable); unpaid interest is dropped by
+  the `Math.Min` against the budget and never touches `ClaimOnState`, so there
+  is no compounding term anywhere — no ceiling, no default, no write-off.
+  New `SovereignClaimServicingTests` (13 cases) covering both rules, the
+  compound-assignment trap (pinned numerically: 210, not the 200 a re-read
+  would give), full repayment stopping at zero, pre-genesis, and both
+  conservation halves.
+  **Real-flow evidence** (temp probe, since removed — seed 42, 10-epoch
+  prologue + 8×25y): the sink fires at scale, not just in fixtures —
+  `CumulativeFiatRetired` 1343.6, claim book 6084.3 against 7427.9 issued
+  (claim == issued − retired to the digit), and the reserve reaches 186.2 vs
+  32.5 on task-4 HEAD: interest is the reserve's first real-economy inflow,
+  the actual closure of design §1.
+  `dotnet test`: 1059 passed, 8 red. **5 are the Task-6 gap, exactly as the
+  design predicted** (`ConservationTests` ×2, `ShapeAcceptanceTests
+  FortyEpochs_CreditsConserveToTheMint` ×3 seeds, `GraduationTests
+  Schism_..._Conserved`): every one is a NEGATIVE residual of ~25–41 (money
+  destroyed, no counter moved) because the delta form does not yet subtract
+  `CumulativeFiatRetired`. Task 6 wires it; `MetricsOps.cs` deliberately
+  untouched here. 1 is the standing frozen-golden diff.
+  **⚠ The 8th is a genuine NEW failure and a DESIGN gap, not an implementation
+  bug** — `FineTickTests.FineTick_ProjectCompletions_LandOnWorldYears_NotSteps`.
+  Design §4's formula (and Task 3's knob docs, "per epoch"/"in one epoch") make
+  servicing a fraction of a treasury STOCK charged once per epoch, so its
+  per-world-year intensity scales as 1/`YearsPerEpoch` — the sim's outcome now
+  depends on the clock. Probe evidence at the same world-year 450: on task-4
+  HEAD total treasury is clock-invariant (4514.8 coarse @25y vs 4515.6 fine
+  @1y, 0.02% apart); WITH this pass it diverges 4× (6879.8 vs 1704.4). Every
+  other stock-fraction op in the sim is year-scaled (`DecayIdlePools`'
+  `(1 − PoolIdleDecayPerYear)^years`, `StockpileDecayPerYear`,
+  `ConditionDecayPerYear`) — this is the P7 / "time, not ticks" discipline the
+  design did not consider. Implemented design-faithfully and NOT deviated
+  (the design is the spec); the fix is a §4 amendment — year-scale the budget
+  as `1 − (1 − share)^years` and the interest as a per-year rate, which
+  preserves both hard rules structurally (the factor stays in [0,1], so
+  `budget ≤ Credits`; interest stays `Math.Min`-capped by budget) but changes
+  knob semantics. **Flagged to the user for a design decision.**
