@@ -105,11 +105,14 @@ the escalation bar is met more often than usual — noted per task.
       currency line. *Sonnet*.
       Gate: the REPL surface works (piped via bash `printf`, not PowerShell).
 
-- [ ] **9. Sweep + backing activation** — run the 32-run committed sweep; then
+- [x] **9. Sweep + backing activation** — run the 32-run committed sweep; then
       raise `FxBackingSensitivity` off 0 to a defensible value and re-run.
       **The eyeball needs a non-zero run** — at 0 the FX coupling is inert.
       *Opus* (tuning claim ⇒ ensemble bar, SIMHEALTH.md).
-      Gate: worst per-currency residual ~1e-9 abs / ~1e-16 relative.
+      Gate: worst per-currency residual ~1e-9 abs / ~1e-16 relative. **MET** —
+      worst relative 2.15e-15 at knob 0 (reproduces task 6); holds 4e-16…1.8e-15
+      across a {0,0.5,1,2,5} mini-sweep. Recommended DEMONSTRATION value **1.0**
+      (committed default LEFT at 0.0 — eyeball decides; §9 defers final tuning).
 
 - [ ] **10. USER: REPL eyeball acceptance** (the taste gate).
 
@@ -333,3 +336,29 @@ REPL surface works.
   `claims: book 62484 · backing 0.71 · lent 77589 (cum) · retired 15105 (cum)`.
   The guarded `backing —` path was also exercised (every polity with a zero
   claim book prints it, e.g. #68 Selsel).
+- 2026-07-17 — Task 9 (sweep + backing activation) done. Measurement only, no
+  product code changed; every knob run used a temporary one-line
+  `EpochSimConfig` default flip reverted via `git checkout` (tasks-4/5 pattern),
+  tree left pristine. `dotnet test`: **1129 passed, 1 red** — only the standing
+  frozen-golden diff (re-frozen at task 12, NOT regenerated).
+  **Conservation (the gate):** 32-run committed sweep at default `0.0` — worst
+  per-currency `Money.ConservationResidual` **relative 2.15e-15** (cheap-credit/
+  9091/epoch 33), absolute 1.81e-07 — reproduces task 6 to the digit; conservation
+  holds at this tip. A `{0,0.5,1,2,5}` FxBackingSensitivity mini-sweep (variant
+  JSON over the same runner, kept in scratchpad) holds relative **4e-16…1.8e-15**
+  at every value — a nonzero backing term does NOT leak (it only re-weights FX
+  density, which is not in the §6 identity). **Coupling bites (measured through
+  the real REPL render):** clean short-horizon A/B on Kaal #4 (seed 42, N=12 —
+  the identical-state window before feedback diverges the runs; book 1165 ≈ 55%
+  of supply 2107, reserve≈0): rate falls 0.260→0.256→0.250→0.241→0.225→0.198 for
+  k=0/0.1/0.25/0.5/1/2 — monotonic, sane; a fully-backed currency is unaffected
+  (`unbacked` clamps to 0). The coupling is self-amplifying over a full history
+  (low rate → costly imports → wider deficit → more lending → lower rate), so at
+  100 epochs k≥0.5 drives extreme outliers into divergent trajectories — real, not
+  an instability, but the reason to keep the value modest. **Recommended
+  DEMONSTRATION value 1.0** (design §5's literal 1:1 "supply-equivalent" weight;
+  ~13.5% instantaneous haircut on a maximally over-lent currency — visible, not
+  dominating; conservation green). **Committed default LEFT at 0.0** — the eyeball
+  decides and §9 defers the production value to the economic-balance pass (which
+  should validate on the ensemble and may land lower, 0.25–0.5). Full report:
+  scratchpad `bf/task-9-report.md`.
