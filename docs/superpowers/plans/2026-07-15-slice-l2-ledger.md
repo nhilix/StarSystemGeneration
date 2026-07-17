@@ -234,6 +234,44 @@ segment walk; RichestBiosphere never sites Agri on a Barren body even at Hydro=1
 stricter than yield — one doc sentence if ocean-world farming matters); cadence gate keys on
 (owner,port) so a freshly captured port can groundbreak immediately (epoch-boundary noise).
 
+## Fix wave (post-review) + slice-end acceptance
+
+- **Fix wave** (one wave, both Important findings — commit `69544cc`): (1) off-lane detection
+  now gates on an ACTIVE WAR (`WarOps.ActiveWarBetween`, mirroring the interdiction precedent)
+  — user chose option (a); `markets.md`'s "hostile" wording needed no change, the code now
+  matches the design. (2) hull groundbreak treasury gate is now PER-YEAR (`value / years` via
+  the shared `DesignMath.HullBatchYears`), not the full lump — closing the latent telescoping
+  re-break; required reordering yardTiers/capacity-check above the gate so `yardTiers==0`
+  returns before any division. Conservation + Determinism + FineTick GREEN; the golden was the
+  ONLY mover; nothing else moved, nothing re-tuned. New test
+  `OffLaneDetectionTests.PeacetimeForeignPatrol_SeizesNothing_CargoDelivers` (watched to fail
+  first) pins the user's decision. The fixer also strengthened `OffLaneRun_ArrivesUnmolested`
+  and `PortlessPatrol_TakesNothing`, which would otherwise have passed for the WRONG reason
+  under the new gate. **Trap recorded:** `AllocationPhase` credits `MilitaryPoints` before
+  `Groundbreak` (Phases.cs:435 → :468), so a staged treasury is swamped by real income — the
+  first treasury tests were false-greens until `pr.Receipts` was zeroed. Any future test
+  staging polity pools through a phase will hit this.
+- **Golden re-frozen ONCE more** after the fix wave (`d9e0fec`). Suite **1048/1048 green**.
+- **32-run acceptance sweep** (`debt-diagnosis`: 8 seeds × 4 variants) re-run on the tip — the
+  real instrument per the CU-1 lesson (seed-42 unit tests are NOT sufficient evidence).
+  All 32 completed, no crashes. **Worst conservation residual RATIO across all 32 runs =
+  1.363e-15**, ~6 orders of magnitude under the 1.3e-9 relative tolerance (worst ABSOLUTE
+  3.539e-07 sits in a 5.5e8-supply run — the large-nominal/clean-ratio case CU-1 documented).
+  Conservation holds at scale.
+- **Siege-race amplification DISPROVED** (the open worry from Task 10's finding). Measured
+  pre-L2 main (81c03c6) vs the L2 tip, seed 42 / 40 epochs, in a throwaway worktree:
+  | | pre-L2 | L2 |
+  |---|---|---|
+  | wars declared | 9 | **18** |
+  | wars with an objective taken | 2 (22%) | **6 (33%)** |
+  | max objectives any war reaches | 1/2 | 1/2 (UNCHANGED) |
+  The bigger navies INCREASED war and conquest rather than suppressing it; the "no war ever
+  reaches 2/2" pattern is identical before and after → the siege race is genuinely pre-existing
+  and NOT amplified by L2. Follow-up stands, unchanged in priority.
+- **REPL surface** (`77fb27c`): `market <portId>`'s segments block now prints each segment's
+  body address — the eyeball's "data below the port" needs to be visible. `efreight` already
+  rendered `off-lane` vs `STALLED` (Repl.cs:913-927), no change needed.
+
 ## Follow-up filed (NOT fixed in L2 — pre-existing, out of scope)
 
 - **Siege clock vs war-termination clock race (found by Task 10).** A war settled by `SideBroke`'s
