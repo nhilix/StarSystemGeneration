@@ -33,7 +33,7 @@ the escalation bar is met more often than usual — noted per task.
       unregistered knob silently reverts on reload). Parallel with 1–2. *Sonnet*.
       Gate: knob-registration test; a reload preserves each.
 
-- [ ] **4. LendToState** — `IssueSovereignCredit` → `Bank.LendToState`; books
+- [x] **4. LendToState** — `IssueSovereignCredit` → `Bank.LendToState`; books
       `ClaimOnState += m` alongside the **unchanged** `Supply`/`CumulativeFiatIssued`
       motion. ME's cap and floor untouched. `FundDeficit` stage 1 unchanged.
       *Opus* (conservation invariant + money creation).
@@ -113,3 +113,22 @@ REPL surface works.
   now additionally showing the new `KNOB|Economy.ClaimServicingShare|...`
   line — no new failures). `FxBackingSensitivity = 0.0` keeps every other
   behavior byte-identical.
+- 2026-07-16 — Task 4 (LendToState) done: `Bank.LendToState(amount)` books the
+  CLAIM half only (`ClaimOnState += m`, `CumulativeLentToState += m`); the money
+  creation stays at the `IssueSovereignCredit` chokepoint, untouched. The call
+  sits inside the existing `if (pr.CurrencyId >= 0)` per-currency-mirror guard,
+  so the pre-genesis path (no currency ⇒ no bank) still mints with no creditor
+  and cannot throw — the same fall-through `FundDeficit` stage 1 already takes.
+  No reserve gate, no reserve term in the cap (design §3 — ME's floor).
+  `FundDeficit` stage 1 untouched. New `SovereignLendingTests` (7 cases): claim
+  matches the mint, claim accumulates across epochs, an empty bank still lends in
+  full, a reserve-funded deficit books NO claim, a zero cap books no claim, the
+  pre-genesis polity mints with no claim and no crash, and the per-currency
+  residual stays 0 (the claim is not money).
+  **Byte-identity evidence**: dumped the full seed-42 reference artifact with and
+  without the source change (temp harness, since removed) and diffed — the ONLY
+  differing lines in the whole artifact are `BANK` lines, and only in the
+  `ClaimOnState`/`CumulativeLentToState` columns. Every `CURRENCY` line
+  (`CumulativeFiatIssued` included), every treasury, every metric: identical.
+  Issuance magnitudes provably unmoved. `dotnet test`: 1053 passed, 1 expected
+  red (the same Task-2/3 frozen-golden format diff) — no new failures.

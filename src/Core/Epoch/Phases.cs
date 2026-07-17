@@ -687,7 +687,18 @@ public sealed class AllocationPhase : ISimPhase
     /// NegativeTreasuries must still breathe. Issuance never covers loan service
     /// by construction (ServiceLoans runs at the top of the phase against last
     /// epoch's balance), so default and collateral seizure stay real.
-    /// CumulativeFiatIssued tracks the mint for the conservation residual.</summary>
+    /// CumulativeFiatIssued tracks the mint for the conservation residual.
+    ///
+    /// Slice BF (bank-flow design §3) made this a BANK operation: the money
+    /// creation below is unchanged in every respect — same trigger, same cap,
+    /// same magnitude, same counters — but the currency's <see cref="Bank"/>
+    /// now books a matching claim (<see cref="Bank.LendToState"/>), so the sim's
+    /// dominant monetary flow finally belongs to an actor (design §1). The cap
+    /// is deliberately NOT reserve-aware and the backstop stays absolute: the
+    /// reserve neither gates nor enlarges the mint, because ME's spiral cure
+    /// rests on that floor. The claim is not money — it never enters Supply, is
+    /// never walked by SupplyOps, and never appears on the residual's balance
+    /// side, so conservation is exactly as it was.</summary>
     private static void IssueSovereignCredit(SimState state, PolityRecord pr)
     {
         if (pr.Credits >= 0) return;
@@ -702,7 +713,14 @@ public sealed class AllocationPhase : ISimPhase
         // into this polity's own currency, so the per-currency residual can
         // net the same mint the galaxy-wide field already tracks
         if (pr.CurrencyId >= 0)
+        {
             state.CurrencyOf(pr.CurrencyId).CumulativeFiatIssued += issued;
+            // slice BF: same mint, now with a creditor. A pre-genesis treasury
+            // (CurrencyId < 0) has no currency and hence no bank to book the
+            // claim against, so it mints with no creditor — byte-identical to
+            // the pre-BF path, the same fall-through FundDeficit stage 1 takes.
+            state.BankOf(pr.CurrencyId).LendToState(issued);
+        }
     }
 
     /// <summary>Interest and amortization flow lender-ward; a borrower who
