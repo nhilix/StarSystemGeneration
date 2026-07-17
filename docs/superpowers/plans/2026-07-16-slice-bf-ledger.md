@@ -96,7 +96,7 @@ the escalation bar is met more often than usual — noted per task.
       names this the single easiest way to get the slice wrong. *Opus*.
       Gate: residual ~0 across repayment epochs; **32-run sweep** (first run).
 
-- [ ] **7. FX backing term** — `unbacked = max(0, ClaimOnState − Reserve)`;
+- [x] **7. FX backing term** — `unbacked = max(0, ClaimOnState − Reserve)`;
       `effectiveMoney = Supply + FxBackingSensitivity × unbacked` into
       `FxOps.cs:59`. *Opus* (determinism formula + design judgment).
       Gate: `FxBackingSensitivity = 0` reproduces CU-2 **byte-identically**.
@@ -287,3 +287,31 @@ REPL surface works.
   = **1.81e-07 abs** at Supply 5.43e+08 (cheap-credit/31337 epoch 33), worst
   **relative 2.15e-15** (cheap-credit/9091 epoch 33) — a few ULPs, FP noise, not
   a leak. Conservation holds across the merged reality, not just seed 42.
+- 2026-07-17 — Task 7 (FX backing term) done: the unbacked claim book now weighs
+  on its currency's FX rate (design §5). `FxOps.RecomputeRates` (`FxOps.cs:55-71`)
+  reads `state.BankOf(cur.Id)` per currency (id order, P6 — safe registry-wide
+  since every currency, Retired included, is founded 1:1 with a bank) and forms
+  `unbacked = max(0, ClaimOnState − Reserve)`,
+  `effectiveMoney = max(0, Supply) + FxBackingSensitivity × unbacked` before the
+  unchanged density/rate step. Reserve now offsets the claim DIRECTLY on top of
+  its sequestration effect; `unbacked` clamps at 0 so a fully-backed bank is
+  inert. Class doc-comment extended with the backing block and the §5 cite. NO
+  gate on lending — discipline is endogenous via FX (ME's floor stays absolute).
+  **Byte-identity at the default `FxBackingSensitivity = 0`**: at 0 the term is
+  `Supply + 0.0 × unbacked ≡ Supply` bit-for-bit, so every rate reproduces CU-2.
+  Proven by the full suite, NOT assumed: `dotnet test` = **1129 passed, 1 red**
+  — the red is ONLY the standing frozen-golden diff
+  (`ReferenceArtifact_MatchesTheFrozenGolden`, first mismatch at the
+  `ClaimServicingSharePerYear` knob line from task 5b, unrelated to FX; goldens
+  re-freeze at Task 12, NOT regenerated). Task 6 ended 1126 passed / same 1 red;
+  +3 new tests ⇒ 1129, and NO currency/FX/conservation test flipped (the 130-test
+  Currency|Fx|Conservation|Sovereign|Bank filter is all-green). Every existing
+  numeric FX assertion (0.5, 0.2, …) still holds unchanged. Three new tests in
+  `FxRateTests`: the term BITES when the knob > 0 (unbacked claim ⇒ strictly lower
+  rate, pinned at 1/3.25), a fully-backed bank is unaffected even at backing 5.0
+  (unbacked clamps to 0), and an empty claim book at the default knob is
+  BitConverter-identical to the pure supply/output rate. Harness `AddCurrency`
+  now founds the 1:1 bank alongside the currency (mirrors `FoundCurrency`) so the
+  pass can read `BankOf` — bank starts empty, rate unchanged. Scope held: knob
+  stayed at 0 (task 9 activates), no touch to `Bank`/`Currency`/serializer/
+  `Phases`/`MetricsOps`.

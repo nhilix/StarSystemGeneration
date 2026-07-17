@@ -14,19 +14,27 @@ namespace StarGen.Core.Tests.Epoch;
 public class FxRateTests
 {
     private static SimState NewState(double fxSensitivity = 1.0,
-                                     double fxReceiptsFloor = 1.0)
+                                     double fxReceiptsFloor = 1.0,
+                                     double fxBackingSensitivity = 0.0)
     {
         var cfg = new EpochSimConfig();
         cfg.Economy.FxSensitivity = fxSensitivity;
         cfg.Economy.FxReceiptsFloor = fxReceiptsFloor;
+        cfg.Economy.FxBackingSensitivity = fxBackingSensitivity;
         return new SimState(cfg, SkeletonBuilder.Build(new GalaxyConfig
         { MasterSeed = 1, GalaxyRadiusCells = 4 }));
     }
 
+    // Founds the currency 1:1 with its bank, exactly as SimState.FoundCurrency
+    // does in a live run — every currency in the registry has a bank, so the
+    // FX pass can read BankOf(cur.Id) safely (slice BF design §5). The bank
+    // starts empty (ClaimOnState = Reserve = 0), so the backing term is 0 and
+    // the rate is unchanged unless a test seeds the claim book.
     private static Currency AddCurrency(SimState state, int id, double supply)
     {
         var cur = new Currency(id, $"C{id}", foundingPolityId: id) { Supply = supply };
         state.Currencies.Add(cur);
+        state.Banks.Add(new Bank(id));
         return cur;
     }
 
@@ -153,6 +161,72 @@ public class FxRateTests
         double sharp = Recompute(2.0).NumeraireRate;    // 1/3
         Assert.True(sharp < gentle,
             "a higher sensitivity reacts more sharply to the same density");
+    }
+
+    // ---- the FX backing term: unbacked claim weighs on the rate (slice BF §5) ----
+
+    [Fact]
+    public void UnbackedClaim_LowersTheRate_WhenBackingSensitivityIsPositive()
+    {
+        // Same state, same claim book, evaluated at backing sensitivity 0 vs > 0.
+        // The bank holds a claim well above its reserve, so unbacked > 0 and the
+        // term must bite: the >0 case gets a strictly LOWER rate than the 0 case.
+        double RateAtBacking(double backing)
+        {
+            var state = NewState(fxSensitivity: 1.0, fxBackingSensitivity: backing);
+            var cur = AddCurrency(state, 0, supply: 100.0);
+            AddPolity(state, 0, 0, receipts: 100.0);
+            var bank = state.BankOf(0);
+            bank.ClaimOnState = 300.0;
+            bank.Reserve = 50.0;                       // unbacked = 250
+            FxOps.RecomputeRates(state);
+            return cur.NumeraireRate;
+        }
+
+        double inert = RateAtBacking(0.0);             // effectiveMoney = Supply
+        double biting = RateAtBacking(0.5);            // + 0.5 * 250 = 125 extra
+
+        // inert: density 100/100 = 1 -> 1/(1+1) = 0.5 (the CU-2 value)
+        Assert.Equal(0.5, inert, 12);
+        // biting: effectiveMoney 225, density 2.25 -> 1/3.25
+        Assert.Equal(1.0 / (1.0 + 2.25), biting, 12);
+        Assert.True(biting < inert,
+            "an unbacked claim book must weigh the currency down once the knob is on");
+    }
+
+    [Fact]
+    public void FullyBackedBank_IsUnaffected_ByBackingSensitivity()
+    {
+        // Reserve >= ClaimOnState => unbacked clamps to 0, so even a large
+        // backing sensitivity leaves the rate at its supply-only value.
+        var state = NewState(fxSensitivity: 1.0, fxBackingSensitivity: 5.0);
+        var cur = AddCurrency(state, 0, supply: 100.0);
+        AddPolity(state, 0, 0, receipts: 100.0);
+        var bank = state.BankOf(0);
+        bank.ClaimOnState = 200.0;
+        bank.Reserve = 200.0;                          // exactly backed -> unbacked 0
+
+        FxOps.RecomputeRates(state);
+
+        Assert.Equal(0.5, cur.NumeraireRate, 12);      // unchanged from supply alone
+    }
+
+    [Fact]
+    public void EmptyClaimBook_AtDefaultKnob_IsByteIdenticalToSupplyOnlyRate()
+    {
+        // The default landing: FxBackingSensitivity = 0 and an empty claim book
+        // both give effectiveMoney == Supply. Prove the injected term does not
+        // perturb a single bit of the rate versus the pure supply/output form.
+        var state = NewState(fxSensitivity: 1.0);      // backing 0 by default
+        var cur = AddCurrency(state, 0, supply: 137.0);
+        AddPolity(state, 0, 0, receipts: 91.0);
+
+        FxOps.RecomputeRates(state);
+
+        double expected = 1.0 / (1.0 + 1.0 * (137.0 / 91.0));
+        Assert.Equal(
+            System.BitConverter.DoubleToInt64Bits(expected),
+            System.BitConverter.DoubleToInt64Bits(cur.NumeraireRate));
     }
 
     // ---- corporations refresh against the new table ----

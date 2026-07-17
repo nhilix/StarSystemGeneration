@@ -15,15 +15,29 @@ namespace StarGen.Core.Epoch;
 /// output (<see cref="PolityRecord.Receipts"/>) is weaker. Receipts are floored
 /// by <see cref="EconomyKnobs.FxReceiptsFloor"/> so a freshly split polity with
 /// near-zero receipts neither divides by zero nor blows its rate up, and the
-/// reactivity is scaled by <see cref="EconomyKnobs.FxSensitivity"/>:
+/// reactivity is scaled by <see cref="EconomyKnobs.FxSensitivity"/>.
 ///
-///     density = Supply / max(Receipts, FxReceiptsFloor)
+/// A bank's <b>unbacked claim book</b> — sovereign debt it holds beyond its hard
+/// <see cref="Bank.Reserve"/> — weighs on its currency exactly like excess supply
+/// (same units, same direction), so it enters the density as supply-equivalent
+/// money, scaled by <see cref="EconomyKnobs.FxBackingSensitivity"/> (slice BF
+/// design §5). This is what makes reserve depth <i>mean</i> something: a bank
+/// whose claim dwarfs its reserve watches its own currency slide — endogenous
+/// discipline, no gate on lending. <c>unbacked</c> is clamped at 0, so a
+/// fully-backed bank is unaffected, and <see cref="Bank.Reserve"/> now offsets
+/// the claim <i>directly</i> on top of its existing sequestration effect:
+///
+///     unbacked = max(0, ClaimOnState - Reserve)
+///     effectiveMoney = Supply + FxBackingSensitivity * unbacked
+///     density = effectiveMoney / max(Receipts, FxReceiptsFloor)
 ///     NumeraireRate = 1 / (1 + FxSensitivity * density)
 ///
 /// The form is strictly positive and strictly decreasing in density, so it never
 /// yields a zero or negative rate that would break <see cref="SimState.ConvertCurrency"/>.
 /// A currency with no supply sits at 1.0 (matching a newly founded currency's
-/// starting rate); FxSensitivity = 0 pins every rate at 1.0 (no reactivity).</summary>
+/// starting rate); FxSensitivity = 0 pins every rate at 1.0 (no reactivity).
+/// FxBackingSensitivity = 0 (the default) drops the backing term entirely —
+/// <c>effectiveMoney = Supply</c> exactly, byte-identical to CU-2 (design §5).</summary>
 public static class FxOps
 {
     /// <summary>Recompute every currency's numeraire rate, then refresh each
@@ -55,8 +69,19 @@ public static class FxOps
         foreach (var cur in state.Currencies)                 // id order (P6)
         {
             receiptsByCurrency.TryGetValue(cur.Id, out double receipts);
+            // Unbacked sovereign debt is supply-equivalent money: it weighs on
+            // the rate exactly like excess Supply, offset directly by the hard
+            // reserve and clamped at 0 so a fully-backed bank is unaffected
+            // (slice BF design §5). At FxBackingSensitivity = 0 (the default)
+            // this term is exactly 0, so effectiveMoney == Supply — byte-
+            // identical to CU-2. Every currency, Retired ones included, has a
+            // bank founded 1:1 at FoundCurrency, so BankOf is safe registry-wide.
+            var bank = state.BankOf(cur.Id);
+            double unbacked = Math.Max(0.0, bank.ClaimOnState - bank.Reserve);
+            double effectiveMoney = Math.Max(0.0, cur.Supply)
+                                    + eco.FxBackingSensitivity * unbacked;
             double output = Math.Max(receipts, eco.FxReceiptsFloor);
-            double density = Math.Max(0.0, cur.Supply) / output;
+            double density = effectiveMoney / output;
             cur.NumeraireRate = 1.0 / (1.0 + eco.FxSensitivity * density);
         }
 
