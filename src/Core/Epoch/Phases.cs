@@ -510,9 +510,9 @@ public sealed class AllocationPhase : ISimPhase
         // claim servicing runs LAST, in its OWN pass after every deficit is
         // funded (slice BF, bank-flow design §4) — the same discipline that put
         // issuance after Borrow: it sees the true end-of-epoch balance, so a
-        // polity never services out of money it is about to be lent, and
-        // co-tenants of one currency all draw on the reserve (FundDeficit stage
-        // 1) before any of them pays into it
+        // polity never services out of money it is about to be lent, and every
+        // reserve draw (FundDeficit stage 1) lands before any polity pays back
+        // into its own reserve here
         foreach (var pr in state.Polities)                    // actor-id order
             if (state.Actors[pr.ActorId].Entered)
                 ServiceSovereignClaim(state, pr);
