@@ -26,7 +26,7 @@ public static class ArtifactSerializer
     private static readonly (string Name, int Version)[] Layers =
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
-        ("actors", 9), ("ports", 2), ("lanes", 3), ("facilities", 3),
+        ("actors", 10), ("ports", 2), ("lanes", 3), ("facilities", 3),
         ("fleets", 3), ("segments", 3), ("events", 1), ("markets", 5),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 4), ("relations", 5), ("wars", 2), ("belief", 1),
@@ -108,9 +108,14 @@ public static class ArtifactSerializer
         foreach (var a in state.Actors)
         {
             // actors v5 (slice H): the retired flag rides along
+            // actors v10 (slice MC): field 6 is EntryYear — a world-year, not
+            // the epoch index it held through v9. Same position, same width,
+            // different unit: an artifact written before this bump reads as a
+            // schedule ~25× too early. The layer version is the only thing
+            // that tells the two apart, which is why it bumps.
             w.WriteLine(Join("ACTOR", a.Id.ToString(Inv), ((int)a.Kind).ToString(Inv),
                 Name(a.Name), a.Seat.Q.ToString(Inv), a.Seat.R.ToString(Inv),
-                a.EntryEpoch.ToString(Inv), B(a.Entered), B(a.Retired)));
+                a.EntryYear.ToString(Inv), B(a.Entered), B(a.Retired)));
             if (a.Policies is PolityPolicies pp)
                 w.WriteLine(Join("POLICY", a.Id.ToString(Inv),
                     R(pp.Budget.Development), R(pp.Budget.Military),

@@ -16,8 +16,15 @@ public sealed class Actor
     public string Name { get; }
     /// <summary>Physical anchor hex — the stub polity's homeworld.</summary>
     public HexCoordinate Seat { get; }
-    /// <summary>Epoch this actor enters the simulation (staggered emergence).</summary>
-    public int EntryEpoch { get; }
+    /// <summary>World-year this actor enters the simulation (staggered
+    /// emergence) — a calendar date, not an index (P7, slice MC). It was an
+    /// epoch index until slice MC, which is exactly the problem: the unit of an
+    /// index depends on the clock that was set when genesis wrote it, so every
+    /// reader had to guess whether to re-inflate by GenerationYears or by
+    /// YearsPerEpoch — and both were wrong in some frame. A world-year needs no
+    /// multiplier: gates compare it against <see cref="SimState.WorldYear"/>
+    /// directly and are clock-invariant by construction.</summary>
+    public int EntryYear { get; }
     public bool Entered { get; set; }
     /// <summary>Left the stage for good — federated away, absorbed, or
     /// extinct (slice H). A retired actor never re-enters; its registries
@@ -37,13 +44,13 @@ public sealed class Actor
     public BeliefState Beliefs { get; } = new BeliefState();
 
     public Actor(int id, ActorKind kind, string name, HexCoordinate seat,
-                 int entryEpoch, IController controller)
+                 int entryYear, IController controller)
     {
         Id = id;
         Kind = kind;
         Name = name;
         Seat = seat;
-        EntryEpoch = entryEpoch;
+        EntryYear = entryYear;
         Controller = controller;
     }
 }

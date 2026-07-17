@@ -19,8 +19,8 @@ public class EpochGenesisTests
         // actor order == spaceflight-date order; seats are origin homeworlds
         Assert.Equal(current.Select(o => o.Hex), state.Actors.Select(a => a.Seat));
         for (int i = 1; i < state.Actors.Count; i++)
-            Assert.True(state.Actors[i].EntryEpoch >= state.Actors[i - 1].EntryEpoch,
-                "entry epochs follow the schedule");
+            Assert.True(state.Actors[i].EntryYear >= state.Actors[i - 1].EntryYear,
+                "entry years follow the schedule");
         // polity records pair actors with their founding species; each seat's
         // homeworld anchor carries the same species id
         Assert.Equal(state.Actors.Count, state.Polities.Count);
@@ -44,8 +44,8 @@ public class EpochGenesisTests
         {
             // the latest emerger carries at least the contact share of the
             // earliest one's bonus deficit (latecomers are behind, not hopeless)
-            var byEntry = state.Actors.OrderBy(a => a.EntryEpoch).ToList();
-            if (byEntry[0].EntryEpoch != byEntry[byEntry.Count - 1].EntryEpoch)
+            var byEntry = state.Actors.OrderBy(a => a.EntryYear).ToList();
+            if (byEntry[0].EntryYear != byEntry[byEntry.Count - 1].EntryYear)
                 Assert.True(
                     state.Polities[byEntry[byEntry.Count - 1].Id].EntryGradeBonus
                     > state.Polities[byEntry[0].Id].EntryGradeBonus - 0.05,
@@ -65,13 +65,15 @@ public class EpochGenesisTests
     }
 
     [Fact]
-    public void EntryEpochs_Staggered_Deterministic()
+    public void EntryYears_Staggered_Deterministic()
     {
         var (_, s1) = EpochTestKit.Seeded();
         var (_, s2) = EpochTestKit.Seeded();
-        Assert.Equal(s1.Actors.Select(a => a.EntryEpoch), s2.Actors.Select(a => a.EntryEpoch));
-        int window = s1.Config.Genesis.EmergenceWindowYears / s1.Config.Sim.YearsPerEpoch;
-        Assert.All(s1.Actors, a => Assert.InRange(a.EntryEpoch, 0, window));
+        Assert.Equal(s1.Actors.Select(a => a.EntryYear), s2.Actors.Select(a => a.EntryYear));
+        // the window is world-years and so is the schedule — no clock in
+        // either side of this bound any more (slice MC)
+        int window = s1.Config.Genesis.EmergenceWindowYears;
+        Assert.All(s1.Actors, a => Assert.InRange(a.EntryYear, 0, window));
     }
 
     [Fact]
@@ -92,7 +94,10 @@ public class EpochGenesisTests
             // founded at HomeworldPortTier; development may have raised it since
             Assert.InRange(home.Tier, state.Config.Infrastructure.HomeworldPortTier,
                            state.Config.Infrastructure.MaxPortTier);
-            Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, home.FoundedYear);
+            // founded at the step that admitted the polity: EntryYear rounded
+            // UP to the clock (slice MC — the old read truncated down)
+            int clock = state.Config.Sim.YearsPerEpoch;
+            Assert.Equal((a.EntryYear + clock - 1) / clock * clock, home.FoundedYear);
             // the founding population administers there (diasporas may too)
             Assert.Contains(state.Segments, s => s.PortId == home.Id
                 && s.SpeciesId == state.PolityOf(a.Id).SpeciesId);

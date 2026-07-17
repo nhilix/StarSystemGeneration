@@ -33,7 +33,7 @@ public class EpochEngineTests
     }
 
     [Fact]
-    public void Interior_EntersActorsAtTheirEntryEpoch_ChronicleFinalizesTheEvent()
+    public void Interior_EntersActorsOnTheirEntryYear_ChronicleFinalizesTheEvent()
     {
         var state = Seeded();
         var engine = new EpochEngine();
@@ -69,8 +69,13 @@ public class EpochEngineTests
                 || fusions.Contains(a.Id) || splinters.Contains(a.Id))
                 continue;
             var e = Assert.Single(emergences, e => e.Actors.Contains(a.Id));
-            // events carry their world-year, dated at the entering epoch
-            Assert.Equal(a.EntryEpoch * state.Config.Sim.YearsPerEpoch, e.WorldYear);
+            // events carry their world-year, dated at the step that admitted
+            // the actor: the first step boundary to REACH its EntryYear —
+            // rounding UP to the clock, never down (slice MC). Before the
+            // EntryYear fix this read EntryEpoch × YearsPerEpoch, which
+            // truncated DOWN and let polities in up to 24 years early
+            int clock = state.Config.Sim.YearsPerEpoch;
+            Assert.Equal((a.EntryYear + clock - 1) / clock * clock, e.WorldYear);
             Assert.Equal(a.Seat, e.Location);
             Assert.Equal(ClockStratum.Generational, e.Stratum);
             Assert.Equal(EventVisibility.Public, e.Visibility);
@@ -114,9 +119,11 @@ public class EpochEngineTests
         state.Polities.Add(new PolityRecord(0, 0));
         state.Polities.Add(new PolityRecord(1, 0));
         state.Actors.Add(new Actor(0, ActorKind.Polity, "Early",
-            new StarGen.Core.Model.HexCoordinate(0, 0), entryEpoch: 0, new TrivialController()));
+            new StarGen.Core.Model.HexCoordinate(0, 0), entryYear: 0, new TrivialController()));
+        // y125 is the old entryEpoch 5 read through the gate's old
+        // × GenerationYears — the same date, now stated as one (slice MC)
         state.Actors.Add(new Actor(1, ActorKind.Polity, "Late",
-            new StarGen.Core.Model.HexCoordinate(1, 1), entryEpoch: 5, new TrivialController()));
+            new StarGen.Core.Model.HexCoordinate(1, 1), entryYear: 125, new TrivialController()));
         var engine = new EpochEngine();
 
         engine.Step(state);   // epoch 0: Early enters after Intent, no view yet

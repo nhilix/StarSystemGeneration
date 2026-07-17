@@ -83,48 +83,92 @@ public class ClockPlanTests
             state.Health.Rows[state.Health.Rows.Count - 1].WorldYear);
     }
 
-    /// <summary>THE TRAP, pinned. Genesis bakes each actor's
-    /// <c>EntryEpoch = entryYear / YearsPerEpoch</c> (EpochGenesis) — an epoch
-    /// INDEX, resolved against the clock that was set when Seed ran. So the
-    /// clock must be applied BEFORE genesis. Seed at 25y and switch to 1y
-    /// afterwards and every staggered polity enters 25× too early in
-    /// world-time: an actor meant for world-year 225 enters at world-year 9.
+    /// <summary>THE TRAP, RETIRED — and this test now pins its ABSENCE
+    /// (slice MC). Genesis used to bake <c>EntryEpoch = entryYear /
+    /// YearsPerEpoch</c>: an epoch INDEX, resolved against whatever clock
+    /// happened to be set when Seed ran. That made genesis clock-sensitive by
+    /// construction, so the clock had to be applied BEFORE it — an ordering
+    /// hazard no type could enforce. Seed at 25y and switch to 1y afterwards
+    /// and every staggered polity entered 25× too early in world-time: an
+    /// actor meant for world-year 225 entered at world-year 9. That is the bug
+    /// that produced the 2026-07-17 seed-99 investigation's numbers, and it is
+    /// why that spec and the baseline spec disagreed 5× on seed 42 and 14,880×
+    /// on seed 99 while agreeing to the last decimal on seeds 7/13/2024 —
+    /// whose origins all sit at entry year 0, where the two frames coincide.
     ///
-    /// <para>This is not hypothetical. It is the bug that produced the
-    /// 2026-07-17 seed-99 investigation's numbers, and it is why that spec and
-    /// the baseline spec disagree 5× on seed 42 and 14,880× on seed 99 while
-    /// agreeing to the last decimal on seeds 7/13/2024 — whose origins all sit
-    /// at entry epoch 0, where the two frames coincide. Any harness that sets
-    /// the clock after Seed measures a fabricated economy.</para></summary>
+    /// <para>Slice MC replaced the field with <c>Actor.EntryYear</c>, a
+    /// world-year. Genesis no longer reads the clock AT ALL (its only clock
+    /// reference was that division), so the hazard is gone by construction
+    /// rather than by discipline — and the engine-level genesis-clock guard
+    /// task 2 flagged as urgent is moot for the same reason. The predecessor
+    /// test asserted genesis WAS clock-sensitive and said in its own words: "if
+    /// this ever stops being true, the ordering hazard is gone and this test
+    /// should be retired". It stopped being true. This is the retirement:
+    /// the same fixture, the opposite assertion.</para></summary>
     [Fact]
-    public void TheClockMustBeAppliedBeforeGenesis_EntryEpochsAreBakedThere()
+    public void GenesisIsClockInvariant_TheEntryScheduleIsACalendarNotAnIndex()
     {
         var gc = new StarGen.Core.Galaxy.GalaxyConfig
         { MasterSeed = 42, GalaxyRadiusCells = 8 };
         var skeleton = StarGen.Core.Galaxy.SkeletonBuilder.Build(gc);
 
-        var correct = new EpochSimConfig { MasterSeed = 42 };
-        ClockPlan.Apply(correct, 250, 1);                 // clock, THEN genesis
-        var before = EpochGenesis.Seed(skeleton, correct);
+        var fine = new EpochSimConfig { MasterSeed = 42 };
+        ClockPlan.Apply(fine, 250, 1);                    // clock, THEN genesis
+        var seededFine = EpochGenesis.Seed(skeleton, fine);
 
         var late = new EpochSimConfig { MasterSeed = 42 };
-        var after = EpochGenesis.Seed(skeleton, late);    // genesis at 25y …
-        ClockPlan.Apply(late, 250, 1);                    // … clock too late
+        var seededCoarse = EpochGenesis.Seed(skeleton, late);   // genesis at 25y …
+        ClockPlan.Apply(late, 250, 1);                           // … clock after
 
-        // same seed, same span, same end clock — and a different world,
-        // because genesis already resolved the entry schedule
-        bool diverged = false;
-        for (int i = 0; i < before.Actors.Count; i++)
-            if (before.Actors[i].EntryEpoch != after.Actors[i].EntryEpoch)
-                diverged = true;
-        Assert.True(diverged,
-            "genesis is clock-sensitive: if this ever stops being true, the "
-            + "ordering hazard is gone and this test should be retired");
-        // the entry schedule is denominated in the genesis clock: a 25y-genesis
-        // epoch index n is the 1y-genesis window [25n, 25n+24], so reading it
-        // as a 1y index lands the actor ~25× early in world-time
-        int coarse = after.Actors[1].EntryEpoch;
-        int fine = before.Actors[1].EntryEpoch;
-        Assert.InRange(fine, 25 * coarse, 25 * coarse + 24);
+        // the ordering that used to fabricate an economy is now a no-op: the
+        // entry schedule is a calendar, and a calendar does not care which
+        // step size will read it
+        Assert.Equal(seededFine.Actors.Count, seededCoarse.Actors.Count);
+        for (int i = 0; i < seededFine.Actors.Count; i++)
+            Assert.Equal(seededFine.Actors[i].EntryYear,
+                         seededCoarse.Actors[i].EntryYear);
+        // and the schedule is denominated in world-years, not epochs: the
+        // spread spans the emergence window itself, undivided
+        int window = fine.Genesis.EmergenceWindowYears;
+        Assert.All(seededFine.Actors, a => Assert.InRange(a.EntryYear, 0, window));
+        Assert.True(seededFine.Actors[seededFine.Actors.Count - 1].EntryYear
+                    > window / 25,
+            "entry years still look divided by the genesis clock");
+    }
+
+    /// <summary>The gate honors the calendar (slice MC): an actor enters on
+    /// the first step whose world-year has reached its EntryYear, whatever the
+    /// integration step. At the 1y clock that is exact; at a coarser clock the
+    /// actor waits for the next step boundary — bounded by the step, never
+    /// scaled by it. The defect this replaces multiplied the schedule by
+    /// 25/YearsPerEpoch, admitting ~25× fewer polities at 1y.</summary>
+    [Theory]
+    [InlineData(25)]
+    [InlineData(1)]
+    public void EntryLandsOnTheCalendarYear_WithinOneStep_AtEveryClock(int clock)
+    {
+        var gc = new StarGen.Core.Galaxy.GalaxyConfig
+        { MasterSeed = 42, GalaxyRadiusCells = 8 };
+        var econfig = new EpochSimConfig { MasterSeed = 42 };
+        ClockPlan.Apply(econfig, worldYears: 250, yearsPerEpoch: clock);
+        var state = EpochGenesis.Seed(
+            StarGen.Core.Galaxy.SkeletonBuilder.Build(gc), econfig);
+        var scheduled = new System.Collections.Generic.Dictionary<int, int>();
+        foreach (var a in state.Actors) scheduled[a.Id] = a.EntryYear;
+        new EpochEngine().Run(state);
+
+        int checkedEntries = 0;
+        foreach (var e in state.Log.Events)
+        {
+            if (e.Type != WorldEventType.PolityEmerged) continue;
+            foreach (int id in e.Actors)
+            {
+                if (!scheduled.TryGetValue(id, out int entryYear)) continue;
+                // never early, and never more than one step late
+                Assert.InRange(e.WorldYear, entryYear, entryYear + clock - 1);
+                checkedEntries++;
+            }
+        }
+        Assert.True(checkedEntries > 0, "no genesis polity entered at all");
     }
 }

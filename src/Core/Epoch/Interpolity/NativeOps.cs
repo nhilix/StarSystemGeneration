@@ -87,8 +87,12 @@ public static class NativeOps
                 // a new polity is born with its homeworld domain; uplift
                 // births are clients, bound once the entry loop seats them
                 int actorId = state.Actors.Count;
+                // born now, so the entry date is now: this used to hand the
+                // gate an EpochIndex, which the gate re-inflated by
+                // GenerationYears — at any fine clock that lands in the future
+                // and the native-born polity never entered at all (P7, slice MC)
                 state.Actors.Add(new Actor(actorId, ActorKind.Polity,
-                    species.Name, origin.Hex, state.EpochIndex,
+                    species.Name, origin.Hex, state.WorldYear,
                     new GenesisController(state.Config)));
                 state.Polities.Add(new PolityRecord(actorId, speciesId)
                 {
