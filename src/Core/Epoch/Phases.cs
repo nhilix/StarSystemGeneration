@@ -273,6 +273,7 @@ public sealed class MarketsPhase : ISimPhase
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
+        state.GoodsValueCleared = 0;   // same flow window as LastCleared/Receipts
         var scratch = new MarketStepScratch(state);
         // stale job postings clear the board before anything sails, and
         // orders past their expiry refund/escheat (spec §2 step 2)

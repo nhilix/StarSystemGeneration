@@ -26,6 +26,17 @@ public static class MetricRegistry
         M("Economy.CorpReceipts",
           "credits booked by corporations THIS epoch (a flow, zeroed each step)",
           r => r.CorpReceipts),
+        M("Economy.GoodsTransacted",
+          "goods UNITS actually cleared THIS epoch across every port (a flow, "
+          + "zeroed each step) — real throughput, no currency in it, so it is "
+          + "the honest twin of the gross Receipts flow",
+          r => r.GoodsTransacted),
+        M("Economy.GoodsValueCleared",
+          "gross value of goods cleared THIS epoch (a flow, zeroed each step) — "
+          + "NOMINAL and summed across each port's own currency, so it carries "
+          + "the MoneyRow non-commensurability trap; trustworthy in a "
+          + "single-currency world, else read Economy.GoodsTransacted",
+          r => r.GoodsValueCleared),
         M("Economy.PolityReceipts",
           "credits booked by polity treasuries THIS epoch (a flow, zeroed each "
           + "step) — integrate the column for a run's Σ receipts",

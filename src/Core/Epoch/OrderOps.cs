@@ -160,6 +160,10 @@ public static class OrderOps
                                     int sellerActorId, double paid)
     {
         if (paid <= 0) return;
+        // the trade-value flow, tallied where every sale in the sim converges
+        // (SimState.GoodsValueCleared) — gross, before tax/wages split it up,
+        // so it is the value of goods that actually changed hands
+        state.GoodsValueCleared += paid;
         var port = state.Ports[portId];
         double taxRate = (state.Actors[port.OwnerActorId].Policies
             as PolityPolicies ?? PolityPolicies.Default).TaxRate;

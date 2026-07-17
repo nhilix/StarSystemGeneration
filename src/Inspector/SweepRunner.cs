@@ -48,10 +48,20 @@ public static class SweepRunner
         // nominal — money booked. Receipts are a per-epoch FLOW: integrate.
         new("sum_polity_receipts", "Economy.PolityReceipts", "nominal", "sum"),
         new("sum_corp_receipts", "Economy.CorpReceipts", "nominal", "sum"),
+        // the gross value of actual trade — nominal like receipts and directly
+        // commensurable with them, so sum_polity_receipts / sum_goods_value is
+        // the churn multiple: how many times each credit of real trade gets
+        // booked into a treasury. Cross-currency (see the metric's doc).
+        new("sum_goods_value", "Economy.GoodsValueCleared", "nominal", "sum"),
         // already a running total on the row: read the final level, never sum
         new("fiat_issued", "Money.CumulativeFiatIssued", "nominal", "final"),
         new("steady_issued", "Money.CumulativeSteadyIssuance", "nominal", "final"),
         // real — things, not money
+        // goods UNITS transacted: the real economy's THROUGHPUT, as opposed to
+        // ports/population which are its EXTENT. A gross-flow metric can diverge
+        // purely by counting more often; a unit count cannot, so this is the
+        // column that settles whether Σ receipts measures activity or arithmetic.
+        new("sum_goods_transacted", "Economy.GoodsTransacted", "real", "sum"),
         new("ports", "Settlement.Ports", "real", "final"),
         new("population", "Segment.Population", "real", "final"),
         new("mean_sol", "Segment.MeanSoL", "real", "final"),
