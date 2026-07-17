@@ -165,10 +165,40 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   coupled test (re-tuned 4× by epoch-nudging via `FirstLiveRelation`); the larger navies shifted
   seed-42's mid-history so no clean epoch in 13-27. Left honestly red. → **Task 10: rework it to a
   robust deterministic siege, not another epoch nudge.**
-- [ ] **Task 10** — decouple `Siege_FallsThePort_SegmentsIntact` from emergent pairing:
-  diagnose why the staged siege no longer completes at seed-42's new history, then rework it to
-  test the siege MECHANIC robustly (port falls, segments intact, SiegeBegun+PortCaptured,
-  objective Taken) without depending on `FirstLiveRelation`'s emergent pick. OPUS.
+- [x] **Task 10** — decouple `Siege_FallsThePort_SegmentsIntact` from emergent pairing. DONE
+  (commit `dfc1862`). **Diagnosis (evidence-backed, and it's a real product finding — see
+  follow-up below):** the siege mechanic is FINE (reachable, establishes, clock advances
+  25→50→75, needed one more epoch). The killer is emergent-settlement interference:
+  `ResolutionPhase` (`Phases.cs:1333-1335`) runs `FightWars` AND `WarResolution.Terminate` in
+  the SAME phase; the defender's navy — ground down by the siege's own battles — trips
+  `SideBroke`'s FLEET-STRENGTH condition (`WarResolution.cs:108-133`), NOT an exhaustion ceiling
+  (0.36/0.43 vs 1.0). `Terminate` settles it a nominal attacker victory, but `Settle` only cedes
+  objectives already `Taken` (`WarResolution.cs:204-210`) — a still-`Contested` siege cedes
+  NOTHING, `war.Active=false`, `FightWars` skips it forever (frozen at 75/100).
+  **This explains "5000 hulls won't help": force is COUNTERPRODUCTIVE — more hulls break the
+  defender's navy sooner, settling the war earlier, leaving the siege clock further from
+  threshold. Two clocks race; no epoch/force tuning is ever stable.**
+  Rework: drives the REAL siege path (`WarConduct.FightWars`, same call ResolutionPhase makes —
+  not mocked) in a bounded loop without `Terminate` racing it, flushing staged→log as
+  `ChroniclePhase` does; own staging helper targeting a POPULATED defender port; shared
+  `StageWar` untouched (its 3 other riders green); no magic epoch left. Assertions STRENGTHENED
+  (added owner-IS-attacker + population exactly unchanged, alongside all 5 originals).
+  Load-bearing via mutation testing (siege-clock stall → RED; capture without TransferPort →
+  RED; SiegeBegun suppressed → RED). Drift-proof: 18/18 capture across backdrop epochs 13-30,
+  including 26-30 where `FirstLiveRelation` picks a DIFFERENT attacker. Suite: WarConductTests
+  7/7; Conservation+Determinism+WarConduct+WarResolution 24/24; **full suite 1042 pass / 1 red
+  (only the deferred golden).**
+
+## Follow-up filed (NOT fixed in L2 — pre-existing, out of scope)
+
+- **Siege clock vs war-termination clock race (found by Task 10).** A war settled by `SideBroke`'s
+  fleet-strength condition while a siege objective is still `Contested` cedes NOTHING (`Settle`
+  only cedes `Taken`), so a 75%-complete siege evaporates. Perverse incentive: **overwhelming
+  naval force makes conquest LESS likely** (it breaks the defender's fleet before the siege
+  lands). Pre-existing war-design issue, NOT caused by L2 — but **L2's Task-9 hull fix (~11× more
+  hulls) plausibly AMPLIFIES it sim-wide, potentially making ports fall more rarely in emergent
+  history.** Not fixable inside a population/off-lane slice (war-design question). **Verify at
+  multi-seed sweep scale (not seed-42 alone) before/at the eyeball gate; flag to user.**
 
 - [x] **Task 9** (added mid-slice — user chose 2b: fix the hull-affordability layer in-slice, no
   backlog) — hull-batch cost telescopes with world-time. Root cause: `Planner.CostOf` +
