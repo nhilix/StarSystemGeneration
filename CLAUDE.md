@@ -131,6 +131,16 @@ slice sessions delegate downward via subagents, not sideways via psmux.
   as the optional session-name argument.
 - Long kickoff prompts: point the worker at a committed kickoff-prompt file
   (the existing pattern) rather than inlining multi-line text through send-keys.
+- **One psmux command per PowerShell invocation, verified after each.**
+  Chaining psmux calls in one invocation (`kill-window; new-window`,
+  `new-window && send-keys`) can silently drop a command. Worse, an
+  unresolved `-t` target makes send-keys/capture-pane fall back to the
+  **active** window — the orchestrator captures its own pane and reads it as
+  a running worker (this produced a phantom "spawned" report once). After
+  `new-window`, confirm with `list-windows` and target by **index**
+  (`<session>:<index>`); confirm a launch by pane content you recognize from
+  the kickoff (or `pane_pid`'s child processes), never by footer chrome,
+  which looks identical across claude sessions.
 - Monitor with `psmux capture-pane -p -t <target>`; clean up finished workers
   with `psmux kill-window -t <target>`.
 
