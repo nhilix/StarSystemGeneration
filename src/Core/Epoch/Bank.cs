@@ -18,6 +18,23 @@ public sealed class Bank
     /// <summary>Running total the bank has ever funded out of its reserve —
     /// a level across the whole sim, never reset per epoch (later task).</summary>
     public double CumulativeReserveFunded { get; set; }
+    /// <summary>The bank's outstanding claim against its own polity (slice BF
+    /// bank-flow design) — <b>NOT money</b>. Mirrors the reasoning already
+    /// documented at <see cref="MoneyRow.LoanPrincipal"/>: "LoanPrincipal
+    /// rides beside the classes as a claim, not a holder: loans move credits
+    /// between ledgers, the principal is memory." <see cref="ClaimOnState"/>
+    /// never enters <see cref="Currency.Supply"/>, is never walked by
+    /// <see cref="SupplyOps"/>, and never appears on the conservation
+    /// residual's balance side (later task wires the servicing pass that
+    /// grows and shrinks it).</summary>
+    public double ClaimOnState { get; set; }
+    /// <summary>Running total ever lent to the polity's state — a level
+    /// across the whole sim, never reset per epoch (later task).</summary>
+    public double CumulativeLentToState { get; set; }
+    /// <summary>Running total of claim principal ever destroyed on
+    /// repayment — a level across the whole sim, never reset per epoch
+    /// (later task). The bank-side mirror of <see cref="Currency.CumulativeFiatRetired"/>.</summary>
+    public double CumulativeRetired { get; set; }
 
     public Bank(int currencyId)
     {

@@ -17,7 +17,7 @@ the escalation bar is met more often than usual — noted per task.
 
 ## Tasks
 
-- [ ] **1. Data model** — `Bank.ClaimOnState`, `.CumulativeLentToState`,
+- [x] **1. Data model** — `Bank.ClaimOnState`, `.CumulativeLentToState`,
       `.CumulativeRetired`; `Currency.CumulativeFiatRetired`. Fields + XML docs
       only, all default 0. No behavior. *Sonnet* (mechanical).
       Gate: `dotnet test` green, byte-identity unchanged (all fields 0).
@@ -89,3 +89,7 @@ REPL surface works.
 - 2026-07-16 — brainstorm complete; sequencing decision taken (BF before CU-3,
   user overrode the CU-3-first recommendation); design approved and committed
   `298f20f`; ledger opened.
+- 2026-07-16 — Task 1 (data model) done: `Bank.ClaimOnState`,
+  `.CumulativeLentToState`, `.CumulativeRetired`; `Currency.CumulativeFiatRetired`.
+  Fields + XML docs only, all default 0, no write sites — functional no-op.
+  `dotnet test` green (1047 passed).
