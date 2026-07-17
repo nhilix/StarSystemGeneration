@@ -62,12 +62,14 @@ public static class EpochGenesis
             double fraction = maxDate > minDate
                 ? (origin.SpaceflightYear - minDate) / (double)(maxDate - minDate)
                 : 0.0;
+            // the entry date is stored as the world-year it is (P7, slice MC):
+            // genesis reads no clock, so the schedule cannot be denominated in
+            // whatever step happened to be configured when Seed ran
             int entryYear = (int)Math.Round(fraction * window);
-            int entryEpoch = entryYear / Math.Max(1, config.Sim.YearsPerEpoch);
 
             int speciesId = speciesByOrigin[origin.Id];
             state.Actors.Add(new Actor(id, ActorKind.Polity,
-                skeleton.Species[speciesId].Name, origin.Hex, entryEpoch,
+                skeleton.Species[speciesId].Name, origin.Hex, entryYear,
                 new GenesisController(config)));
             state.Polities.Add(new PolityRecord(id, speciesId)
             {

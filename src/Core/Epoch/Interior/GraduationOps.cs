@@ -170,7 +170,7 @@ public static class GraduationOps
         var seat = state.Ports[seatPort].Hex;
 
         var actor = new Actor(newId, ActorKind.Polity, name, seat,
-                              state.EpochIndex, new GenesisController(state.Config))
+                              state.WorldYear, new GenesisController(state.Config))
         { Entered = true };
         state.Actors.Add(actor);
         var young = new PolityRecord(newId, old.SpeciesId)

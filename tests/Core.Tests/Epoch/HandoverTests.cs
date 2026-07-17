@@ -12,10 +12,10 @@ namespace StarGen.Core.Tests.Epoch;
 /// who is driving.</summary>
 public class HandoverTests
 {
-    private static SimState Prologue(ulong seed = 42)
+    private static SimState Prologue(ulong seed = 42, int epochs = 10)
     {
         var state = EpochTestKit.Seeded(seed).State;
-        state.Config.Sim.EpochCount = 10;
+        state.Config.Sim.EpochCount = epochs;
         new EpochEngine().Run(state);
         return state;
     }
@@ -68,7 +68,14 @@ public class HandoverTests
     [Fact]
     public void APlayer_TakesAPolityThrone_MidRun()
     {
-        var state = Prologue();
+        // 11, not the shared 10: this test needs a relation to exist before it
+        // can stage the throne, and slice MC's EntryYear fix pushes seed 42's
+        // first one from epoch 10 to 11. Entry used to truncate DOWN to the 25y
+        // grid, admitting polities up to 24 years early; they now enter on their
+        // real calendar year, so first contact slips by one epoch. The other
+        // tests here keep the 10-epoch prologue — nothing about the handover
+        // mechanic moved.
+        var state = Prologue(epochs: 11);
         var rel = EpochTestKit.FirstLiveRelation(state);
         int self = rel.PolityAId, other = rel.PolityBId;
         // clear the table so the scripted offer is unambiguous, and cool

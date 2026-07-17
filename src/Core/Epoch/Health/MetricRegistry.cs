@@ -22,6 +22,26 @@ public static class MetricRegistry
 
     private static readonly MetricDef[] Table =
     {
+        // ---- Economy (nominal flows — the clock-invariance headline) ----
+        M("Economy.CorpReceipts",
+          "credits booked by corporations THIS epoch (a flow, zeroed each step)",
+          r => r.CorpReceipts),
+        M("Economy.GoodsTransacted",
+          "goods UNITS actually cleared THIS epoch across every port (a flow, "
+          + "zeroed each step) — real throughput, no currency in it, so it is "
+          + "the honest twin of the gross Receipts flow",
+          r => r.GoodsTransacted),
+        M("Economy.GoodsValueCleared",
+          "gross value of goods cleared THIS epoch (a flow, zeroed each step) — "
+          + "NOMINAL and summed across each port's own currency, so it carries "
+          + "the MoneyRow non-commensurability trap; trustworthy in a "
+          + "single-currency world, else read Economy.GoodsTransacted",
+          r => r.GoodsValueCleared),
+        M("Economy.PolityReceipts",
+          "credits booked by polity treasuries THIS epoch (a flow, zeroed each "
+          + "step) — integrate the column for a run's Σ receipts",
+          r => r.PolityReceipts),
+
         // ---- Extraction (body resource stocks — locality) ----
         M("Extraction.BodyStockRemaining",
           "total remaining depletable body-resource stock (falls as bodies deplete)",
@@ -87,6 +107,9 @@ public static class MetricRegistry
           r => r.Population),
 
         // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.Ports",
+          "ports in the galaxy (the real economy's extent — colonies land here)",
+          r => r.Ports),
         M("Settlement.SettledHexes",
           "committed hexes with a frozen system (grows with visitation, no eviction)",
           r => r.SettledHexes),

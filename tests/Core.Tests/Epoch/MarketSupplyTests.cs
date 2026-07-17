@@ -267,7 +267,7 @@ public class MarketSupplyTests
         var state = new SimState(seeded.Config, skeleton);
         var template = seeded.Actors[0];
         state.Actors.Add(new Actor(0, ActorKind.Polity, template.Name,
-            template.Seat, entryEpoch: 0, new TrivialController()));
+            template.Seat, entryYear: 0, new TrivialController()));
         state.Polities.Add(new PolityRecord(0, seeded.Polities[0].SpeciesId));
 
         new InteriorPhase().Run(state);

@@ -42,22 +42,24 @@ public class GenesisShapeTests
     }
 
     [Fact]
-    public void EntryEpochs_SpreadAcrossTheWindow()
+    public void EntryYears_SpreadAcrossTheWindow()
     {
         foreach (var (seed, radius) in Grid)
         {
             var gc = new GalaxyConfig { MasterSeed = seed, GalaxyRadiusCells = radius };
             var state = EpochGenesis.Seed(SkeletonBuilder.Build(gc),
                 new EpochSimConfig { MasterSeed = seed });
-            var epochs = state.Actors.Select(a => a.EntryEpoch).ToList();
-            int window = state.Config.Genesis.EmergenceWindowYears
-                / state.Config.Sim.YearsPerEpoch;
-            Assert.All(epochs, e => Assert.InRange(e, 0, window));
-            Assert.Equal(0, epochs.Min());          // the eldest anchors the era
-            if (epochs.Count >= 3)
-                Assert.True(epochs.Max() - epochs.Min() >= window / 4,
+            var years = state.Actors.Select(a => a.EntryYear).ToList();
+            // the schedule is world-years, so the window is the window — the
+            // clock division that used to sit here is what made the unit
+            // ambiguous in the first place (slice MC)
+            int window = state.Config.Genesis.EmergenceWindowYears;
+            Assert.All(years, y => Assert.InRange(y, 0, window));
+            Assert.Equal(0, years.Min());           // the eldest anchors the era
+            if (years.Count >= 3)
+                Assert.True(years.Max() - years.Min() >= window / 4,
                     $"seed {seed} r{radius}: staggering should use the window "
-                    + $"({epochs.Min()}–{epochs.Max()} of {window})");
+                    + $"({years.Min()}–{years.Max()} of {window})");
         }
     }
 

@@ -347,7 +347,7 @@ public static class CorporationOps
         int actorId = state.Actors.Count;
         string name = CorpName(state, actorId, niche);
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
-            state.Ports[homePort].Hex, state.EpochIndex,
+            state.Ports[homePort].Hex, state.WorldYear,
             new CorporateController(state.Config))
         { Entered = true });
         var corp = new Corporation(state.Corporations.Count, actorId, name,
@@ -397,7 +397,7 @@ public static class CorporationOps
         var lane = state.Lanes[laneId];
         var haven = state.Ports[lane.PortAId].Hex;
         state.Actors.Add(new Actor(actorId, ActorKind.Corporation, name,
-            haven, state.EpochIndex, new CorporateController(state.Config))
+            haven, state.WorldYear, new CorporateController(state.Config))
         { Entered = true });
         var band = new Corporation(state.Corporations.Count, actorId, name,
             -1, CorporateNiche.Raiding, lane.PortAId, state.WorldYear)

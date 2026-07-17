@@ -273,6 +273,7 @@ public sealed class MarketsPhase : ISimPhase
             System.Array.Clear(m.LastCleared, 0, m.LastCleared.Length);
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
+        state.GoodsValueCleared = 0;   // same flow window as LastCleared/Receipts
         var scratch = new MarketStepScratch(state);
         // stale job postings clear the board before anything sails, and
         // orders past their expiry refund/escheat (spec §2 step 2)
@@ -1599,11 +1600,13 @@ public sealed class InteriorPhase : ISimPhase
         int entered = 0;
         foreach (var a in state.Actors)
         {
-            // entry is a calendar date: EntryEpoch counts generations
-            // from year zero, whatever the integration step (P7, slice J)
-            if (a.Entered || a.Retired
-                || a.EntryEpoch * state.Config.Sim.GenerationYears
-                   > state.WorldYear)
+            // entry is a calendar date, compared against the calendar —
+            // EntryYear is a world-year, whatever the integration step (P7,
+            // slice MC). The multiplier this replaces read an epoch index
+            // against GenerationYears while genesis wrote it against
+            // YearsPerEpoch: correct only at the 25y default, and 25× late at
+            // 1y, which admitted ~25× fewer polities inside a given span
+            if (a.Entered || a.Retired || a.EntryYear > state.WorldYear)
                 continue;
             a.Entered = true;
             entered++;

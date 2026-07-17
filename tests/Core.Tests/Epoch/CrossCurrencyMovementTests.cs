@@ -32,7 +32,7 @@ public class CrossCurrencyMovementTests
     private static PolityRecord AddPolity(SimState state, int id, int currencyId)
     {
         state.Actors.Add(new Actor(id, ActorKind.Polity, $"P{id}",
-            new HexCoordinate(id, id), entryEpoch: 0,
+            new HexCoordinate(id, id), entryYear: 0,
             new GenesisController(state.Config)) { Entered = true });
         var pr = new PolityRecord(id, 0) { CurrencyId = currencyId };
         state.Polities.Add(pr);

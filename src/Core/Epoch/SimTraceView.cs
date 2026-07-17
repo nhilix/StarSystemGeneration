@@ -29,8 +29,7 @@ public static class SimTraceView
                     if (p.Tier > topTier) topTier = p.Tier;
                 }
             sb.AppendLine(Invariant($"  #{a.Id} {a.Name} ({a.Kind}) — seat ")
-                + Invariant($"({a.Seat.Q},{a.Seat.R}), enters epoch {a.EntryEpoch} ")
-                + Invariant($"(y{a.EntryEpoch * sim.GenerationYears})")
+                + Invariant($"({a.Seat.Q},{a.Seat.R}), enters y{a.EntryYear} ")
                 + (a.Entered
                     ? Invariant($" — {ports} ") + (ports == 1 ? "port" : "ports")
                       + Invariant($", top tier {topTier}")
