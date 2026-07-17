@@ -1,0 +1,18 @@
+{
+  "_doc": "The P7 / clock-invariance instrument (slice MC) — the sibling of the 32-run conservation sweep. Run: dotnet run --project src/Inspector -c Release -- sweep docs/superpowers/plans/2026-07-17-clock-invariance-experiment.json . Read runs/sweeps/clock-invariance/clock-divergence.csv: one row per variant x seed x metric, with frame=nominal|real kept separate. P7 says YearsPerEpoch is an integration step and nothing more, so every ratio_25y_to_1y here should be 1.0. worldYears is the span; the runner DERIVES each clock's epoch count from it, so the three clocks always cover the same 250 world-years. Never add 'epochs' to this file - it is refused, and it is the trap that made every throwaway P7 harness disagree.",
+  "name": "clock-invariance",
+  "worldYears": 250,
+  "clocks": [25, 5, 1],
+  "radius": 8,
+  "selfCheck": true,
+  "seeds": [42, 7, 13, 99, 2024, 1, 2, 3, 5, 8, 11, 17, 23, 55, 77, 101, 123, 404, 777, 999],
+  "_seeds_doc": "Seeds 13 and 777 are dead-world controls (1 port at every clock): they must report ~1.0x, and if they ever diverge the instrument is measuring itself. 42, 99 and 11 are the large worlds where the two prior harnesses disagreed.",
+  "baseline": {},
+  "variants": {
+    "mints-off": {
+      "Economy.SovereignIssuanceRate": 0,
+      "Economy.SteadyIssuanceRate": 0
+    }
+  },
+  "_variants_doc": "baseline is the stock config (the product). mints-off removes the monetary feedback loop and is the frame every prior P7 table was measured in - it is what the 2026-07-17 baseline and seed-99 specs must be reconciled against."
+}

@@ -44,7 +44,7 @@ the harness disagreement above.
 
 ## Tasks
 
-- [ ] **1. The clock-invariance instrument (committed).** A P7 sweep — the
+- [x] **1. The clock-invariance instrument (committed).** A P7 sweep — the
       clock-invariance sibling of the 32-run conservation sweep. Holds world-time
       **constant** by construction (per-variant epoch counts, or a `worldYears`
       span the runner derives epochs from — a design call). 20 seeds ×
@@ -77,14 +77,28 @@ the harness disagreement above.
 - [ ] **N. USER: eyeball · whole-branch fable review + fix wave · golden freeze ·
       merge decision.**
 
-## Standing corrections to the record (already committed, `fd01fd8`)
+## Standing corrections to the record — ⚠ THEMSELVES CORRECTED (task 1)
 
-- The seed-99 "real-economy bifurcation" **does not reproduce** (99 @1y ignites to
-  32 ports). Struck from the baseline.
-- "Direction is inconsistent across seeds" **refuted** — 20 seeds, ports ratio
-  never below 1.0, always fine ≥ coarse.
+The corrections below came from `2026-07-17-mc-seed99-and-budget-cap-refutation.md`.
+**Task 1's instrument reconciled the two harnesses and that spec is the wrong one**
+— its harness applied the clock AFTER `EpochGenesis.Seed`, so every staggered
+polity entered ~25× early in world-time at the fine clocks. See the Log entry and
+`2026-07-17-mc-clock-invariance-instrument.md`. Status now:
+
+- ~~The seed-99 "real-economy bifurcation" does not reproduce~~ — **it DOES
+  reproduce.** 99 @1y = 1 port / Σ receipts 47.3, exactly as the baseline said.
+  The 32-port ignition is the artifact.
+- ~~"Direction is inconsistent across seeds" refuted~~ — **not refuted.** 6 of 20
+  seeds (2, 5, 11, 99, 101, and 42 on population) invert: ports ratio 0.08–0.33.
+  The seed-99 spec's 20-seed table (1.0–4.67×, never below 1.0) is an artifact.
+- The seed-99 spec's §5 **budget-cap refutation was measured in the broken frame**.
+  Diagnosis #4 is therefore **un-refuted** — back to open. Same for its "wealth
+  levy 166×" lead (task 2's standing lead), which must be re-measured.
+- The baseline spec (`2026-07-17-mc-baseline-on-main.md`) §1/§2/§3 **reproduce
+  cell-for-cell** on the trusted instrument. Its §5 seed-99 flag stands.
 - The original investigation's "ask stock 165 vs 32 = 5.2×" re-measures at **1.4×**;
   its "fine sits at the 59–100 ceiling" is wrong (fine's median rel price is 1.000).
+  (Not re-tested in task 1 — from the baseline spec, which is otherwise sound.)
 - BF design §3's freeze of ME's issuance cap **stands** (investigation Finding 7 is
   the one finding that has survived every round).
 
@@ -94,3 +108,27 @@ the harness disagreement above.
   (`fd01fd8`). Seed-99 investigation then refuted diagnosis #4 AND the baseline's
   own seed-42/99 rows. User call: build the instrument before diagnosing further.
   Ledger opened at this shape.
+- 2026-07-17 — **task 1 DONE: the instrument exists and it settled the
+  disagreement on its first use.** `ClockPlan` (Core) makes the span the input
+  and derives every clock's epoch count; `SweepRunner` grows a clock mode
+  (`worldYears` + `clocks`, mutually exclusive with `epochs`) that refuses a
+  non-divisible span, duplicate clocks, and the epochs/worldYears mix; two new
+  registry metrics (`Economy.PolityReceipts`, `Economy.CorpReceipts` — flows —
+  and `Settlement.Ports`) make the nominal/real split a column. Committed config:
+  `2026-07-17-clock-invariance-experiment.json`, 20 seeds × {25y, 5y, 1y} × 2
+  variants in **5 seconds**. Self-checks: per-run span assertion, a built-in null
+  variant (25y re-run → every ratio exactly 1.0), byte-identity across processes,
+  dead controls 13/777 at 1.0× ports.
+  **Reconciliation verdict: the baseline was right; the seed-99 investigation's
+  harness was wrong.** It applied the clock AFTER `EpochGenesis.Seed`, but genesis
+  bakes `EntryEpoch = entryYear / YearsPerEpoch`, so at 1y every staggered polity
+  entered ~25× early in world-time. Emulating exactly that bug reproduces all four
+  of its disputed numbers to the last decimal (42@1y 959,830.6 / 15 ports;
+  99@1y 704,071.5 / 32 ports; 99@5y 445,520.8; 11 ratio 264.1) — and it explains
+  why seeds 7/13/2024 agreed exactly: their origins all sit at entry epoch 0,
+  where the two frames coincide. Pinned by
+  `ClockPlanTests.TheClockMustBeAppliedBeforeGenesis_EntryEpochsAreBakedThere`.
+  **New design question for task 2/3:** genesis is clock-sensitive by
+  construction. `ClockPlan` documents the ordering but cannot enforce it — an
+  engine-level guard would, and that is a design call, not a task-1 call.
+  `dotnet test` 1102 passed / 0 failed (1081 base + 21 new).

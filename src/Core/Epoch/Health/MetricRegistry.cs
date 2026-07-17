@@ -22,6 +22,15 @@ public static class MetricRegistry
 
     private static readonly MetricDef[] Table =
     {
+        // ---- Economy (nominal flows — the clock-invariance headline) ----
+        M("Economy.CorpReceipts",
+          "credits booked by corporations THIS epoch (a flow, zeroed each step)",
+          r => r.CorpReceipts),
+        M("Economy.PolityReceipts",
+          "credits booked by polity treasuries THIS epoch (a flow, zeroed each "
+          + "step) — integrate the column for a run's Σ receipts",
+          r => r.PolityReceipts),
+
         // ---- Extraction (body resource stocks — locality) ----
         M("Extraction.BodyStockRemaining",
           "total remaining depletable body-resource stock (falls as bodies deplete)",
@@ -87,6 +96,9 @@ public static class MetricRegistry
           r => r.Population),
 
         // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.Ports",
+          "ports in the galaxy (the real economy's extent — colonies land here)",
+          r => r.Ports),
         M("Settlement.SettledHexes",
           "committed hexes with a frozen system (grows with visitation, no eviction)",
           r => r.SettledHexes),
