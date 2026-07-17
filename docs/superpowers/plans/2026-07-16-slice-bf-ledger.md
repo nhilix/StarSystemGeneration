@@ -1,5 +1,38 @@
 # Slice BF task ledger — the bank as monetary authority
 
+> ## ⛔ PARKED 2026-07-16 — blocked on the market-clock slice
+>
+> **Status: tasks 1–5b complete and committed; tasks 6–13 NOT started.** The
+> branch is sound and its tests are honest — do not treat this as abandoned work.
+>
+> **Why parked (user decision):** task 5b's clock-invariance probe surfaced a
+> pre-existing P7 violation that BF did not cause and cannot fix. Root-caused in
+> `docs/superpowers/specs/2026-07-16-market-clock-dependence-investigation.md`:
+> `MarketEngine.DriftReferencePrices` normalizes demand per generation but takes
+> supply as the raw resting-ask stock, so a 25y clock and a 1y clock sit in
+> **opposite saturated price regimes** (nominal receipts/yr diverge 68×). It is
+> upstream of every monetary channel, so **no BF tuning or sweep claim is
+> meaningful until it is fixed** — which makes tasks 9 (sweep + backing
+> activation) and 10 (eyeball) unrunnable, not merely inconvenient.
+>
+> **Known-red on this branch, all expected and understood:**
+> - `GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden` — the standing
+>   mid-slice golden red window (task 12 re-freezes, once, at slice end).
+> - 6 conservation residuals, every one **negative** — the task 6 gap exactly
+>   (the residual does not yet subtract `CumulativeFiatRetired`). Task 6 is the
+>   resume point and closes them.
+> - `FineTickTests.FineTick_ProjectCompletions_LandOnWorldYears_NotSteps` — the
+>   market-clock defect, amplified by BF's servicing (2.9× → 7.3×). **Only the
+>   market-clock slice can green this.** Do NOT widen its band; see below.
+>
+> **Resume at task 6** once the market-clock slice lands, then re-baseline: the
+> fix will move every price and receipt, so BF's knob defaults (§9) must be
+> re-examined before task 9's sweep rather than assumed.
+>
+> **§3's freeze of ME's issuance cap is CORRECT and stands.** An earlier
+> diagnosis blamed the issuance cap; the investigation refuted it (at 25y the cap
+> never binds — not once). Do not amend §3.
+
 Branch `slice-bf-bank-flow` (worktree `.worktrees/slice-cu3` — directory name is a
 stale artifact of the CU-3 pivot, `git worktree move` blocked by an open handle;
 retry at wrap-up). Base: main `768a8e4`. Design:
