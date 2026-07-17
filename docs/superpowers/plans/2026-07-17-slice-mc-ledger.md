@@ -132,3 +132,40 @@ polity entered ~25× early in world-time at the fine clocks. See the Log entry a
   construction. `ClockPlan` documents the ordering but cannot enforce it — an
   engine-level guard would, and that is a design call, not a task-1 call.
   `dotnet test` 1102 passed / 0 failed (1081 base + 21 new).
+- 2026-07-17 — **task 2 PARTIAL: the collapse regime is solved; the nominal
+  divergence is not.** Root cause of the collapse regime, the direction
+  inconsistency and the `live_polities` clock-dependence: **the entry gate
+  mis-multiplies units.** `Phases.cs:1605` reads `EntryEpoch × GenerationYears`
+  while `EpochGenesis.cs:66` writes `EntryEpoch = entryYear ÷ YearsPerEpoch`.
+  Equal only at the default 25y clock, so it is invisible at coarse and stretches
+  the whole emergence schedule 25× at 1y — the fine clock admits ~25× fewer
+  polities (window 500y vs a 250y run). `NativeOps.cs:90` is the same gate's
+  second victim (natives never enter at fine clocks). Removal test: one token,
+  a **no-op at 25y** (coarse byte-identical), and `live_polities` goes to
+  **exactly 1.000× on 20/20 seeds**, all 5 collapse seeds recover (99: 0.0008×
+  → 8.8×, ports 12→30), ports direction ≥ 1.0 in 20/20. It also explains why the
+  seed-99 harness was accidentally RIGHT about direction: applying the clock
+  after genesis baked `EntryEpoch` at 25y, which cancels this bug exactly.
+  **Two defects were cancelling: `FineTickTests` (the only automated P7 net) is
+  green on main only because the entry bug drags the fine economy back down —
+  it goes red under the fix, legitimately.** `EntryEpoch` is irredeemably
+  ambiguous (its unit depends on the genesis clock); the fix shape is
+  `Actor.EntryYear`, verified by a second probe that keeps `FineTickTests` green
+  and matches the 1y column cell-for-cell. Re-tested on the corrected frame:
+  **diagnosis #4 (budget cap) REFUTED again** (full removal moves 42 by 18.06 →
+  18.06; ~0–15% elsewhere), and the **wealth-levy lead REFUTED as root cause** —
+  it is a tail amplifier only (11: 171→11.7, 55: 129→11.6, but median holds ~14×
+  and some seeds worsen). Tested as a sweep variant with zero code change; the
+  instrument paid for itself. **Residual UNSETTLED**: nominal 4.8–171× vs real
+  1.0–4.0×. Also ruled out: per-step money leak (per-currency residual ≤ 4e-9),
+  freight/wages/production year-scaling (all correct), cross-currency
+  non-commensurability (seed 7 is single-currency and still 25×). My own
+  replacement hypothesis (nominal = superlinear in the port divergence) was
+  **killed on the grid** (r = 0.286, exponents scatter 0.82–7.42). Trap logged:
+  `Money.Supply`/`Money.SegmentWealth` are non-commensurable across currencies
+  and look exactly like a step-scaled leak — read `MetricsOps.cs:6–37` first.
+  Next step is a **measurement, not a fix**: receipts vs goods actually
+  transacted per world-year, to settle whether Σ receipts (a gross flow) is even
+  the right metric. Branch left **pristine** (all probes reverted); full findings
+  in the task-2 report. Task 2 stays unticked: the entry defect is settled, the
+  slice's headline nominal divergence is not.
