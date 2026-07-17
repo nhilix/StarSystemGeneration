@@ -22,7 +22,7 @@ the escalation bar is met more often than usual — noted per task.
       only, all default 0. No behavior. *Sonnet* (mechanical).
       Gate: `dotnet test` green, byte-identity unchanged (all fields 0).
 
-- [ ] **2. Serialization** — extend `BANK` (`ArtifactSerializer.cs:254`/`:1284`)
+- [x] **2. Serialization** — extend `BANK` (`ArtifactSerializer.cs:254`/`:1284`)
       and `CURRENCY` (`:254`/`:1267`) lines; bump the version tuple; round-trip
       test. *Sonnet* (mechanical, but the dense id-order guards are load-bearing).
       Gate: round-trip + `LoadThenContinue` determinism tests green.
@@ -93,3 +93,11 @@ REPL surface works.
   `.CumulativeLentToState`, `.CumulativeRetired`; `Currency.CumulativeFiatRetired`.
   Fields + XML docs only, all default 0, no write sites — functional no-op.
   `dotnet test` green (1047 passed).
+- 2026-07-16 — Task 2 (serialization) done: `BANK` gains `ClaimOnState`,
+  `CumulativeLentToState`, `CumulativeRetired` (banks v1 → v2); `CURRENCY` gains
+  `CumulativeFiatRetired` trailing after `Retired` (markets v5 → v6). Round-trip
+  tests extended with distinct nonzero values in both `BankArtifactTests` and
+  `CurrencyArtifactTests` (field-order mix-ups fail loudly). `dotnet test`:
+  1046 passed, 1 expected red (`GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden`
+  — pure `LAYER|markets|5` → `|6` format-version diff, goldens re-freeze at Task
+  12). `FineTickTests`/`TimeMachineTests` `LoadThenContinue` stayed green.

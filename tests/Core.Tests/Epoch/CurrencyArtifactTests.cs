@@ -35,6 +35,7 @@ public class CurrencyArtifactTests
             CumulativeConvertedOut = 3.140000000001,
             NumeraireRate = 0.333333333333333,
             Retired = true,
+            CumulativeFiatRetired = 55.5000000005,
         };
         state.Currencies.Add(cur);
         // a second, non-retired currency at a different id — the registry is
@@ -57,8 +58,10 @@ public class CurrencyArtifactTests
         Assert.Equal(cur.CumulativeConvertedOut, l.CumulativeConvertedOut);
         Assert.Equal(cur.NumeraireRate, l.NumeraireRate);
         Assert.True(l.Retired);
+        Assert.Equal(cur.CumulativeFiatRetired, l.CumulativeFiatRetired);
         Assert.False(loaded.Currencies[1].Retired);
         Assert.Equal(cur2.NumeraireRate, loaded.Currencies[1].NumeraireRate);
+        Assert.Equal(0.0, loaded.Currencies[1].CumulativeFiatRetired);
     }
 
     [Fact]
@@ -140,6 +143,7 @@ public class CurrencyArtifactTests
             Assert.Equal(b.CumulativeConvertedOut, l.CumulativeConvertedOut);
             Assert.Equal(b.NumeraireRate, l.NumeraireRate);
             Assert.Equal(b.Retired, l.Retired);
+            Assert.Equal(b.CumulativeFiatRetired, l.CumulativeFiatRetired);
         }
         for (int i = 0; i < state.Polities.Count; i++)
             Assert.Equal(state.Polities[i].CurrencyId, loaded.Polities[i].CurrencyId);
@@ -168,7 +172,7 @@ public class CurrencyArtifactTests
         // no migration path exists (greenfield/no-compatibility-shims rule) —
         // a version bump on any of the three layers this task touched must
         // fail loudly, never silently misparse or upgrade
-        foreach (var layer in new[] { "actors|9", "markets|5", "corporations|4" })
+        foreach (var layer in new[] { "actors|9", "markets|6", "corporations|4" })
         {
             var name = layer.Split('|')[0];
             string tampered = text.Replace($"LAYER|{layer}", $"LAYER|{name}|999");
