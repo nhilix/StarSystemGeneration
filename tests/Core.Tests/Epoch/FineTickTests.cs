@@ -123,7 +123,17 @@ public class FineTickTests
         // The bands are wide on purpose: rolls key (step, actor), so the
         // two runs are legitimately different HISTORIES (different sparks,
         // outbreaks, colonies) — the bands bound systematic rate bias,
-        // not chaos (this net caught the demand-vs-stock price crash)
+        // not chaos (this net caught the demand-vs-stock price crash).
+        //
+        // KNOWN BLIND SPOT (slice MC — do not let it be forgotten again):
+        // this test forks AFTER a coarse prologue and changes the clock
+        // mid-run, so genesis always ran at 25y. It therefore cannot see any
+        // defect in the ENTRY SCHEDULE, which genesis bakes — and it did not
+        // see the one that lived there for four slices. Clock-invariance of
+        // genesis is covered by ClockPlanTests and by the committed sweep
+        // (docs/superpowers/plans/2026-07-17-clock-invariance-experiment.json),
+        // which applies the clock BEFORE genesis. This test's scope is the
+        // stepping machine, not the schedule it starts from.
         var coarse = Prologue(seed);
         var fine = Reload(coarse);
         int sharedPorts = coarse.Ports.Count;   // founded before the fork
@@ -134,9 +144,13 @@ public class FineTickTests
         double coarsePop = 0, finePop = 0;
         foreach (var s in coarse.Segments) coarsePop += s.Size;
         foreach (var s in fine.Segments) finePop += s.Size;
-        AssertBand("population", coarsePop, finePop, 0.5);
+        // re-tightened 0.5 → 0.25 (slice MC): the entry fix pulled the worst
+        // observed spread to 0.14 (seed 42; seed 7 0.12). Sized at ~1.8×
+        // the real spread, not at what a defect used to need.
+        AssertBand("population", coarsePop, finePop, 0.25);
 
-        AssertBand("ports", coarse.Ports.Count, fine.Ports.Count, 0.5);
+        // re-tightened 0.5 → 0.35 (slice MC): worst observed 0.23 (seed 42)
+        AssertBand("ports", coarse.Ports.Count, fine.Ports.Count, 0.35);
 
         int coarseHulls = 0, fineHulls = 0;
         foreach (var f in coarse.Fleets) coarseHulls += f.TotalHulls;
@@ -154,22 +168,25 @@ public class FineTickTests
         // exists to bound systematic rate bias, not chaos.
         double coarsePrice = MedianProvisionsPrice(coarse, sharedPorts);
         double finePrice = MedianProvisionsPrice(fine, sharedPorts);
-        // slice ME task 1 widened this to 0.7 for seed 42 while Operations sat
-        // inert; task 3 spent the full mechanism and seed 42 fell back inside the
-        // original 0.6 band. Part B's steady issuance channel (a third per-epoch
-        // money flow, minted once per coarse step vs 25× per fine step) re-widened
-        // seed 42's near-floor provisions regime to 0.75. Locality's
-        // body-resource-stock task (BR-4) widens it once more: starter/founding/
-        // groundbroken extraction facilities now carry a REAL body instead of
-        // riding None, so SupplyLands' RichnessModifier computes a genuine
-        // Size/Biosphere multiplier instead of its flat neutral-1.0 fallback —
-        // a real, intended shift in early extraction output that compounds
-        // differently at coarse-vs-fine granularity precisely because seed 42
-        // sits in this same near-floor deep-glut regime (confirmed: no
-        // per-tick-vs-per-year formula defect, BodyResourceOps.Extract isn't
-        // even wired yet — this is legitimate economy-trajectory drift, the
-        // same category as the other four re-tuned tests this task, not a bug).
-        double provisionsTolerance = 0.85;
+        // BAND HISTORY, CORRECTED (slice MC). This band was widened three
+        // times — 0.6 → 0.7 (ME) → 0.75 (BF steady issuance) → 0.85 (BR-4) —
+        // each time under the explanation "legitimate economy-trajectory
+        // drift, confirmed: no per-tick-vs-per-year formula defect". That
+        // explanation was FALSE, and this comment used to assert it. There
+        // WAS a per-tick-vs-per-year defect the whole time: the polity entry
+        // gate read EntryEpoch × GenerationYears against a value genesis wrote
+        // as entryYear ÷ YearsPerEpoch, so the fine clock admitted ~25× fewer
+        // polities. It hid here rather than failing here, because it dragged
+        // the fine economy DOWN toward the coarse one — this test was green
+        // because two defects cancelled, and each widening was absorbing a
+        // real bug under a story about drift.
+        //
+        // Slice MC fixed it (Actor.EntryYear — a calendar date, no multiplier).
+        // The measured spread is now 0.41 (seed 42; seed 7 sits at 0.00), so
+        // the band returns to 0.6 — the value it held before the widenings,
+        // with ~1.45× headroom over the real spread. The lesson worth keeping:
+        // a band that needs widening is evidence, not paperwork.
+        double provisionsTolerance = 0.6;
         AssertBand("provisions price", coarsePrice, finePrice, provisionsTolerance);
 
         // history kept happening: the fine run logged real events too

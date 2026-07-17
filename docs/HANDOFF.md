@@ -1,121 +1,299 @@
-# Session Handoff — 2026-07-16 (Slice BF — PARKED behind a market-engine defect)
+# Session Handoff — 2026-07-17 (Slice MC MERGED · BF unblocked · next up: BF resume or WT)
 
-**NEXT UP: Slice MC — P7-clean nominal price formation.**
-Kickoff: `docs/superpowers/plans/2026-07-16-slice-mc-kickoff-prompt.md`.
-Nothing is merged from this session.
+**Slice MC — P7-clean polity entry + the clock-invariance instrument — MERGED**
+to `main` locally at `0d93250` with `--no-ff` (main had moved: folded in main's
+docs-only DX chain, no code conflict). **Not pushed** — push on say-so.
+1104/1104 `dotnet test` on the merged tip · determinism byte-identity verified
+(two independent seed-42 runs) · one fable whole-branch review (MERGE WITH FIXES,
+0 Critical, 1 Important + 3 Minor, all fixed in one wave) · golden re-frozen once
+at slice end. Ledger `docs/superpowers/plans/2026-07-17-slice-mc-ledger.md`.
 
-**⚠ main MOVED during this session — this branch is based on `768a8e4`, main is
-now `970b19a`.** L2 merged and was **pushed** mid-session, and L2's own wrap-up
-chained a different next-up (**Slice WT**, war termination,
-`2026-07-15-slice-wt-kickoff-prompt.md`). So there are **two live chains**: WT
-(from L2) and MC (from here). Sequencing between them is a user/orchestrator
-call — MC has economy-wide blast radius and should not run in parallel with
-anything touching prices; WT is a different subsystem and plausibly can.
+**NEXT UP — a fork for the user/orchestrator:**
+1. **Resume Slice BF** at its task 6 — MC was BF's blocker and is now cleared.
+   BF's branch is based on `768a8e4` and must fold in main first (it has never
+   folded in L2, CU-2's docs, DX, or MC). See the BF section below.
+2. **Slice WT** (war termination) — chained by L2, still valid, different
+   subsystem, parallel-safe.
+3. **Slice DX** (domain hex expansion) — still **HELD** (see the tail Next-up
+   list); its hold was pinned to "CU-3's hiccups resolved", which have now
+   resolved into the MC→BF chain — confirm the hold is lifted before spawning.
 
-**BF must fold main in when it resumes** — it has not yet. L2 landed **two of its
-own "time, not ticks" invariant fixes** (facility groundbreak cadence; hull-batch
-build duration) which move the economy. Neither touches
-`DriftReferencePrices`, so **the MC diagnosis stands and was re-verified against
-main's source** — but the investigation's *magnitudes* (6259 vs 18104 issued;
-16× receipts) were measured on the pre-L2 base `768a8e4` and **must be re-measured
-on main** before being quoted as current. The direction is structural (visible in
-the code); the numbers are not current.
+**Chain: MC ✅ → BF (resume at task 6) → CU-3 → CU-4.**
 
-## Slice BF — the bank as monetary authority (PARKED, not abandoned)
+## Slice MC — P7-clean polity entry + clock-invariance instrument (MERGED)
 
-Branch `slice-bf-bank-flow` (worktree `.worktrees/slice-cu3` — the directory
-name is a stale artifact of the CU-3 pivot; `git worktree move` was blocked by an
-open handle. Cosmetic only). Base `768a8e4`. **Not merged, not pushed.**
-Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`; ledger
-`docs/superpowers/plans/2026-07-16-slice-bf-ledger.md` (its header carries the
-full park notice and the resume point).
+**The defect (proven):** the sim's economy was clock-dependent (differed between
+25y/epoch and 1y/epoch) — a P7 violation. The polity entry gate mis-multiplied
+units: `EpochGenesis` wrote `EntryEpoch = entryYear / YearsPerEpoch`, while
+`Phases`/`NativeOps` read `EntryEpoch × GenerationYears` — agreeing **only** at the
+default `YearsPerEpoch == GenerationYears == 25`. Invisible at the default clock;
+at 1y it stretched the whole emergence schedule 25×, admitting ~25× fewer
+polities.
 
-**Sequencing:** this session opened as **CU-3** (currency consolidation). Its
-kickoff demanded a sequencing decision on CU-2 follow-up #1
-(`[[bank-reserve-flow-gap]]`). The orchestrator recommended CU-3-first; **the
-user chose to fix the prerequisite first**, so the session pivoted to BF and
-CU-3's kickoff (`2026-07-16-slice-cu3-kickoff-prompt.md`) stays on disk,
-unstarted, still valid. BF then hit its *own* prerequisite and the user made the
-same call a second time — hence Slice MC. The chain is now
-**MC → BF (resume at task 6) → CU-3 → CU-4.**
+**The fix:** replaced `Actor.EntryEpoch` with `Actor.EntryYear` (an unambiguous
+world-year). Genesis is now **clock-invariant by construction** (that division was
+its only clock read). Killed the **collapse regime** entirely (5 seeds where the
+fine clock's *real* economy died) and made the ports ratio ≥1.0 on 20/20 seeds.
+Deliberately moved the default 25y product (polities no longer enter up to 24
+years early via truncation) — **user-approved**; golden re-frozen.
 
-**What BF is:** closes CU-2 follow-up #1 (the bank's reserve had one inflow, the
-FX spread, ~0.1% of deficit funding, so it could never intermediate). Rather than
-levying every receipt site, it makes the sim's existing dominant chokepoint a
-bank operation: `IssueSovereignCredit` → `Bank.LendToState`, moving the bank to
-~100% of deficit funding without touching a receipt site. The bank gains an asset
-side (`ClaimOnState` — a claim, not a holder); servicing is surplus-only and
-interest **never capitalizes** (no compounding term exists anywhere, which is the
-whole spiral-proofness argument); principal repayment **destroys money** — the
-sim's first monetary sink. Backing ratio feeds the FX rate; no reserve gate, so
-ME's lender-of-last-resort floor stays absolute.
+**The instrument (the durable deliverable):** the project's first **committed
+clock-invariance sweep** — `src/Core/Epoch/ClockPlan.cs` + a `SweepRunner` clock
+mode + `docs/superpowers/plans/2026-07-17-clock-invariance-experiment.json` (20
+seeds × {25y,5y,1y}, ~5s). It holds world-time constant by construction
+(`epochs × YearsPerEpoch = span`, refusing the epochs+worldYears mix, non-divisible
+spans, duplicate clocks) and reports **nominal vs real divergence separately** —
+the analytical frame that **five prior throwaway-harness diagnoses all blurred**.
+On its first use it settled a 5× disagreement between two prior harnesses. No P7
+claim should ever again be made with a throwaway harness — extend this instead.
 
-**Landed (tasks 1–5b, all committed):** data model `aaefa5f` · serialization
-`b2dea02` (banks v1→v2, markets v5→v6) · knobs `feb8abe` · `LendToState`
-`82cc074` · servicing pass + money sink `65cdf4a` · design amendment §4a
-`3983ec2` · year-scaled servicing `6b5bb49` · park `aa5ce62`.
+**The lesson of this slice (write it on the wall):** **five successive diagnoses
+of the clock-dependence were each refuted** — the issuance cap (never binds at
+25y), mint feedback (zeroing both mints leaves 16×), price drift (~11%; a demoted
+symptom), the band-bid budget cap (neutralizing it: 61.5×→61.5×), and one whole
+investigation invalidated by its own harness applying the clock after genesis.
+Every one was plausible; instrumentation killed each. The root cause only fell to
+a **removal test** (a no-op at 25y; `live_polities` → exactly 1.000× on 20/20) that
+no prior candidate survived. This is `[[market-clock-dependence]]`'s real ending.
 
-**NOT started: tasks 6–13** (residual term, FX backing term, REPL, sweep +
-backing activation, eyeball, whole-branch fable review, golden freeze, merge).
+**Handed on as its own slice (characterized, not chased):** the surviving
+"diverge regime" is a **nominal price-level divergence** — the *same goods* change
+hands ~1.5× more (real, ≈ clock-invariant) at ~10.7× the value per unit (nominal).
+The churn hypothesis (receipts double-counting) was measured dead (churn multiple
+1.02× against a clock ratio of 25). The sharp lead for that slice: **re-measure
+demoted diagnosis #3 (price drift) with a volume-weighted realized clearing
+price** — it was demoted on an *unweighted reference* price, a different statistic,
+measured pre-instrument. New instrument metrics `Economy.GoodsTransacted` (real)
+and `GoodsValueCleared` (nominal) are in place for it.
 
-**Known-red on the branch, all expected and understood** (see the ledger header):
-the standing mid-slice golden; 6 *negative* conservation residuals (the task-6
-gap — the residual does not yet subtract `CumulativeFiatRetired`; task 6 closes
-them); and `FineTick_ProjectCompletions`, which only Slice MC can green.
+## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
 
-**Why parked (user decision):** BF's task-5b clock-invariance probe surfaced a
-**pre-existing P7 violation BF did not cause and cannot fix** — see
-`docs/superpowers/specs/2026-07-16-market-clock-dependence-investigation.md`. It
-is upstream of every monetary channel, so no BF sweep or tuning claim is
-meaningful until it lands. **On resume, re-baseline BF's knob defaults (§9)
-before task 9's sweep** — the MC fix will move every price and receipt.
+## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
 
-### The two design findings BF earned (both from real evidence, not review)
+Branch **`slice-bf-bank-flow`** (worktree `.worktrees/slice-cu3` — the directory
+name is a stale artifact of a mid-session pivot; the branch name is authoritative).
+**Based on `768a8e4`, which is now behind — it has NOT folded in L2.** Not merged,
+not pushed. Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`;
+ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md` — **its header
+carries the full park notice, the known-red set, and the resume point.**
+
+**How this session got here:** it opened as **CU-3** (currency consolidation),
+whose kickoff demanded a sequencing decision on CU-2 follow-up #1
+(`[[bank-reserve-flow-gap]]`). The orchestrator recommended CU-3-first; **the user
+chose to fix the prerequisite first** → the session pivoted to BF. BF then hit its
+*own* prerequisite and the user made the same call again → Slice MC. CU-3's
+kickoff (`2026-07-16-slice-cu3-kickoff-prompt.md`) stays on disk, unstarted, still
+valid.
+
+**What BF is:** closes CU-2 follow-up #1 — the bank's reserve had one inflow (the
+FX spread, ~0.1% of deficit funding), so it could never intermediate. Rather than
+levying every receipt site, BF makes the sim's existing dominant chokepoint a bank
+operation: `IssueSovereignCredit` → `Bank.LendToState`, moving the bank to ~100%
+of deficit funding **without touching a receipt site**. The bank gains an asset
+side (`ClaimOnState` — a claim, not a holder, per `MetricsOps.cs:24`'s
+LoanPrincipal precedent); servicing is **surplus-only** and interest **never
+capitalizes** (no compounding term exists anywhere — that is the entire
+spiral-proofness argument, and why it needs no `LoanCapitalizationCeiling`
+analogue); principal repayment **destroys money** — the sim's first monetary sink.
+Backing ratio feeds the FX rate; **no reserve gate**, so ME's lender-of-last-resort
+floor stays absolute.
+
+**Landed (tasks 1–5b):** data model `aaefa5f` · serialization `b2dea02` (banks
+v1→v2, markets v5→v6) · knobs `feb8abe` · `LendToState` `82cc074` · servicing +
+money sink `65cdf4a` · design amendment §4a `3983ec2` · year-scaled servicing
+`6b5bb49` · park `aa5ce62` · record correction `d8bc4ad`.
+**NOT started: tasks 6–13** (residual term, FX backing term, REPL, sweep + backing
+activation, eyeball, whole-branch fable review, golden freeze, merge).
+
+**Known-red on that branch, all expected** (detail in the ledger header): the
+standing mid-slice golden; **6 negative** conservation residuals (the task-6 gap —
+the residual does not yet subtract `CumulativeFiatRetired`; task 6 closes them);
+and `FineTick_ProjectCompletions`, which **only Slice MC can green**.
+
+**On resume:** fold main in first, then **re-baseline BF's knob defaults (§9)
+before task 9's sweep** — MC will move every price and receipt.
+
+### The two design findings BF earned (both from evidence, neither from review)
 
 1. **§4a — "time, not ticks" (amended in-branch, `3983ec2`).** The original §4
    charged a fraction of a treasury *stock* once *per epoch*, so servicing
    intensity scaled as 1/`YearsPerEpoch` (treasury diverged 4× between clocks).
-   Now: the share compounds per world-year (`1 − (1 − s)^years`,
-   `DecayIdlePools`' precedent) while **interest stays LINEAR in years** —
-   because rule 2 forbids compounding, so each world-year accrues on the same
-   principal. Knobs renamed to the repo's `PerYear` convention. Both hard rules
-   still hold structurally, not by a clamp.
+   Now the share compounds per world-year (`1 − (1 − s)^years`, `DecayIdlePools`'
+   precedent) while **interest stays LINEAR in years** — because rule 2 forbids
+   compounding, the claim cannot grow between world-years, so each accrues on the
+   same principal. Knobs renamed to the repo's `PerYear` convention. Both hard
+   rules still hold **structurally, not by a clamp**.
 2. **§3's freeze of ME's issuance cap is CORRECT and stands.** Two plausible
-   diagnoses were refuted by experiment (see the investigation): the cap **never
-   binds at 25y, not once**; and zeroing both mints still leaves receipts
-   diverging 16×. Do not amend §3.
+   diagnoses were **refuted by experiment**: the cap **never binds at 25y, not
+   once**; and zeroing both mints still leaves receipts diverging 16×. Do not
+   amend §3. This is the session's clearest lesson — the first plausible story was
+   wrong twice, and only instrumentation settled it.
 
-## Slice MC — P7-clean nominal price formation (NEXT, kickoff written)
+## Slice MC — P7-clean nominal price formation (NEXT; kickoff written)
 
-**The defect:** `MarketEngine.DriftReferencePrices` (`MarketEngine.cs:1130–1167`)
-normalizes *demand* per generation (`/StepFraction`) but takes *supply* as the
-raw resting-ask stock, whose size scales with step length. A 25y step dumps 25
-years of production into one clearing → permanent glut → prices pinned at 1.000.
-A 1y step trickles → stock-outs → prices at the 59–100 ceiling. **The two clocks
-sit in opposite saturated price regimes.** Nominal receipts/yr diverge **68×**
-while the real economy diverges only 2–3× — the tell that this is nominal, not
-real. Structural across seeds (16×/24×/60×/23× on 42/7/99/2024); seed 13, a dead
-world, diverges 1.0× as a clean control.
+**The defect** (`MarketEngine.DriftReferencePrices`, `MarketEngine.cs:1132–1169`,
+**re-verified present on main**): demand is normalized per generation
+(`/StepFraction`) but supply is the **raw resting-ask stock**, whose size scales
+with step length. A 25y step dumps 25 years of production into one clearing →
+permanent glut → prices pinned at 1.000. A 1y step trickles → stock-outs
+(`supply = 0 → demand/eps ≈ 1e9 →` clamped every step) → prices at the 59–100
+ceiling. **The two clocks sit in opposite saturated price regimes.** Nominal
+receipts/yr diverged 68× while the real economy diverged only 2–3× — the tell that
+this is nominal, not real. Structural across seeds; a dead world diverges 1.0× as
+a clean control.
 
-**The obvious fix is already tested and REFUTED** (investigation Finding 6): drop
-`/StepFraction` and compound `factor^years` — the formula correct on paper —
-improves 16×→5× but does not converge and *inverts*. `unsoldAsks` is inherently
-step-length-dependent, so no reformulation of the drift alone works. A real fix
-must address supply batching (flow-vs-flow, or a normalized ask window) — a
-design question, hence a brainstorm, hence a slice.
+**⚠ The investigation's magnitudes are pre-L2** (measured at `768a8e4`). L2's own
+two time-not-ticks fixes (facility groundbreak cadence; hull-batch build duration)
+touch **neither** `DriftReferencePrices` — so the *diagnosis* stands and was
+re-verified against main's source — but every *number* must be re-measured on main
+before being quoted. Both the kickoff and the investigation carry this caveat.
+
+**The obvious fix is already tested and REFUTED** (Finding 6): drop `/StepFraction`
+and compound `factor^years` — the formula correct on paper — improves 16×→5× but
+**does not converge and inverts**. `unsoldAsks` is inherently step-length-dependent,
+so no reformulation *of the drift alone* works. A real fix must address supply
+batching (flow-vs-flow, or a normalized ask window) — a design question, hence a
+brainstorm, hence a slice.
 
 **Not in tension with the LOLR floor** (Finding 7): the cause is upstream and
-monetary-policy-agnostic. The converse risk is the one to watch — a fix raising
-coarse receipts ~16× moves ME's monetary operating point, and *that* needs
-ensemble validation per the SH bar.
+monetary-policy-agnostic. The **converse** risk is the one to watch — a fix raising
+coarse receipts ~16× moves ME's monetary operating point, and *that* needs ensemble
+validation per the SH bar.
 
-**Also this slice's job:** `FineTickTests`' docstring asserts *"confirmed: no
-per-tick-vs-per-year formula defect ... legitimate economy-trajectory drift"* —
-and its band has been widened **three times (0.6→0.85)** absorbing this exact
-defect under that false explanation. Correct the record; re-tighten the bands to
-what the fixed engine supports.
+**Also MC's job — correct the record:** `FineTickTests`' docstring asserts
+*"confirmed: no per-tick-vs-per-year formula defect ... legitimate
+economy-trajectory drift"*, and its band has been widened **three times
+(0.6→0.85)** absorbing this exact defect under that false explanation. The test has
+been the sim's early-warning system for a structural bug and was progressively
+silenced. Correct it; re-tighten the bands to what the fixed engine supports.
 
-## Slice CU-2 — the Bank actor (closed, MERGED to main at 768a8e4)
+## Slice L2 — population & off-lane (closed, MERGED and PUSHED at `dda698b`)
+
+State: `slice-l2-population-offlane` merged to `main` at `dda698b` with
+`--no-ff` — **pushed** (user say-so, 2026-07-16). 1081/1081 `dotnet test`
+post-merge · hex-tier suite intact · determinism byte-identity · golden
+re-frozen (three times across the slice: once at slice end, once after the
+review fix wave, once more when main's CU-2 was folded in — regenerated
+fresh each time, never hand-merged) · one whole-branch fresh-eyes review
+(fable): **MERGE, no Critical**, two Important, both fixed in one wave · the
+32-run committed acceptance sweep re-run on the merged tip with CU-2 folded
+in — **worst conservation residual ratio 4.126e-15** against a 1.3e-9
+tolerance · merge accepted 2026-07-16.
+Kickoff `docs/superpowers/plans/2026-07-15-slice-l2-population-offlane-kickoff-prompt.md`;
+ledger `docs/superpowers/plans/2026-07-15-slice-l2-ledger.md` (7 planned tasks
+grew to 10 + a fix wave — Tasks 8-10 were user-approved root-cause fixes for
+invariant breaks the slice UNMASKED, not scope creep).
+
+## Slice L2 — population & off-lane (closed)
+
+**What shipped** (the deferred half of the locality mega-slice design — this
+CLOSES the locality arc: Phase 1 addressing + Phase 2 body stocks + L2):
+- **Population segments carry a real body address** (`PopulationSiting.Assign`,
+  `PopulationSegment.Body`), set at all four creation sites (homeworld,
+  migration's `FindOrFoundSegment`, colony founding, native emergence). The
+  first time population data exists BELOW the port. Visible in the REPL:
+  `market <portId>` now prints each segment's body.
+- **Colony founding skips bodiless extraction duds** — mirrors groundbreaking's
+  reject (closes Slice L follow-up #2).
+- **Body claims became per-resource-class** (user design call): a Mine
+  (depleting ore) and an AgriComplex (farming the biosphere) share one rich
+  rocky world; only same-class extractors exclude each other, and
+  Mine/ExcavationSite still exclude each other because they share the single
+  `(hex,body)` stock. `BodySiting.CompetesForBody`.
+- **The AgriComplex 0.3 renewable floor is gone** (same user call): agri yield
+  derives purely from biosphere + hydrographics, 0 at a fully barren dry body —
+  so a barren-hex colony gets a Mine and imports food. Skimmer's mass-based 0.5
+  floor deliberately retained (a gas giant always has mass).
+- **Facility staffing is distance-weighted** (`StaffingOps`, hex-hop +
+  local-hop to the facility's body, `Economy.StaffingDistanceFalloff`). Changes
+  production magnitude ONLY — `PayWages`/money flow untouched.
+- **Patrol coverage falls off with orbital distance** from the fleet's dock
+  (`PatrolCoverage.At`, `War.PatrolCoverageFalloff`).
+- **Off-lane travel is a first-class elected route** computed alongside the lane
+  path (`ShipmentOps.OffLaneRoute` / `PlanBestRoute`); the courier board elects
+  it when its lane is severed instead of stalling.
+- **Off-lane detection roll** (`RollChannel.ShipmentDetection = 78` — NOT the
+  plan's stale 77, which Phase 2 had taken): a conserved seizure to the
+  detecting patrol's nearest owned port, mirroring interdiction exactly. **Gated
+  on an ACTIVE WAR** (review finding — a peacetime/allied patrol seizes nothing).
+
+**The slice's real story: two "time, not ticks" invariant breaks it UNMASKED**
+(found by a slice-end investigation, both fixed in-slice on the user's call —
+"fix it so we don't pile up a backlog"):
+1. **Facility groundbreaking had no world-time cadence gate** (`Phases.GroundbreakFacility`)
+   — its only ceiling was the facility STOCK cap, so a finer clock accreted
+   facilities faster over the same world-years. Pre-existing, but MASKED until
+   L2's per-class claims let the surplus groundbreaks actually build. Fixed with
+   a per-port gate mirroring `Expansion.FoundingCadenceYears` (new knob
+   `Infrastructure.FacilityGroundbreakCadenceYears` = 25 = GenerationYears — the
+   equality that makes both clocks telescope).
+2. **Hull-batch build duration was size-based / count-independent**, so a coarse
+   step's bundled slots cost ~25× per year over the same duration and got
+   **DROPPED** by the planner's affordability check while fine slivers fit — the
+   coarse (REAL) sim had been silently dropping the navies it planned. Fixed:
+   `duration = max(size floor, Count / yardRate)` via a shared
+   `DesignMath.HullBatchYears` used by BOTH `Planner.CostOf` and
+   `ProjectOps.SpawnHullBatch`, plus (review finding) a **per-year rather than
+   full-lump treasury gate** at `GroundbreakHullBatch`. Per-year cost is now
+   yard-throughput-bounded and tick-invariant; total cost conserved.
+   **Consequence: the real sim now builds ~11× more hulls and the economy grew
+   ~2.5× (golden CLOCK 39896 → 100857).** User accepted this at the eyeball.
+
+**Evidence discipline that paid off**: `FineTickTests.cs` was **never touched on
+this branch** — the telescoping guard went green from production changes alone,
+which is the strongest available proof the fix was honest rather than a loosened
+band. The fable reviewer verified this independently.
+
+**Task 10 reworked a serially-fragile test** (`Siege_FallsThePort_SegmentsIntact`,
+re-tuned by epoch-nudging 4× across prior slices) into a deterministic
+constructed siege — decoupled from `FirstLiveRelation`'s emergent pick, driving
+the REAL `WarConduct.FightWars` path, assertions STRENGTHENED, mutation-tested
+RED three ways, 18/18 across backdrop epochs 13-30. It no longer drifts.
+
+**Acceptance**: 1081/1081 post-merge; 32-run sweep on the merged tip worst
+residual ratio 4.126e-15 (tolerance 1.3e-9); **siege-race amplification measured
+and DISPROVED** — vs pre-L2 main on seed 42/40 epochs, wars went 9 → 18 and wars
+taking an objective 2 → 6 (22% → 33%), while "no war ever reaches 2/2" is
+IDENTICAL before and after. The bigger navies increased war and conquest rather
+than suppressing them.
+
+**Filed as follow-ups, NOT resolved this slice**:
+1. **THE big one — the siege clock races the war-termination clock** (found by
+   Task 10, measured above). `ResolutionPhase` runs `FightWars` AND
+   `WarResolution.Terminate` in the same phase; a defender's navy ground down by
+   the siege's own battles trips `SideBroke`'s FLEET-STRENGTH condition
+   (`WarResolution.cs:108-133`), `Terminate` settles a nominal attacker victory,
+   but `Settle` only cedes objectives already `Taken` (`:204-210`) — a still-
+   `Contested` siege cedes NOTHING and freezes forever. **Overwhelming naval
+   force therefore makes conquest LESS likely** (it breaks the defender's fleet
+   before the siege clock lands). Pre-existing and NOT amplified by L2 (measured),
+   but it is why no war in seed 42 ever takes all its objectives. This is the
+   chained next-up — see Next up #2.
+2. **Adjacent-hex spillover** (Slice L follow-up #1) — deferred a THIRD time
+   (explicitly, at L2's scope nod). Still needs its own brainstorm/design pass;
+   changes `Facility.Hex` semantics, touches `Siting.cs`.
+3. **Residual latent**: `Planner`'s `OffLaneRoute` duplicates `PlanRoute`'s
+   inline off-lane fallback (deliberate — the task forbade touching PlanRoute;
+   dedupe by having PlanRoute's fallback call OffLaneRoute on a later touch).
+4. `SpawnHullBatch`'s `yardTiers = 0` param sits BEFORE `startedYear` — all 8
+   callers verified safe, but a future POSITIONAL `startedYear` would silently
+   bind to `yardTiers`. Reorder or make named-only on a later touch.
+5. `Math.Pow` negative-base NaN at insane knob values in the detection block —
+   fails safe (no seizure), pre-existing identically in interdiction; clamp both
+   together someday.
+6. Detection's dual coverage computation (accumulator via `PatrolCoverage.At`,
+   owner attribution via an inline rescan) is provably consistent ONLY because
+   detection passes `BodyRef.None` (localHop always 0). Unify if detection ever
+   goes body-aware.
+7. `RichestBiosphere` never sites an Agri on a `Barren` body even at
+   Hydrographics=100, though the yield formula would pay a wet dead world —
+   siting is stricter than yield. Cosmetic; one doc sentence if ocean-world
+   farming ever matters.
+8. The facility cadence gate keys on (owner, port), so a freshly CAPTURED port's
+   new owner can groundbreak immediately (no project record under its id).
+   Epoch-boundary noise at worst.
+
+## Slice CU-2 — the Bank actor (closed, prior handoff)
 
 State: `slice-cu2-bank-actor` merged to `main` locally with `--no-ff`
 (main had NOT moved from the branch base 81c03c6 — L2 still in flight in its
@@ -130,7 +308,6 @@ ledger `docs/superpowers/plans/2026-07-15-slice-cu2-ledger.md` (8 tasks grew
 to 14 real sub-tasks — the exchange-site audit split into 4a-4f, several
 inserted by real findings).
 
-## Slice CU-2 — the Bank actor (closed)
 
 **What shipped**: a first-class `Bank` per `Currency` (`src/Core/Epoch/Bank.cs`,
 keyed by currency id, minted 1:1 in `SimState.FoundCurrency`, serialized in a
@@ -198,9 +375,7 @@ flush-start 2.8M → lean-labor 29M final supply).
    MEASURED skim rather than a derived `×(1±spread)` — sibling tests pin the
    magnitude/direction, so redundant coverage exists; acceptable.
 
-## Slice CU-1 — currency & FX foundation (closed)
-
-## Slice CU-1 — currency & FX foundation (closed)
+## Slice CU-1 — currency & FX foundation (closed, prior handoff)
 
 Research (`docs/superpowers/specs/2026-07-14-cu-monetary-theory-research.md`,
 `-cu-game-precedent-research.md`, `-cu-genre-precedent-research.md`,
@@ -561,10 +736,19 @@ Slice L (both families, both survived the Slice CU merge intact).
    near-unreachable (regime-change question), sub-1e-12 dust sinks,
    conservation tolerance now relative not absolute, three known
    scope-boundary gaps needing consolidated documentation.
-2. **Slice L follow-ups** (see Slice L's section above): adjacent-hex
-   spillover, colony-founding bodiless dud, single-good stock assumption,
-   FineTick band looseness, zero-richness dud construction, Unity compile
-   verification, body-blind siting.
+2. **Slice L2 follow-ups** (see Slice L2's section above): **the siege clock vs
+   war-termination clock race (the big one — chained as Next up #2)**;
+   adjacent-hex spillover (deferred a 3rd time); OffLaneRoute/PlanRoute
+   duplication; SpawnHullBatch param order; Math.Pow NaN clamp; detection's dual
+   coverage compute; Agri siting stricter than yield; cadence gate on a captured
+   port.
+3. **Slice L follow-ups** (see Slice L's section above): adjacent-hex
+   spillover (**still open, deferred again at L2's scope nod**),
+   colony-founding bodiless dud (**RESOLVED in L2 — Task 2**), single-good
+   stock assumption, FineTick band looseness (**RESOLVED in L2 — the band was
+   never the problem; two real invariant breaks were, both fixed; the guard now
+   passes on production changes alone**), zero-richness dud construction, Unity
+   compile verification, body-blind siting.
 3. **ME follow-ups**: SoL still below the healthy floor economy-wide
    (still open); `FederationOps.MergeInto`'s loan-reissue `OriginalPrincipal`
    gap (RESOLVED in Slice CU).
@@ -611,32 +795,71 @@ checks passing is NOT sufficient evidence conservation holds — the real
 acceptance instrument is the full committed multi-seed sweep; run it
 before declaring a conservation-sensitive milestone settled, not just at
 the very end.
+**NEW (Slice L2):**
+- **Regenerating the golden: anchor the write on the `.csproj`, not on a
+  `Goldens/` directory probe.** `bin/Debug/netX/Goldens` exists too (the csproj
+  copies it), so a walk-up looking for `Goldens` writes into `bin` and the source
+  golden silently never changes (an empty `git diff` that looks like "no drift").
+- **Staging polity pools in a test that runs a phase is a false-green trap**:
+  `AllocationPhase` credits `MilitaryPoints` (`Phases.cs:435`) BEFORE
+  `Groundbreak` (`:468`), so real income swamps a staged treasury and a
+  treasury-gate test passes pre-fix. Zero `pr.Receipts` in the fixture.
+- **A test coupled to emergent history will be re-tuned forever.**
+  `Siege_FallsThePort_SegmentsIntact` was epoch-nudged 4× across slices because
+  it fished its fixture out of seed 42 via `FirstLiveRelation`. When a test needs
+  re-tuning a 2nd time, decouple it (construct the scenario) instead of nudging —
+  L2 did, and it now holds across backdrop epochs 13-30.
+- **When a tuned band goes red, suspect the mechanism before the band.** L2's
+  FineTick redness looked like band drift (it had been widened 4× before) and was
+  in fact TWO real invariant breaks stacked. Instrument the per-kind breakdown
+  before touching a threshold — and note the fix is proven precisely by NOT
+  having touched the test file.
 
 ## Next up
 
 1. **User atlas/REPL review** — the user's own call on when to look at both
    mega-slices (Locality, Currency) landed together and decide what to
    prioritize next. Not scripted further here — follow their lead.
-2. **Slice CU-3 (Federation-triggered currency consolidation)** — the next of
-   the CU forward roadmap, kickoff chained:
-   `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. Replaces
-   CU-1's blunt forced-conversion-at-absorption stub with a real mechanic once
-   banks exist to be party to a merger. **Read the CU-2 follow-up #1 first** (the
-   bank-reserve-flow-gap): the design should weigh whether the bank-reserve-flow
-   redesign is a prerequisite that belongs before CU-3/CU-4, or proceeds in
-   parallel.
-3. **Slice L2 (Population/off-lane)** — ready, not started:
-   `docs/superpowers/plans/2026-07-15-slice-l2-population-offlane-kickoff-prompt.md`.
-   Parallel-safe with CU-2 (worktrees).
-4. **Slice K6 (The economy surfaces)** — parallel-safe with L2/CU-2
-   (worktrees): `docs/superpowers/plans/2026-07-12-slice-k6-kickoff-prompt.md`
+2. **Slice WT (war termination — the siege vs settlement clock race)** — chained
+   by L2, kickoff ready:
+   `docs/superpowers/plans/2026-07-16-slice-wt-war-termination-kickoff-prompt.md`.
+   **A design slice** (brainstorm → spec → implement), not a patch: L2 measured
+   that ~2/3 of wars end taking nothing and NO war in a 1000-year history ever
+   achieves all its objectives, because a war settled by `SideBroke`'s
+   fleet-strength condition cedes only `Taken` objectives — so a 75%-complete
+   siege evaporates, and overwhelming force is *counterproductive* (it breaks the
+   defender's fleet before the siege lands). Pre-existing and NOT caused by L2
+   (measured pre/post). The kickoff carries the evidence, the four candidate
+   models, and the pre/post table as the acceptance instrument. Parallel-safe
+   with the CU lineage (different subsystems) — worktrees.
+3. **Slice CU-3 (Federation-triggered currency consolidation)** — **NOT started;
+   back in Kickoff Ready.** The 2026-07-16 spawn opened as CU-3 but its
+   sequencing decision (CU-2 follow-up #1) resolved to "fix the prerequisite
+   first" → it pivoted to **BF**, which then chained **MC**. CU-3 now sits behind
+   BF in the chain (MC ✅ → BF → CU-3 → CU-4). Kickoff still valid:
+   `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. When it runs,
+   it merges banks that have gained an asset side and a money sink (BF), so it
+   consolidates **reserves AND claim books** — richer than its original scope
+   (see BF design §8).
+4. **Slice DX (Domain hex expansion)** — spec approved + committed
+   (`docs/superpowers/specs/2026-07-16-domain-hex-expansion-design.md`),
+   kickoff chained
+   (`docs/superpowers/plans/2026-07-16-slice-dx-kickoff-prompt.md`), Trello
+   card in Kickoff Ready. Closes the adjacent-hex-spillover thread (Slice L
+   follow-up #1) generalized: satellite workings → outposts → frontier
+   graduation, three phase gates, sim-only. **DELIBERATELY HELD** (user
+   decision 2026-07-16): do not spawn until Slice CU-3's hiccups are fully
+   resolved — no new parallel dev lines until then; confirming the hold is
+   lifted is part of the scope nod.
+5. **Slice K6 (The economy surfaces)** — parallel-safe (worktrees):
+   `docs/superpowers/plans/2026-07-12-slice-k6-kickoff-prompt.md`
    — TRADE lens on the rail, order-book + contracts panels, freight
    purposes on the map, war-supply readout; zero sim behavior. Will now
    also want to surface per-currency prices/rates somewhere, given CU-1
    landed after this kickoff was written — flag to whoever picks it up.
-5. **The gap-list backlog** — the roadmap's designated successor queue
+6. **The gap-list backlog** — the roadmap's designated successor queue
    (item 10 in Carried/flagged above).
-6. User read-through of the design specs — still outstanding.
+7. User read-through of the design specs — still outstanding.
 
 ## Carried process conventions (unchanged)
 
@@ -654,3 +877,14 @@ Phase 1 richness-formula failure), reopen the design properly — brainstorm
 around it. **NEW (Slice CU):** for anything conservation/invariant-sensitive,
 the real acceptance sweep is the instrument, not a single seed's unit tests
 — budget time to run it, more than once, before the slice is declared done.
+**NEW (Slice L2):** a slice is responsible for what it UNMASKS, not just what
+it breaks. L2's own work was clean, but it removed a mask hiding two pre-existing
+"time, not ticks" breaks; the user's call was to fix them in-slice ("so we don't
+pile up a backlog") rather than file them, and each fix revealed the next layer —
+budget for that, and re-confirm scope with the user at each layer rather than
+chasing indefinitely. Corollary: **prefer the evidence that cannot be faked** —
+"the test file was never touched and the guard went green" beats any amount of
+narration that a fix is honest. And **a plan can contradict itself**: L2's source
+plan said "hostile" in prose and "any non-owner" in its interface spec, and the
+implementation faithfully followed the wrong one — when a review finds code
+disagreeing with a doc, check which is wrong before assuming it's the code.

@@ -70,7 +70,9 @@ public sealed record MetricRow(
     int EndowedEntries, double ConservationResidual,
     double CumulativeFiatIssued, double CumulativeSteadyIssuance,
     IReadOnlyList<CurrencyResidualRow> Currencies,
-    int SettledHexes, double BodyStockRemaining);
+    int SettledHexes, double BodyStockRemaining,
+    double PolityReceipts, double CorpReceipts, int Ports,
+    double GoodsTransacted, double GoodsValueCleared);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -209,12 +211,40 @@ public static class MetricsOps
         double bodyStock = 0;
         foreach (var s in state.BodyResources.Values) bodyStock += s.Quantity;
 
+        // Receipts are a per-epoch FLOW — Phases zeroes every ledger's
+        // Receipts at MarketsPhase and the snapshot lands after Chronicle, so
+        // the row carries THIS epoch's take. A run's Σ receipts is the reader's
+        // integral of the column, and it is the headline nominal metric of the
+        // clock-invariance sweep (ClockPlan): a clock-invariant economy books
+        // the same receipts per world-year at any step length.
+        double polityReceipts = 0;
+        foreach (var pr in state.Polities) polityReceipts += pr.Receipts;
+        double corpReceipts = 0;
+        foreach (var c in state.Corporations) corpReceipts += c.Receipts;
+
+        // Goods ACTUALLY transacted this epoch — the real-throughput twin of the
+        // receipts flow, on the same flow window (MarketsPhase clears LastCleared
+        // in the same block it zeroes Receipts). Receipts is a GROSS flow: it
+        // books non-trade transfers too, and it books once per clearing, so a
+        // finer clock can churn the same conserved money through it more times.
+        // These two columns are what separate "the economy really is bigger" from
+        // "we counted the same trade more often" — the question five diagnoses of
+        // the clock divergence failed to ask (slice MC task 4).
+        // Quantity is in UNITS and has no currency in it, so it is the REAL
+        // column and immune to the MoneyRow non-commensurability trap; the value
+        // sum is nominal and carries that trap (see SimState.GoodsValueCleared).
+        double goodsTransacted = 0;
+        foreach (var m in state.Markets)                  // port-id order (P6)
+            foreach (double q in m.LastCleared) goodsTransacted += q;
+
         return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
             pop, pop <= 0 ? 0.0 : sol / pop,
             endowed, worstResidual, state.CumulativeFiatIssued,
             state.CumulativeSteadyIssuance, currencyRows,
-            state.SettledSystems.Count, bodyStock);
+            state.SettledSystems.Count, bodyStock,
+            polityReceipts, corpReceipts, state.Ports.Count,
+            goodsTransacted, state.GoodsValueCleared);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

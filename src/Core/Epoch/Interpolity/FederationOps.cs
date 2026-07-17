@@ -111,7 +111,7 @@ public static class FederationOps
             : state.Actors[rel.PolityAId].Seat;
 
         var actor = new Actor(newId, ActorKind.Polity, name, seat,
-                              state.EpochIndex, new GenesisController(state.Config))
+                              state.WorldYear, new GenesisController(state.Config))
         { Entered = true };
         state.Actors.Add(actor);
         var young = new PolityRecord(newId, species)

@@ -172,7 +172,9 @@ public class CurrencyArtifactTests
         // no migration path exists (greenfield/no-compatibility-shims rule) —
         // a version bump on any of the three layers this task touched must
         // fail loudly, never silently misparse or upgrade
-        foreach (var layer in new[] { "actors|9", "markets|6", "corporations|4" })
+        // actors is at v10 since slice MC turned field 6 into a world-year;
+        // markets is at v6 since slice BF added Currency.CumulativeFiatRetired
+        foreach (var layer in new[] { "actors|10", "markets|6", "corporations|4" })
         {
             var name = layer.Split('|')[0];
             string tampered = text.Replace($"LAYER|{layer}", $"LAYER|{name}|999");

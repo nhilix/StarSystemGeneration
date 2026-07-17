@@ -118,44 +118,106 @@ public class WarConductTests
     [Fact]
     public void Siege_FallsThePort_SegmentsIntact()
     {
-        // a CONTROLLED siege needs a peacetime backdrop: this test verifies
-        // the siege MECHANIC (port transfers, segments intact) over an
-        // 8-epoch continuation, not emergent-war politics. Once the
-        // world-time economy relit emergent wars (slice t1), epoch 24 sits in
-        // the war era; re-tuned to stage at epoch 16, then BR-4 re-tuned to
-        // epoch 12 (zero active wars then). Wiring BodyResourceOps.Extract
-        // (locality's body-resource-stock task) shifts seed 42's economy once
-        // more: at epoch 12 FirstLiveRelation's pick can no longer take its
-        // target port within the continuation window (searched epochs
-        // 13-27 x continuations 8/12: the pair FirstLiveRelation actually
-        // picks holds through the pair's early growth). Confirmed a robust
-        // plateau at epochs 17-23 where the siege completes cleanly under
-        // both an 8- and a 12-epoch continuation — not a single lucky point.
-        // Re-tuned to epoch 17 (still zero active wars for seed 42 at that
-        // point); the teeth are unchanged.
-        var state = Run(17);
-        var (war, attacker, defender, target) = StageWar(state, 300);
-        double populationBefore = 0;
-        foreach (var s in state.Segments)
-            if (s.PortId == target.Id) populationBefore += s.Size;
-        Continue(state, 8);
-        // the port fell (later schisms/mergers may have moved it again —
-        // the capture event is the record)
+        // The siege MECHANIC end-to-end: a controlled war grinds a defended
+        // port down until it transfers domain, segments intact. This drives
+        // the REAL siege resolution (WarConduct.FightWars — the same call the
+        // Resolution phase makes) directly, epoch by epoch, WITHOUT the
+        // emergent settlement phase (WarResolution.Terminate). That isolation
+        // is the robustness: this test was re-tuned to a "magic epoch" four
+        // times (24 -> 16 -> 12 -> 17) because a full continuation lets the emergent
+        // world settle the staged war — the defender's small navy breaks and
+        // the war ends in a nominal attacker "victory" that cedes only
+        // ALREADY-taken objectives — BEFORE the siege clock reaches its
+        // capture threshold. Arming the attacker harder made it WORSE (it
+        // broke the defender's fleet sooner), so no epoch/force tuning was
+        // stable across seed-42 history drift. Driving the siege path alone
+        // to completion decouples the test from both the emergent pairing's
+        // fortunes and any single lucky epoch: the backdrop is now just the
+        // class's default Run(), shared with every other test here, so there
+        // is no private magic epoch left to re-tune.
+        var state = Run();
+        var (war, defender, target, populationBefore) = StageControlledSiege(state);
+
+        // grind the siege forward on the real path until the port falls,
+        // flushing staged events to the log exactly as Chronicle would; the
+        // bound is generous — a stalled siege (a real regression) fails loudly
+        var objective = war.Objectives.First(o =>
+            o.Type == WarObjectiveType.CapturePort);
+        int years = state.Config.Sim.YearsPerEpoch;
+        for (int e = 0; e < 24 && objective.Status != ObjectiveStatus.Taken; e++)
+        {
+            WarConduct.FightWars(state);
+            foreach (var ev in state.Staged)
+                state.Log.Append(state.WorldYear, ev.Stratum, ev.Type, ev.Actors,
+                    ev.Location, ev.Magnitude, ev.Valence, ev.Visibility, ev.Payload);
+            state.Staged.Clear();
+            state.EpochIndex++;
+            state.WorldYear += years;
+        }
+
+        // the port fell: sovereignty passed from the defender to the besieger
+        Assert.Equal(ObjectiveStatus.Taken, objective.Status);
         Assert.NotEqual(defender, state.Ports[target.Id].OwnerActorId);
+        Assert.Equal(war.AttackerId, state.Ports[target.Id].OwnerActorId);
+        // the siege ran its full arc: it opened AND it closed with a capture
         Assert.Contains(state.Log.Events,
             e => e.Type == WorldEventType.SiegeBegun);
         Assert.Contains(state.Log.Events,
             e => e.Type == WorldEventType.PortCaptured);
-        // conquest composition is automatic: the people stayed put
+        // conquest composition is automatic: the people stayed put, untouched
         double populationAfter = 0;
         foreach (var s in state.Segments)
             if (s.PortId == target.Id) populationAfter += s.Size;
         Assert.True(populationAfter > 0, "captured ports keep their people");
-        var objective = war.Objectives.First(o =>
-            o.Type == WarObjectiveType.CapturePort);
-        Assert.Equal(ObjectiveStatus.Taken, objective.Status);
-        _ = attacker;
-        _ = populationBefore;
+        Assert.Equal(populationBefore, populationAfter, 6);
+    }
+
+    /// <summary>This test's OWN staging (the shared StageWar rides a full
+    /// continuation, which this test deliberately does not): a clean live pair,
+    /// the attacker armed to clear siege superiority, and a CapturePort war on
+    /// a DEFENDER port that actually holds population — so "segments intact"
+    /// is a real claim. Returns the war, the defender id, the target port, and
+    /// its population at declaration.</summary>
+    private static (War War, int Defender, Port Target, double PopulationBefore)
+        StageControlledSiege(SimState state)
+    {
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int attacker = rel.PolityAId, defender = rel.PolityBId;
+        var design = DesignRegistry.Current(state, attacker,
+                ShipRole.Line, ShipSize.Medium)
+            ?? DesignRegistry.Register(state, attacker, ShipRole.Line,
+                ShipSize.Medium, grade: 0.6);
+        Port? home = null;
+        foreach (var p in state.Ports)
+            if (p.OwnerActorId == attacker) { home = p; break; }
+        var reserve = FleetOps.HomeFleet(state, attacker, home!);
+        reserve.AddHulls(design.Id, 300, 0.6);
+        state.PolityOf(attacker).HullsBuilt += 300;
+
+        // target the defender's first POPULATED port (segments-intact needs a
+        // populated victim); fall back to its first port if none is populated
+        Port? target = null;
+        double populationBefore = 0;
+        foreach (var p in state.Ports)
+        {
+            if (p.OwnerActorId != defender) continue;
+            double pop = 0;
+            foreach (var s in state.Segments)
+                if (s.PortId == p.Id) pop += s.Size;
+            target ??= p;
+            if (pop > 0) { target = p; populationBefore = pop; break; }
+        }
+        if (populationBefore == 0)
+            foreach (var s in state.Segments)
+                if (s.PortId == target!.Id) populationBefore += s.Size;
+
+        var war = WarOps.DeclareWar(state, new DeclareWarAct(attacker,
+            defender, (int)CasusBelli.BorderIncident, -1,
+            new[]
+            {
+                new WarObjectiveSpec(WarObjectiveType.CapturePort, target!.Id),
+            }, (int)WarDemand.CedeObjectives));
+        return (war!, defender, target, populationBefore);
     }
 
     [Fact]

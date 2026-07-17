@@ -10,6 +10,38 @@ This is a **market-engine design slice with economy-wide blast radius**, not an
 arithmetic patch. Read first, brainstorm, do NOT skip to a fix — the obvious fix
 has already been tried and measured, and it does not work (see below).
 
+> ## ⚠ RE-AIMED 2026-07-17 — this kickoff originally named the wrong defect site
+>
+> The baseline was re-measured on main (`2026-07-17-mc-baseline-on-main.md`), as
+> the section below instructed. **The premise holds** — clock-dependence survives
+> at comparable magnitude and L2 did not overlap. **But the site is different.**
+>
+> **The slice is `DriftReferencePrices` → the band-bid budget cap.** The real
+> dominant site is `MarketEngine.cs` ~366/401: the band-bid want is correctly
+> `× years`, but is then capped by `budget = seg.Wealth` — a **stock used as a
+> per-step spending limit**, never scaled to world-time. At 25y the want is 25×
+> but the budget is unchanged, so the cap binds and realized demand pins to
+> `budget/bid` (step-invariant) while supply *is* year-scaled → coarse glut. At 1y
+> the cap rarely binds → demand tracks the want. **Trade frequency, not price, is
+> the driver**: trades/yr 39.5× × avg-trade-value 0.31× = 12.3× receipts.
+>
+> `DriftReferencePrices` is a **~11% term** (mean price level differs only ~1.9×
+> between clocks). **A slice pointed only at the drift fixes ~11% and ships a
+> false green.** It may largely fall out once the budget cap is fixed — treat it
+> as secondary, and re-measure before touching it.
+>
+> **The design question underneath** (this is a modelling call, not arithmetic):
+> over a 25-year step a segment does not merely spend its *starting* wealth — it
+> also **earns** during those years, and the budget omits that income entirely.
+> What is a segment's spendable budget over a step? Sections below still describe
+> the drift; read them as background, not as the target.
+>
+> **Escalated, unresolved:** seed 99 bifurcates in the **real** economy (never
+> bootstraps at 1y; largest economy measured at 25y). The prior round's "real
+> economy only moves 2–3×, so this is purely nominal" control **fails for 1 of 5
+> seeds**. Determine whether it shares the budget-cap root **before** committing
+> to a fix.
+
 ## ⚠ Before anything: the investigation's numbers are pre-L2
 
 The investigation was run on base `768a8e4`. **L2 merged (and was pushed) after

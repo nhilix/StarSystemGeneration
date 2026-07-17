@@ -36,6 +36,18 @@ lands at the same Y. Nothing "finishes within the tick," and there are no
 per-generation rate caps — the clock resolution samples the same world-time
 durations, so coarse and fine play tell the same history (P7).
 
+An action a controller commits **once per decision** needs a world-time cadence
+to hold the invariant: without one, a finer clock re-decides more often over the
+same world-years and commits more of that action. Two such commits carry an
+explicit cadence gate — colony founding (one expedition per polity per
+`Expansion.FoundingCadenceYears`) and facility groundbreaking (one facility per
+**port** per `Infrastructure.FacilityGroundbreakCadenceYears`, per-port so a
+multi-port empire still develops every port concurrently). Both default to the
+fixed `GenerationYears` (25) world-time constant — the equality that makes the
+commit rate, and everything downstream of it (a port's facilities, its
+shipyards, the hulls those yards lay), telescope across tick resolutions rather
+than accrete faster on a fine clock.
+
 ## Generational vs. play: sampling differs, rules do not
 
 | | Genesis (coarse) | Play (fine) |

@@ -89,7 +89,7 @@ public class AllocationTests
         var engine = new EpochEngine();
         engine.Step(state);
         engine.Step(state);      // entered actors decided at least once
-        foreach (var a in state.Actors.Where(a => a.Entered && a.EntryEpoch == 0))
+        foreach (var a in state.Actors.Where(a => a.Entered && a.EntryYear == 0))
             Assert.IsType<PolityPolicies>(a.Policies);
     }
 }

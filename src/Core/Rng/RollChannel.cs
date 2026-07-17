@@ -116,4 +116,7 @@ public enum RollChannel : ulong
 
     // --- Body resource stocks (locality — body-resource-stock design). ---
     BodyResourceStock = 77,    // per-body depletable stock roll: RollContext keyed by hex, index = starIndex*100 + slotIndex, subIndex unused
+
+    // --- Off-lane smuggling detection (locality slice L2 §5). ---
+    ShipmentDetection = 78,    // off-lane seizure by a covering patrol: step = epoch, actor = shipment owner, subIndex = shipment id
 }

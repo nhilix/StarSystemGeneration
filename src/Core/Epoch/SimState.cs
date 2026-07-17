@@ -139,6 +139,30 @@ public sealed class SimState
     /// <summary>The sim-health series the engine's always-on probe feeds —
     /// in-memory only, never serialized (sim-health spec §1).</summary>
     public MetricSeries Health { get; } = new MetricSeries();
+
+    /// <summary>Gross value of goods actually transacted THIS epoch, summed at
+    /// the single clearing chokepoint (<see cref="OrderOps.SettleSale"/>, which
+    /// both book-matching and ask-lifting route through) — the flow twin of
+    /// <see cref="Market.LastCleared"/>'s quantity, in the PORT'S LOCAL currency.
+    /// <para>Why it exists: <see cref="PolityRecord.Receipts"/> is a GROSS flow
+    /// booked once per clearing, and it books non-trade transfers (the wealth
+    /// levy, tribute, courier fees) beside actual sales — so a finer clock can
+    /// book the same conserved money through it many more times. This counter
+    /// isolates the trade component, so Σ receipts can be read against the trade
+    /// it is supposed to represent (slice MC task 4).</para>
+    /// <para>⚠ NOMINAL and cross-currency: each port settles in its own
+    /// sovereign's currency, so this sums non-commensurable amounts exactly like
+    /// <see cref="MoneyRow.Supply"/> — read <see cref="MoneyRow"/>'s doc comment,
+    /// that trap has burned two investigations. It is trustworthy as a level only
+    /// in a single-currency world (seed 7 is one); elsewhere pair it with
+    /// <c>Economy.GoodsTransacted</c>, which counts UNITS and has no currency in
+    /// it at all.</para>
+    /// <para>Observability only, so — like <see cref="Health"/> — never
+    /// serialized: <see cref="MarketsPhase"/> rebuilds it from zero every step
+    /// beside the Receipts ledgers, and the snapshot reads it in the same step.
+    /// It carries no cross-step memory, so there is nothing for an artifact to
+    /// preserve.</para></summary>
+    public double GoodsValueCleared { get; set; }
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

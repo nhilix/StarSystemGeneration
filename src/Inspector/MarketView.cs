@@ -49,9 +49,10 @@ public static class MarketView
             anySeg = true;
             string culture = s.CultureId >= 0 && s.CultureId < state.Cultures.Count
                 ? state.Cultures[s.CultureId].Name : $"culture{s.CultureId}";
+            string body = s.Body.IsNone ? "—" : Invariant($"{s.Body.StarIndex}|{s.Body.SlotIndex}");
             sb.AppendLine(Invariant($"  #{s.Id} {culture} — size {s.Size:0.00}, ")
                 + Invariant($"SoL {s.SoL:0.00}, wealth {s.Wealth:0.0}, ")
-                + Invariant($"subsistence {s.LastSubsistence:0.00}"));
+                + Invariant($"subsistence {s.LastSubsistence:0.00}, body {body}"));
         }
         if (!anySeg) sb.AppendLine("  (unpeopled)");
 

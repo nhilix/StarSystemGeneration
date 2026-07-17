@@ -34,10 +34,16 @@ public class TreatyTests
         // clean single monotonic 1→2→3 climb. BR-5 (wiring BodyResourceOps.
         // Extract — extraction now DEPLETES the claimed body) shifts the
         // economy once more, delaying this seed's first polity relation from
-        // epoch ≤12 to epoch 13 (at epoch 12 Relations.Count is now 0). Re-
-        // tuned to epoch 13 — the first epoch with a clean, peacetime relation
-        // to force calm on; the ladder mechanic itself is unchanged.
-        var state = Run(13);
+        // epoch ≤12 to epoch 13 (at epoch 12 Relations.Count is now 0). Slice
+        // MC's EntryYear fix delays it once more, to epoch 14, and this one has
+        // an exact cause rather than an economic one: entry used to truncate
+        // DOWN to the 25y grid (EntryEpoch = entryYear/25, re-inflated ×25), so
+        // polities entered up to 24 years EARLY. They now enter on their actual
+        // calendar year, which is never earlier and up to one epoch later —
+        // hence exactly the one-epoch slip seen here. First clean peacetime
+        // relation is epoch 14 (13 and below: Relations.Count == 0); the
+        // ladder mechanic itself is unchanged.
+        var state = Run(14);
         Assert.True(state.Relations.Count > 0);
         // force a very warm, calm pair and let diplomacy work
         var rel = EpochTestKit.FirstLiveRelation(state);
@@ -136,7 +142,13 @@ public class TreatyTests
     [Fact]
     public void TradePact_OpensCrossBorderLanes()
     {
-        var state = Run();
+        // slice MC: the EntryYear fix shifts seed 42's history by ~one epoch
+        // (entry no longer truncates DOWN to the 25y grid), and the default
+        // 24-epoch fixture landed on a knife-edge — swept 22..28, the pact
+        // lane forms at every count except 24, at the same pair and the same
+        // distance 5. So this is fixture luck, not the mechanic: re-tuned to
+        // 25, inside the 22..27 plateau, rather than left on the one hole.
+        var state = Run(25);
         // find the closest related pair and give them a pact + funding
         PolityRelation? best = null;
         Port? bestPa = null, bestPb = null;

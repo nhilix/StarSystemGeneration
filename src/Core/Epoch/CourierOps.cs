@@ -69,10 +69,11 @@ public static class CourierOps
         });
         int accepted = 0;
         var liftLeft = new Dictionary<int, double>();     // fleet id → units
+        var severed = FleetOps.SeveredLaneIds(state);
         foreach (var c in open)
         {
-            var (laneIds, _) = ShipmentOps.PlanRoute(state, c.OriginPortId,
-                                                     c.DestPortId);
+            var (laneIds, _) = ShipmentOps.PlanBestRoute(state, c.OriginPortId,
+                                                         c.DestPortId, severed);
             int fulfiller = c.PosterActorId;              // off-lane: self
             FleetRecord? carrier = null;
             if (laneIds.Count > 0)
