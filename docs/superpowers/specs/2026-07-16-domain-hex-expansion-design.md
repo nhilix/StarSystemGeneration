@@ -203,9 +203,11 @@ worked hex, and that settlement event *is* the outpost founding.
 
 `PopulationSegment` gains a `Hex` field (`HexCoordinate`), defaulting to its
 administering port's hex. It is serialized (segments layer bump — §5). The
-segment keeps its read-only `PortId` as its **administering domain**: an
+segment keeps its `PortId` (get-only today) as its **administering domain**: an
 outpost's residents are still administered by, and trade through, the parent
-port. `PopulationSegment.Body` already exists (from the locality slice); Stage
+port. Nothing in Stage 1–2 changes a segment's `PortId`; the single sanctioned
+re-attachment is Stage 3's graduation (§4), and *how* that mutation happens
+(a settable field vs. row replacement) is an implementation-plan choice. `PopulationSegment.Body` already exists (from the locality slice); Stage
 2 lets a segment's `(Hex, Body)` be a satellite hex within the domain rather
 than always the port body.
 
