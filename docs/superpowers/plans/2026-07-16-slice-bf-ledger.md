@@ -27,7 +27,7 @@ the escalation bar is met more often than usual — noted per task.
       test. *Sonnet* (mechanical, but the dense id-order guards are load-bearing).
       Gate: round-trip + `LoadThenContinue` determinism tests green.
 
-- [ ] **3. Knobs** — `SovereignClaimInterestRate` (0.02), `ClaimServicingShare`
+- [x] **3. Knobs** — `SovereignClaimInterestRate` (0.02), `ClaimServicingShare`
       (0.25), `FxBackingSensitivity` (**0.0** — CU-2-identical landing).
       **All three registered in `KnobRegistry.cs`** (CU-2 review finding 1: an
       unregistered knob silently reverts on reload). Parallel with 1–2. *Sonnet*.
@@ -101,3 +101,15 @@ REPL surface works.
   1046 passed, 1 expected red (`GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden`
   — pure `LAYER|markets|5` → `|6` format-version diff, goldens re-freeze at Task
   12). `FineTickTests`/`TimeMachineTests` `LoadThenContinue` stayed green.
+- 2026-07-16 — Task 3 (knobs) done: `SovereignClaimInterestRate` (0.02),
+  `ClaimServicingShare` (0.25), `FxBackingSensitivity` (0.0) added to
+  `EconomyKnobs` under a new "Bank monetary authority (slice BF)" section
+  comment, each carrying a FLAGGED-for-tuning XML doc in the `ConversionSpread`
+  style; registered in `KnobRegistry.cs`, name-sorted into the existing
+  `Economy.*` block (`Names_AreUnique_Sorted_AndDocumented` and
+  `EveryKnob_RoundTripsThroughItsAccessors` cover registration and round-trip
+  generically — no new per-knob tests needed). Nothing reads the knobs yet.
+  `dotnet test`: 1046 passed, 1 expected red (the same frozen-golden diff,
+  now additionally showing the new `KNOB|Economy.ClaimServicingShare|...`
+  line — no new failures). `FxBackingSensitivity = 0.0` keeps every other
+  behavior byte-identical.

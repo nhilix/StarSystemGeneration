@@ -893,6 +893,27 @@ public sealed class EconomyKnobs
     /// ratio, not yet swept.</summary>
     public double IssuanceReserveRatio { get; set; } = 0.5;
 
+    // -- Bank monetary authority (slice BF: the bank as lender/claim-holder) --
+    /// <summary>Interest charged per epoch on <c>Bank.ClaimOnState</c>, paid
+    /// only out of a positive treasury balance. Never capitalizes — unpaid
+    /// interest is discarded, not accrued, so the claim cannot compound.
+    /// FLAGGED for the post-impl tuning pass — a placeholder rate, not yet
+    /// swept.</summary>
+    public double SovereignClaimInterestRate { get; set; } = 0.02;
+    /// <summary>Maximum share of a positive treasury balance a polity spends
+    /// servicing its bank's claim in one epoch (interest + principal
+    /// combined). Must be &lt;= 1, which is what makes servicing provably
+    /// unable to drive the treasury negative. FLAGGED for the post-impl
+    /// tuning pass — a placeholder share, not yet swept.</summary>
+    public double ClaimServicingShare { get; set; } = 0.25;
+    /// <summary>How heavily a bank's unbacked claim book
+    /// (<c>max(0, ClaimOnState - Reserve)</c>) weighs on its currency's FX
+    /// rate, as supply-equivalent money. 0.0 reproduces slice CU-2's FX
+    /// behavior byte-identically — a deliberate inert landing; a later task
+    /// raises it. FLAGGED for the post-impl tuning pass — a placeholder
+    /// sensitivity, not yet swept.</summary>
+    public double FxBackingSensitivity { get; set; } = 0.0;
+
     // -- Taxation --
     /// <summary>Per-capita wealth exemption below which the levy never bites
     /// (subsistence households untouched).</summary>
