@@ -212,7 +212,7 @@ public static class MetricsOps
         foreach (var s in state.BodyResources.Values) bodyStock += s.Quantity;
 
         // Receipts are a per-epoch FLOW — Phases zeroes every ledger's
-        // Receipts at Allocation and the snapshot lands after Chronicle, so
+        // Receipts at MarketsPhase and the snapshot lands after Chronicle, so
         // the row carries THIS epoch's take. A run's Σ receipts is the reader's
         // integral of the column, and it is the headline nominal metric of the
         // clock-invariance sweep (ClockPlan): a clock-invariant economy books

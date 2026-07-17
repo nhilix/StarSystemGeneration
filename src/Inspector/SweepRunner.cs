@@ -363,13 +363,13 @@ public static class SweepRunner
         return sb.ToString();
     }
 
-    /// <summary>fine ÷ coarse, with the degenerate cases named rather than
-    /// printed as a number: a dead world (0 → 0) is invariant, not 0/0.</summary>
     /// <summary>A clock's label — "25y". Invariant, so the paths and headers
     /// are byte-identical on any machine's culture.</summary>
     private static string Yr(int clock) =>
         clock.ToString(System.Globalization.CultureInfo.InvariantCulture) + "y";
 
+    /// <summary>fine ÷ coarse, with the degenerate cases named rather than
+    /// printed as a number: a dead world (0 → 0) is invariant, not 0/0.</summary>
     private static string Ratio(double coarse, double fine)
     {
         if (coarse == 0.0 && fine == 0.0) return "1";

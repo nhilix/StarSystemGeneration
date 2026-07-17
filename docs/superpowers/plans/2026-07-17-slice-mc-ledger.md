@@ -79,14 +79,20 @@ the harness disagreement above.
       on 20/20, collapse regime gone, ports ≥ 1.0 on 20/20; 1103 passed, golden
       the only red (expected window).
 
-- [ ] **4+. The residual nominal divergence — UNSETTLED, and NOT a fix task.**
-      Survives the entry fix at 5.5–190× nominal against a real economy at
-      2.0–4.3× ports. Task 2's judgment stands: the next step is a
+- [x] **4. The residual nominal divergence — MEASURED, and the churn hypothesis
+      is dead.** Survives the entry fix at 5.5–190× nominal against a real
+      economy at 2.0–4.3× ports. Task 2's judgment stood: the next step was a
       **measurement, not a fix** — receipts vs goods actually transacted per
       world-year, to settle whether Σ receipts (a gross flow, booked once per
       clearing, so 25× more clearings churn the same conserved money 25× more
-      times) is even the right metric. Resolve "is the metric wrong" before
-      pointing a slice at a sixth mechanism; five have died already.
+      times) is even the right metric. **DONE** — see the Log entry below
+      (`f98bb8d`). The measurement ran: it is not the metric, it is the price
+      level. The divergence is real but relocated — goods units transacted are
+      the most clock-invariant column on the grid (median 1.51×, tighter than
+      ports), while Σ receipts and Σ goods value both track a clock-dependent
+      price level (median ~16×). Resolved "is the metric wrong" (no) without
+      pointing a sixth mechanism at the sim; the residual is now a nominal
+      price-level divergence, not a churn or metric artifact.
 
 - [ ] **N. USER: eyeball · whole-branch fable review + fix wave · golden freeze ·
       merge decision.**
@@ -246,3 +252,36 @@ polity entered ~25× early in world-time at the fine clocks. See the Log entry a
   `dotnet test` **1103 passed / 1 failed** — the failure is `GoldenTests` only, the
   expected mid-slice red window (**not** regenerated; it re-freezes once at slice
   end).
+- 2026-07-17 — **task 4 DONE: the churn hypothesis is dead, the divergence is
+  price** (`f98bb8d`). Two new flow metrics on the exact window `MarketsPhase`
+  already zeroes `Receipts` in: `Economy.GoodsTransacted` (real — goods UNITS
+  cleared, from `Market.LastCleared`, no currency in it, immune to both
+  over-counting and the `MetricsOps.cs:6-37` non-commensurability trap — the
+  load-bearing column) and `Economy.GoodsValueCleared` (nominal — gross trade
+  value tallied at the single `OrderOps.SettleSale` chokepoint, commensurable
+  with Receipts, cross-currency and flagged as such). 20-seed grid, mints-off,
+  250 world-years: Σ receipts median 16.23× (5.51–189.81), Σ goods value median
+  16.55× (5.35–25.69), Σ goods **units** median 1.51× (0.90–2.69), ports median
+  3.33×. Seed 42 alone: receipts 18.1×, goods value 12.3×, goods units 1.45× —
+  the divergence is price, not churn. The churn multiple does not track the
+  clock ratio (median 1.02× against a clock ratio of 25; with the levy off it
+  is identically 0.64 at every clock/seed, the settlement identity with no
+  clock in it) — Receipts is a fixed fraction of trade value and double-counts
+  nothing. So the residual divergence is **real but relocated**: goods units
+  transacted are the most clock-invariant column on the grid (tighter than
+  ports), while Σ receipts and Σ goods value both silently multiply real
+  throughput by a clock-dependent price level. Falsified four ways and held:
+  churn (dead, above); the currency trap (seed 7 is single-currency at every
+  clock and is the worst seed, 24.53× value on 1.77× units); quantity
+  completeness (`LastCleared` increments sit adjacent to the only two
+  `SettleSale` calls, so both columns tally the identical event set); the two
+  churn outliers (11, 55) are the known wealth-levy tail and collapse to 0.64
+  flat with it off. `SimState.GoodsValueCleared` is observability-only, never
+  serialized, rebuilt each `MarketsPhase` — no knob, no roll, no iteration-order
+  change, golden unmoved, byte-identity holds. Not diagnosed further, per scope:
+  does not obviously reconcile with dead diagnosis #3's ~1.9× mean reference
+  price (different statistic, measured pre-instrument); "value per unit" is the
+  honest reading, not "price", since the implied price is mix-sensitive.
+  Per-good columns are the next extension if anyone scopes it. `dotnet test`
+  1103 passed / 1 failed — `GoldenTests` only, task 3's existing red window,
+  unmoved. Sweep byte-identical across processes; null variant exactly 1.0.
