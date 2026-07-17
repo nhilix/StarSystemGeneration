@@ -298,13 +298,14 @@ public class SovereignClaimServicingTests
         Assert.Equal(1000.0, bank.ClaimOnState, 9);
     }
 
-    /// <summary>Principal repayment moves BOTH sides of the §6 identity by p —
-    /// but the residual does not subtract CumulativeFiatRetired until task 6,
-    /// so a repayment epoch reads as a residual of exactly +p today. This test
-    /// pins that gap precisely (rather than hiding it) and is the canary task 6
-    /// flips: when the retirement term is wired, this expectation becomes 0.</summary>
+    /// <summary>Principal repayment moves BOTH sides of the §6 identity by p:
+    /// Supply falls by p and CumulativeFiatRetired rises by p. Task 6 wired the
+    /// retirement term into the residual's delta form (and its baseline carry),
+    /// so a repayment epoch now nets to 0 — (−p) + (p) = 0. This is the flipped
+    /// canary: it asserted the not-yet-wired gap before task 6; it now proves the
+    /// term is wired.</summary>
     [Fact]
-    public void PrincipalRepayment_ResidualIsExactlyTheNotYetWiredRetirement()
+    public void PrincipalRepayment_ResidualIsZero_RetirementWired()
     {
         var (state, pr, bank) = Fixture(credits: 1000, claim: 2000);
 
@@ -319,9 +320,9 @@ public class SovereignClaimServicingTests
         var cur = state.CurrencyOf(pr.CurrencyId);
 
         Assert.True(cur.CumulativeFiatRetired > 0.0, "principal was repaid");
-        // the identity's balance side is short by exactly the retirement the
-        // residual does not yet subtract (task 6 wires it and this goes to 0)
-        Assert.Equal(-cur.CumulativeFiatRetired, curRow.Residual, 6);
+        // the residual now subtracts the retirement it destroyed, so the
+        // repayment epoch is conserved (same FP tolerance the sibling tests use)
+        Assert.Equal(0.0, curRow.Residual, 6);
     }
 
     // ---- §4a: time, not ticks ----

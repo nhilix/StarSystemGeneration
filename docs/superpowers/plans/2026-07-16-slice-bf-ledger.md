@@ -91,7 +91,7 @@ the escalation bar is met more often than usual — noted per task.
       green. **⚠ NOT met — see the log; the residual cause is a separate,
       pre-existing clock-dependence in issuance, not in servicing.**
 
-- [ ] **6. Residual** — add `CumulativeFiatRetired` to `CurrencyResidualRow` AND
+- [x] **6. Residual** — add `CumulativeFiatRetired` to `CurrencyResidualRow` AND
       the baseline carry (`MetricsOps.cs:195` is a **delta** form). Design §6
       names this the single easiest way to get the slice wrong. *Opus*.
       Gate: residual ~0 across repayment epochs; **32-run sweep** (first run).
@@ -266,3 +266,24 @@ REPL surface works.
   (4× → ~12%); the remaining failure is **the per-epoch issuance cap**, which
   design §3 explicitly freezes ("ME's cap and floor are untouched") — so fixing
   it is a design decision, not this task's. **Flagged to the user.**
+- 2026-07-17 — Task 6 (residual wiring) done, on **main folded in** (post-MC:
+  branch now carries L2, CU-2, DX, MC). Pure observability wiring in
+  `MetricsOps.cs` — no money moved, no serializer/version change.
+  `CurrencyResidualRow` gains a `CumulativeFiatRetired` field (grouped with the
+  other cumulative counters, before `Residual`/`Reserve`; the single
+  construction site updated in step), the delta form gains
+  `+ (cur.CumulativeFiatRetired − baseline.CumulativeFiatRetired)` — the one
+  SUBTRACTIVE counter enters with a PLUS sign to cancel the Supply drop
+  (`(−p) + (p) = 0`), and the baseline row carries it, exactly as `Reserve` did
+  in CU-2. Doc comment extended to name the retirement term. The canary
+  `PrincipalRepayment_ResidualIsExactlyTheNotYetWiredRetirement` FLIPPED (not
+  deleted) to `PrincipalRepayment_ResidualIsZero_RetirementWired`, now asserting
+  `residual == 0` (tol 6) — green.
+  `dotnet test`: **1126 passed, 1 red** — ONLY the standing frozen-golden diff
+  (`GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden`, re-frozen at Task 12,
+  NOT regenerated). All 6 Task-6-gap conservation tests now green.
+  **32-run sweep** (first run since the money sink landed AND since MC changed
+  the polity entry schedule): worst per-currency `Money.ConservationResidual`
+  = **1.81e-07 abs** at Supply 5.43e+08 (cheap-credit/31337 epoch 33), worst
+  **relative 2.15e-15** (cheap-credit/9091 epoch 33) — a few ULPs, FP noise, not
+  a leak. Conservation holds across the merged reality, not just seed 42.

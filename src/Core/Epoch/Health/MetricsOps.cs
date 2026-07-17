@@ -48,11 +48,20 @@ public sealed record MoneyRow(
 /// SEQUESTERED out of the walked (circulating-only) <see cref="Currency.Supply"/>
 /// by conversion spread (slice CU-2 bank-actor); the residual balances against
 /// <c>Supply + Reserve</c> so a nonzero reserve is not read as a leak, and the
-/// baseline row carries it so the delta stays correct.</summary>
+/// baseline row carries it so the delta stays correct.
+/// <see cref="CumulativeFiatRetired"/> is the currency's
+/// <see cref="Currency.CumulativeFiatRetired"/> — money DESTROYED on sovereign-
+/// claim principal repayment (slice BF bank-flow), the sim's first monetary
+/// SINK and the identity's one SUBTRACTIVE counter. The residual subtracts its
+/// delta (equivalently, adds it to the balance side: a repayment drops
+/// <c>Supply</c> by <c>p</c> and raises this by <c>p</c>, netting to 0), and the
+/// baseline row carries it so the delta stays correct — the same treatment
+/// <see cref="Reserve"/> got in CU-2.</summary>
 public sealed record CurrencyResidualRow(
     int CurrencyId, double Supply,
     double CumulativeFiatIssued, double CumulativeSteadyIssuance,
     double CumulativeConvertedIn, double CumulativeConvertedOut,
+    double CumulativeFiatRetired,
     double Residual, double Reserve);
 
 /// <summary>One epoch's macro snapshot — a pure function of the state at
@@ -192,17 +201,24 @@ public static class MetricsOps
             // against Supply + Reserve — the SAME bank SettleConversion writes.
             // Otherwise a nonzero reserve reads as a false leak.
             double reserve = state.BankOf(cur.Id).Reserve;
+            // CumulativeFiatRetired is the identity's one SUBTRACTIVE counter
+            // (money destroyed on sovereign-claim principal repayment, slice BF):
+            // a repayment epoch drops Supply by p and raises this by p, so its
+            // delta enters with a PLUS sign here to cancel the Supply drop —
+            // (−p) + (p) = 0. Without it every repayment epoch reads a false leak.
             double residual = 0.0;
             if (baseline != null)
                 residual = (cur.Supply + reserve) - (baseline.Supply + baseline.Reserve)
                     - (cur.CumulativeFiatIssued - baseline.CumulativeFiatIssued)
                     - (cur.CumulativeSteadyIssuance - baseline.CumulativeSteadyIssuance)
                     - (cur.CumulativeConvertedIn - baseline.CumulativeConvertedIn)
-                    + (cur.CumulativeConvertedOut - baseline.CumulativeConvertedOut);
+                    + (cur.CumulativeConvertedOut - baseline.CumulativeConvertedOut)
+                    + (cur.CumulativeFiatRetired - baseline.CumulativeFiatRetired);
 
             currencyRows.Add(new CurrencyResidualRow(cur.Id, cur.Supply,
                 cur.CumulativeFiatIssued, cur.CumulativeSteadyIssuance,
-                cur.CumulativeConvertedIn, cur.CumulativeConvertedOut, residual,
+                cur.CumulativeConvertedIn, cur.CumulativeConvertedOut,
+                cur.CumulativeFiatRetired, residual,
                 reserve));
             double abs = residual < 0 ? -residual : residual;
             if (abs > worstResidual) worstResidual = abs;
