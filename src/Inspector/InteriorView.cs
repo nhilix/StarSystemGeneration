@@ -63,6 +63,17 @@ public static class InteriorView
                 + Invariant($"spread intake {bank.CumulativeSpreadIntake:0} (cum) · ")
                 + Invariant($"reserve-funded {bank.CumulativeReserveFunded:0} (cum) · ")
                 + Invariant($"backstop-minted {currency.CumulativeFiatIssued:0} (cum)"));
+
+            // the bank's asset side — its claim on the state (bank-flow
+            // design, slice BF §9). Backing ratio is the credibility measure
+            // CU-4 will read (guarded: an empty claim book divides by zero).
+            double backing = bank.ClaimOnState > 0 ? bank.Reserve / bank.ClaimOnState : -1;
+            sb.AppendLine(Invariant($"    claims: book {bank.ClaimOnState:0} · ")
+                + (bank.ClaimOnState > 0
+                    ? Invariant($"backing {backing:0.00} · ")
+                    : "backing — · ")
+                + Invariant($"lent {bank.CumulativeLentToState:0} (cum) · ")
+                + Invariant($"retired {bank.CumulativeRetired:0} (cum)"));
         }
 
         // the reign

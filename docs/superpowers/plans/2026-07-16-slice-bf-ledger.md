@@ -101,7 +101,7 @@ the escalation bar is met more often than usual — noted per task.
       `FxOps.cs:59`. *Opus* (determinism formula + design judgment).
       Gate: `FxBackingSensitivity = 0` reproduces CU-2 **byte-identically**.
 
-- [ ] **8. REPL surface** — claim book, backing ratio, retired-to-date on the
+- [x] **8. REPL surface** — claim book, backing ratio, retired-to-date on the
       currency line. *Sonnet*.
       Gate: the REPL surface works (piped via bash `printf`, not PowerShell).
 
@@ -315,3 +315,21 @@ REPL surface works.
   pass can read `BankOf` — bank starts empty, rate unchanged. Scope held: knob
   stayed at 0 (task 9 activates), no touch to `Bank`/`Currency`/serializer/
   `Phases`/`MetricsOps`.
+- 2026-07-17 — Task 8 (REPL surface) done: `InteriorView.RenderPolity`
+  (`src/Inspector/InteriorView.cs`) gains a new `claims:` line directly below
+  CU-2's `bank:` line, inside the same `pr.CurrencyId >= 0` guard, reusing the
+  existing `bank`/`currency` locals — `book {ClaimOnState}`, a guarded
+  `backing {Reserve/ClaimOnState}` (`—` when `ClaimOnState == 0`, avoiding a
+  divide-by-zero/NaN), `lent {CumulativeLentToState} (cum)`,
+  `retired {CumulativeRetired} (cum)`. Display only — no behavior, no
+  serialization, no knob. `dotnet test`: **1129 passed, 1 red** — only the
+  standing `GoldenTests.ReferenceArtifact_MatchesTheFrozenGolden` (not
+  regenerated). REPL driven via bash `printf 'epoch 42 40\nestep 60\npolity\nquit\n'
+  | dotnet run --project src/Inspector -c Release` (100 epochs total, since a
+  bare 40-epoch run left every claim book at 0 — sovereign lending needs a
+  deficit to fire): claims lines render with real non-zero numbers, e.g.
+  polity #25 Shano — `bank: reserve 44612 · spread intake 236 (cum) ·
+  reserve-funded 8462 (cum) · backstop-minted 77589 (cum)` /
+  `claims: book 62484 · backing 0.71 · lent 77589 (cum) · retired 15105 (cum)`.
+  The guarded `backing —` path was also exercised (every polity with a zero
+  claim book prints it, e.g. #68 Selsel).
