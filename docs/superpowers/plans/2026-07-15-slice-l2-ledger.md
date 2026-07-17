@@ -189,6 +189,51 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   7/7; Conservation+Determinism+WarConduct+WarResolution 24/24; **full suite 1042 pass / 1 red
   (only the deferred golden).**
 
+## Whole-branch fresh-eyes review (fable, 81c03c6..2bf25f9) — VERDICT: MERGE
+
+No Critical. Independently verified: full suite 1043/1043; only new roll = ch.78 keyed
+correctly, RollChannel append-only (77 still BodyResourceStock); seizure goods-only,
+`PayWages` untouched, portless captor takes nothing; `Planner.CostOf` + `SpawnHullBatch`
+share `DesignMath.HullBatchYears` and `PortBrief.YardTiers` uses the identical filter
+`GroundbreakHullBatch` re-sums; two depletables can NEVER co-claim a (hex,body) stock
+(every body assignment routes through `PlaceFacilityBody`; `CompetesForBody` symmetric;
+extraction never falls back to port body); 4 knobs sorted + documented, defaults match;
+amended docs accurate, no stale 0.3-floor/global-claim language survives.
+**Test honesty confirmed the strong way: `FineTickTests.cs` was NOT touched on this branch
+(last commit f9e3b99, pre-base) — the telescoping guard went green from production changes
+alone.** Golden re-frozen exactly once with enumerated deltas. MineralColony split
+*strengthens*. ~11× hull increase judged correct (totals conserve, macro bands pass on seeds
+42 AND 7, WarResolution recovered, CLOCK growth consistent with a real economy not a leak).
+Agrees the siege-race follow-up is pre-existing and correctly out of scope.
+
+**Important #1 — off-lane detection has no hostility gate (design-as-spec conflict).**
+`PatrolCoverage.At` (PatrolCoverage.cs:20-27) and the attribution rescan
+(ShipmentOps.cs:404-410) exclude only the shipment OWNER, so an ALLIED/federation-partner or
+neutral patrol seizes cargo at peace (every polity stations escorts at its capital,
+FleetOps.cs:122). Scenario: an own frontier colony 6 hexes from a FRIENDLY capital loses its
+founding-era supply runs to that friend, staging `CargoSeized` against an ally.
+`docs/design/economy/markets.md:97` says "strongest **hostile** Patrol coverage" — code says
+any foreign. NOTE: the source plan was internally inconsistent (prose "hostile" vs interface
+spec "any fleet NOT owned by ownerActorId"); the impl followed the interface spec faithfully.
+Needs an explicit decision (hard rule: design is the spec). → USER DECISION PENDING.
+
+**Important #2 — residual count-scaled affordability gate at hull groundbreak (latent).**
+`GroundbreakHullBatch` still gates on the FULL batch value up front (`pr.MilitaryPoints <
+value`, Phases.cs:1135-1140) while the actual draw is per-year — a coarse bundle needs ~span×
+the treasury of a fine sliver at the same instant. Same defect FAMILY Task 9 fixed one layer
+up; currently MASKED (FineTick passes seeds 42 and 7), but a poor-treasury regime re-opens the
+coarse/fine hull divergence through this door. Reviewer: not a merge blocker, file it. →
+USER DECISION PENDING (fix now vs file).
+
+**Minors (reviewer agrees none block / none of the ledger's filed Minors escalate):**
+`SpawnHullBatch`'s new `yardTiers=0` param sits BEFORE `startedYear` (all 8 callers verified
+safe, but a future positional `startedYear` would silently bind to `yardTiers` — reorder in a
+later touch); Math.Pow NaN at insane knobs (fails safe, pre-existing in interdiction); dual
+coverage compute (consistent only while detection passes BodyRef.None); SupplyLands double
+segment walk; RichestBiosphere never sites Agri on a Barren body even at Hydro=100 (siting
+stricter than yield — one doc sentence if ocean-world farming matters); cadence gate keys on
+(owner,port) so a freshly captured port can groundbreak immediately (epoch-boundary noise).
+
 ## Follow-up filed (NOT fixed in L2 — pre-existing, out of scope)
 
 - **Siege clock vs war-termination clock race (found by Task 10).** A war settled by `SideBroke`'s
