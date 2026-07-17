@@ -780,23 +780,33 @@ the very end.
    (measured pre/post). The kickoff carries the evidence, the four candidate
    models, and the pre/post table as the acceptance instrument. Parallel-safe
    with the CU lineage (different subsystems) — worktrees.
-3. **Slice CU-3 (Federation-triggered currency consolidation)** — the next of
-   the CU forward roadmap, kickoff chained:
+3. **Slice CU-3 (Federation-triggered currency consolidation)** — **IN
+   PROGRESS** (worker spawned 2026-07-16, psmux `slice-cu3`):
    `docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`. Replaces
    CU-1's blunt forced-conversion-at-absorption stub with a real mechanic once
    banks exist to be party to a merger. **Read the CU-2 follow-up #1 first** (the
    bank-reserve-flow-gap): the design should weigh whether the bank-reserve-flow
    redesign is a prerequisite that belongs before CU-3/CU-4, or proceeds in
    parallel.
-4. **Slice K6 (The economy surfaces)** — parallel-safe (worktrees):
+4. **Slice DX (Domain hex expansion)** — spec approved + committed
+   (`docs/superpowers/specs/2026-07-16-domain-hex-expansion-design.md`),
+   kickoff chained
+   (`docs/superpowers/plans/2026-07-16-slice-dx-kickoff-prompt.md`), Trello
+   card in Kickoff Ready. Closes the adjacent-hex-spillover thread (Slice L
+   follow-up #1) generalized: satellite workings → outposts → frontier
+   graduation, three phase gates, sim-only. **DELIBERATELY HELD** (user
+   decision 2026-07-16): do not spawn until Slice CU-3's hiccups are fully
+   resolved — no new parallel dev lines until then; confirming the hold is
+   lifted is part of the scope nod.
+5. **Slice K6 (The economy surfaces)** — parallel-safe (worktrees):
    `docs/superpowers/plans/2026-07-12-slice-k6-kickoff-prompt.md`
    — TRADE lens on the rail, order-book + contracts panels, freight
    purposes on the map, war-supply readout; zero sim behavior. Will now
    also want to surface per-currency prices/rates somewhere, given CU-1
    landed after this kickoff was written — flag to whoever picks it up.
-5. **The gap-list backlog** — the roadmap's designated successor queue
+6. **The gap-list backlog** — the roadmap's designated successor queue
    (item 10 in Carried/flagged above).
-6. User read-through of the design specs — still outstanding.
+7. User read-through of the design specs — still outstanding.
 
 ## Carried process conventions (unchanged)
 
