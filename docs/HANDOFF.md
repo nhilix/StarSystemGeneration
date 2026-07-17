@@ -1,4 +1,121 @@
-# Session Handoff — 2026-07-16 (Slice L2, population & off-lane — MERGED)
+# Session Handoff — 2026-07-16 (L2 MERGED · BF PARKED · next up: Slice MC)
+
+**NEXT UP: Slice MC — P7-clean nominal price formation.**
+Kickoff: `docs/superpowers/plans/2026-07-16-slice-mc-kickoff-prompt.md`.
+Run it **alone** — its blast radius is every price, every price-sensitive golden,
+and ME's monetary operating point.
+
+**Two chains are live; MC goes first (user call, 2026-07-16).** L2's wrap-up
+chained **Slice WT** (war termination,
+`2026-07-15-slice-wt-kickoff-prompt.md`) — still valid, still queued, just not
+next. MC wins the tie because it **blocks BF, which blocks CU-3 and CU-4** — the
+entire CU chain is stalled behind it.
+
+**Chain: MC → BF (resume at task 6) → CU-3 → CU-4.** WT runs when MC is clear.
+
+This commit is **docs-only**. No code from the BF session is on main; BF's code is
+parked on its own branch (below).
+
+## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
+
+Branch **`slice-bf-bank-flow`** (worktree `.worktrees/slice-cu3` — the directory
+name is a stale artifact of a mid-session pivot; the branch name is authoritative).
+**Based on `768a8e4`, which is now behind — it has NOT folded in L2.** Not merged,
+not pushed. Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`;
+ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md` — **its header
+carries the full park notice, the known-red set, and the resume point.**
+
+**How this session got here:** it opened as **CU-3** (currency consolidation),
+whose kickoff demanded a sequencing decision on CU-2 follow-up #1
+(`[[bank-reserve-flow-gap]]`). The orchestrator recommended CU-3-first; **the user
+chose to fix the prerequisite first** → the session pivoted to BF. BF then hit its
+*own* prerequisite and the user made the same call again → Slice MC. CU-3's
+kickoff (`2026-07-16-slice-cu3-kickoff-prompt.md`) stays on disk, unstarted, still
+valid.
+
+**What BF is:** closes CU-2 follow-up #1 — the bank's reserve had one inflow (the
+FX spread, ~0.1% of deficit funding), so it could never intermediate. Rather than
+levying every receipt site, BF makes the sim's existing dominant chokepoint a bank
+operation: `IssueSovereignCredit` → `Bank.LendToState`, moving the bank to ~100%
+of deficit funding **without touching a receipt site**. The bank gains an asset
+side (`ClaimOnState` — a claim, not a holder, per `MetricsOps.cs:24`'s
+LoanPrincipal precedent); servicing is **surplus-only** and interest **never
+capitalizes** (no compounding term exists anywhere — that is the entire
+spiral-proofness argument, and why it needs no `LoanCapitalizationCeiling`
+analogue); principal repayment **destroys money** — the sim's first monetary sink.
+Backing ratio feeds the FX rate; **no reserve gate**, so ME's lender-of-last-resort
+floor stays absolute.
+
+**Landed (tasks 1–5b):** data model `aaefa5f` · serialization `b2dea02` (banks
+v1→v2, markets v5→v6) · knobs `feb8abe` · `LendToState` `82cc074` · servicing +
+money sink `65cdf4a` · design amendment §4a `3983ec2` · year-scaled servicing
+`6b5bb49` · park `aa5ce62` · record correction `d8bc4ad`.
+**NOT started: tasks 6–13** (residual term, FX backing term, REPL, sweep + backing
+activation, eyeball, whole-branch fable review, golden freeze, merge).
+
+**Known-red on that branch, all expected** (detail in the ledger header): the
+standing mid-slice golden; **6 negative** conservation residuals (the task-6 gap —
+the residual does not yet subtract `CumulativeFiatRetired`; task 6 closes them);
+and `FineTick_ProjectCompletions`, which **only Slice MC can green**.
+
+**On resume:** fold main in first, then **re-baseline BF's knob defaults (§9)
+before task 9's sweep** — MC will move every price and receipt.
+
+### The two design findings BF earned (both from evidence, neither from review)
+
+1. **§4a — "time, not ticks" (amended in-branch, `3983ec2`).** The original §4
+   charged a fraction of a treasury *stock* once *per epoch*, so servicing
+   intensity scaled as 1/`YearsPerEpoch` (treasury diverged 4× between clocks).
+   Now the share compounds per world-year (`1 − (1 − s)^years`, `DecayIdlePools`'
+   precedent) while **interest stays LINEAR in years** — because rule 2 forbids
+   compounding, the claim cannot grow between world-years, so each accrues on the
+   same principal. Knobs renamed to the repo's `PerYear` convention. Both hard
+   rules still hold **structurally, not by a clamp**.
+2. **§3's freeze of ME's issuance cap is CORRECT and stands.** Two plausible
+   diagnoses were **refuted by experiment**: the cap **never binds at 25y, not
+   once**; and zeroing both mints still leaves receipts diverging 16×. Do not
+   amend §3. This is the session's clearest lesson — the first plausible story was
+   wrong twice, and only instrumentation settled it.
+
+## Slice MC — P7-clean nominal price formation (NEXT; kickoff written)
+
+**The defect** (`MarketEngine.DriftReferencePrices`, `MarketEngine.cs:1132–1169`,
+**re-verified present on main**): demand is normalized per generation
+(`/StepFraction`) but supply is the **raw resting-ask stock**, whose size scales
+with step length. A 25y step dumps 25 years of production into one clearing →
+permanent glut → prices pinned at 1.000. A 1y step trickles → stock-outs
+(`supply = 0 → demand/eps ≈ 1e9 →` clamped every step) → prices at the 59–100
+ceiling. **The two clocks sit in opposite saturated price regimes.** Nominal
+receipts/yr diverged 68× while the real economy diverged only 2–3× — the tell that
+this is nominal, not real. Structural across seeds; a dead world diverges 1.0× as
+a clean control.
+
+**⚠ The investigation's magnitudes are pre-L2** (measured at `768a8e4`). L2's own
+two time-not-ticks fixes (facility groundbreak cadence; hull-batch build duration)
+touch **neither** `DriftReferencePrices` — so the *diagnosis* stands and was
+re-verified against main's source — but every *number* must be re-measured on main
+before being quoted. Both the kickoff and the investigation carry this caveat.
+
+**The obvious fix is already tested and REFUTED** (Finding 6): drop `/StepFraction`
+and compound `factor^years` — the formula correct on paper — improves 16×→5× but
+**does not converge and inverts**. `unsoldAsks` is inherently step-length-dependent,
+so no reformulation *of the drift alone* works. A real fix must address supply
+batching (flow-vs-flow, or a normalized ask window) — a design question, hence a
+brainstorm, hence a slice.
+
+**Not in tension with the LOLR floor** (Finding 7): the cause is upstream and
+monetary-policy-agnostic. The **converse** risk is the one to watch — a fix raising
+coarse receipts ~16× moves ME's monetary operating point, and *that* needs ensemble
+validation per the SH bar.
+
+**Also MC's job — correct the record:** `FineTickTests`' docstring asserts
+*"confirmed: no per-tick-vs-per-year formula defect ... legitimate
+economy-trajectory drift"*, and its band has been widened **three times
+(0.6→0.85)** absorbing this exact defect under that false explanation. The test has
+been the sim's early-warning system for a structural bug and was progressively
+silenced. Correct it; re-tighten the bands to what the fixed engine supports.
+
+## Slice L2 — population & off-lane (closed, MERGED and PUSHED at `dda698b`)
 
 State: `slice-l2-population-offlane` merged to `main` at `dda698b` with
 `--no-ff` — **pushed** (user say-so, 2026-07-16). 1081/1081 `dotnet test`
