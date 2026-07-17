@@ -123,8 +123,9 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   reproduced RED in an isolated pre-fix worktree): spec PASS + quality PASS, 0
   Critical/Important; 1 style-nit Minor (hardcoded ids matching fixture convention).
 
-- [ ] **Task 8** (added mid-slice — user approved fixing the FineTick invariant break
-  in-slice) — world-time cadence gate on facility groundbreaking. Per-port gate mirroring
+- [x] **Task 8** (added mid-slice — user approved fixing the FineTick invariant break
+  in-slice) — world-time cadence gate on facility groundbreaking. **[DONE — facility gate
+  correct; user chose 2b for the 2nd layer, landed in Task 9.]** Per-port gate mirroring
   `Expansion.FoundingCadenceYears`; new knob `Infrastructure.FacilityGroundbreakCadenceYears`
   (default 25.0 = GenerationYears). Gate in `GroundbreakFacility` (Phases.cs:1169): hold if
   this polity has a FacilityConstruction at this port started within the cadence. Acceptance:
@@ -148,10 +149,26 @@ TDD + frequent commits (no Co-Authored-By trailer on in-slice commits).
   bundled slots cost ~25× per-year and get dropped (treasury short); fine's per-year slivers
   fit. Pre-existing planner logic, exposed by L2's economic shifts (hulls telescoped at
   merge-base: 5 vs 8). A hull cadence gate is the WRONG tool (would throttle fine down to
-  coarse's broken-low rate). **PAUSED FOR USER DECISION: (2a) keep facility gate + narrow
-  FineTick built-world scope to facilities+port-raise [which now telescope] + Skip-guard
-  hulls with a filed follow-up for the hull-affordability fix → merge L2; vs (2b) fix hull
-  affordability/telescoping in L2 too (deeper planner change).**
+  coarse's broken-low rate). **USER CHOSE 2b (fix in-slice, no backlog) → Task 9.**
+- [x] **Task 9** — hull-batch cost telescopes with yard throughput. DONE (commit `6effda8`,
+  DONE_WITH_CONCERNS). Fix: `duration = max(size floor, Count/yardRate)` via shared helper
+  `DesignMath.HullBatchYears`, used by BOTH `Planner.CostOf` and `ProjectOps.SpawnHullBatch`
+  (yardTiers passed from `GroundbreakHullBatch`) so per-year cost is yard-throughput-bounded,
+  tick-invariant, total conserved. **FineTick now GREEN honestly** (steps=8: coarse=23, fine=13,
+  band [11,46]; sweep steps 7-14 all pass = plateau, no scope narrowing). **Conservation +
+  Determinism GREEN.** Coarse-sim hull delta: real sim now builds ~22 hull-completions/200y vs
+  ~2 pre-fix (~11× — the bundles it used to drop now build; intended). Ripple: full suite 1041
+  pass / 2 red. `WarResolutionTests.FullHistory_WarsStartANDEnd` RECOVERED to green. Golden
+  still red (slice-end re-freeze). **ONE NEW RED: `WarConductTests.Siege_FallsThePort_SegmentsIntact`**
+  — NOT a mechanism break (5000 attacker hulls still won't fall the target → geography/pairing
+  drift, not force; siege events fire + captures at higher epochs). Fragile emergent-history-
+  coupled test (re-tuned 4× by epoch-nudging via `FirstLiveRelation`); the larger navies shifted
+  seed-42's mid-history so no clean epoch in 13-27. Left honestly red. → **Task 10: rework it to a
+  robust deterministic siege, not another epoch nudge.**
+- [ ] **Task 10** — decouple `Siege_FallsThePort_SegmentsIntact` from emergent pairing:
+  diagnose why the staged siege no longer completes at seed-42's new history, then rework it to
+  test the siege MECHANIC robustly (port falls, segments intact, SiegeBegun+PortCaptured,
+  objective Taken) without depending on `FirstLiveRelation`'s emergent pick. OPUS.
 
 - [x] **Task 9** (added mid-slice — user chose 2b: fix the hull-affordability layer in-slice, no
   backlog) — hull-batch cost telescopes with world-time. Root cause: `Planner.CostOf` +
