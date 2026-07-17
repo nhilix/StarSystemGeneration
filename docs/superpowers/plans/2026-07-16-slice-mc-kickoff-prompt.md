@@ -10,6 +10,24 @@ This is a **market-engine design slice with economy-wide blast radius**, not an
 arithmetic patch. Read first, brainstorm, do NOT skip to a fix — the obvious fix
 has already been tried and measured, and it does not work (see below).
 
+## ⚠ Before anything: the investigation's numbers are pre-L2
+
+The investigation was run on base `768a8e4`. **L2 merged (and was pushed) after
+it**, landing **two of its own "time, not ticks" invariant fixes** — facility
+groundbreak cadence (new knob `Infrastructure.FacilityGroundbreakCadenceYears`)
+and hull-batch build duration. Neither touches `DriftReferencePrices`, and the
+defect was **re-verified present in main's source** (`demand / StepFraction`
+against a raw `unsoldAsks` stock), so **the diagnosis stands**.
+
+But every *magnitude* quoted below and in the investigation (6,259 vs 18,104
+issued; 16×/68× receipts; the seed sweep) was measured pre-L2 and is **not
+current**. Branch from **main**, and **re-measure the baseline before quoting any
+number as fact.** Expect the ratios to move; the structural direction is what
+carries over. Treat a materially different baseline as information, not as a
+reason to doubt the diagnosis — but if the divergence has largely *vanished* on
+main, stop and tell the user: L2's fixes would then have overlapped more than
+expected, and this slice's premise needs re-checking.
+
 ## Read first, in order
 
 1. `docs/superpowers/specs/2026-07-16-market-clock-dependence-investigation.md`

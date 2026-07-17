@@ -2,7 +2,24 @@
 
 **NEXT UP: Slice MC — P7-clean nominal price formation.**
 Kickoff: `docs/superpowers/plans/2026-07-16-slice-mc-kickoff-prompt.md`.
-Nothing is merged from this session; `main` is unmoved at `768a8e4`.
+Nothing is merged from this session.
+
+**⚠ main MOVED during this session — this branch is based on `768a8e4`, main is
+now `970b19a`.** L2 merged and was **pushed** mid-session, and L2's own wrap-up
+chained a different next-up (**Slice WT**, war termination,
+`2026-07-15-slice-wt-kickoff-prompt.md`). So there are **two live chains**: WT
+(from L2) and MC (from here). Sequencing between them is a user/orchestrator
+call — MC has economy-wide blast radius and should not run in parallel with
+anything touching prices; WT is a different subsystem and plausibly can.
+
+**BF must fold main in when it resumes** — it has not yet. L2 landed **two of its
+own "time, not ticks" invariant fixes** (facility groundbreak cadence; hull-batch
+build duration) which move the economy. Neither touches
+`DriftReferencePrices`, so **the MC diagnosis stands and was re-verified against
+main's source** — but the investigation's *magnitudes* (6259 vs 18104 issued;
+16× receipts) were measured on the pre-L2 base `768a8e4` and **must be re-measured
+on main** before being quoted as current. The direction is structural (visible in
+the code); the numbers are not current.
 
 ## Slice BF — the bank as monetary authority (PARKED, not abandoned)
 
