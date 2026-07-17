@@ -1,5 +1,42 @@
 # Sovereign issuance clock-dependence — root-cause investigation
 
+> ## ⚠ SUPERSEDED IN PART — read `2026-07-17-mc-baseline-on-main.md` first
+>
+> Re-measured on main (post-L2) 2026-07-17. **The conclusion that the sim's
+> nominal price formation is not P7-clean HOLDS** — divergence survives at
+> comparable magnitude (Σ receipts 12.3×/25.3×/16.4× on seeds 42/7/2024; dead
+> control 1.04×), and this document's 25y figures reproduce almost exactly
+> (receipts 15,300 vs 14,945), so the frames are comparable.
+>
+> **But this document locates the defect at the wrong site.** Corrections:
+>
+> - **`DriftReferencePrices` is a MINOR term (~11%), not the cause.** Mean price
+>   level differs only **~1.9×** between clocks — a 2× price term cannot produce a
+>   12–25× receipts divergence. A slice pointed only here fixes ~11% and ships a
+>   false green.
+> - **Finding 5's "ask stock 165 vs 32 = 5.2×" does not reproduce** — re-measured
+>   at **1.4×**.
+> - **Finding 5's "fine sits at the 59–100 price ceiling" is wrong** — fine's
+>   median relative price is **1.000**; only 14% of prices are ceiling-pinned.
+> - **The real dominant site is one layer upstream** (`MarketEngine.cs` ~366/401):
+>   the band-bid want is correctly `× years`, but is then capped by
+>   `budget = seg.Wealth` — a **stock, never scaled to world-time** — so realized
+>   demand is step-invariant while supply is year-scaled. **Trade frequency**, not
+>   price, is the driver: trades/yr 39.5× × avg-trade-value 0.31× = 12.3× receipts,
+>   a decomposition that closes exactly.
+> - **Finding 7 still holds**: the cause remains upstream of monetary policy, so
+>   BF design §3's freeze of ME's issuance cap is still correct and still stands.
+> - **The "purely nominal" control FAILS for 1 of 5 seeds.** Seed 99 bifurcates in
+>   the **real** economy — at 1y it never bootstraps (1 port, flat for 250 years);
+>   at 25y it is the largest economy measured (12 ports). Genesis is verified
+>   clock-independent, so this is trajectory. There may be a second, real-economy
+>   ignition clock-dependence.
+>
+> What this document remains authoritative for: its **refutations** (the issuance
+> cap never binds at 25y — not once; zeroing both mints still leaves receipts
+> diverging 16×), its method, and Finding 7. Those still stand and should not be
+> re-tread.
+
 Branch `slice-bf-bank-flow`, worktree `.worktrees/slice-cu3`. All instrumentation
 removed; branch left pristine (`git status` clean, build green).
 
