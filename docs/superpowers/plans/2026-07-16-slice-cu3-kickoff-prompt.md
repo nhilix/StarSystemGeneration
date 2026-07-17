@@ -1,12 +1,54 @@
 # Slice CU-3 kickoff — federation-triggered currency consolidation
 
+> ## ⚠ AMENDED 2026-07-17 — the sequencing decision is RESOLVED and the scope GREW
+>
+> This kickoff was written before Slice BF existed. **The big opening question
+> below — "is the bank-reserve-flow redesign a prerequisite?" — has been answered:
+> YES, and it is DONE.** That redesign became **Slice BF (merged, main `0bdb009`)**
+> after the user chose to fix the prerequisite first. Do NOT re-litigate the
+> sequencing; do NOT treat CU-2's banks as peripheral (BF fixed exactly that).
+>
+> **What BF changed, and why CU-3's scope is now bigger:** the per-currency `Bank`
+> gained an **asset side** — `Bank.ClaimOnState` (the bank's outstanding claim on
+> its own polity, from `LendToState`), plus `CumulativeLentToState`,
+> `CumulativeRetired`, and `Currency.CumulativeFiatRetired` (the money sink). So a
+> currency merger no longer consolidates two near-empty reserves — it consolidates
+> two **balance sheets** (reserve AND claim book). The new open questions CU-3 must
+> answer (BF design §8, `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`):
+> - When polity A absorbs polity B, what happens to **B's claim book** — the debt
+>   B's now-retired bank held against B? Does it transfer to A's bank (A inherits
+>   the claim on its new territory), extinguish, or fold into the merged reserve?
+>   **An extinguished claim is conservation-neutral** (a claim isn't money — verify
+>   against BF's §6 identity) **but monetarily consequential** (the sink that claim
+>   represented disappears with it).
+> - How do two **reserves** combine (the original CU-3 question — still open)?
+> - Does the **FX-backing** relationship (BF §5: unbacked claim weighs on the rate)
+>   survive the merge sensibly — the survivor's backing ratio must recompute over
+>   the combined balance sheet.
+>
+> **Read BEFORE the reading list below:** BF's design spec (esp. §5, §6, §8) and
+> the merged code — `src/Core/Epoch/Bank.cs` (the asset-side fields),
+> `Phases.cs` `ServiceSovereignClaim`/`LendToState`, `FederationOps.MergeInto`
+> (the seam — note it already force-converts treasury+pools; CU-3 adds the
+> bank-balance-sheet consolidation beside that). The conservation instrument is
+> the 32-run sweep; BF holds it at ~2e-15 relative — any consolidation moving
+> reserves/claims across currencies must keep it there.
+>
+> The body below is the ORIGINAL framing — still useful for the currency/reserve/
+> dangling-holdings questions, but read every "CU-2 banks are peripheral / weigh
+> the sequencing" note as already-answered history.
+
+---
+
 You are opening the third slice of the CU chain. CU-1 gave every polity its own
 `Currency`; CU-2 gave each currency a first-class `Bank` (reserve, spread,
-reserve-funded issuance). CU-3's job: replace CU-1's blunt
-forced-conversion-at-absorption **stub** with a real mechanic — when polities
-federate or one absorbs another, their currencies (and their CU-2 banks)
-consolidate, plausibly gradually rather than instantly. Read first, then
-brainstorm; do NOT skip to design.
+reserve-funded issuance); **Slice BF made that bank a real monetary authority
+(lending, a money sink, FX-backing) — see the amendment banner above.** CU-3's
+job: replace CU-1's blunt forced-conversion-at-absorption **stub** with a real
+mechanic — when polities federate or one absorbs another, their currencies **and
+their banks' balance sheets (reserve + claim book)** consolidate, plausibly
+gradually rather than instantly. Read first, then brainstorm; do NOT skip to
+design.
 
 ## Read first, in order
 

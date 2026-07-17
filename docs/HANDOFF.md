@@ -1,24 +1,31 @@
-# Session Handoff — 2026-07-17 (Slice MC MERGED · BF unblocked · next up: BF resume or WT)
+# Session Handoff — 2026-07-17 (Slice BF MERGED · next up: CU-3, now unblocked)
 
-**Slice MC — P7-clean polity entry + the clock-invariance instrument — MERGED**
-to `main` locally at `0d93250` with `--no-ff` (main had moved: folded in main's
-docs-only DX chain, no code conflict). **Not pushed** — push on say-so.
-1104/1104 `dotnet test` on the merged tip · determinism byte-identity verified
-(two independent seed-42 runs) · one fable whole-branch review (MERGE WITH FIXES,
-0 Critical, 1 Important + 3 Minor, all fixed in one wave) · golden re-frozen once
-at slice end. Ledger `docs/superpowers/plans/2026-07-17-slice-mc-ledger.md`.
+**Slice BF — the bank as monetary authority — MERGED** to `main` locally at
+`0bdb009` with `--no-ff`. **Not pushed** — push on say-so. 1130/1130 `dotnet test`
+on the merged tip · conservation holds at **2.15e-15 relative** across the 32-run
+sweep (with MC's entry-schedule fix folded in — the first sweep proving the money
+sink AND the changed entry schedule conserve together) · one fable whole-branch
+review (**MERGE**, 0 Critical/Important, 2 advisory Minor, one fixed) · golden
+re-frozen once at slice end. Ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md`.
 
-**NEXT UP — a fork for the user/orchestrator:**
-1. **Resume Slice BF** at its task 6 — MC was BF's blocker and is now cleared.
-   BF's branch is based on `768a8e4` and must fold in main first (it has never
-   folded in L2, CU-2's docs, DX, or MC). See the BF section below.
-2. **Slice WT** (war termination) — chained by L2, still valid, different
-   subsystem, parallel-safe.
-3. **Slice DX** (domain hex expansion) — still **HELD** (see the tail Next-up
-   list); its hold was pinned to "CU-3's hiccups resolved", which have now
-   resolved into the MC→BF chain — confirm the hold is lifted before spawning.
+**Slice MC — P7-clean polity entry + clock-invariance instrument — MERGED** at
+`0d93250` (see its section below). BF folded MC in cleanly (a version-tuple merge:
+`actors` v10 from MC, `markets` v6 from BF; both changes coexist).
 
-**Chain: MC ✅ → BF (resume at task 6) → CU-3 → CU-4.**
+**NEXT UP: Slice CU-3 — federation-triggered currency consolidation. Now
+unblocked.** The whole CU chain existed to reach this; BF was the prerequisite the
+user chose to fix first, and it has landed. Kickoff (amended for BF's reality):
+`docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`.
+**CU-3's scope grew because of BF:** it no longer merges two near-empty reserves —
+it merges banks with a real **asset side** (`ClaimOnState`) and a money sink. So
+it must decide what happens to an absorbed polity's **claim book** on federation,
+not just its reserve (see BF design §8 and the amended kickoff's new section).
+
+**Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
+(domain hex expansion, was HELD pending "CU-3's hiccups" — those resolved into the
+BF→MC detour, which is now complete; the hold can lift).
+
+**Chain: MC ✅ → BF ✅ → CU-3 (next) → CU-4.**
 
 ## Slice MC — P7-clean polity entry + clock-invariance instrument (MERGED)
 
@@ -66,16 +73,16 @@ price** — it was demoted on an *unweighted reference* price, a different stati
 measured pre-instrument. New instrument metrics `Economy.GoodsTransacted` (real)
 and `GoodsValueCleared` (nominal) are in place for it.
 
-## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
+## Slice BF — the bank as monetary authority (MERGED at 0bdb009)
 
-## Slice BF — the bank as monetary authority (PARKED at task 5b, NOT abandoned)
-
-Branch **`slice-bf-bank-flow`** (worktree `.worktrees/slice-cu3` — the directory
-name is a stale artifact of a mid-session pivot; the branch name is authoritative).
-**Based on `768a8e4`, which is now behind — it has NOT folded in L2.** Not merged,
-not pushed. Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`;
-ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md` — **its header
-carries the full park notice, the known-red set, and the resume point.**
+Branch `slice-bf-bank-flow` (worktree `.worktrees/slice-cu3` — a stale directory
+name from the mid-session pivot). Merged to main `0bdb009`. All 13 ledger tasks
+done: tasks 1–5b before the MC park, then 6 (residual retirement term) · 7 (FX
+backing) · 8 (REPL claim surface) · 9 (sweep + backing characterization) · 10
+(eyeball accepted) · 11 (fable review MERGE + fix wave) · 12 (golden freeze) · 13
+(this merge). Design `docs/superpowers/specs/2026-07-16-bf-bank-flow-design.md`;
+ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md`. The narrative below
+is the slice's history (it opened as CU-3, pivoted, parked behind MC, resumed).
 
 **How this session got here:** it opened as **CU-3** (currency consolidation),
 whose kickoff demanded a sequencing decision on CU-2 follow-up #1
