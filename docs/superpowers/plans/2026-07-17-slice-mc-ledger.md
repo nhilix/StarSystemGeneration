@@ -69,10 +69,24 @@ the harness disagreement above.
       elsewhere (what feeds `taxable`?). *Opus*.
       Gate: any claim carries the 20-seed grid, not a single seed.
 
-- [ ] **3+. Scope the fix.** Cannot be written until task 2 lands. The remaining
-      genuine open item from the last round: a modest, **direction-consistent**
-      1.0–4.67× real-economy divergence (fine ≥ coarse in all 20 seeds) that
-      nothing measured so far explains.
+- [x] **3. Land the entry fix as `Actor.EntryYear`.** *Opus* (spans genesis /
+      phases / natives / serialization, changes serialized state, moves the
+      product's default numbers). Replace the ambiguous `EntryEpoch` outright —
+      no multiplier swap, no shim. User call taken with it: **fix the 25y
+      truncation too**, accepting that default-clock numbers move.
+      Gate: verified on the committed instrument, not a throwaway harness.
+      **DONE** — see the Log entry below. `live_polities` exactly equal 5y vs 1y
+      on 20/20, collapse regime gone, ports ≥ 1.0 on 20/20; 1103 passed, golden
+      the only red (expected window).
+
+- [ ] **4+. The residual nominal divergence — UNSETTLED, and NOT a fix task.**
+      Survives the entry fix at 5.5–190× nominal against a real economy at
+      2.0–4.3× ports. Task 2's judgment stands: the next step is a
+      **measurement, not a fix** — receipts vs goods actually transacted per
+      world-year, to settle whether Σ receipts (a gross flow, booked once per
+      clearing, so 25× more clearings churn the same conserved money 25× more
+      times) is even the right metric. Resolve "is the metric wrong" before
+      pointing a slice at a sixth mechanism; five have died already.
 
 - [ ] **N. USER: eyeball · whole-branch fable review + fix wave · golden freeze ·
       merge decision.**
@@ -169,3 +183,66 @@ polity entered ~25× early in world-time at the fine clocks. See the Log entry a
   the right metric. Branch left **pristine** (all probes reverted); full findings
   in the task-2 report. Task 2 stays unticked: the entry defect is settled, the
   slice's headline nominal divergence is not.
+- 2026-07-17 — **task 3 DONE: the entry fix is landed as `Actor.EntryYear`**
+  (`44fc431`) — the slice's first actual fix, after five dead diagnoses.
+  `EntryEpoch` is **gone** (greenfield, no shim): genesis writes the world-year
+  directly, `Phases` and `NativeOps` compare it against `state.WorldYear`, no
+  multiplier anywhere. Full site audit turned up **nine** sites, not the four
+  named in the brief: `Actor` (field + ctor param), `EpochGenesis:66` (write),
+  `Phases:1605` (gate), `NativeOps:90` (gate's second victim — now
+  `state.WorldYear`, not `EpochIndex`), `ArtifactSerializer` (write + read +
+  layer tuple), `SimTraceView:32` (rendered "enters epoch N (yM)" — now just
+  "enters y{EntryYear}"), plus test-side `EpochGenesisTests`, `GenesisShapeTests`,
+  `EpochEngineTests`, `AllocationTests`, `CurrencyArtifactTests` and five
+  positional `entryEpoch: 0` helpers. Serializer `actors` **9 → 10**: field 6
+  keeps its position and width but changes UNIT, so only the version distinguishes
+  them.
+  **Genesis is now clock-INVARIANT** — that division was its only clock read. So
+  the ordering hazard `ClockPlanTests.TheClockMustBeAppliedBeforeGenesis` pinned
+  is gone by construction, and that test (which asked in its own docstring to be
+  retired if genesis ever stopped being clock-sensitive) is now
+  `GenesisIsClockInvariant_TheEntryScheduleIsACalendarNotAnIndex` — same fixture,
+  opposite assertion. **Task 2's §9.5 "engine-level genesis-clock guard is now
+  urgent" is thereby moot**: there is no longer a genesis clock to stamp.
+  **Instrument verdict** (committed sweep, self-checks green, null variant exactly
+  1.0, byte-identical across processes): the **collapse regime is gone** (2, 5, 11,
+  99, 101 — seed 99 ports 12→1 becomes 10→30, receipts 0.0008× → 10.85×); **ports
+  ratio ≥ 1.0 on 20/20** (was 6 inverted); dead controls 13/777 still exactly 1.0×.
+  The **1y column reproduces task 2's probe 1 cell-for-cell** (ports 42→13, 99→30,
+  2→6, 5→6, 11→18, 101→5) — independent corroboration of the diagnosis.
+  ⚠ **The brief's headline signature — `live_polities` 1.000× on 20/20 — is NOT
+  reproduced, and CANNOT be**, because it was probe 1's signature and probe 1 was
+  a deliberate no-op at 25y. This fix takes the approved 25y truncation change, so
+  the 25y column moves by design. The correct invariance statement for this fix is
+  **`live_polities` exactly equal at 5y vs 1y on 20/20** — the clocks that can
+  actually resolve an entry date agree perfectly. 25y differs on 6 seeds for an
+  honest reason: a 25y step only admits at 25-year boundaries and the last one in a
+  250y run is year 225, so a polity scheduled for 226–249 no longer sneaks in early.
+  **What 25y moved by** (the approved product change): `live_polities` down on
+  **6/20** (42: 4→1; 8/11/101/123/404: −1), never up. Ports down on **9/20** (−1
+  to −3), never up. Σ receipts **unchanged on 9/20** — exactly, to 6 s.f., incl.
+  seeds 42 and 7 — and down on 11/20 (median ≈ −7%, worst seed 2 at −74.6%).
+  Why receipts barely move while polity counts drop hard: the truncation's extra
+  polities were mostly **phantom final-step entries** — admitted at year 225,
+  founding a port and trading for zero time. The economic content of the fix at 25y
+  is the *timing* shift (entry now rounds UP, up to 24 years later), which is what
+  the 11 moved seeds show.
+  **`FineTickTests` stays GREEN** (task 2's probe-2 prediction, confirmed) and its
+  bands are **re-tightened, never widened**: provisions **0.85 → 0.6** (its value
+  before three widenings, each rationalized by a "confirmed: no per-tick-vs-per-year
+  formula defect" claim that was **false** — there was one, and each widening
+  absorbed it), population **0.5 → 0.25**, ports **0.5 → 0.35**. Measured worst
+  spreads: 0.41 / 0.14 / 0.23. Hulls left at 0.5 (worst 0.36) — not sized for a dead
+  bug, so not touched. Its **blind spot is now documented in the test**: it forks
+  after a coarse prologue and changes the clock mid-run, so genesis always ran at
+  25y and it structurally cannot see an entry-schedule defect — which is exactly why
+  it missed this one for four slices.
+  Three fixture re-tunes, each with a **cause**, not a band-widening: `TreatyTests`
+  first clean relation 13 → **14** and `HandoverTests` prologue 10 → **11** (both
+  the same one-epoch entry slip; the other Handover tests keep the 10-epoch
+  prologue), and `TradePact_OpensCrossBorderLanes` 24 → **25** — a 22..28 sweep
+  shows 24 is the *only* hole in the range at the same pair and distance, i.e.
+  fixture luck, so it was moved onto the plateau rather than left on the knife-edge.
+  `dotnet test` **1103 passed / 1 failed** — the failure is `GoldenTests` only, the
+  expected mid-slice red window (**not** regenerated; it re-freezes once at slice
+  end).
