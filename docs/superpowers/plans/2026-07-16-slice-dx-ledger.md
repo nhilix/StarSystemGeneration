@@ -111,7 +111,7 @@ roll-free** (previews are pure).
   §7 Stage-1 — siting determinism byte-identity; a richer *neighbor* hex
   outcompetes a depleted/fully-claimed **port hex** for extraction; support/
   processing still clusters at the port.
-- [ ] **T1.2 — Corp domain scan + owner-filter fix** (Opus: owner-filter trap +
+- [x] **T1.2 — Corp domain scan + owner-filter fix** (Opus: owner-filter trap +
   determinism). Route corps through the same scan scoped to their
   **home-port domain** (`corp.HomePortId`), replacing the single synthesized
   candidate at `Phases.cs:153-169`. The scan must scope by home-port, NOT owner
@@ -119,10 +119,23 @@ roll-free** (previews are pure).
   bug). Regression test: a corp's home-domain scan returns real candidates, not
   the empty list the naive reuse yields. Confirm `WantsFacility`/`PlannedFacility`
   gating still governs *whether* a corp builds.
-- [ ] **T1 GATE**: `dotnet test` green (hex-tier suite intact); determinism
-  byte-identity same-config (two runs + save→load→save); 32-run sweep — no
-  conservation residual regression (Stage 1 moves no money); Stage-1 §7 coverage
-  present. Commit. **Independently mergeable.**
+- [x] **T1 GATE — PASSED** (2026-07-18). `dotnet test` 1143 passed / 1 failed
+  (seed-42 golden only — the deferred slice-end re-freeze red window; hex-tier +
+  DeterminismTests + ConservationTests all green). 32-run `debt-diagnosis` sweep:
+  **worst relative conservation residual 2.803e-15** (tolerance 1.3e-9) — no
+  regression, as expected (Stage 1 moves no money). Commits `6b8ccdb` (T1.1),
+  `e711735` (T1.2). **Independently mergeable.**
+  - **⚠ EYEBALL FLAG (balance, not invariant):** hex-granular siting +
+    `Economy.HaulingProxyPerHex`=0.25 relocates extraction to the rich frontier
+    with a hauling discount → economic magnitude dropped ~33% vs. old
+    port-clustered siting (seed-42 CLOCK golden ~137k→~91k). Intended in
+    direction (distant works really do cost to haul); the *magnitude* is a
+    single tunable knob. Surface at SC.3 eyeball.
+  - **Carried to whole-branch review:** `CorpPackingTests` updated to the "same
+    scan" behavior (corp funds its whole affordable slate per cycle, not 1/cycle
+    — the old stagger was a single-candidate artifact; real invariants kept);
+    `CorporationOps.PlannedFacility` is now runtime-dead (delete or re-wire at
+    slice end).
 
 ## Stage 2 — Outposts (pop follows work)
 
