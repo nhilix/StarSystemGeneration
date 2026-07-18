@@ -143,6 +143,10 @@ slice sessions delegate downward via subagents, not sideways via psmux.
   which looks identical across claude sessions.
 - Monitor with `psmux capture-pane -p -t <target>`; clean up finished workers
   with `psmux kill-window -t <target>`.
+- **A recently-killed window name cannot be reused**: `new-window -n <name>`
+  with the dead window's name fails silently (twice-confirmed). Pick a fresh
+  name (e.g. `dx-worker` after `slice-dx` died) — the `--remote-control` name
+  can still be the canonical slice name; only the psmux window name must differ.
 
 ## Hard rules
 
