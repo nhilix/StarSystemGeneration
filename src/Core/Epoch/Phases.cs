@@ -249,12 +249,10 @@ public sealed class PerceptionPhase : ISimPhase
     /// live at snapshot build, the same treatment <see cref="RelationsOps.OverlapShare"/>
     /// gets (slice CU-4 monetary-federation design §3b). Shared by both the
     /// self (<c>OwnCredibility</c>) and other-partner (<c>OtherCredibility</c>)
-    /// halves of the perception snapshot.</summary>
-    private static double CredibilityOf(SimState state, int polityId)
-    {
-        int currencyId = state.PolityOf(polityId).CurrencyId;
-        return currencyId < 0 ? 0.0 : state.BankOf(currencyId).BackedShare;
-    }
+    /// halves of the perception snapshot. Thin wrapper over
+    /// <see cref="SimState.BackedShareOf"/>.</summary>
+    private static double CredibilityOf(SimState state, int polityId) =>
+        state.BackedShareOf(state.PolityOf(polityId).CurrencyId);
 
     /// <summary>Current-mark designs per chassis cell, design-id order —
     /// the briefs ShipbuildingPriorities are keyed by.</summary>

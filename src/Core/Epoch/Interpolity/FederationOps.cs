@@ -68,9 +68,11 @@ public static class FederationOps
     /// <summary>A polity's monetary credibility (slice CU-4 monetary-
     /// federation design §2) — its bank's <see cref="Bank.BackedShare"/>,
     /// or 0.0 pre-genesis (<c>CurrencyId &lt; 0</c>, never true for two
-    /// entered polities at the gates this feeds).</summary>
+    /// entered polities at the gates this feeds). Thin wrapper over
+    /// <see cref="SimState.BackedShareOf"/>, shared with the Phases
+    /// perception-snapshot credibility fields.</summary>
     private static double Credibility(SimState state, PolityRecord pr) =>
-        pr.CurrencyId < 0 ? 0.0 : state.BankOf(pr.CurrencyId).BackedShare;
+        state.BackedShareOf(pr.CurrencyId);
 
     /// <summary>Fuse the pair into a NEW polity: multi-species membership,
     /// population-weighted composition, fresh name, government form from the
