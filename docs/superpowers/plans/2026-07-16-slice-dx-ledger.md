@@ -144,14 +144,11 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
 `Money.ConservationResidual` before declaring the gate passed. New RollChannel(s)
 79+ for settle tiebreaks/outpost naming.
 
-- [ ] **T2.1 — Serializer: `PopulationSegment.Hex` (segments v3→v4) +
-  `SimState.Outposts` registry + new `outposts` layer** (Opus: save/load
-  round-trip determinism — the `BodyResources` lesson). Add `Hex` (HexCoordinate,
-  defaults to administering port hex) to `PopulationSegment`, serialized as a
-  segments-layer v4 bump. Add the `Outpost` record `(id, name, hex, parentPortId,
-  foundingYear, graduated)` + `SimState.Outposts` registry (iterated id order,
-  P6) + a new `("outposts", 1)` layer appended after `("banks", 2)`. Round-trip
-  byte-identity tests. NOT an actor — no treasury/market/controller.
+- [x] **T2.1 — Serializer: `PopulationSegment.Hex` (segments v3→v4) +
+  `SimState.Outposts` registry + new `outposts` layer** — DONE (`02bc3e0`).
+  `Hex` added (defaults to port hex, initialized at all 4 creation sites),
+  segments v3→v4; `Outpost` record + `SimState.Outposts` + `("outposts", 1)`
+  layer appended after banks; save→load→save byte-identical. No behavior change.
 - [x] **T2.2 — `PopulationSiting` extension** (folded into T2.3). Added
   `Assign(state, portId, hex)` resolving a body within an arbitrary domain
   hex's committed system; the port-hex `Assign(state, portId)` delegates to it.
@@ -171,24 +168,12 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
   StagedEvent (NOT PortEstablished — reusing it broke port-scoped consumers;
   see report). Knobs registered (`Expansion.Settle*`), `RollChannel.OutpostName
   = 79`. 32-run sweep worst relative residual **4.166e-15** (tol 1.3e-9).
-- [ ] **T2.4 — Staffing rewire** (Sonnet; production-magnitude + determinism).
-  world-time discipline + new roll). New dedicated step: detect a satellite hex
-  with **sustained unmet weighted-labor demand** over a **world-time** duration
-  (world-years, never step counts — cf. L2's FineTick saga; gate like
-  `FoundingCadenceYears`). An eligible resident-less-hex segment elects to
-  relocate: pays a **real habitat cost** (segment `Wealth` → habitat construction
-  wages, conserved — money leaves Wealth, lands as wages in the existing
-  conserved flow), moves its `(Hex, Body)` to the satellite hex (via T2.2), and
-  that founding event creates the `Outpost` + a `PortEstablished`-style
-  `StagedEvent`. New knobs (habitat cost, sustained-labor threshold, settle
-  cadence years) registered. New RollChannel(s) 79+ for tiebreaks. Tests:
-  settle-election world-time behavior (sustained triggers; a brief spike does
-  not).
-- [ ] **T2.4 — Staffing rewire** (Sonnet; production-magnitude + determinism).
-  `StaffingOps.ProximityWeight` hexHop `port-hex → f.Hex` becomes
-  `segment-hex (seg.Hex) → f.Hex`; local-hop when same hex, unchanged. A resident
-  crews its hex's facilities at full weight; distant port households weakly.
-  Test: resident vs port-household weight.
+- [x] **T2.4 — Staffing rewire** (Sonnet) — DONE (`1141056`).
+  `StaffingOps.ProximityWeight` hexHop `port-hex → f.Hex` → `seg.Hex → f.Hex`;
+  local-hop unchanged. No-op on pre-relocation state (seg.Hex == port hex
+  everywhere), so the full suite did not shift. Fixed 3 hand-built test fixtures
+  that never set `Hex` (production sites all set it correctly). Test: resident
+  out-weighs distant port household.
 - [x] **T2.5 — Wage redirect** (Opus: conservation flow #2) — DONE. New
   `MarketEngine.PayProductionWages(state, portId, wage)` splits a sale's labor
   share across the port's segments weighted by each segment's aggregate
@@ -208,13 +193,36 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
   split is structural). Full suite **1165 passed / 1 failed** (seed-42 golden
   only). 32-run `debt-diagnosis` sweep worst relative residual **3.47e-15** (tol
   1.3e-9).
-- [ ] **T2.6 — `domain <port>` REPL view (initial)** (Sonnet). Satellite hexes
-  with facilities/output; outposts with resident segments + founding year.
-  (Candidacy status added in T3.3.) Plus a SIMHEALTH outpost metric
-  (`Settlement.*` family) per design §6 tail.
-- [ ] **T2 GATE**: `dotnet test` green (hex-tier intact); determinism byte-identity;
-  32-run sweep — **settle-payment + wage-redirect conservation** worst residual
-  checked, `ConservationTests` green; Stage-2 §7 coverage. Commit. **Mergeable.**
+- [x] **T2.6 — `domain <port>` REPL view (initial)** (Sonnet) — DONE (`9da5492`).
+  `DomainView.Render(sim, portId)` — port header, satellite hexes + facilities,
+  outposts + resident segments + founding year, a labeled Stage-3 candidacy slot.
+  `Settlement.Outposts` metric (counts living outposts) registered + SIMHEALTH.md.
+  A 100-epoch smoke run rendered a real outpost founding.
+- [x] **T2 GATE — PASSED** (2026-07-18). `dotnet test` 1169 passed / 1 failed
+  (seed-42 golden only — deferred re-freeze; hex-tier + ConservationTests +
+  DeterminismTests green). 32-run `debt-diagnosis` sweep on tip `9da5492`:
+  **worst relative conservation residual 3.471e-15** (tol 1.3e-9) — both Stage-2
+  flows (settle payment #1, wage redirect #2) hold at FP epsilon. **Outposts
+  emerge in all 32/32 runs** (445 total at final epoch, max 29 in a run — pop
+  follows work at ensemble scale). **Independently mergeable.**
+  - **Carried to whole-branch review / SC.3 eyeball:**
+    1. **Port-emptying taste call (T2.3):** the settle election picks the
+       *largest* eligible port-hex household; a young single-segment domain can
+       relocate wholesale, leaving the port hex un-resident. Cadence-gated, no
+       invariant broken. Switching to *smallest*-eligible (or reserving a port
+       resident) would keep the port core intact — user's call at the eyeball.
+    2. **`WorldEventType.OutpostFounded` added (T2.3):** a new serialized news
+       event + payload (reusing `PortEstablished` broke port-scoped consumers).
+       Round-trip green.
+    3. **`PayWages` widened internal→public + `PayProductionWages` (T2.5):** pure
+       API widening for testability (repo has no InternalsVisibleTo).
+    4. **Pre-resident wage redistribution (T2.5):** production wages now split by
+       aggregate staffing weight, so per-segment wealth (→ SoL/growth/migration)
+       redistributes within peopled ports even before anyone relocates when a
+       port's facilities sit at different hexes. Small magnitude, residual
+       unchanged, no knob.
+    5. **tests→Inspector ProjectReference (T2.6):** new infra precedent so
+       `DomainView` gets unit coverage.
 
 ## Stage 3 — Frontier graduation (infill)
 
