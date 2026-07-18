@@ -34,15 +34,21 @@ public static class FederationOps
         if (rel.RungYear < 0 || state.WorldYear - rel.RungYear
             < knobs.FederationAllianceEpochs
               * state.Config.Sim.GenerationYears) return false;
+        // hoisted above the gate (was fetched after it) so the credibility
+        // term below can read both banks
+        var a = state.PolityOf(rel.PolityAId);
+        var b = state.PolityOf(rel.PolityBId);
         // entangled friendly borders lower the bar: interleaved domains
-        // are a reason to fuse, not just a thing to tolerate
+        // are a reason to fuse, not just a thing to tolerate — strong-backed
+        // monetary credibility does too, but only when BOTH partners hold it
+        // (min, not mean: slice CU-4 design §3a; a debtor drags the term to ~0)
         double gate = RelationsOps.TreatyGate(state.Config,
                 TreatyRung.Federation)
             - knobs.FederationOverlapDiscount
-              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
+              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId)
+            - knobs.FederationCredibilityDiscount
+              * Math.Min(Credibility(state, a), Credibility(state, b));
         if (rel.Warmth < gate) return false;
-        var a = state.PolityOf(rel.PolityAId);
-        var b = state.PolityOf(rel.PolityBId);
         if (RelationsOps.IdeologyGap(a, b) > knobs.FederationIdeologyGapMax)
             return false;
         // pair-mean openness: one open partner can carry a warier one over
@@ -58,6 +64,13 @@ public static class FederationOps
             || HasVassals(state, rel.PolityBId)) return false;
         return true;
     }
+
+    /// <summary>A polity's monetary credibility (slice CU-4 monetary-
+    /// federation design §2) — its bank's <see cref="Bank.BackedShare"/>,
+    /// or 0.0 pre-genesis (<c>CurrencyId &lt; 0</c>, never true for two
+    /// entered polities at the gates this feeds).</summary>
+    private static double Credibility(SimState state, PolityRecord pr) =>
+        pr.CurrencyId < 0 ? 0.0 : state.BankOf(pr.CurrencyId).BackedShare;
 
     /// <summary>Fuse the pair into a NEW polity: multi-species membership,
     /// population-weighted composition, fresh name, government form from the

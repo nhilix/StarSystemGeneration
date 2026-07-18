@@ -159,6 +159,57 @@ public class FederationTests
                         < state.Config.Relations.FederationOpennessFloor);
     }
 
+    /// <summary>Slice CU-4 T4 — the fusion true gate carries a monetary-
+    /// credibility discount, mirroring the overlap discount, aggregated
+    /// with <c>min</c> (design §3a): a credible ally pair fuses at a lower
+    /// warmth bar; a debtor partner drags the term to ~0, so it earns none.</summary>
+    [Fact]
+    public void FederationGate_CredibilityDiscount_LowersBarForCrediblePairOnly()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        var a = state.PolityOf(rel.PolityAId);
+        var b = state.PolityOf(rel.PolityBId);
+        rel.Rung = TreatyRung.DefenseAlliance;
+        rel.RungYear = state.WorldYear
+            - state.Config.Relations.FederationAllianceEpochs
+              * state.Config.Sim.GenerationYears;
+        for (int ax = 0; ax < 4; ax++)
+            b.Interior!.OfficialIdeology[ax] = a.Interior!.OfficialIdeology[ax];
+        a.Interior!.Cohesion = 0.8;
+        b.Interior!.Cohesion = 0.8;
+        a.Interior.OfficialIdeology[(int)IdeologyAxis.OpenInsular] = 0.05;
+        b.Interior.OfficialIdeology[(int)IdeologyAxis.OpenInsular] = 0.05;
+
+        // the plain (undiscounted-by-credibility) gate this exact pair sees —
+        // computed the same way FederationGateHolds does, so the test stays
+        // correct regardless of this pair's actual border overlap
+        double plainGate = RelationsOps.TreatyGate(state.Config, TreatyRung.Federation)
+            - state.Config.Relations.FederationOverlapDiscount
+              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
+        rel.Warmth = plainGate - 0.05;   // just below the plain gate
+
+        // knob at 0 (the shipped default): behavior identical to pre-CU-4 —
+        // fails regardless of credibility, since the term is exactly 0
+        state.BankOf(a.CurrencyId).Reserve = 100.0;
+        state.BankOf(a.CurrencyId).ClaimOnState = 0.0;
+        state.BankOf(b.CurrencyId).Reserve = 100.0;
+        state.BankOf(b.CurrencyId).ClaimOnState = 0.0;
+        Assert.Equal(0.0, state.Config.Relations.FederationCredibilityDiscount);
+        Assert.False(FederationOps.FederationGateHolds(state, rel));
+
+        // both partners credible (BackedShare 1.0 each) + knob live: the
+        // min-aggregated discount opens the gate at this same warmth
+        state.Config.Relations.FederationCredibilityDiscount = 0.25;
+        Assert.True(FederationOps.FederationGateHolds(state, rel));
+
+        // a debtor partner (Reserve 0, ClaimOnState > 0 → BackedShare 0) drags
+        // the pair's min to 0: no discount, the gate stays shut (min rule)
+        state.BankOf(b.CurrencyId).Reserve = 0.0;
+        state.BankOf(b.CurrencyId).ClaimOnState = 500.0;
+        Assert.False(FederationOps.FederationGateHolds(state, rel));
+    }
+
     [Fact]
     public void Vassalage_Binds_TributeFlows_TableCloses()
     {
