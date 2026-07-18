@@ -70,8 +70,12 @@ determinism byte-identity always.
 - [x] **T9 — golden re-freeze** — commit pending. Regenerated seed-42 golden;
   diff is **exactly the two knob-stamp lines at 0.2** (no simulation-history change —
   seed-42/radius-12 is a 0→0 no-op), CRLF preserved. **Full suite 1145/1145 green.**
-- [ ] **T10 — EYEBALL (user checkpoint)**: a driven history where a strong polity
-  visibly federates while a weak vassal is absorbed — on committed instruments.
+- [x] **T10 — EYEBALL (user checkpoint) — ACCEPTED at 0.20.** Driven histories
+  (radius 21): seed 9091 y850 **Lusshaka (cred 1.00) absorbs Misha (cred 0.00)** and
+  seed 31337 y950 **Nyduzen (1.00) absorbs Thano (0.00)** — absorption bar 0.600→0.400,
+  warmth ~0.42 clears; without CU-4 both stay bound forever. Noted: at 0.20 the visible
+  effect rides the ABSORPTION seam (peer fusion needs a rarer both-credible near-threshold
+  pair); user accepted 0.20 over the 0.30/asymmetric headroom.
 - [ ] **T11 — whole-branch fresh-eyes review** (**fable**) + one fix wave.
 - [ ] **T12 — MERGE (user checkpoint)**: merge `--no-ff` to `main`; update
   `docs/HANDOFF.md` (CU chain **CLOSED**); Trello sync if reachable; **no next
