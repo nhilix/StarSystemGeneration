@@ -284,10 +284,12 @@ controller behavior (`GenesisController.StanceOf`).
 | `Relations.FederationAllianceEpochs` | 3 | Fusions need a generation of proven alliance. | Whirlwind federations. |
 | `Relations.FederationIdeologyGapMax` / `CohesionFloor` / `OpennessFloor` | 0.20 / 0.55 / 0.40 | Only aligned, healthy, open pairs merge (openness is the PAIR MEAN — one open partner carries a warier one; seed 42: three federations chaining out of the crowded core). | Everything fuses; the galaxy consolidates to a blob. |
 | `Relations.FederationOverlapDiscount` | 0.25 | Entangled friendly borders fuse readily (the interleaved core federates or fights, never simmers). | Entanglement is diplomatically inert. |
+| `Relations.FederationCredibilityDiscount` | 0.0 (inert; CU-4 scaffolding) | Strong-backed allies fuse more readily — a debtor partner drags the pair's `min` credibility to ~0. | Monetary standing is diplomatically inert. |
 | `Relations.EncroachmentTensionBump` | 0.10 | Every colony in a neighbor's sphere is an incident. | Settling someone's sphere is free. |
 | `Relations.VassalStrengthRatio` | 0.35 | Only the genuinely outmatched kneel (chosen vassalage rare). | Peers vassalize on a bad epoch. |
 | `Relations.VassalTributeShare` | 0.15 | Protection is expensive; vassal economies drag. | Vassalage is symbolic. |
 | `Relations.VassalAbsorptionEpochs` / `AbsorptionWarmth` | 8 / 0.60 | Annexation takes two centuries of warm bond. | Vassals dissolve into overlords within a lifetime. |
+| `Relations.VassalAbsorptionCredibilityDiscount` | 0.0 (inert; CU-4 scaffolding) | A monetarily weak vassal under a credible overlord is absorbed at a lower warmth bar. | Overlord/vassal credibility gap has no bearing on absorption. |
 | `Relations.VassalSecessionCohesion` | 0.40 | Only crumbling overlords lose vassals. | Every wobble frees the periphery. |
 | `Relations.PactTariffFactor` | 0.40 | Pacts keep most of the tariff wall (mild teeth). | Trade pacts erase tariffs outright — commerce floods pact borders. |
 
