@@ -1,25 +1,43 @@
-# Session Handoff — 2026-07-17 (Slice BF MERGED · next up: CU-3, now unblocked)
+# Session Handoff — 2026-07-17 (Slice CU-3 MERGED · next up: CU-4, closes the CU chain)
 
-**Slice BF — the bank as monetary authority — MERGED** to `main` locally at
-`0bdb009` with `--no-ff`. **Not pushed** — push on say-so. 1130/1130 `dotnet test`
-on the merged tip · conservation holds at **2.15e-15 relative** across the 32-run
-sweep (with MC's entry-schedule fix folded in — the first sweep proving the money
-sink AND the changed entry schedule conserve together) · one fable whole-branch
-review (**MERGE**, 0 Critical/Important, 2 advisory Minor, one fixed) · golden
-re-frozen once at slice end. Ledger `docs/superpowers/plans/2026-07-16-slice-bf-ledger.md`.
+**Slice CU-3 — federation-triggered currency consolidation — MERGED** to `main`
+locally at `5a6dfa4` with `--no-ff`. **Not pushed** — push on say-so. 1137/1137
+`dotnet test` on the merged tip · 32-run conservation sweep holds at **1.22e-15
+relative** across real merges · one fable whole-branch review (**MERGE**, 0
+Critical/Important, 1 doc-nit Minor fixed) · golden unchanged (CU-3 is a 0→0 no-op
+at seed-42's golden range, verified). Design
+`docs/superpowers/specs/2026-07-17-cu3-currency-consolidation-design.md`; ledger
+`docs/superpowers/plans/2026-07-17-slice-cu3-ledger.md`.
 
-**Slice MC — P7-clean polity entry + clock-invariance instrument — MERGED** at
-`0d93250` (see its section below). BF folded MC in cleanly (a version-tuple merge:
-`actors` v10 from MC, `markets` v6 from BF; both changes coexist).
+**What CU-3 shipped:** `FederationOps.MergeInto` now consolidates an absorbed
+bank's balance sheet into the survivor's, instead of stranding the reserve and
+orphaning the claim. **Reserve** (money) converts into the survivor's reserve,
+*recorded* as a conversion (union pools its members' backing); **claim book** (not
+money) reprices into the survivor's claim book *without* a recorded conversion
+(survivor inherits the debt-to-its-own-bank, so BF's sink is preserved). That
+asymmetry — reserve recorded, claim not — is the slice's whole correctness point,
+verified by the sweep. Instant, fusion-only, no new knobs, no serialization change.
 
-**NEXT UP: Slice CU-3 — federation-triggered currency consolidation. Now
-unblocked.** The whole CU chain existed to reach this; BF was the prerequisite the
-user chose to fix first, and it has landed. Kickoff (amended for BF's reality):
-`docs/superpowers/plans/2026-07-16-slice-cu3-kickoff-prompt.md`.
-**CU-3's scope grew because of BF:** it no longer merges two near-empty reserves —
-it merges banks with a real **asset side** (`ClaimOnState`) and a money sink. So
-it must decide what happens to an absorbed polity's **claim book** on federation,
-not just its reserve (see BF design §8 and the amended kickoff's new section).
+**The emergence gift CU-3 handed CU-4:** peer fusions select *saver* super-states
+(deep reserves, `ClaimOnState` 0) that fuse peacefully; chronic *deficit-borrowers*
+(deep claim books) exit via *war annexation*. So monetary strength already
+correlates with federation-vs-conquest — but as an accident of dynamics, nothing
+reads bank strength to *drive* it. That's exactly CU-4's raw material.
+
+**NEXT UP: Slice CU-4 — bank/currency-union strength → federation generation. The
+LAST CU slice; it closes the loop (economy ← → politics).** Kickoff:
+`docs/superpowers/plans/2026-07-17-slice-cu4-kickoff-prompt.md`. CU-4 makes the
+saver-fuses/debtor-conquered split a *mechanism* (a monetary term in the federation
+*decision*, not just the execution CU-3 changed), keyed off the real measures BF/CU-3
+made computable: reserve depth, backing ratio `Reserve ÷ ClaimOnState`, FX track
+record.
+
+**Earlier this chain (all merged this session):** **BF** (bank as monetary
+authority, `0bdb009`), **MC** (P7-clean polity entry + the clock-invariance
+instrument, `0d93250` — see its section below). The whole CU chain is now
+MC ✅ → BF ✅ → CU-3 ✅ → **CU-4 (next)**.
+
+**Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
 
 **Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
 (domain hex expansion, was HELD pending "CU-3's hiccups" — those resolved into the
