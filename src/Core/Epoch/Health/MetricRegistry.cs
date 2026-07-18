@@ -107,6 +107,11 @@ public static class MetricRegistry
           r => r.Population),
 
         // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.Outposts",
+          "living (non-graduated) outposts — pop-follows-work settlements in a "
+          + "domain's satellite hexes (domain-hex-expansion §3); a graduated "
+          + "outpost leaves this count and Settlement.Ports gains one",
+          r => r.Outposts),
         M("Settlement.Ports",
           "ports in the galaxy (the real economy's extent — colonies land here)",
           r => r.Ports),

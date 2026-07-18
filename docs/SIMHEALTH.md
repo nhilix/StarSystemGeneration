@@ -217,6 +217,19 @@ meant to be caught by evidence, not assumed safe. If a long sweep shows
 actual developed footprint, that is the signal to revisit eviction, not
 a bug in this metric.
 
+`Settlement.Outposts` counts **living** (non-graduated) `SimState.Outposts`
+records — settlements founded when a population segment elects to relocate
+to a worked satellite hex within a port's domain (domain-hex-expansion
+design §3, Stage 2: "pop follows work"). It rises as domains fill in and,
+once Stage 3 frontier graduation lands, falls by one every time an outpost
+graduates — the same settlement then counted by `Settlement.Ports` instead,
+so the pair reads as a handoff rather than a double-count.
+
+**Healthy shape**: at Stage 2 (this slice), non-decreasing — outposts found
+but nothing yet demotes them. Once graduation exists, expect it to rise
+and fall as a domain's interior fills in (permanently subordinate density)
+while its frontier occasionally promotes into a new port.
+
 ## Adding a metric
 
 1. Extend `MetricRow` (or `MoneyRow`) in `MetricsOps.cs` — levels and

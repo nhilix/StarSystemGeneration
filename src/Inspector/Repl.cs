@@ -40,6 +40,7 @@ public sealed class Repl
                     Console.WriteLine("relations [polityId] — per-pair warmth/tension with live sources, bonds, claims");
                     Console.WriteLine("wars — every war ever declared · war <id> — one war's fronts, sieges, commanders, chronicle");
                     Console.WriteLine("market <portId> — one market's prices, inventory, black book, people, industry");
+                    Console.WriteLine("domain <portId> — the port's domain as a living region: satellite hexes' facilities, outposts + residents");
                     Console.WriteLine("fleet [id] — the fleet registry, or one fleet's composition + vectors + supply");
                     Console.WriteLine("designs [actorId] — ship design lineages (chassis cell, mark, grade)");
                     Console.WriteLine("fleetpost <fleetId> <posted|escort|patrol|blockade|reserve> [targetId] — debug posture override");
@@ -136,7 +137,7 @@ public sealed class Repl
                     Console.WriteLine($"stepped in {sw.ElapsedMilliseconds} ms");
                     break;
                 }
-                case "emap" or "estep" or "market" or "fleet"
+                case "emap" or "estep" or "market" or "domain" or "fleet"
                     or "designs" or "fleetpost" or "polity" or "characters"
                     or "bio" or "tech" or "corps" or "relations" or "wars"
                     or "war" when _sim == null:
@@ -420,6 +421,12 @@ public sealed class Repl
                     break;
                 case "market":
                     Console.WriteLine("usage: market <portId>");
+                    break;
+                case "domain" when parts.Length == 2 && int.TryParse(parts[1], out var dp):
+                    Console.WriteLine(DomainView.Render(_sim!, dp));
+                    break;
+                case "domain":
+                    Console.WriteLine("usage: domain <portId>");
                     break;
                 case "lanecut":
                     Console.WriteLine("superseded (slice H): interdiction is real now — "
