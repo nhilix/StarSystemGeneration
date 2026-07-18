@@ -275,6 +275,10 @@ public sealed class MarketsPhase : ISimPhase
         foreach (var pr in state.Polities) pr.Receipts = 0;
         foreach (var corp in state.Corporations) corp.Receipts = 0;
         state.GoodsValueCleared = 0;   // same flow window as LastCleared/Receipts
+        // the production-wage staffing split (PayProductionWages) is memoized
+        // per port for this step only — null it so it rebuilds against THIS
+        // step's facilities/positions and never stales across steps (P6)
+        state.ProdWageSplits = null;
         var scratch = new MarketStepScratch(state);
         // stale job postings clear the board before anything sails, and
         // orders past their expiry refund/escheat (spec §2 step 2)

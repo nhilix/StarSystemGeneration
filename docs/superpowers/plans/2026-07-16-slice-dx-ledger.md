@@ -189,10 +189,25 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
   `segment-hex (seg.Hex) → f.Hex`; local-hop when same hex, unchanged. A resident
   crews its hex's facilities at full weight; distant port households weakly.
   Test: resident vs port-household weight.
-- [ ] **T2.5 — Wage redirect** (Opus: conservation flow #2). `MarketEngine.PayWages`:
-  a satellite facility's wages pay the **resident segments at that hex** once
-  residents exist; a resident-less working still pays commuting port households
-  (Stage-1 behavior). Moves *where* credits land, not how many. Sweep-verify.
+- [x] **T2.5 — Wage redirect** (Opus: conservation flow #2) — DONE. New
+  `MarketEngine.PayProductionWages(state, portId, wage)` splits a sale's labor
+  share across the port's segments weighted by each segment's aggregate
+  weighted-staffing contribution (`Σ_f seg.Size × StaffingOps.ProximityWeight`)
+  to the port's active PRODUCING facilities (those with `AttachedMarketIndex ==
+  portId` and `Produces>0`). `OrderOps.SettleSale` now calls this instead of plain
+  `PayWages`; construction/habitat/refund `PayWages` untouched (size-pro-rata).
+  A satellite resident (`seg.Hex == f.Hex`, full weight) out-earns a distant
+  port household; a resident-less working still pays commuting households.
+  Conserved by construction (shares sum to `wage`); fallback to `PayWages` when
+  the port has no producing facilities or zero staffing weight (keeps
+  unpeopled→owner revert). Per-step memo `SimState.ProdWageSplits` (transient,
+  nulled at `MarketsPhase.Run` top like `GoodsValueCleared`) avoids a
+  segments×facilities rescan per sale; rebuilt each step, never staled across
+  steps. Aggregate (not per-facility) redirect — per-facility would need sale→
+  facility attribution, out of scope (no order-book threading). No new knob (the
+  split is structural). Full suite **1165 passed / 1 failed** (seed-42 golden
+  only). 32-run `debt-diagnosis` sweep worst relative residual **3.47e-15** (tol
+  1.3e-9).
 - [ ] **T2.6 — `domain <port>` REPL view (initial)** (Sonnet). Satellite hexes
   with facilities/output; outposts with resident segments + founding year.
   (Candidacy status added in T3.3.) Plus a SIMHEALTH outpost metric

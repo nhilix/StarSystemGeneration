@@ -172,10 +172,14 @@ public static class OrderOps
         double wages = (paid - tax) * state.Config.Economy.LaborShare;
         double net = paid - tax - wages;
         // local share — no conversion (sovereign IS the local polity; wages pay
-        // its resident segments, whose wealth resolves to the same currency)
+        // its resident segments, whose wealth resolves to the same currency).
+        // Production wages redirect to the resident segments that actually crew
+        // the producing facilities (domain-hex-expansion §3, flow #2): a
+        // satellite hex's residents capture their local works' wages, distant
+        // port households the port facilities' — conserved, only the split moves.
         sovereign.Credits += tax;
         sovereign.Receipts += tax;
-        MarketEngine.PayWages(state, portId, wages);
+        MarketEngine.PayProductionWages(state, portId, wages);
         // the seller's net converts into their own currency (or banks unconverted
         // for a corp); Receipts mirrors the amount banked, in that denomination
         double banked = state.CreditLocal(sellerActorId, net,

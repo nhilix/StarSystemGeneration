@@ -169,6 +169,15 @@ public sealed class SimState
     /// It carries no cross-step memory, so there is nothing for an artifact to
     /// preserve.</para></summary>
     public double GoodsValueCleared { get; set; }
+    /// <summary>Per-market-step memo backing <see cref="MarketEngine.
+    /// PayProductionWages"/>: portId → the segment staffing-weight split a sale's
+    /// production wages divide by (domain-hex-expansion §3, conservation flow #2).
+    /// Transient like <see cref="GoodsValueCleared"/> — never serialized;
+    /// <see cref="MarketsPhase"/> nulls it at the top of every step so it is
+    /// rebuilt fresh and never stales across steps (determinism). Filled lazily
+    /// per port on the step's first sale there, since SettleSale runs per sale
+    /// and cannot afford a segments×facilities rescan each time.</summary>
+    internal Dictionary<int, ProductionWageSplit>? ProdWageSplits { get; set; }
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>
