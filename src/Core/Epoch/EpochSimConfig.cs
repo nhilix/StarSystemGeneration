@@ -1053,6 +1053,18 @@ public sealed class ExpansionKnobs
     /// clock. At the 25-year default a coarse generation step behaves
     /// exactly as before; a 1-year clock founds at the same world pace.</summary>
     public double FoundingCadenceYears { get; set; } = 25.0;
+    /// <summary>Extra hex buffer, beyond the no-overlap distance, an outpost
+    /// must clear from EVERY entered port before it is frontier / candidacy-
+    /// eligible to graduate into a starport (domain-hex-expansion §4, the
+    /// frontier gate — the anti-clustering guarantee). The gate distance is
+    /// G = ServiceRadius(1) + ServiceRadius(port.Tier) + AstroRadiusBonus +
+    /// this — exactly EncroachedPolities' no-overlap geometry (a graduated
+    /// tier-1 port's domain never overlaps an incumbent's) PLUS this margin,
+    /// so "outside every port's domain, plus a buffer." 0 = domains may touch
+    /// at their edges; a small positive leaves a visible dead gap between
+    /// ports. Scales with the service radii, never an absolute constant, so
+    /// no two ports can end up within each other's reach at any config.</summary>
+    public int GraduationMarginHexes { get; set; } = 1;
     /// <summary>Colony-score penalty per foreign polity whose domain the
     /// new port's service area would overlap — settling someone's sphere
     /// must be outweighed by real riches (slice H: contiguous borders).</summary>

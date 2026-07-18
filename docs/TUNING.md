@@ -394,6 +394,7 @@ set how fast the built world thickens (slice D).
 | `Expansion.SettleLaborShortfallFraction` | 0.25 | A hex must be more starved of labor before anyone settles it — outposts form only at genuinely under-crewed workings. | Any small commute shortfall triggers settlement; pop chases work aggressively. |
 | `Expansion.SettleMaturityYears` | 50 | A working must persist longer before its shortfall reads as SUSTAINED — outposts form only at long-standing frontier labor demand (a brief spike never settles anyone). Derived world-time gate, not a per-hex timer (P7). | Young workings settle fast; a transient labor spike can found an outpost. |
 | `Expansion.SettleCadenceYears` | 25 | Longer gap between settle elections per domain — a region fills in slowly, one outpost at a time. Mirrors `FoundingCadenceYears`; a fine clock founds at the same world pace (P7). | Domains can settle a new hex more often per world-century. |
+| `Expansion.GraduationMarginHexes` | 1 | Wider dead gap between a graduating outpost's future port and every existing one — frontier outposts must sit farther out before they can become starports; interior density stays subordinate longer. The gate is already no-overlap at 0 (`G = ServiceRadius(1) + ServiceRadius(tier) + AstroRadiusBonus + this`); this is the buffer on top. Scales with service radii, never an absolute constant — the anti-clustering guarantee (§4). | Ports may graduate closer together; at 0 their domains only just touch (still never overlap). |
 
 ## Controller — the genesis AI's standing-policy magnitudes
 
