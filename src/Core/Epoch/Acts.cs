@@ -16,6 +16,16 @@ public sealed record FoundColonyAct(int ActorId, HexCoordinate Target) : Act(Act
 // Slice B resolves this convoyless (port established directly); the
 // contract's convoy component attaches in Slice E (fleets)
 
+/// <summary>Promote a mature FRONTIER outpost into a real tier-1 starport —
+/// the polity's "infill" expansion move, complementary to a colony
+/// expedition's "reach" (domain-hex-expansion design §4). Emitted by the SAME
+/// single expansion decision that emits <see cref="FoundColonyAct"/> (never a
+/// second decision site): the controller picks the top expansion candidate and
+/// emits this instead when that candidate is a graduation. No convoy — the
+/// people and works are already at the hex; Resolution runs an administrative
+/// promotion project charged from <c>ExpansionPoints</c> (conservation flow #3).</summary>
+public sealed record GraduateOutpostAct(int ActorId, int OutpostId) : Act(ActorId);
+
 /// <summary>Declaration (interpolity/war.md): a declared goal from the
 /// casus-belli menu, an objective set, and the settlement demand carried
 /// into termination. Slice H grounds the slice-A string stubs in the

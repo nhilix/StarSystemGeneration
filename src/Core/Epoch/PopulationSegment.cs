@@ -22,8 +22,14 @@ public enum IdeologyAxis
 public sealed class PopulationSegment
 {
     public int Id { get; }
-    /// <summary>The administering port (its domain is where this population lives).</summary>
-    public int PortId { get; }
+    /// <summary>The administering port (its domain is where this population lives).
+    /// Settable for exactly one sanctioned re-attachment: Stage-3 frontier
+    /// graduation (domain-hex-expansion design §3/§4) re-homes an outpost's
+    /// resident households onto the new starport born at their hex — the
+    /// households already live there; only their administering domain changes.
+    /// Nothing else mutates it (the settle election keeps PortId; only the
+    /// segment's <see cref="Hex"/>/<see cref="Body"/> move).</summary>
+    public int PortId { get; set; }
     public int SpeciesId { get; }
     /// <summary>The slow identity layer — travels with migrants, never blends
     /// away (conquest and migration add segments). Settable since slice G:

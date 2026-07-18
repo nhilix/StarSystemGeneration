@@ -1065,6 +1065,38 @@ public sealed class ExpansionKnobs
     /// ports. Scales with the service radii, never an absolute constant, so
     /// no two ports can end up within each other's reach at any config.</summary>
     public int GraduationMarginHexes { get; set; } = 1;
+    /// <summary>World-years an outpost's administrative promotion project takes
+    /// to raise a real starport (domain-hex-expansion §4; time-not-ticks, P7):
+    /// the in-place equivalent of an expedition's crossing time, over which the
+    /// discounted cost streams from <c>ExpansionPoints</c> as construction
+    /// wages. No convoy, no fuel, no goods — just world-time and wages.</summary>
+    public double GraduationYears { get; set; } = 5.0;
+    /// <summary>Fraction of <see cref="ColonyCost"/> knocked off an outpost's
+    /// graduation cost per existing facility at its hex (domain-hex-expansion
+    /// §4: a facility-rich outpost is "already half a colony" — the sim should
+    /// not charge full price for infrastructure that exists). The discount from
+    /// facilities and residents together is floored so cost never drops below
+    /// <see cref="GraduationMinCostFraction"/> × ColonyCost.</summary>
+    public double GraduationCostDiscountPerFacility { get; set; } = 0.08;
+    /// <summary>Fraction of <see cref="ColonyCost"/> knocked off an outpost's
+    /// graduation cost per unit of resident segment Size at its hex
+    /// (domain-hex-expansion §4): existing population is settlement the
+    /// expedition would otherwise ship. Paired with
+    /// <see cref="GraduationCostDiscountPerFacility"/>, floored at
+    /// <see cref="GraduationMinCostFraction"/>.</summary>
+    public double GraduationCostDiscountPerResident { get; set; } = 0.05;
+    /// <summary>Floor on an outpost's graduation cost as a fraction of
+    /// <see cref="ColonyCost"/> (domain-hex-expansion §4): however developed the
+    /// outpost, promotion still costs at least this share — raising a starport
+    /// is never free. 0.4 = never below 40% of a full colony's price.</summary>
+    public double GraduationMinCostFraction { get; set; } = 0.4;
+    /// <summary>Flat score bonus a frontier outpost's graduation candidate
+    /// carries over a raw expedition target of the same terrain (domain-hex-
+    /// expansion §4): a mature outpost is a known-good, already-worked site, so
+    /// infill weighs favorably against reach in the ONE ranked expansion list
+    /// the controller reads. Added to the outpost hex's terrain score; the cost
+    /// discount is the other half of infill's appeal.</summary>
+    public double GraduationScoreBonus { get; set; } = 0.3;
     /// <summary>Colony-score penalty per foreign polity whose domain the
     /// new port's service area would overlap — settling someone's sphere
     /// must be outweighed by real riches (slice H: contiguous borders).</summary>

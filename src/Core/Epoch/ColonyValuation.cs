@@ -4,9 +4,21 @@ using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
 
-/// <summary>A scored colonization target (space-and-travel.md §Colonization:
-/// the decision picks from valuations × terrain potentials × reach).</summary>
-public sealed record ColonyCandidate(HexCoordinate Target, double Score);
+/// <summary>Which expansion move a candidate represents (domain-hex-expansion
+/// §4): a colony <b>expedition</b> reaches a fresh hex with a convoy, an
+/// outpost <b>graduation</b> promotes an already-settled frontier outpost in
+/// place. Both rank in ONE list the controller reads, so a polity weighs reach
+/// against infill against the same treasury.</summary>
+public enum ColonyCandidateKind { Expedition, Graduation }
+
+/// <summary>A scored expansion target (space-and-travel.md §Colonization: the
+/// decision picks from valuations × terrain potentials × reach). Carries its
+/// <see cref="Kind"/> so one ranked list mixes expeditions and graduations; a
+/// graduation also carries its <see cref="OutpostId"/> and its discounted
+/// <see cref="Cost"/> (an expedition's cost is <c>Expansion.ColonyCost</c>).</summary>
+public sealed record ColonyCandidate(HexCoordinate Target, double Score,
+    ColonyCandidateKind Kind = ColonyCandidateKind.Expedition,
+    int OutpostId = -1, double Cost = 0);
 
 /// <summary>Colony-target enumeration and scoring over the natural raster.
 /// Score = terrain potential with contested-influence friction plus the
@@ -67,17 +79,91 @@ public static class ColonyValuation
                 { contested = true; break; }
             if (contested) continue;
 
-            double score = cell.MeanDensity + 0.3 * cell.Metallicity;
-            foreach (var a in cell.Anchors)
-                if (a.Type != AnchorType.Homeworld) { score += 0.4; break; }
-            score -= cfg.Expansion.EncroachmentPenalty
-                     * EncroachedPolities(state, polityId, hex);
-            if (capital != null)
-                score += PriceTerm(state, capital, cell);
-
-            Insert(best, bestSpiral, new ColonyCandidate(hex, score), cell.SpiralIndex, max);
+            double score = CellTerrainScore(state, cell, capital)
+                - cfg.Expansion.EncroachmentPenalty
+                  * EncroachedPolities(state, polityId, hex);
+            Insert(best, bestSpiral,
+                new ColonyCandidate(hex, score, ColonyCandidateKind.Expedition,
+                    OutpostId: -1, Cost: cfg.Expansion.ColonyCost),
+                cell.SpiralIndex, max);
+        }
+        // infill candidates: the polity's own mature FRONTIER outposts (design
+        // §4), scored on their hex's terrain like an expedition target PLUS a
+        // flat infill bonus (a known-good, already-worked site), at their
+        // DISCOUNTED cost — so reach and infill rank in one list against the
+        // same treasury. The frontier gate (OutpostOps.IsFrontier) IS the
+        // anti-clustering guarantee: an interior outpost never enters the list,
+        // so a graduated port can never sit inside another port's domain.
+        // Determinism: outposts in id order, keyed past every cell's spiral
+        // index (GraduationSortKey ≫ any skeleton cell count) so an exact score
+        // tie is broken stably and reach wins over infill (P6).
+        foreach (var o in state.Outposts)                 // id order (P6)
+        {
+            if (o.Graduated) continue;
+            if (o.ParentPortId < 0 || o.ParentPortId >= state.Ports.Count) continue;
+            if (state.Ports[o.ParentPortId].OwnerActorId != polityId) continue;
+            if (!OutpostOps.IsFrontier(state, o)) continue;
+            if (!state.Skeleton.TryGetCell(HexGrid.CellOf(o.Hex), out var oc)
+                || oc.IsVoid) continue;
+            double gScore = CellTerrainScore(state, oc, capital)
+                            + cfg.Expansion.GraduationScoreBonus;
+            Insert(best, bestSpiral,
+                new ColonyCandidate(o.Hex, gScore, ColonyCandidateKind.Graduation,
+                    o.Id, GraduationCost(state, o)),
+                GraduationSortKey + o.Id, max);
         }
         return best;
+    }
+
+    /// <summary>Sort-key offset for graduation candidates, past any skeleton
+    /// cell's spiral index — keeps the merged expedition+graduation ranking
+    /// deterministic (an exact score tie orders graduations by id and lets a
+    /// reach candidate win, P6).</summary>
+    private const int GraduationSortKey = 1_000_000;
+
+    /// <summary>The terrain half of an expansion score, shared by expedition
+    /// and graduation candidates so the two rank on ONE commensurable scale
+    /// (design §4): mean density + a metallicity weight + a non-homeworld
+    /// anchor bonus + the capital market's price signal. The expedition path
+    /// additionally subtracts the encroachment penalty; the graduation path
+    /// adds its flat infill bonus.</summary>
+    private static double CellTerrainScore(SimState state, RegionCell cell,
+                                           Market? capital)
+    {
+        double score = cell.MeanDensity + 0.3 * cell.Metallicity;
+        foreach (var a in cell.Anchors)
+            if (a.Type != AnchorType.Homeworld) { score += 0.4; break; }
+        if (capital != null)
+            score += PriceTerm(state, capital, cell);
+        return score;
+    }
+
+    /// <summary>An outpost's discounted graduation cost (domain-hex-expansion
+    /// §4): <see cref="ExpansionKnobs.ColonyCost"/> reduced by a per-facility
+    /// and per-resident-size fraction — the outpost is already half a colony —
+    /// floored at <see cref="ExpansionKnobs.GraduationMinCostFraction"/> ×
+    /// ColonyCost. A facility-rich or populous outpost costs strictly less than
+    /// a bare one, but promotion is never free. This is the number the
+    /// controller gates affordability on and the wage stream recycles from
+    /// ExpansionPoints (conservation flow #3). Pure and deterministic
+    /// (facilities and segments scanned in id order, P6).</summary>
+    public static double GraduationCost(SimState state, Outpost outpost)
+    {
+        var exp = state.Config.Expansion;
+        int facilities = 0;
+        foreach (var f in state.Facilities)               // id order (P6)
+            if (f.Hex.Equals(outpost.Hex)) facilities++;
+        double residentSize = 0;
+        foreach (var s in state.Segments)                 // id order (P6)
+            if (s.Size > 0 && s.Hex.Equals(outpost.Hex)
+                && s.PortId == outpost.ParentPortId)
+                residentSize += s.Size;
+        double discountFrac =
+            exp.GraduationCostDiscountPerFacility * facilities
+            + exp.GraduationCostDiscountPerResident * residentSize;
+        double frac = System.Math.Max(exp.GraduationMinCostFraction,
+                                      1.0 - discountFrac);
+        return exp.ColonyCost * frac;
     }
 
     /// <summary>How many foreign polities a tier-1 port at this hex would

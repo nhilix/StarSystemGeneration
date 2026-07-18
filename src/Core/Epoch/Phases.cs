@@ -1489,13 +1489,15 @@ public sealed class ResolutionPhase : ISimPhase
     {
         int acts = 0, founded = 0, nationalized = 0;
         int signed = 0, broken = 0, vassalized = 0, instruments = 0;
-        int warsDeclared = 0, quarantines = 0;
+        int warsDeclared = 0, quarantines = 0, graduated = 0;
         HashSet<(int, int)>? concessions = null;
         foreach (var d in state.Decisions)               // actor-id order
             foreach (var act in d.Decision.Acts)
             {
                 acts++;
                 if (act is FoundColonyAct f && TryFound(state, f)) founded++;
+                if (act is GraduateOutpostAct grad
+                    && TryGraduate(state, grad)) graduated++;
                 if (act is NationalizeAct n
                     && CorporationOps.Nationalize(state, n.ActorId,
                                                   n.CorporationId))
@@ -1555,6 +1557,9 @@ public sealed class ResolutionPhase : ISimPhase
         if (quarantines > 0)
             note += $", {quarantines} " + (quarantines == 1
                 ? "lane quarantined" : "lanes quarantined");
+        if (graduated > 0)
+            note += $", {graduated} outpost"
+                + (graduated == 1 ? "" : "s") + " graduating";
         return note;
     }
 
@@ -1568,15 +1573,15 @@ public sealed class ResolutionPhase : ISimPhase
         var record = state.PolityOf(act.ActorId);
         if (record.ExpansionPoints < cfg.Expansion.ColonyCost) return false;
         // world-time founding cadence (stage 2, P7): the controller
-        // commits one founding per DECISION, so a finer clock would found
-        // more often over the same world-years — the truth check holds
-        // fire while the polity's last expedition is younger than the
-        // cadence window (in flight, arrived, or turned back alike)
-        foreach (var p in state.Projects)                 // id order (P6)
-            if (p.Kind == ProjectKind.ColonyExpedition
-                && p.OwnerActorId == act.ActorId
-                && state.WorldYear - p.StartedYear
-                   < cfg.Expansion.FoundingCadenceYears) return false;
+        // commits one expansion move per DECISION, so a finer clock would
+        // found more often over the same world-years — the truth check holds
+        // fire while the polity's last EXPANSION move is younger than the
+        // cadence window. Reach (expeditions) and infill (graduations) share
+        // one cadence: a polity does one expansion move per window whichever
+        // kind, so a finer clock can never stack an expedition AND a
+        // graduation in the same world-year the coarse clock allows only one.
+        if (RecentExpansionMove(state, act.ActorId,
+                                cfg.Expansion.FoundingCadenceYears)) return false;
         if (!state.Skeleton.TryGetCell(HexGrid.CellOf(act.Target), out var cell)
             || cell.IsVoid) return false;
         foreach (var p in state.Ports)
@@ -1676,6 +1681,83 @@ public sealed class ResolutionPhase : ISimPhase
             if (drawn <= 0) continue;
             expedition.PerYearBasket[(int)q.Good] = drawn;
         }
+        return true;
+    }
+
+    /// <summary>True iff the polity launched an expansion move — a colony
+    /// expedition OR an outpost graduation — within <paramref name="years"/>
+    /// world-years (P7). The two expansion kinds share one cadence so a finer
+    /// clock cannot do more total expansion over the same world-span; a
+    /// completed project still counts (its StartedYear is the anchor).</summary>
+    private static bool RecentExpansionMove(SimState state, int actorId,
+                                            double years)
+    {
+        foreach (var p in state.Projects)                 // id order (P6)
+            if ((p.Kind == ProjectKind.ColonyExpedition
+                 || p.Kind == ProjectKind.OutpostGraduation)
+                && p.OwnerActorId == actorId
+                && state.WorldYear - p.StartedYear < years) return true;
+        return false;
+    }
+
+    /// <summary>Promote a mature FRONTIER outpost into a real starport (domain-
+    /// hex-expansion §4) — the infill counterpart of <see cref="TryFound"/>,
+    /// truth-checked the same way: consequences on truth even though the
+    /// decision ran on perception (Move 2). Re-verifies the actor, the outpost's
+    /// existence/administration/un-graduated state, the frontier gate against
+    /// the LIVE port registry (perception may be stale), no port already at the
+    /// hex, the discounted-cost affordability, and the shared expansion cadence.
+    /// On success it spawns the administrative promotion project — NO convoy, NO
+    /// fuel, NO goods — whose discounted cost streams from ExpansionPoints as
+    /// construction wages over its world-time duration (conservation flow #3);
+    /// completion births the port in place (ProjectOps.CompleteGraduation).</summary>
+    private static bool TryGraduate(SimState state, GraduateOutpostAct act)
+    {
+        var cfg = state.Config;
+        var actor = state.Actors[act.ActorId];
+        if (!actor.Entered || actor.Kind != ActorKind.Polity) return false;
+        if (act.OutpostId < 0 || act.OutpostId >= state.Outposts.Count)
+            return false;
+        var outpost = state.Outposts[act.OutpostId];
+        if (outpost.Graduated) return false;
+        // the outpost must be administered by this actor (its parent's owner)
+        if (outpost.ParentPortId < 0
+            || outpost.ParentPortId >= state.Ports.Count) return false;
+        var parent = state.Ports[outpost.ParentPortId];
+        if (parent.OwnerActorId != act.ActorId) return false;
+        // truth-check the frontier gate against the live port registry: the
+        // anti-clustering guarantee holds even if perception was stale (a port
+        // may have landed near the outpost since the decision was made).
+        if (!OutpostOps.IsFrontier(state, outpost)) return false;
+        // no port already at the hex, and no graduation already under way for
+        // this outpost (belt and suspenders over the cadence gate).
+        foreach (var pt in state.Ports)                   // id order (P6)
+            if (pt.Hex.Equals(outpost.Hex)) return false;
+        foreach (var pj in state.Projects)                // id order (P6)
+            if (pj.Kind == ProjectKind.OutpostGraduation && pj.InFlight
+                && pj.TargetId == act.OutpostId) return false;
+        // affordability on the outpost's OWN discounted cost (design §4)
+        double cost = ColonyValuation.GraduationCost(state, outpost);
+        var record = state.PolityOf(act.ActorId);
+        if (record.ExpansionPoints < cost) return false;
+        // shared world-time expansion cadence (P7): one expansion move per
+        // window whichever kind — reach or infill (see RecentExpansionMove).
+        if (RecentExpansionMove(state, act.ActorId,
+                                cfg.Expansion.FoundingCadenceYears)) return false;
+
+        // the administrative promotion project: no convoy, no fuel, no goods
+        // basket — its discounted cost streams from ExpansionPoints as
+        // construction wages to the parent domain's households over
+        // GraduationYears (conservation flow #3), the in-place mirror of an
+        // expedition's crossing. Anchored at the PARENT port (the wage sink and
+        // the residents' administering domain until completion), sited at the
+        // outpost hex.
+        double years = Math.Max(1.0, cfg.Expansion.GraduationYears);
+        var proj = ProjectOps.SpawnAt(state, ProjectKind.OutpostGraduation,
+            act.ActorId, act.ActorId, parent.Id, outpost.Hex, years,
+            ProjectPriority.Growth, planOrder: 0, startedYear: state.WorldYear);
+        proj.WagesPerYear = cost / years;
+        proj.TargetId = act.OutpostId;
         return true;
     }
 }
