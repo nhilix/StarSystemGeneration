@@ -339,10 +339,16 @@ public class FederationTests
     }
 
     /// <summary>A vassal MORE credible than its overlord earns no discount
-    /// (design §4's <c>max(0, …)</c> floor) — never a penalty that could
-    /// block an otherwise-qualifying absorption.</summary>
+    /// (design §4's <c>max(0, …)</c> floor) — but crucially also no PENALTY
+    /// that could block an otherwise-qualifying absorption. With the floor,
+    /// the negative gap clamps to 0 → effective bar is the plain 0.60 → a
+    /// warmth of 0.65 clears it and the vassal is absorbed. Without the
+    /// floor, the negative gap would instead RAISE the bar (0.60 + 0.5*1.0 =
+    /// 1.10) → 0.65 would fail and this assertion would catch it — so this
+    /// test has teeth on the floor, unlike a warmth pinned below the plain
+    /// bar (which passes with or without the floor).</summary>
     [Fact]
-    public void Absorption_VassalMoreCredibleThanOverlord_GetsNoDiscount()
+    public void Absorption_VassalMoreCredibleThanOverlord_NoDiscountButNoPenalty()
     {
         var state = Run();
         var rel = EpochTestKit.FirstLiveRelation(state);
@@ -351,8 +357,9 @@ public class FederationTests
         rel.VassalSinceYear = state.WorldYear
             - state.Config.Relations.VassalAbsorptionEpochs
               * state.Config.Sim.GenerationYears;
-        state.PolityOf(overlord).Interior!.Cohesion = 0.7;
-        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth - 0.05;
+        state.PolityOf(overlord).Interior!.Cohesion = 0.7;   // healthy — no secession pre-empt
+        // above the plain warmth bar (0.60) — would qualify on its own
+        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth + 0.05;
 
         var overlordPr = state.PolityOf(overlord);
         var vassalPr = state.PolityOf(vassal);
@@ -364,10 +371,12 @@ public class FederationTests
         state.BankOf(vassalPr.CurrencyId).ClaimOnState = 0.0;
 
         state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.5;
-        var (absorbed, seceded) = FederationOps.VassalExits(state);
-        Assert.Equal(0, absorbed);
-        Assert.Equal(0, seceded);
-        Assert.Equal(vassal, rel.VassalPolityId);   // still bound — no discount
+        FederationOps.VassalExits(state);
+        // this pair's bond was absorbed — floored gap, not a raised bar
+        // (other history vassals may confound an aggregate count, so assert
+        // on THIS relation, not the returned tallies)
+        Assert.Equal(-1, rel.VassalPolityId);
+        Assert.True(state.Actors[vassal].Retired);
     }
 
     [Fact]
