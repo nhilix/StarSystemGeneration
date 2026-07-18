@@ -77,6 +77,50 @@ public class ControllerContractTests
         Assert.Single(d.Acts);
     }
 
+    /// <summary>Slice CU-4 T5 — the PERCEIVED federation gate (EffectiveGate,
+    /// via GenesisController.Decide) carries the same min-aggregated
+    /// credibility discount as the true gate (T4), so a credible pair whose
+    /// warmth clears only the discounted bar actually generates the offer —
+    /// the true+perceived agreement that makes the discount non-inert
+    /// (design §3b). Knob at 0 (shipped default) must be identical to
+    /// pre-CU-4: no offer at this warmth.</summary>
+    [Fact]
+    public void GenesisController_FederationOffer_CarriesCredibilityDiscount()
+    {
+        var cfg = new EpochSimConfig();
+        var controller = new GenesisController(cfg);
+        // plain gate = TreatyGateBase + TreatyGateStep*3 = 0.76 (OverlapShare
+        // 0); the discounted gate at knob 0.25 with a fully-credible pair
+        // (min(1,1)=1) is 0.51 — warmth 0.6 sits strictly between the two
+        var relBrief = new RelationBrief(
+            OtherPolityId: 1, Warmth: 0.6, Tension: 0.3,
+            Rung: TreatyRung.DefenseAlliance, OfferedRung: TreatyRung.None,
+            OfferedById: -1, LiveClaimsHeld: 0, LiveClaimsAgainst: 0,
+            IdeologyGap: 0.0,
+            YearsAtRung: cfg.Relations.FederationAllianceEpochs
+                * cfg.Sim.GenerationYears + 1,
+            OtherStrength: 0, VassalPolityId: -1, OtherDynastic: false,
+            DynasticTies: 0, CasusBelli: System.Array.Empty<CasusBelliOption>(),
+            OtherDefensiveStrength: 0,
+            ObjectiveCandidates: System.Array.Empty<WarObjectiveSpec>(),
+            OverlapShare: 0.0, OtherCredibility: 1.0);
+        var perceived = new PerceptionView(0, 100, new[] { 0, 1 },
+            relations: new[] { relBrief }, ownCredibility: 1.0);
+
+        // knob at 0 (shipped default): the term is exactly 0 — no offer,
+        // identical to pre-CU-4
+        Assert.Equal(0.0, cfg.Relations.FederationCredibilityDiscount);
+        Assert.Empty(controller.Decide(perceived).Acts);
+
+        // both partners credible + knob live: the discounted gate opens
+        // under the SAME warmth
+        cfg.Relations.FederationCredibilityDiscount = 0.25;
+        var act = Assert.IsType<TreatyAct>(
+            Assert.Single(controller.Decide(perceived).Acts));
+        Assert.Equal((int)TreatyRung.Federation, act.Rung);
+        Assert.Equal(TreatyVerb.Offer, act.Verb);
+    }
+
     [Fact]
     public void PerceptionView_IsAllTheControllerSees()
     {
