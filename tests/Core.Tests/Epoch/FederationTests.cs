@@ -293,6 +293,81 @@ public class FederationTests
         Assert.Equal(creditsBefore, TotalCredits(state), 6);
     }
 
+    /// <summary>Slice CU-4 T6 — the absorption gate carries the credibility
+    /// GAP (overlord − vassal, floored at 0): a monetarily weak vassal under
+    /// a credible overlord completes annexation at a warmth just below the
+    /// plain bar, once the discount knob is live.</summary>
+    [Fact]
+    public void Absorption_CredibilityGapDiscount_LowersBarForWeakVassalUnderCredibleOverlord()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int vassal = rel.PolityAId, overlord = rel.PolityBId;
+        FederationOps.Bind(state, rel, vassal);
+        rel.VassalSinceYear = state.WorldYear
+            - state.Config.Relations.VassalAbsorptionEpochs
+              * state.Config.Sim.GenerationYears;
+        state.PolityOf(overlord).Interior!.Cohesion = 0.7;
+        // just below the plain warmth bar — fails without the discount
+        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth - 0.05;
+
+        var overlordPr = state.PolityOf(overlord);
+        var vassalPr = state.PolityOf(vassal);
+        // overlord: pure saver (BackedShare 1.0); vassal: pure debtor (0.0) —
+        // the credibility gap is maximal (1.0)
+        state.BankOf(overlordPr.CurrencyId).Reserve = 100.0;
+        state.BankOf(overlordPr.CurrencyId).ClaimOnState = 0.0;
+        state.BankOf(vassalPr.CurrencyId).Reserve = 0.0;
+        state.BankOf(vassalPr.CurrencyId).ClaimOnState = 500.0;
+
+        // knob at 0 (the shipped default): behavior identical to pre-CU-4 —
+        // the plain bar isn't met, so no absorption fires
+        Assert.Equal(0.0, state.Config.Relations.VassalAbsorptionCredibilityDiscount);
+        var (absorbedAtZero, _) = FederationOps.VassalExits(state);
+        Assert.Equal(0, absorbedAtZero);
+        Assert.Equal(vassal, rel.VassalPolityId);   // still bound
+
+        // knob live: the discount opens the gate at this same warmth
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.5;
+        var (absorbed, seceded) = FederationOps.VassalExits(state);
+        Assert.Equal(1, absorbed);
+        Assert.Equal(0, seceded);
+        Assert.True(state.Actors[vassal].Retired);
+        Assert.Equal(-1, rel.VassalPolityId);
+    }
+
+    /// <summary>A vassal MORE credible than its overlord earns no discount
+    /// (design §4's <c>max(0, …)</c> floor) — never a penalty that could
+    /// block an otherwise-qualifying absorption.</summary>
+    [Fact]
+    public void Absorption_VassalMoreCredibleThanOverlord_GetsNoDiscount()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int vassal = rel.PolityAId, overlord = rel.PolityBId;
+        FederationOps.Bind(state, rel, vassal);
+        rel.VassalSinceYear = state.WorldYear
+            - state.Config.Relations.VassalAbsorptionEpochs
+              * state.Config.Sim.GenerationYears;
+        state.PolityOf(overlord).Interior!.Cohesion = 0.7;
+        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth - 0.05;
+
+        var overlordPr = state.PolityOf(overlord);
+        var vassalPr = state.PolityOf(vassal);
+        // reversed: overlord is the debtor (0.0), vassal is the saver (1.0) —
+        // the gap (overlord − vassal) is negative, floored to 0 by max(0, …)
+        state.BankOf(overlordPr.CurrencyId).Reserve = 0.0;
+        state.BankOf(overlordPr.CurrencyId).ClaimOnState = 500.0;
+        state.BankOf(vassalPr.CurrencyId).Reserve = 100.0;
+        state.BankOf(vassalPr.CurrencyId).ClaimOnState = 0.0;
+
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.5;
+        var (absorbed, seceded) = FederationOps.VassalExits(state);
+        Assert.Equal(0, absorbed);
+        Assert.Equal(0, seceded);
+        Assert.Equal(vassal, rel.VassalPolityId);   // still bound — no discount
+    }
+
     [Fact]
     public void Secession_FiresOnOverlordWeakness_AndLeavesAGrudge()
     {

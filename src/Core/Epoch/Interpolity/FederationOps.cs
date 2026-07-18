@@ -321,11 +321,22 @@ public static class FederationOps
                 continue;
             }
 
+            // a monetarily weak vassal under a credible overlord completes
+            // annexation at a lower warmth bar (slice CU-4 design §4); the
+            // world-year duration gate above is untouched (clock-invariance:
+            // easing an instantaneous comparison telescopes, shortening a
+            // duration gate would not). max(0, …) means a vassal MORE
+            // credible than its overlord earns no discount — never a
+            // penalty that could block an otherwise-qualifying absorption.
+            double effectiveWarmth = knobs.VassalAbsorptionWarmth
+                - knobs.VassalAbsorptionCredibilityDiscount
+                  * Math.Max(0.0, Credibility(state, overlord)
+                                  - Credibility(state, state.PolityOf(vassalId)));
             if (rel.VassalSinceYear >= 0
                 && state.WorldYear - rel.VassalSinceYear
                    >= knobs.VassalAbsorptionEpochs
                       * state.Config.Sim.GenerationYears
-                && rel.Warmth >= knobs.VassalAbsorptionWarmth)
+                && rel.Warmth >= effectiveWarmth)
             {
                 // cultural drift completes: peaceful annexation
                 DissolveFactionsOf(state, vassalId);
