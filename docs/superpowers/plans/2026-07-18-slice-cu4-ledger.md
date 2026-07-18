@@ -28,13 +28,14 @@ determinism byte-identity always.
   at **T9**. The T7 inert proof is therefore *not* "golden byte-identical" but
   "**golden diff is exactly the two knob-stamp lines, zero behavioral/simulation
   diff**" — verify by regenerating and diffing at T7.
-- [ ] **T4 — fusion true gate** (Sonnet; escalate if it fights the test kit).
+- [x] **T4 — fusion true gate** (Sonnet) — commit `e10dad2`. Added private helper
+  `FederationOps.Credibility(state, pr)` (guards currency<0→0) — **reused by T6**.
   `FederationOps.FederationGateHolds`: subtract
   `FederationCredibilityDiscount × min(cred(a), cred(b))` from `gate`, where
   `cred(x) = x.CurrencyId < 0 ? 0 : state.BankOf(x.CurrencyId).BackedShare`. Tests:
   credible pair whose warmth sits just below the plain gate now passes; credible+debtor
   (min→0) does not; knob=0 ⇒ byte-identical gate. Golden still identical (knob 0).
-- [ ] **T5 — fusion perceived plumbing** (Sonnet). Mirror `OverlapShare`:
+- [x] **T5 — fusion perceived plumbing** (Sonnet) — commit `524c503`. Mirror `OverlapShare`:
   `RelationBrief` gains trailing `double OtherCredibility`; `PerceptionView` gains
   `OwnCredibility` (beside `OwnStrength`); populate **live** at the snapshot build
   (`Phases.cs` ~:219–233, beside the `RelationsOps.OverlapShare` call) from
