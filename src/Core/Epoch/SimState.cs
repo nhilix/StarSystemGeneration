@@ -226,6 +226,14 @@ public sealed class SimState
         throw new KeyNotFoundException($"no bank for currency {currencyId}");
     }
 
+    /// <summary>A currency id's monetary credibility (slice CU-4
+    /// monetary-federation design) — its bank's <see cref="Bank.BackedShare"/>,
+    /// or 0.0 for the pre-genesis sentinel (<c>currencyId &lt; 0</c>). Shared
+    /// by <see cref="Interpolity.FederationOps"/>'s fusion/absorption gates
+    /// and the perception-snapshot credibility fields in Phases.</summary>
+    public double BackedShareOf(int currencyId) =>
+        currencyId < 0 ? 0.0 : BankOf(currencyId).BackedShare;
+
     /// <summary>The numeraire rate of a currency id, defaulting to the dormant 1:1
     /// rate (1.0) for the pre-genesis sentinel (id &lt; 0) or any id not yet in the
     /// registry — the same "no rate exists, treat as 1:1" convention

@@ -269,6 +269,7 @@ KNOB|Relations.DynasticTieWarmth|0.1
 KNOB|Relations.EncroachmentTensionBump|0.1
 KNOB|Relations.FederationAllianceEpochs|3
 KNOB|Relations.FederationCohesionFloor|0.55
+KNOB|Relations.FederationCredibilityDiscount|0.2
 KNOB|Relations.FederationIdeologyGapMax|0.2
 KNOB|Relations.FederationOpennessFloor|0.4
 KNOB|Relations.FederationOverlapDiscount|0.25
@@ -290,6 +291,7 @@ KNOB|Relations.TradeWarmthWeight|0.3
 KNOB|Relations.TreatyGateBase|0.4
 KNOB|Relations.TreatyGateStep|0.12
 KNOB|Relations.TreatyWarmthWeight|0.25
+KNOB|Relations.VassalAbsorptionCredibilityDiscount|0.2
 KNOB|Relations.VassalAbsorptionEpochs|8
 KNOB|Relations.VassalAbsorptionWarmth|0.6
 KNOB|Relations.VassalSecessionCohesion|0.4
