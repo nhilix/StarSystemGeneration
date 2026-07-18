@@ -134,6 +134,98 @@ public class CapabilityDomainScanTests
         Assert.Equal(portHex, best.Hex);
     }
 
+    // -- Corp domain scan (§2 "Corporations run the same domain scan" + "the
+    //    owner-filter seam"): a corp is routed through the SAME hex scan, scoped
+    //    to its HOME-PORT domain, not by owner identity. --
+
+    [Fact]
+    public void CorpDomainScan_ReturnsRealCandidates_WhereOwnerFilterYieldsNone()
+    {
+        // the owner-filter trap: ConstructionCandidatesFor keeps ports where
+        // port.OwnerActorId == actorId. A corp NEVER owns a port (its home port
+        // belongs to its HostPolityId), so an owner-scoped scan sees zero ports
+        // for the corp — the latent bug the moment a corp id is passed. The
+        // home-port domain scan must return REAL candidates instead.
+        var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 1);
+        state.Skeleton.CellAt(new HexCoordinate(0, 0)).Metallicity = 1.0; // rich ore
+        var market = state.Markets[0];
+        market.Price[(int)GoodId.Ore] =
+            Market.InitialPrice(state.Config.Economy, GoodId.Ore) * 5.0;
+        state.SettledSystems[portHex] = BeltSystem("PORT");   // a free ore belt
+        foreach (var n in HexGrid.Neighbors(portHex))
+            state.SettledSystems[n] = BarrenSystem("N");
+
+        var corp = new Corporation(0, actorId: 100, "Extractco",
+            hostPolityId: actorId, CorporateNiche.Extraction,
+            homePortId: 0, foundedYear: 0);
+        state.Corporations.Add(corp);
+
+        // no port is owned by the corp — an owner-scoped scan would find nothing.
+        Assert.DoesNotContain(state.Ports, p => p.OwnerActorId == corp.ActorId);
+
+        var cands = CapabilityOps.ConstructionCandidatesForCorp(state, corp);
+        Assert.NotEmpty(cands);                               // real candidates
+        Assert.Contains(cands, c => c.TypeId == (int)InfraTypeId.Mine);
+    }
+
+    [Fact]
+    public void CorpDomainScan_IsScopedToHomePortDomain_NotOtherPorts()
+    {
+        // the scan is scoped to corp.HomePortId — every candidate carries the
+        // home port id, and a rich second port in another domain is never
+        // touched (§8 boundary: corps scan their home domain, not others').
+        var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 1);
+        state.Skeleton.CellAt(new HexCoordinate(0, 0)).Metallicity = 1.0;
+        state.Markets[0].Price[(int)GoodId.Ore] =
+            Market.InitialPrice(state.Config.Economy, GoodId.Ore) * 5.0;
+        state.SettledSystems[portHex] = BeltSystem("HOME");
+        foreach (var n in HexGrid.Neighbors(portHex))
+            state.SettledSystems[n] = BarrenSystem("N");
+
+        // a second port with its own rich belt, well outside port 0's radius.
+        var farHex = new HexCoordinate(5, 0);
+        state.Ports.Add(new Port(1, actorId, farHex, tier: 1, foundedYear: 0));
+        state.Markets.Add(new Market(1, state.Config.Economy));
+        state.SettledSystems[farHex] = BeltSystem("FAR");
+
+        var corp = new Corporation(0, actorId: 100, "Extractco",
+            hostPolityId: actorId, CorporateNiche.Extraction,
+            homePortId: 0, foundedYear: 0);
+        state.Corporations.Add(corp);
+
+        var cands = CapabilityOps.ConstructionCandidatesForCorp(state, corp);
+        Assert.NotEmpty(cands);
+        Assert.All(cands, c => Assert.Equal(corp.HomePortId, c.PortId));
+        Assert.DoesNotContain(cands, c => c.Hex.Equals(farHex));
+    }
+
+    [Fact]
+    public void CorpDomainScan_RestrictsToNicheTypes_NeverMilitaryOrCrossNiche()
+    {
+        // "the same scan", kept sensible: a Fabrication corp scans the processing
+        // chain only — never a Fortress (military) and never an extraction type
+        // it has no niche for. A barren domain still yields port-anchored
+        // support/processing candidates.
+        var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 1);
+        foreach (var hex in HexGrid.Spiral(portHex, radius: 1))
+            state.SettledSystems[hex] = BarrenSystem("B");
+
+        var fab = new Corporation(0, actorId: 100, "Fabco",
+            hostPolityId: actorId, CorporateNiche.Fabrication,
+            homePortId: 0, foundedYear: 0);
+        state.Corporations.Add(fab);
+
+        var cands = CapabilityOps.ConstructionCandidatesForCorp(state, fab);
+        Assert.NotEmpty(cands);
+        Assert.All(cands, c =>
+        {
+            var type = (InfraTypeId)c.TypeId;
+            Assert.NotEqual(InfraTypeId.Fortress, type);      // never military
+            Assert.False(BodySiting.IsExtraction(type),       // fabrication ≠ extraction
+                "a Fabrication corp must not site an extraction type");
+        });
+    }
+
     [Fact]
     public void HaulingProxyPerHex_IsRegistered()
     {

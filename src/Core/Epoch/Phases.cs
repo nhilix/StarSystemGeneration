@@ -159,13 +159,14 @@ public sealed class PerceptionPhase : ISimPhase
                         or CorporateNiche.Fabrication)
                     && CorporationOps.WantsFacility(state, corpRec))
                 {
-                    var pick = CorporationOps.PlannedFacility(state, corpRec);
-                    var home = state.Ports[corpRec.HomePortId];
-                    constructionCandidates = new List<ConstructionCandidate>
-                    {
-                        new ConstructionCandidate((int)pick, home.Hex,
-                                                  home.Id, 1.0),
-                    };
+                    // the same hex-granular domain scan the polity runs, scoped
+                    // to the corp's HOME-PORT domain — not owner identity (a
+                    // corp's actor id never owns a port; the owner-filtered
+                    // ConstructionCandidatesFor would return empty). §2
+                    // "Corporations run the same domain scan".
+                    constructionCandidates =
+                        CapabilityOps.ConstructionCandidatesForCorp(
+                            state, corpRec);
                 }
             }
             a.Perception = new PerceptionView(a.Id, state.WorldYear, known,
