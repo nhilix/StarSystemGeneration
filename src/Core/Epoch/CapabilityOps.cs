@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Generation;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
@@ -69,9 +70,12 @@ public static class CapabilityOps
     };
 
     /// <summary>Top 3 candidates per own under-capacity port, score-ranked
-    /// (ties: lower TypeId, then cell spiral order). Under-construction
-    /// facilities count against the port cap and occupy their hexes — a
-    /// plan must not double-book a site.</summary>
+    /// (ties: lower TypeId, then hex spiral order). The scan is per HEX across
+    /// the port's whole domain (domain hex-expansion §2), not per cell: a
+    /// body-aware opportunity score sites extraction on the richest free body at
+    /// the frontier while support/processing stays anchored at the port hex.
+    /// Under-construction facilities count against the port cap and occupy their
+    /// hexes — a plan must not double-book a site.</summary>
     public static List<ConstructionCandidate> ConstructionCandidatesFor(
         SimState state, int actorId)
     {
@@ -95,43 +99,112 @@ public static class CapabilityOps
             if (attached >= cap) continue;
             var market = state.Markets[port.Id];
             var workforce = MarketEngine.EmbodimentOf(state, pr.SpeciesId);
+            int radius = PortDomains.ServiceRadius(cfg, port.Tier)
+                         + TechOps.AstroRadiusBonus(state, pr.ActorId);
+            double connectivity = Math.Min(1.0, LaneCount(state, port.Id) / 4.0);
+            var portCell = HexGrid.CellOf(port.Hex);
+
+            // per-port, per-type facts hoisted out of the hex loop: the price
+            // signal is market-scoped and the saturation count port-scoped —
+            // neither varies hex to hex, so each is assembled once.
+            var signal = new double[BuildableTypes.Length];
+            var existing = new int[BuildableTypes.Length];
+            for (int t = 0; t < BuildableTypes.Length; t++)
+                signal[t] = PriceSignal(eco, market,
+                    Substrate.Infrastructure.Get(BuildableTypes[t]));
+            foreach (var f in state.Facilities)               // id order (P6)
+                if (f.OwnerActorId == pr.ActorId
+                    && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                    for (int t = 0; t < BuildableTypes.Length; t++)
+                        if (f.TypeId == (int)BuildableTypes[t]) { existing[t]++; break; }
 
             // per-port top 3 (score desc, TypeId asc, hex spiral order)
             var top = new List<ConstructionCandidate>(3);
-            foreach (var cell in state.Skeleton.Cells)        // spiral order (P6)
+            foreach (var cell in state.Skeleton.Cells)        // cell spiral order (P6)
             {
-                var center = HexGrid.CellCenter(cell.Coord);
-                if (HexGrid.Distance(port.Hex, center)
-                    > PortDomains.ServiceRadius(cfg, port.Tier)
-                      + TechOps.AstroRadiusBonus(state, pr.ActorId)) continue;
                 if (cell.IsVoid) continue;
-                var fields = MarketEngine.FieldsAt(state, center);
-                var site = new Substrate.CellSite(fields,
-                    Connectivity: Math.Min(1.0, LaneCount(state, port.Id) / 4.0),
-                    IsPortHeart: cell.Coord.Equals(HexGrid.CellOf(port.Hex)),
+                var cellCenter = HexGrid.CellCenter(cell.Coord);
+                // whole-cell reject: every hex sits within CellRadius of the
+                // center, so a center farther than radius + CellRadius can hold
+                // no serviced hex — skip it without touching its hexes.
+                if (HexGrid.Distance(port.Hex, cellCenter)
+                    > radius + HexGrid.CellRadius) continue;
+                // FieldsAt is cell-granular (the natural raster's resolution) —
+                // every hex in the cell shares these fields; the per-hex signal
+                // is the real body the settled/previewed system carries there.
+                var fields = MarketEngine.FieldsAt(state, cellCenter);
+                var site = new Substrate.CellSite(fields, connectivity,
+                    IsPortHeart: cell.Coord.Equals(portCell),
                     PortTier: port.Tier, DevelopmentTier: port.Tier,
                     IsChokepoint: cell.IsChokepoint);
-                foreach (var type in BuildableTypes)
-                {
-                    // fortification tiers gate on Military tech
-                    // (economy/technology.md) — tier 2 unlocks the type
-                    if (type == Substrate.InfraTypeId.Fortress
-                        && pr.TechTier[(int)TechDomain.Military] < 2) continue;
-                    var def = Substrate.Infrastructure.Get(type);
-                    double signal = PriceSignal(eco, market, def);
-                    int existing = 0;
-                    foreach (var f in state.Facilities)
-                        if (f.TypeId == (int)type && f.OwnerActorId == pr.ActorId
-                            && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
-                            existing++;
-                    // saturation: the second of a kind must out-earn a first
-                    // of another — ports diversify their chain
-                    double score = Substrate.Siting.Score(type, site, workforce)
-                                   * signal / (1 + existing);
-                    if (score <= cfg.Infrastructure.ConstructionScoreFloor) continue;
-                    var hex = PickHex(state, cell, center);
-                    InsertTop3(top, new ConstructionCandidate(
-                        (int)type, hex, port.Id, score));
+                foreach (var hex in HexGrid.Spiral(cellCenter, HexGrid.CellRadius))
+                {                                             // hex spiral order (P6)
+                    int hexDist = HexGrid.Distance(port.Hex, hex);
+                    if (hexDist > radius) continue;
+                    // the scan unit: the hex's system (settled read, else a
+                    // roll-free preview) and its port body, resolved once and
+                    // reused across every type — no commit, no roll (Stage 1 is
+                    // roll-free; the preview is discarded).
+                    var system = SystemRegistry.IsSettled(state, hex)
+                        ? state.SettledSystems[hex] : PreviewSystem(state, hex);
+                    var portBody = BodySiting.PortBody(system);
+                    // two discounts on the same hex-hop: the staffing commute
+                    // shape (labor) and the hauling proxy (moving output back to
+                    // the port market). Extraction pays both; support rides the
+                    // commute term only — it sells at the port it sits beside.
+                    double proximity =
+                        1.0 / (1.0 + eco.StaffingDistanceFalloff * hexDist);
+                    double hauling =
+                        1.0 / (1.0 + eco.HaulingProxyPerHex * hexDist);
+                    // a non-homeworld anchor at this hex is a development bonus,
+                    // not the selector (ColonyValuation's +0.4 idiom) — PickHex's
+                    // old selecting job, demoted to a score nudge.
+                    double anchorBonus = 0.0;
+                    foreach (var a in cell.Anchors)
+                        if (a.Hex.Equals(hex)
+                            && a.Type != Galaxy.AnchorType.Homeworld)
+                        { anchorBonus = 0.4; break; }
+                    for (int t = 0; t < BuildableTypes.Length; t++)
+                    {
+                        var type = BuildableTypes[t];
+                        // fortification tiers gate on Military tech
+                        // (economy/technology.md) — tier 2 unlocks the type
+                        if (type == Substrate.InfraTypeId.Fortress
+                            && pr.TechTier[(int)TechDomain.Military] < 2) continue;
+                        double opportunity;
+                        double distance;
+                        if (BodySiting.IsExtraction(type))
+                        {
+                            var body = BestUnclaimedBody(state, hex, type,
+                                                         system, portBody);
+                            // the generalized overflow case: the type's only
+                            // eligible body is already claimed (or the hex bears
+                            // none) — it scores zero here, so a free-bodied
+                            // neighbor wins automatically.
+                            if (body.IsNone) continue;
+                            opportunity = ExtractionOpportunity(
+                                state, hex, body, type, fields, system);
+                            distance = proximity * hauling;
+                        }
+                        else
+                        {
+                            // support/processing keeps port-body affinity —
+                            // scored on the cell raster + portness, pulled hard
+                            // toward the port hex by the commute term so the
+                            // industrial core stays anchored at the port.
+                            opportunity =
+                                Substrate.Siting.Score(type, site, workforce);
+                            distance = proximity;
+                        }
+                        // saturation: the second of a kind must out-earn a first
+                        // of another — ports diversify their chain
+                        double score = opportunity * signal[t] / (1 + existing[t])
+                                       * distance + anchorBonus;
+                        if (score <= cfg.Infrastructure.ConstructionScoreFloor)
+                            continue;
+                        InsertTop3(top, new ConstructionCandidate(
+                            (int)type, hex, port.Id, score));
+                    }
                 }
             }
             result.AddRange(top);
@@ -232,18 +305,58 @@ public static class CapabilityOps
         return Math.Min(3.0, Math.Max(0.5, mean));
     }
 
-    /// <summary>First anchor hex in the cell free of facilities, else the
-    /// cell center — the facility is anchored at groundbreaking (P1).</summary>
-    internal static HexCoordinate PickHex(SimState state, Galaxy.RegionCell cell,
-                                          HexCoordinate center)
+    /// <summary>A hex's system for scoring: the settled read, else a roll-free
+    /// preview generated and DISCARDED — exactly SystemQuery.At's unsettled
+    /// branch without SystemRegistry.Commit, so the hex stays pristine and the
+    /// preview is a pure function of (config, hex), repeatable and roll-free.</summary>
+    private static StarSystem? PreviewSystem(SimState state, HexCoordinate hex)
     {
-        foreach (var a in cell.Anchors)
+        var context = new GalaxyContext(state.Skeleton.Config)
+        { Skeleton = state.Skeleton };
+        return Generator.Generate(context, hex).System;
+    }
+
+    /// <summary>The body an extraction type would claim at a hex, claim-aware —
+    /// mirrors ProjectOps.PlaceFacilityBody's per-resource-class claim scan
+    /// (BodySiting.CompetesForBody) but commits nothing. None when the hex bears
+    /// no eligible body or its only one is already taken by a competitor.</summary>
+    private static BodyRef BestUnclaimedBody(SimState state, HexCoordinate hex,
+        Substrate.InfraTypeId type, StarSystem? system, BodyRef portBody)
+    {
+        var claimed = new List<BodyRef>();
+        foreach (var other in state.Facilities)               // id order (P6)
+            if (other.Hex.Equals(hex) && !other.Body.IsNone
+                && BodySiting.CompetesForBody(
+                    (Substrate.InfraTypeId)other.TypeId, type))
+                claimed.Add(other.Body);
+        return BodySiting.Assign(system, type, portBody, claimed);
+    }
+
+    /// <summary>The roll-free opportunity of an extraction type at its claimed
+    /// body. Depletable (Mine/ExcavationSite): the remaining BodyResources stock
+    /// if the body is already worked, else the pre-roll expected mean (never
+    /// rolled — Stage 1 is roll-free), both normalized by BodyStockOreScale so a
+    /// fresh body reads back its [0,1] raster richness, comparable to the
+    /// renewable-yield and support Siting.Score bands. Renewable (Skimmer/
+    /// AgriComplex): BodySiting.RenewableYield of the body's real attributes.</summary>
+    private static double ExtractionOpportunity(SimState state, HexCoordinate hex,
+        BodyRef body, Substrate.InfraTypeId type, Substrate.CellFields fields,
+        StarSystem? system)
+    {
+        var eco = state.Config.Economy;
+        if (type == Substrate.InfraTypeId.Mine
+            || type == Substrate.InfraTypeId.ExcavationSite)
         {
-            bool taken = false;
-            foreach (var f in state.Facilities)
-                if (f.Hex.Equals(a.Hex)) { taken = true; break; }
-            if (!taken && a.Type != Galaxy.AnchorType.Homeworld) return a.Hex;
+            double richness = type == Substrate.InfraTypeId.Mine
+                ? Substrate.Potentials.Ore(fields)
+                : Substrate.Potentials.Exotics(fields);
+            double stock =
+                state.BodyResources.TryGetValue((hex, body), out var s)
+                    ? s.Quantity
+                    : eco.BodyStockOreScale * richness;
+            double scale = eco.BodyStockOreScale > 0 ? eco.BodyStockOreScale : 1.0;
+            return stock / scale;
         }
-        return center;
+        return BodySiting.RenewableYield(system, body, type);
     }
 }

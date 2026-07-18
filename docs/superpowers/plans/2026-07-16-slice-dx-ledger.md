@@ -95,7 +95,7 @@ households — `PayWages` untouched until Stage 2). Stage-1 gate's sweep is a
 **determinism / no-regression** check, not a conservation gate. **Stays
 roll-free** (previews are pure).
 
-- [ ] **T1.1 — Hex-granular scan rework** (Opus: siting × determinism, the core
+- [x] **T1.1 — Hex-granular scan rework** (Opus: siting × determinism, the core
   cell→hex spiral). Rework `ConstructionCandidatesFor` to scan **per hex** over
   the port's serviced hexes (deterministic hex spiral, the hex-scale analog of
   the cell spiral — P6). Body-aware opportunity score: extraction types

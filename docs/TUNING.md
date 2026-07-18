@@ -161,6 +161,7 @@ the shelf — the order book prices imports through delivered cost.*
 | `Economy.CrossStarHopOrbitSteps` | 8.0 | Multi-star systems effectively widen: every cross-star local hop takes longer. | Companion stars feel almost adjacent to the primary. |
 | `Economy.LocalHopYearsPerOrbitStep` | 0.05 | Intra-system travel gets dearer relative to a lane hop — orbit distance starts to matter. | Local hops approach free; only cross-star and lane geometry matter. |
 | `Economy.StaffingDistanceFalloff` | 0.15 | Facilities off the population core are starved of labor and produce less — a distant airless mine crews poorly and its output falls with hex+local-hop distance from its body. | (Toward 0) staffing goes flat again: every segment in the domain weights equally regardless of distance, recovering pre-locality production magnitudes. |
+| `Economy.HaulingProxyPerHex` | 0.25 | (Raise) satellite-working siting hugs the port harder — moving output back to the market is dear, so only a distinctly richer frontier body outscores a near-port site; extraction blooms slowly outward. | (Toward 0) hauling is free: a rich body far across the domain competes on raw richness alone, so extraction spreads to the frontier as readily as it sits at the port. |
 
 *`Economy.TechTierStub` retired (slice G): producer tech is per-polity,
 per-domain — see the Tech family.*
