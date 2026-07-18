@@ -243,20 +243,31 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
   constant). Full suite **1185 passed / 1 failed** (seed-42 golden only — the
   new KNOB line in the artifact stamp; deferred re-freeze). Hex-tier +
   Determinism + Conservation green.
-- [ ] **T3.2 — Graduation promotion** (Opus: conservation flow #3 +
-  multi-subsystem + design judgment). Frontier outpost enters the **same polity
-  expansion scoring** as an expedition target (alongside
-  `ColonyValuation.CandidatesFor`). Cost = `Expansion.ColonyCost` **discounted**
-  by the outpost's existing facilities + resident population, charged from
-  `ExpansionPoints`. A new **administrative promotion `ProjectKind`** (no convoy,
-  no `FleetPosture.Expedition`, no fuel) with real world-time duration, completing
-  **in-place** (mirror `PortRaise`'s in-place completion + `CompleteExpedition`'s
-  founding body): tier-1 `Port` + `Market`; resident segments re-attach (`PortId`
-  → new port); facilities re-resolve market via `AttachedMarketIndex`; outpost
-  marked **Graduated**; `Relations.EncroachmentTensionBump` loop fires (reuse
-  `CompleteExpedition`'s). Tests: cost discount (facility-rich outpost costs less
-  than bare); promotion integrity (port+market born, segments re-attached,
-  facilities re-resolve, tension fires).
+- [x] **T3.2 — Graduation promotion machinery — DONE + CONSERVATION-CLEAN, but
+  the rung never fires** (`c83255c`). Built: candidate model carries kind
+  (Expedition|Graduation)+OutpostId+discounted Cost; graduation candidates enter
+  the same ranked expansion scoring; `GenesisController` emits a new
+  `GraduateOutpostAct` (convoy gate is expedition-only); `TryGraduate` re-verifies
+  on truth and charges the discounted cost from `ExpansionPoints`; new
+  `ProjectKind.OutpostGraduation` (no convoy/fleet/fuel) whose cost **recycles as
+  world-time construction wages** via `PayWages` (flow #3 conserved — sweep worst
+  residual **3.47e-15**); completes in-place → tier-1 Port+Market, resident
+  segments re-attach (`PortId` made settable — the single sanctioned re-attach),
+  facilities re-resolve market, outpost `Graduated`, encroachment bump. 5 new
+  `Expansion.*` knobs registered. 12 unit tests green (promotion proven correct
+  with a CONSTRUCTED frontier outpost). Full suite 1197/1 (golden).
+  - **🚧 BLOCKER (structural, cross-task, surfaced by T3.2's sweep): graduation
+    fires in 0/32 real histories.** Outposts form only at WORKED hexes, which are
+    within the parent's `ServiceRadius` (Stage-1 sites facilities only within the
+    domain). But the frontier gate (decision #2, the SUM) requires an outpost
+    ≥ `ServiceRadius(1)+ServiceRadius(parentTier)+margin` from EVERY port incl. the
+    parent — i.e. ≥ 5 hexes BEYOND the parent's domain edge. An in-domain outpost
+    can never clear that, at any knob values (`0 > ServiceRadius(1)+margin` is
+    impossible). The two geometries never meet: **outposts form inside domains;
+    graduation requires them outside.** Confirmed empirically (seeds 7/42/555:
+    outposts form, frontier=0, slack −14/−15 hexes) and geometrically. The
+    promotion code is correct; the ladder's third rung is unreachable. **Needs a
+    USER DESIGN CALL — escalated 2026-07-18 (see below).** Do not patch around it.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.
