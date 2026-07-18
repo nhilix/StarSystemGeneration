@@ -38,12 +38,11 @@ instrument, `0d93250` — see its section below). The whole CU chain is now
 MC ✅ → BF ✅ → CU-3 ✅ → **CU-4 (next)**.
 
 **Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
-
-**Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
 (domain hex expansion, was HELD pending "CU-3's hiccups" — those resolved into the
 BF→MC detour, which is now complete; the hold can lift).
 
-**Chain: MC ✅ → BF ✅ → CU-3 (next) → CU-4.**
+**CU-4 spawned 2026-07-17** (psmux `slice-cu4`, orchestrator) — the chain's
+final slice is IN PROGRESS.
 
 ## Slice MC — P7-clean polity entry + clock-invariance instrument (MERGED)
 
