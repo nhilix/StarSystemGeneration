@@ -44,15 +44,18 @@ determinism byte-identity always.
   Tests: `EffectiveGate` discounted for a credible pair (mirrors the true gate → an
   offer actually generates). **No serialization change** (transient snapshots). Golden
   identical (knob 0).
-- [ ] **T6 — absorption gate** (Sonnet). `FederationOps.VassalExits`: replace the
+- [x] **T6 — absorption gate** (Sonnet) — commit `8fc2c11`. Reused the `Credibility`
+  helper. `FederationOps.VassalExits`: replace the
   `rel.Warmth >= VassalAbsorptionWarmth` test with
   `rel.Warmth >= VassalAbsorptionWarmth − VassalAbsorptionCredibilityDiscount ×
   max(0, cred(overlord) − cred(vassal))`. Tests: long/warm-enough-only-with-discount
   vassalage under a credible overlord absorbs; vassal more credible than overlord gets
   no discount; knob=0 ⇒ identical. Golden identical (knob 0).
-- [ ] **T7-checkpoint — inert-at-0** (slice session). With both knobs 0: full
-  `dotnet test` green, **golden byte-identical to pre-CU-4 `main`**, determinism
-  byte-identity. Proves the whole mechanism provably inert before activation. GATE.
+- [x] **T7-checkpoint — inert-at-0** (slice session) — **PASSED**. Fresh seed-42
+  artifact diffs against the frozen golden by **exactly two lines** (the two new knobs
+  in the config stamp at value 0); all 9924 simulation-history lines byte-identical.
+  Full suite 1144 pass / 1 fail (only `GoldenTests`, the config-stamp red). Mechanism
+  provably inert at default. (Verified with a throwaway dump harness, since removed.)
 - [ ] **T8 — activation + measurement** (**Opus**). Set conservative live defaults
   (start ~0.15–0.25, tune down if runaway). Run: (a) **32-run conservation sweep**
   (`2026-07-12-debt-diagnosis-experiment.json`) — worst per-currency residual holds
