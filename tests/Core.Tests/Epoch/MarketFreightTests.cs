@@ -38,8 +38,10 @@ public class MarketFreightTests
         EpochTestKit.AddLane(state, 0, 1);
         int s0 = state.PolityOf(a0.Id).SpeciesId;
         int s1 = state.PolityOf(a1.Id).SpeciesId;
-        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });
-        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0) { Wealth = 500 });
+        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0)
+        { Wealth = 500, Hex = pa.Hex });
+        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0)
+        { Wealth = 500, Hex = pb.Hex });
         // the marine trades on the owner's OWN capital now (review wave,
         // finding 3) — a fixture polity needs a real working-capital float
         state.PolityOf(a0.Id).Credits = 5000;
@@ -422,8 +424,10 @@ public class MarketFreightTests
         EpochTestKit.AddLane(state, 0, 1);
         int s0 = state.PolityOf(a0.Id).SpeciesId;
         int s1 = state.PolityOf(a1.Id).SpeciesId;
-        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });
-        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0) { Wealth = 500 });
+        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0)
+        { Wealth = 500, Hex = pa.Hex });
+        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0)
+        { Wealth = 500, Hex = pb.Hex });
         state.WorldYear = 100;
         int g = (int)GoodId.Provisions;
 

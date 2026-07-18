@@ -234,8 +234,10 @@ public class OrderBookCurrencyTests
         EpochTestKit.AddLane(state, 0, 1);
         int s0 = state.PolityOf(0).SpeciesId;
         int s1 = state.PolityOf(1).SpeciesId;
-        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0) { Wealth = 500 });
-        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0) { Wealth = 500 });
+        state.Segments.Add(new PopulationSegment(0, 0, s0, s0, 3.0)
+        { Wealth = 500, Hex = pa.Hex });
+        state.Segments.Add(new PopulationSegment(1, 1, s1, s1, 3.0)
+        { Wealth = 500, Hex = pb.Hex });
         AddCurrency(state, 0, 1.0);            // trader (polity 0) currency
         AddCurrency(state, 1, 2.0);            // source-port currency (foreign)
         state.PolityOf(0).CurrencyId = 0;
