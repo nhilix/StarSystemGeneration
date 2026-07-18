@@ -76,7 +76,14 @@ determinism byte-identity always.
   warmth ~0.42 clears; without CU-4 both stay bound forever. Noted: at 0.20 the visible
   effect rides the ABSORPTION seam (peer fusion needs a rarer both-credible near-threshold
   pair); user accepted 0.20 over the 0.30/asymmetric headroom.
-- [ ] **T11 — whole-branch fresh-eyes review** (**fable**) + one fix wave.
+- [x] **T11 — whole-branch fresh-eyes review** (**fable**) — verdict **MERGE**, all
+  global constraints verified in code. Findings for the one fix wave: (Important) the
+  vacuous `Absorption_VassalMoreCredibleThanOverlord_GetsNoDiscount` test (warmth 0.55
+  fails with or without the max(0) floor — give it teeth: warmth above the plain bar,
+  assert absorption still fires); (Important) `docs/TUNING.md` still says both knobs
+  default 0.0/inert (shipped 0.20); (Minor) dedup the credibility guard+lookup across
+  `FederationOps.Credibility` and the `Phases.cs` snapshot. Review:
+  `scratchpad/cu4-fable-review.md`.
 - [ ] **T12 — MERGE (user checkpoint)**: merge `--no-ff` to `main`; update
   `docs/HANDOFF.md` (CU chain **CLOSED**); Trello sync if reachable; **no next
   kickoff** (chain closes — note follow-ups from spec §10). Push only on say-so.
