@@ -56,18 +56,20 @@ determinism byte-identity always.
   in the config stamp at value 0); all 9924 simulation-history lines byte-identical.
   Full suite 1144 pass / 1 fail (only `GoldenTests`, the config-stamp red). Mechanism
   provably inert at default. (Verified with a throwaway dump harness, since removed.)
-- [ ] **T8 — activation + measurement** (**Opus**). Set conservative live defaults
-  (start ~0.15–0.25, tune down if runaway). Run: (a) **32-run conservation sweep**
-  (`2026-07-12-debt-diagnosis-experiment.json`) — worst per-currency residual holds
-  **~1e-16 relative**; (b) **clock instrument** (`2026-07-17-clock-invariance-
-  experiment.json`) — telescoping intact; (c) **runaway metrics** vs pre-CU-4 `main`
-  baseline (same seeds): surviving-polity count in a sane band, federation/absorption
-  counts rise but don't explode, fused polities skew high-`BackedShare` / absorbed
-  vassals skew low. Iterate defaults against these instruments; add a countervailing
-  brake **only** if over-federation actually shows. GATE.
-- [ ] **T9 — golden re-freeze** (once, here — a merge in seed-42 history moves it) +
-  REPL/eyeball surface check (existing `FederationFormed`/`VassalAbsorbed` events +
-  BF `bank:`/`claims:` surface).
+- [x] **T8 — activation + measurement** (**Opus** sub for measurement; slice session
+  activated) — commit `4b49d25`. **Default = 0.20 for both knobs.** Measured on the
+  committed instruments (variant-driven, no golden disturbance): 32-run conservation
+  sweep worst **relative residual 1.223e-15** (= CU-3's 1.22e-15, ~6 orders below the
+  1e-9 fail bar); clock instrument **telescopes** (`live_polities` byte-identical
+  across 25/5/1y clocks, null-variant self-check clean); **no runaway** — mean
+  `Polity.Live` 59.625 (baseline) → 59.375 (0.20) → 59.0 (0.30), monotone ~1%. Three
+  CU-4 unit tests pinned their control knob explicitly (had asserted the now-live
+  default 0). **Effect is deliberately targeted** (the runaway brakes): at seed-42/
+  radius-12 it's a 0→0 no-op; it flips real absorptions at radius 21 (seeds 31337,
+  9091). Report: `scratchpad/cu4-t8a-measure-report.md`.
+- [x] **T9 — golden re-freeze** — commit pending. Regenerated seed-42 golden;
+  diff is **exactly the two knob-stamp lines at 0.2** (no simulation-history change —
+  seed-42/radius-12 is a 0→0 no-op), CRLF preserved. **Full suite 1145/1145 green.**
 - [ ] **T10 — EYEBALL (user checkpoint)**: a driven history where a strong polity
   visibly federates while a weak vassal is absorbed — on committed instruments.
 - [ ] **T11 — whole-branch fresh-eyes review** (**fable**) + one fix wave.
