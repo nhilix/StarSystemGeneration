@@ -84,6 +84,11 @@ determinism byte-identity always.
   default 0.0/inert (shipped 0.20); (Minor) dedup the credibility guard+lookup across
   `FederationOps.Credibility` and the `Phases.cs` snapshot. Review:
   `scratchpad/cu4-fable-review.md`.
+  **Fix wave (one, all 3 findings):** `add444d` test teeth (rewrote to
+  `Absorption_VassalMoreCredibleThanOverlord_NoDiscountButNoPenalty`, warmth above the
+  plain bar, asserts absorption fires — fails if `max(0)` removed) · `c18e9b8` TUNING.md
+  defaults → 0.20 · `5fecf91` dedup onto `SimState.BackedShareOf` (no ripple). Suite
+  1145/1145; golden still only the two knob lines.
 - [ ] **T12 — MERGE (user checkpoint)**: merge `--no-ff` to `main`; update
   `docs/HANDOFF.md` (CU chain **CLOSED**); Trello sync if reachable; **no next
   kickoff** (chain closes — note follow-ups from spec §10). Push only on say-so.
