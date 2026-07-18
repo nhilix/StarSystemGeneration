@@ -23,7 +23,7 @@ conservation subtlety (§3b/§3c: reserve records a conversion, claim does not).
       union-genesis pools both parents. `dotnet test` green except the standing
       golden (re-frozen at task 4). Hex-tier never breaks.
 
-- [ ] **2. Conservation sweep + eyeball demonstration.** Run the 32-run committed
+- [x] **2. Conservation sweep + eyeball demonstration.** Run the 32-run committed
       sweep — worst per-currency residual must hold at **~1e-16 relative** (BF's
       2.15e-15 bar; judge relative, not absolute). Then drive a seed history with a
       real absorption and capture the survivor's BF `bank:`/`claims:` lines jumping
@@ -67,3 +67,19 @@ conservation subtlety (§3b/§3c: reserve records a conversion, claim does not).
   this task). §3d verification: **no** BF test or source guard asserts
   `ClaimOnState ≤ CumulativeLentToState` — the survivor's inherited claim exceeding
   its own lending counter is unconstrained; nothing to relax.
+- 2026-07-17 — Task 2 DONE (measurement only, no product code change; source
+  pristine, `dotnet test` 1137/0 unchanged). **32-run sweep: worst RELATIVE residual
+  1.22e-15** (baseline/9091 e36; worst ABSOLUTE 1.81e-7 @ supply 5.4e8 — the
+  expected post-MC inflation) — HOLDS under BF's 2.15e-15 bar. The sweep window
+  exercises real merges (seed 1001 fusions e30/e39, seed 42 Marny→Noor absorption
+  e40), so the consolidation seam is on the measured path. **Eyeball (reserve):**
+  Selal(#90)+Orvomi(#97)→Zenrarin Federation(#106), seed 1001 epoch 68→70 — union
+  bank goes 0→reserve 723 pooling both parents' reserves (Selal 37430 @rate0.012 +
+  Orvomi 663), both parents drain to husks; per-currency residual 1.0e-16 at the
+  fusion epoch, 9.2e-18 the next. **Claim path (§3c):** proven systemic via the
+  `book>lent` inheritance fingerprint in all 8 seeds (up to 84M, seed 2718's clean
+  65944/lent-39047) — but no single legible before/after, because peer fusions pool
+  saver-federations (claims 0) while claim-carrying deficit-borrowers exit via war
+  annexation into rate→0 currencies. That annexation-vs-fusion split is a CU-4
+  emergence note, not a CU-3 correctness gap. Full report:
+  scratchpad `bf/cu3-task2-report.md`.
