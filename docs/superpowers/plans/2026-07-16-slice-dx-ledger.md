@@ -229,12 +229,20 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
 **Conservation-sensitive flow #3 (graduation cost).** Same-polity, same-currency
 — zero CU interplay.
 
-- [ ] **T3.1 — Frontier gate `G` + candidacy predicate** (Opus: anti-clustering
-  guarantee, design judgment). Implement decision #2's `G`. Predicate: an outpost
-  is candidacy-eligible iff frontier (distance ≥ `G` from every entered port);
-  interior outposts **never** graduate. Register `Expansion.GraduationMarginHexes`.
-  Test: an interior outpost never becomes a candidate, at any config
-  (anti-clustering — the whole anti-goal).
+- [x] **T3.1 — Frontier gate `G` + candidacy predicate** — DONE (`55ae9e0`).
+  `OutpostOps.IsFrontier(state, outpost)` + `FrontierStatus` companion
+  (binding-port distance/G/slack for T3.2 scoring + T3.3 REPL) in a
+  clearly-named `Interior/OutpostOps.cs` (apart from `GraduationOps`' FACTION
+  graduation). `G = ServiceRadius(1) + ServiceRadius(p.Tier) + AstroRadiusBonus
+  + Expansion.GraduationMarginHexes` over **every entered port** (parent
+  counts, no special-case); graduated → false; frontier iff `dist > G` for all.
+  New knob `Expansion.GraduationMarginHexes` (**int, default 1** — no-overlap at
+  0, one-hex dead gap at 1); registered KnobRegistry (name-sorted) + TUNING.md +
+  ExpansionKnobs. Pure/read-only, **no promotion** (T3.2). 16 tests incl. the
+  multi-config anti-clustering theory (gate scales with tier AND margin, never a
+  constant). Full suite **1185 passed / 1 failed** (seed-42 golden only — the
+  new KNOB line in the artifact stamp; deferred re-freeze). Hex-tier +
+  Determinism + Conservation green.
 - [ ] **T3.2 — Graduation promotion** (Opus: conservation flow #3 +
   multi-subsystem + design judgment). Frontier outpost enters the **same polity
   expansion scoring** as an expedition target (alongside
