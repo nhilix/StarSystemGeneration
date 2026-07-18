@@ -455,6 +455,51 @@ public static class FederationOps
             if (corp.HostPolityId == fromId) corp.HostPolityId = intoId;
         foreach (var character in state.Characters)
             if (character.PolityId == fromId) character.PolityId = intoId;
+        // the absorbed bank's balance sheet consolidates into the survivor's
+        // (slice CU-3, currency-consolidation design §3): its RESERVE pools into
+        // the survivor's reserve and its CLAIM book transfers onto the survivor's
+        // enlarged self. Placed after the treasury/pool re-denomination above and
+        // before the loan reissue below — the same seam, the same frozen rate.
+        // Guards (§3a): pre-genesis has no banks (BankOf(-1) would throw), and a
+        // self-transfer between two polities that already share a currency would
+        // read-then-zero the ONE shared bank — skip the block in both cases.
+        if (from.CurrencyId >= 0 && into.CurrencyId >= 0
+            && from.CurrencyId != into.CurrencyId)
+        {
+            var fromBank = state.BankOf(from.CurrencyId);
+            var intoBank = state.BankOf(into.CurrencyId);
+            // Reserve is MONEY — sequestered out of Supply but counted in the
+            // per-currency residual (against Supply + Reserve). So it converts AND
+            // records the transfer, exactly like the treasury (DepositExempt) and
+            // pools above: EXEMPT (plain ConvertCurrency, never the skimming
+            // SettleConversion) — this is re-denomination of the polity's own
+            // monetary backing at the merge, not a market FX trade (§3b).
+            double reserveIn = state.ConvertCurrency(fromBank.Reserve,
+                                                     from.CurrencyId, into.CurrencyId);
+            state.RecordConversion(from.CurrencyId, fromBank.Reserve,
+                                   into.CurrencyId, reserveIn);
+            intoBank.Reserve += reserveIn;
+            fromBank.Reserve = 0;
+            // ClaimOnState is NOT money — it never enters Supply and never appears
+            // on the residual's balance side (Bank.cs; the MetricsOps LoanPrincipal
+            // precedent). So it converts to REPRICE into the survivor's currency
+            // but is NOT recorded — recording it would inject a phantom leak into
+            // BOTH currencies' residuals. This mirrors the loan-principal reissue
+            // right below, which likewise ConvertCurrency's the principal without a
+            // RecordConversion (§3c — the slice's central correctness point).
+            double claimIn = state.ConvertCurrency(fromBank.ClaimOnState,
+                                                   from.CurrencyId, into.CurrencyId);
+            intoBank.ClaimOnState += claimIn;
+            fromBank.ClaimOnState = 0;
+            // §3d: only the live balances move. The cumulative counters
+            // (CumulativeSpreadIntake/ReserveFunded/LentToState/Retired) stay on
+            // the drained husk — CumulativeRetired mirrors the retired currency's
+            // CumulativeFiatRetired (which stays), and the rest are observability
+            // of the ABSORBED polity's own activity; attributing them to the
+            // survivor would be a false readout. The husk lingers in state.Banks
+            // keyed to its retired currency, parallel to the retired Currency
+            // record (§3e). No change to Retire.
+        }
         int loans = state.Loans.Count;   // reissues append — scan the originals
         for (int i = 0; i < loans; i++)
         {

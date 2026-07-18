@@ -10,7 +10,7 @@ conservation subtlety (§3b/§3c: reserve records a conversion, claim does not).
 
 ## Tasks
 
-- [ ] **1. The consolidation block + TDD.** In `FederationOps.MergeInto`, after the
+- [x] **1. The consolidation block + TDD.** In `FederationOps.MergeInto`, after the
       treasury/pool transfer and before the loan reissue (design §3): guards (§3a),
       reserve transfer (§3b — `ConvertCurrency` + `RecordConversion`, exempt), claim
       transfer (§3c — `ConvertCurrency` reprice, **NO** `RecordConversion`), leave
@@ -55,3 +55,15 @@ conservation subtlety (§3b/§3c: reserve records a conversion, claim does not).
 - 2026-07-17 — brainstorm complete (instant · reserve→reserve · claim
   transfer/inherit · lazy corp holdings · fusion-only); design approved and
   committed `0490ca1`; ledger opened.
+- 2026-07-17 — Task 1 DONE. Consolidation block landed in `FederationOps.MergeInto`
+  (after the character loop, before loan reissue): §3a guards, §3b reserve
+  (`ConvertCurrency` + `RecordConversion`, exempt), §3c claim (`ConvertCurrency`
+  reprice, NO `RecordConversion`), §3d counters left on the husk. 7 TDD tests in
+  `tests/Core.Tests/Epoch/CurrencyConsolidationTests.cs` (reserve recorded · claim
+  NOT recorded via reserve=0/claim≠0 · per-currency residual invariant · husk
+  lingers · union-genesis pools both · pre-genesis & same-currency guards). Full
+  suite green: 1137 passed, 0 failed — **including the golden** (seed-42 merges
+  carry zero reserve/claim at the golden's epoch range, so no re-freeze needed for
+  this task). §3d verification: **no** BF test or source guard asserts
+  `ClaimOnState ≤ CumulativeLentToState` — the survivor's inherited claim exceeding
+  its own lending counter is unconstrained; nothing to relax.
