@@ -694,6 +694,7 @@ public static class ProjectOps
             Wealth = cfg.Expansion.ColonyCost,
         };
         colonySegment.Body = PopulationSiting.Assign(state, port.Id);
+        colonySegment.Hex = state.Ports[port.Id].Hex;   // settles at its port hex
         // settlers sent by the state carry the official line (slice G)
         if (record.Interior != null)
             for (int ax = 0; ax < 4; ax++)

@@ -121,6 +121,7 @@ public static class NativeOps
                 var tilt = GovernmentForms.SpeciesIdeologyTilt(species);
                 for (int ax = 0; ax < 4; ax++) segment.Ideology[ax] = tilt[ax];
                 segment.Body = PopulationSiting.Assign(state, port);
+                segment.Hex = state.Ports[port].Hex;   // settles at its port hex
                 state.Segments.Add(segment);
 
                 if (policy == NativePolicy.Integrate

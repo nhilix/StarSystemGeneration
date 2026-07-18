@@ -80,6 +80,12 @@ public sealed class SimState
     /// sites; the narrative layer compiles them in I (P4).</summary>
     public List<WreckageRecord> Wreckage { get; } = new List<WreckageRecord>();
     public List<PopulationSegment> Segments { get; } = new List<PopulationSegment>();
+    /// <summary>Lightweight settlement records (domain-hex-expansion design §3) —
+    /// founded when a segment settles a worked satellite hex; NOT actors (no
+    /// treasury/market/controller), residents trade through the parent port.
+    /// Id order (P6); graduated outposts stay as history. Empty until Stage 2
+    /// founds any.</summary>
+    public List<Outpost> Outposts { get; } = new List<Outpost>();
     /// <summary>One market per port, parallel to Ports (market id = port id).</summary>
     public List<Market> Markets { get; } = new List<Market>();
     /// <summary>The slow identity layer's registry. Seeded one per species;

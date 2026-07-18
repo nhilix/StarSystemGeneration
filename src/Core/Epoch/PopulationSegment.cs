@@ -1,3 +1,5 @@
+using StarGen.Core.Model;
+
 namespace StarGen.Core.Epoch;
 
 /// <summary>The four ideology axes — the fast identity layer
@@ -46,6 +48,13 @@ public sealed class PopulationSegment
     /// assigned at creation (locality slice §3, follow-on plan). None until
     /// then; the port id remains the administering domain.</summary>
     public BodyRef Body { get; set; } = BodyRef.None;
+    /// <summary>The segment's settled hex within its administering port's domain
+    /// (domain-hex-expansion design §3) — <b>defaults to the administering
+    /// port's hex</b>, so a segment that has not relocated reads its port hex
+    /// (Task 2.4 staffing depends on this). Serialized (segments layer v4).
+    /// Stage 2's settle election moves it to a satellite hex; the
+    /// <see cref="PortId"/> stays the administering domain either way.</summary>
+    public HexCoordinate Hex { get; set; }
 
     public PopulationSegment(int id, int portId, int speciesId, int cultureId,
                              double size)

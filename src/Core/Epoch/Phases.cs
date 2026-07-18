@@ -1740,6 +1740,7 @@ public sealed class InteriorPhase : ISimPhase
                          * state.Config.Economy.InitialWealthPerPop,
             };
             homeSegment.Body = PopulationSiting.Assign(state, port.Id);
+            homeSegment.Hex = state.Ports[port.Id].Hex;   // settles at its port hex
             // the founding population starts at its species' ideology tilt;
             // the interior seats there too (popular == official at birth).
             // Shape-only test skeletons carry no species — no interior then.
@@ -2047,6 +2048,7 @@ public sealed class InteriorPhase : ISimPhase
         for (int a = 0; a < founded.Ideology.Length; a++)
             founded.Ideology[a] = migrant.Ideology[a];
         founded.Body = PopulationSiting.Assign(state, portId);
+        founded.Hex = state.Ports[portId].Hex;   // settles at its port hex
         state.Segments.Add(founded);
         return founded;
     }
