@@ -1798,6 +1798,13 @@ public sealed class InteriorPhase : ISimPhase
         // refugees flee before attrition bites: migration reads last step's
         // market outcomes, demographics apply to whoever stayed
         int migrations = Migrate(state, preexisting);
+        // pop follows work: sustained unmet labor at a worked satellite hex
+        // draws an eligible segment to settle it, founding an outpost (the
+        // dedicated settle election — SettleOps, domain-hex-expansion §3).
+        // Runs after port-to-port migration, before demographics grow whoever
+        // stayed. Founds no new segments (whole-segment relocation), so it does
+        // not disturb the preexisting-index demographics/drift loops below.
+        int settled = SettleOps.Step(state);
         int grown = Demographics(state, preexisting);
         DriftIdeology(state, preexisting);
         // lives run, then interests organize, then the polity's inside
@@ -1827,6 +1834,8 @@ public sealed class InteriorPhase : ISimPhase
             note += $", {grown} " + (grown == 1 ? "segment grows" : "segments grow");
         if (migrations > 0)
             note += $", {migrations} " + (migrations == 1 ? "flow migrates" : "flows migrate");
+        if (settled > 0)
+            note += $", {settled} " + (settled == 1 ? "outpost founded" : "outposts founded");
         if (deaths > 0)
             note += $", {deaths} " + (deaths == 1 ? "life ends" : "lives end");
         if (successions > 0)

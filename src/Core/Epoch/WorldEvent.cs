@@ -60,6 +60,7 @@ public enum WorldEventType
     CapitalRuined = 311,
     MemorialRaised = 312,
     QuarantineImposed = 313,
+    OutpostFounded = 314,
     ShipClassLaunched = 400,
     FleetAttrition = 401,
     ConvoyDispatched = 402,
@@ -154,6 +155,12 @@ public sealed record PolityEmergedPayload(string PolityName) : EventPayload;
 
 /// <summary>Claiming space is building a port (space-and-travel.md).</summary>
 public sealed record PortEstablishedPayload(string PolityName, int PortId) : EventPayload;
+
+/// <summary>Pop follows work: a segment settled a worked satellite hex within
+/// a domain, founding a lightweight outpost (domain-hex-expansion §3). Distinct
+/// from PortEstablished — an outpost is not a port (no id of its own; the
+/// Location carries its hex), so port-scoped consumers never mistake it for one.</summary>
+public sealed record OutpostFoundedPayload(string PolityName, int OutpostId) : EventPayload;
 
 /// <summary>Paired port infrastructure: the lane links two port registry ids.</summary>
 public sealed record LaneOpenedPayload(int PortAId, int PortBId) : EventPayload;

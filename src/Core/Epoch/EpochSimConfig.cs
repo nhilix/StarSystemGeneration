@@ -1072,6 +1072,32 @@ public sealed class ExpansionKnobs
     public double PortUpgradeExoticsPerYearPerTier { get; set; } = 0.25;
     public double HomeworldSegmentSize { get; set; } = 3.0;
     public double ColonySegmentSize { get; set; } = 0.5;
+    /// <summary>Real habitat construction cost a relocating segment pays to
+    /// settle a satellite hex (domain-hex-expansion §3, settle election —
+    /// conservation flow #1): drawn from the segment's own Wealth and paid
+    /// straight back out as construction wages across the domain's households
+    /// (MarketEngine.PayWages), so it moves WHERE credits land, never how many.
+    /// A segment whose Wealth is below this cannot fund a meaningful habitat
+    /// and is not eligible to settle.</summary>
+    public double SettleHabitatCost { get; set; } = 5.0;
+    /// <summary>Fractional weighted-labor shortfall a satellite hex's worked
+    /// facilities must exceed before a segment settles it (domain-hex-expansion
+    /// §3): the hex is under-labored when its facilities' combined weighted
+    /// workforce falls below LaborRequired × (1 − this). 0 = any shortfall
+    /// triggers; 1 = only a totally unstaffed hex does.</summary>
+    public double SettleLaborShortfallFraction { get; set; } = 0.25;
+    /// <summary>World-years a satellite hex's facilities must have been
+    /// commissioned before the shortfall counts as SUSTAINED (domain-hex-
+    /// expansion §3; time-not-ticks, P7): "sustained" is derived from facility
+    /// maturity, not a per-hex timer, so a finer clock settles no faster over
+    /// the same world-years. A brief spike at a young working never triggers.</summary>
+    public double SettleMaturityYears { get; set; } = 50.0;
+    /// <summary>World-years between settle elections within ONE port's domain
+    /// (domain-hex-expansion §3; P7, mirrors FoundingCadenceYears): at most one
+    /// outpost founds per this many world-years per domain, checked against the
+    /// domain's last outpost founding year — so the pass does not settle a fresh
+    /// hex every step.</summary>
+    public double SettleCadenceYears { get; set; } = 25.0;
     /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>
     public double SegmentGrowthPerYear { get; set; } = 0.01;
     /// <summary>Port population cap = port tier × this, shared across segments.</summary>

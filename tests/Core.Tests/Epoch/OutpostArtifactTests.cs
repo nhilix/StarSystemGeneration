@@ -31,9 +31,12 @@ public class OutpostArtifactTests
         var moved = new HexCoordinate(seg.Hex.Q + 3, seg.Hex.R - 2);
         seg.Hex = moved;
 
-        // found a lightweight outpost with a spaced name to exercise the
-        // Name() free-text escaping through the pipe-delimited line format.
-        built.Outposts.Add(new Outpost(0, "Rusthaven Landing", moved,
+        // append a lightweight outpost with a spaced name to exercise the
+        // Name() free-text escaping through the pipe-delimited line format. The
+        // full run may already have founded outposts (settle elections, Task
+        // 2.3), so append at the next dense id (id-order guard, P6).
+        int id = built.Outposts.Count;
+        built.Outposts.Add(new Outpost(id, "Rusthaven Landing", moved,
             ParentPortId: seg.PortId, FoundingYear: built.WorldYear)
         { Graduated = true });
 
@@ -43,10 +46,10 @@ public class OutpostArtifactTests
         // segment Hex survived exactly
         Assert.Equal(moved, loaded.Segments[0].Hex);
 
-        // outpost survived, every field
-        Assert.Single(loaded.Outposts);
-        var o = loaded.Outposts[0];
-        Assert.Equal(0, o.Id);
+        // the appended outpost survived, every field
+        Assert.Equal(built.Outposts.Count, loaded.Outposts.Count);
+        var o = loaded.Outposts[id];
+        Assert.Equal(id, o.Id);
         Assert.Equal("Rusthaven Landing", o.Name);
         Assert.Equal(moved, o.Hex);
         Assert.Equal(seg.PortId, o.ParentPortId);
@@ -58,15 +61,21 @@ public class OutpostArtifactTests
     }
 
     [Fact]
-    public void SegmentHex_DefaultsToPortHex_AfterFullRun()
+    public void SegmentHex_SitsAtPortHexOrAnOwnDomainOutpost_AfterFullRun()
     {
-        // no behaviour moves a segment's hex this task, and PortId is get-only,
-        // so every segment must still sit at its administering port's hex — the
-        // invariant Task 2.4 staffing depends on.
+        // post-Task-2.3 invariant: a segment either still sits at its
+        // administering port's hex (never relocated) or has settled a satellite
+        // hex that hosts an outpost of that SAME port (the settle election —
+        // pop follows work, never leaving the domain it is administered by).
         var built = Run();
         Assert.NotEmpty(built.Segments);
         foreach (var s in built.Segments)
-            Assert.Equal(built.Ports[s.PortId].Hex, s.Hex);
+        {
+            var portHex = built.Ports[s.PortId].Hex;
+            if (s.Hex.Equals(portHex)) continue;   // never relocated
+            Assert.Contains(built.Outposts,
+                o => o.ParentPortId == s.PortId && o.Hex.Equals(s.Hex));
+        }
     }
 
     [Fact]

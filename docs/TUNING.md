@@ -390,6 +390,10 @@ set how fast the built world thickens (slice D).
 | `Expansion.HomeworldSegmentSize` / `ColonySegmentSize` | 3 / 0.5 | Bigger founding populations (more labor, more mouths). | Thin seeds; slower starts. |
 | `Expansion.SegmentGrowthPerYear` | 0.01 | Faster natural increase — caps bind sooner, migration pressure builds. | Population is precious; losses take centuries to heal. |
 | `Expansion.SegmentCapPerTier` | 2 | Ports carry more people per tier (development = population). | Tier raises become the only growth path. |
+| `Expansion.SettleHabitatCost` | 5 | Settling a satellite hex costs a segment more of its own Wealth (paid back out as construction wages — conserved); only wealthy segments strike out, outposts form later. | Cheap habitats; a thin-walleted segment can relocate, outposts form readily. |
+| `Expansion.SettleLaborShortfallFraction` | 0.25 | A hex must be more starved of labor before anyone settles it — outposts form only at genuinely under-crewed workings. | Any small commute shortfall triggers settlement; pop chases work aggressively. |
+| `Expansion.SettleMaturityYears` | 50 | A working must persist longer before its shortfall reads as SUSTAINED — outposts form only at long-standing frontier labor demand (a brief spike never settles anyone). Derived world-time gate, not a per-hex timer (P7). | Young workings settle fast; a transient labor spike can found an outpost. |
+| `Expansion.SettleCadenceYears` | 25 | Longer gap between settle elections per domain — a region fills in slowly, one outpost at a time. Mirrors `FoundingCadenceYears`; a fine clock founds at the same world pace (P7). | Domains can settle a new hex more often per world-century. |
 
 ## Controller — the genesis AI's standing-policy magnitudes
 

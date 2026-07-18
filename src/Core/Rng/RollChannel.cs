@@ -119,4 +119,7 @@ public enum RollChannel : ulong
 
     // --- Off-lane smuggling detection (locality slice L2 §5). ---
     ShipmentDetection = 78,    // off-lane seizure by a covering patrol: step = epoch, actor = shipment owner, subIndex = shipment id
+
+    // --- Domain hex expansion (slice DX, stage 2). ---
+    OutpostName = 79,          // settle-election outpost name syllables: step = outpost id, actor = -1, subIndex = 100 length gate, 10+i syllable slot
 }

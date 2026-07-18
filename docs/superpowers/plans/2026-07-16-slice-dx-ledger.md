@@ -152,11 +152,26 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
   foundingYear, graduated)` + `SimState.Outposts` registry (iterated id order,
   P6) + a new `("outposts", 1)` layer appended after `("banks", 2)`. Round-trip
   byte-identity tests. NOT an actor — no treasury/market/controller.
-- [ ] **T2.2 — `PopulationSiting` extension** (Sonnet; determinism-adjacent —
-  commits a system). Extend to resolve a body within an *arbitrary domain hex's*
-  committed system, not only the port's (`Assign` currently hardcodes the port
-  hex). Keep the port-hex default path intact.
-- [ ] **T2.3 — Settle election (dedicated pass)** (Opus: conservation flow #1 +
+- [x] **T2.2 — `PopulationSiting` extension** (folded into T2.3). Added
+  `Assign(state, portId, hex)` resolving a body within an arbitrary domain
+  hex's committed system; the port-hex `Assign(state, portId)` delegates to it.
+  Test: `PopulationSitingTests.Assign_WithHex_SettlesAtAnArbitraryDomainHex_NotThePort`.
+- [x] **T2.3 — Settle election (dedicated pass)** — DONE. New `SettleOps.Step`
+  (Interior/SettleOps.cs), sequenced after `Migrate` in `InteriorPhase`.
+  Trigger: a satellite hex whose worked facilities (attached to the port,
+  `Produces>0`) are MATURE (`WorldYear − CommissionedYear ≥ SettleMaturityYears`
+  — the world-time "sustained" derivation, no per-hex timer) and combined
+  weighted workforce `< LaborRequired × (1 − SettleLaborShortfallFraction)`,
+  gated per-domain by `SettleCadenceYears` (checked against the domain's last
+  outpost founding year, mirroring `FoundingCadenceYears`). Elects the
+  largest/lowest-id port-hex household with `Wealth ≥ SettleHabitatCost` (no
+  tiebreak roll needed — total order). Conserved payment: `seg.Wealth −= cost;
+  MarketEngine.PayWages(port, cost)`. Relocates `(Hex, Body)` via T2.2, keeps
+  `PortId`. Founds `Outpost` + a **new** `WorldEventType.OutpostFounded`
+  StagedEvent (NOT PortEstablished — reusing it broke port-scoped consumers;
+  see report). Knobs registered (`Expansion.Settle*`), `RollChannel.OutpostName
+  = 79`. 32-run sweep worst relative residual **4.166e-15** (tol 1.3e-9).
+- [ ] **T2.4 — Staffing rewire** (Sonnet; production-magnitude + determinism).
   world-time discipline + new roll). New dedicated step: detect a satellite hex
   with **sustained unmet weighted-labor demand** over a **world-time** duration
   (world-years, never step counts — cf. L2's FineTick saga; gate like
