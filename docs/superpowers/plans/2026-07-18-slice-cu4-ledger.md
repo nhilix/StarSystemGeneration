@@ -15,16 +15,19 @@ determinism byte-identity always.
 
 - [x] **T0 — design spec** committed `e35a742`.
 - [x] **T1 — ledger** (this file).
-- [ ] **T2 — `Bank.BackedShare`** (Sonnet). Pure computed property on `Bank`:
-  `(Reserve + ClaimOnState) <= 0 ? 0.0 : Reserve / (Reserve + ClaimOnState)`.
-  Unit tests: saver→1.0, debtor→0.0, balanced→0.5, fresh 0/0→0.0. No other code
-  reads it yet. Golden untouched.
-- [ ] **T3 — knobs, default 0.0** (Sonnet). `Relations.FederationCredibilityDiscount`
-  and `Relations.VassalAbsorptionCredibilityDiscount` in `EpochSimConfig.cs` (beside
-  `FederationOverlapDiscount`/`VassalAbsorptionWarmth`), **both defaulting 0.0**;
-  register **both** in `KnobRegistry.cs` (hard rule — unregistered knob blocks the
-  sweep); add to `docs/TUNING.md`. Golden byte-identical (knobs inert at 0). GATE:
-  full `dotnet test` green.
+- [x] **T2 — `Bank.BackedShare`** (Sonnet) — commit `dc0a00a`. Pure computed property
+  on `Bank`. Unit tests: saver→1.0, debtor→0.0, balanced→0.5, fresh 0/0→0.0.
+- [x] **T3 — knobs, default 0.0** (Sonnet) — commit `f2553e6`.
+  `Relations.FederationCredibilityDiscount` + `Relations.VassalAbsorptionCredibilityDiscount`
+  in `EpochSimConfig.cs`, both 0.0; both registered in `KnobRegistry.cs`
+  (name-sorted table); `docs/TUNING.md` updated.
+  **⚠ GOLDEN-WINDOW CORRECTION:** `ArtifactSerializer.Save` stamps *every*
+  `KnobRegistry.All` entry into the config artifact, so **registering a knob busts
+  the golden at T3** (not at T8), value-independent — exactly BF's `FxBackingSensitivity`
+  precedent (`7dba6fb`). The golden is now RED and stays red until the single re-freeze
+  at **T9**. The T7 inert proof is therefore *not* "golden byte-identical" but
+  "**golden diff is exactly the two knob-stamp lines, zero behavioral/simulation
+  diff**" — verify by regenerating and diffing at T7.
 - [ ] **T4 — fusion true gate** (Sonnet; escalate if it fights the test kit).
   `FederationOps.FederationGateHolds`: subtract
   `FederationCredibilityDiscount × min(cred(a), cred(b))` from `gate`, where
@@ -70,10 +73,11 @@ determinism byte-identity always.
 
 ## Gates (mechanical, mandatory)
 
-`dotnet test` green throughout (hex-tier suite never breaks) · determinism
-byte-identity · golden frozen **once** at T9 (red-window T4–T8 is knob-0-inert, so
-golden actually stays identical until T8 activation) · 32-run sweep ~1e-16 rel ·
-clock instrument telescopes · both knobs registered.
+`dotnet test` green throughout **except `GoldenTests`** (RED from T3 onward — the
+config-artifact stamp lists the two new knobs; see the T3 correction). Golden frozen
+**once** at T9. Determinism byte-identity of *simulation* holds throughout (the golden
+diff is only the two config-stamp lines until T8 activation moves behavior). · 32-run
+sweep ~1e-16 rel · clock instrument telescopes · both knobs registered.
 
 ## Notes / surprises
 
