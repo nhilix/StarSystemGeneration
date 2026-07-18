@@ -53,15 +53,20 @@ A new block, placed **after** the treasury + investment-pool transfer
 **before** the loan reissue, operating on the two banks
 `state.BankOf(from.CurrencyId)` and `state.BankOf(into.CurrencyId)`.
 
-### 3a. Guards (skip the whole block if any holds)
+### 3a. Guards (skip the CONSOLIDATION BLOCK if any holds)
 
 ```
-if (from.CurrencyId < 0 || into.CurrencyId < 0) return;   // pre-genesis: no banks
-if (from.CurrencyId == into.CurrencyId) return;           // defensive: never for
-                                                          // distinct living polities;
-                                                          // a self-transfer would
-                                                          // double the reserve
+skip the block when
+    from.CurrencyId < 0 || into.CurrencyId < 0   // pre-genesis: no banks
+ || from.CurrencyId == into.CurrencyId            // defensive: never for distinct
+                                                  // living polities; a self-transfer
+                                                  // would double the reserve
 ```
+
+**Skip only the consolidation block, not the rest of `MergeInto`.** A bare `return`
+would also skip the loan reissue that follows — wrap the block in
+`if (!skip) { ... }` (or extract a helper and early-`return` inside it). The
+implementation uses the guarded-block form.
 
 ### 3b. Reserve — money, so convert AND record
 
