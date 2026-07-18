@@ -107,9 +107,9 @@ public class ControllerContractTests
         var perceived = new PerceptionView(0, 100, new[] { 0, 1 },
             relations: new[] { relBrief }, ownCredibility: 1.0);
 
-        // knob at 0 (shipped default): the term is exactly 0 — no offer,
-        // identical to pre-CU-4
-        Assert.Equal(0.0, cfg.Relations.FederationCredibilityDiscount);
+        // knob pinned to 0: the term is exactly 0 — no offer, identical to
+        // pre-CU-4 (pin explicitly; the shipped default is now live at 0.20)
+        cfg.Relations.FederationCredibilityDiscount = 0.0;
         Assert.Empty(controller.Decide(perceived).Acts);
 
         // both partners credible + knob live: the discounted gate opens

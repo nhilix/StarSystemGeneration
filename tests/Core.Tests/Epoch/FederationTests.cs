@@ -189,13 +189,14 @@ public class FederationTests
               * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
         rel.Warmth = plainGate - 0.05;   // just below the plain gate
 
-        // knob at 0 (the shipped default): behavior identical to pre-CU-4 —
-        // fails regardless of credibility, since the term is exactly 0
+        // knob pinned to 0: behavior identical to pre-CU-4 — fails regardless
+        // of credibility, since the term is exactly 0 (pin explicitly; the
+        // shipped default is now live at 0.20)
         state.BankOf(a.CurrencyId).Reserve = 100.0;
         state.BankOf(a.CurrencyId).ClaimOnState = 0.0;
         state.BankOf(b.CurrencyId).Reserve = 100.0;
         state.BankOf(b.CurrencyId).ClaimOnState = 0.0;
-        Assert.Equal(0.0, state.Config.Relations.FederationCredibilityDiscount);
+        state.Config.Relations.FederationCredibilityDiscount = 0.0;
         Assert.False(FederationOps.FederationGateHolds(state, rel));
 
         // both partners credible (BackedShare 1.0 each) + knob live: the
@@ -320,9 +321,10 @@ public class FederationTests
         state.BankOf(vassalPr.CurrencyId).Reserve = 0.0;
         state.BankOf(vassalPr.CurrencyId).ClaimOnState = 500.0;
 
-        // knob at 0 (the shipped default): behavior identical to pre-CU-4 —
-        // the plain bar isn't met, so no absorption fires
-        Assert.Equal(0.0, state.Config.Relations.VassalAbsorptionCredibilityDiscount);
+        // knob pinned to 0: behavior identical to pre-CU-4 — the plain bar
+        // isn't met, so no absorption fires (pin explicitly; the shipped
+        // default is now live at 0.20)
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.0;
         var (absorbedAtZero, _) = FederationOps.VassalExits(state);
         Assert.Equal(0, absorbedAtZero);
         Assert.Equal(vassal, rel.VassalPolityId);   // still bound

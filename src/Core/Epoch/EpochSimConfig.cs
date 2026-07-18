@@ -359,9 +359,10 @@ public sealed class RelationsKnobs
     /// <summary>Warmth-gate discount per point of the pair's <c>min</c>
     /// monetary credibility (<see cref="Bank.BackedShare"/>) — strong-backed
     /// allies fuse more readily; a debtor partner drags the term to ~0
-    /// (slice CU-4 monetary-federation design §3a). Defaults to 0.0 —
-    /// inert until a dedicated activation task sets a live value.</summary>
-    public double FederationCredibilityDiscount { get; set; } = 0.0;
+    /// (slice CU-4 monetary-federation design §3a). Sits below the 0.25
+    /// overlap-discount scale — credibility stacks on top of it (design §7,
+    /// activation validated on the 32-run sweep + clock instrument).</summary>
+    public double FederationCredibilityDiscount { get; set; } = 0.20;
     /// <summary>Fractional tension-target damping under a non-aggression
     /// rung or above — the rung's teeth (spark de-escalation is war.md's).</summary>
     public double NonAggressionDamping { get; set; } = 0.30;
@@ -387,9 +388,9 @@ public sealed class RelationsKnobs
     /// <summary>Absorption warmth-gate discount per point of overlord−vassal
     /// monetary credibility gap (<see cref="Bank.BackedShare"/>) — a
     /// monetarily weak vassal under a credible overlord absorbs at a lower
-    /// warmth bar (slice CU-4 monetary-federation design §4). Defaults to
-    /// 0.0 — inert until a dedicated activation task sets a live value.</summary>
-    public double VassalAbsorptionCredibilityDiscount { get; set; } = 0.0;
+    /// warmth bar (slice CU-4 monetary-federation design §4; activation
+    /// validated on the 32-run sweep + clock instrument, design §7).</summary>
+    public double VassalAbsorptionCredibilityDiscount { get; set; } = 0.20;
     /// <summary>Overlord cohesion below which vassals bid for independence
     /// (the secession exit).</summary>
     public double VassalSecessionCohesion { get; set; } = 0.40;
