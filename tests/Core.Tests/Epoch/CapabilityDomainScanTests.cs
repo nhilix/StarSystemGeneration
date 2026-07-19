@@ -227,13 +227,49 @@ public class CapabilityDomainScanTests
     }
 
     [Fact]
-    public void HaulingProxyPerHex_IsRegistered()
+    public void HaulingDiscountFloor_IsRegistered_AndProxyKnobRetired()
     {
         // an unregistered knob silently reverts on reload and breaks
-        // determinism/tuning (KnobRegistry discipline).
-        bool found = false;
+        // determinism/tuning (KnobRegistry discipline). The old arbitrary-decay
+        // proxy knob was RETIRED wholesale (R1) — it must leave no registered
+        // trace behind.
+        bool floor = false, proxy = false;
         foreach (var k in KnobRegistry.All)
-            if (k.Name == "Economy.HaulingProxyPerHex") found = true;
-        Assert.True(found, "Economy.HaulingProxyPerHex must be registered");
+        {
+            if (k.Name == "Economy.HaulingDiscountFloor") floor = true;
+            if (k.Name == "Economy.HaulingProxyPerHex") proxy = true;
+        }
+        Assert.True(floor, "Economy.HaulingDiscountFloor must be registered");
+        Assert.False(proxy, "Economy.HaulingProxyPerHex must be retired");
+    }
+
+    [Fact]
+    public void HaulingDiscount_IsFuelGrounded_GoodSpecificAndFloored()
+    {
+        // the fuel-grounded freight model (design §2): the discount is the
+        // fraction of output value that SURVIVES the freight-fuel bite —
+        // freightPerUnit = FuelPerUnitPerHex × steps × fuelPrice.
+        var eco = new EpochSimConfig().Economy;
+        double fuelPrice = 10.0;
+
+        // a working AT the port (steps 0) pays no freight → full value survives.
+        Assert.Equal(1.0, CapabilityOps.HaulingDiscount(
+            eco, unitValue: 100.0, fuelPrice, steps: 0), 12);
+
+        // same distance, two goods: the cheap/bulky good keeps LESS of its
+        // value than the high-value good — good-specific, not a flat decay.
+        double cheapFar = CapabilityOps.HaulingDiscount(
+            eco, unitValue: 20.0, fuelPrice, steps: 6);
+        double richFar = CapabilityOps.HaulingDiscount(
+            eco, unitValue: 500.0, fuelPrice, steps: 6);
+        Assert.True(cheapFar < richFar,
+            "a cheap good hauled far must be discounted more than a high-value one");
+        Assert.True(richFar > 0.9, "a high-value good barely feels the haul");
+
+        // freight that exceeds the good's value floors the discount rather than
+        // scoring the working at zero (or negative) — the whole point of the floor.
+        double crushed = CapabilityOps.HaulingDiscount(
+            eco, unitValue: 1.0, fuelPrice, steps: 100000);
+        Assert.Equal(eco.HaulingDiscountFloor, crushed, 12);
     }
 }

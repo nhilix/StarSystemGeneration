@@ -724,13 +724,16 @@ public sealed class EconomyKnobs
     /// local-hop distance from the facility's body (locality slice §3):
     /// weight = 1/(1 + this × distance). 0 recovers flat domain staffing.</summary>
     public double StaffingDistanceFalloff { get; set; } = 0.15;
-    /// <summary>How steeply a satellite working's opportunity score is
-    /// discounted for hauling its output back to the port market (domain
-    /// hex-expansion §2): discount = 1/(1 + this × hexDistToPort), separate
-    /// from the staffing commute term — this prices moving GOODS, not labor.
-    /// Bigger → the port hex and its near neighbors keep a larger advantage a
-    /// rich frontier body must overcome; 0 makes distance-to-port free.</summary>
-    public double HaulingProxyPerHex { get; set; } = 0.25;
+    /// <summary>Floor on the fuel-grounded hauling discount that scales a
+    /// satellite working's opportunity score (domain hex-expansion §2): the
+    /// discount is <c>max(this, (unitValue − freightPerUnit) / unitValue)</c>,
+    /// the share of output value that survives the freight-fuel bite to the
+    /// port market. The floor keeps a rich-but-distant body from being scored
+    /// at literally zero value (freight alone would push the raw fraction
+    /// negative), so real richness differences still decide siting at the
+    /// frontier. A fraction in (0, 1]; smaller → distant workings are cut
+    /// harder before the floor catches them.</summary>
+    public double HaulingDiscountFloor { get; set; } = 0.05;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year

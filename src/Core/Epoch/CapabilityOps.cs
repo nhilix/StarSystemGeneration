@@ -218,14 +218,13 @@ public static class CapabilityOps
                 var system = SystemRegistry.IsSettled(state, hex)
                     ? state.SettledSystems[hex] : PreviewSystem(state, hex);
                 var portBody = BodySiting.PortBody(system);
-                // two discounts on the same hex-hop: the staffing commute
-                // shape (labor) and the hauling proxy (moving output back to
-                // the port market). Extraction pays both; support rides the
-                // commute term only — it sells at the port it sits beside.
+                // the staffing commute shape (labor), applied to every type;
+                // extraction pays a SECOND, fuel-grounded hauling discount
+                // (moving output back to the port market) computed per body in
+                // the extraction branch. Support rides the commute term only —
+                // it sells at the port it sits beside.
                 double proximity =
                     1.0 / (1.0 + eco.StaffingDistanceFalloff * hexDist);
-                double hauling =
-                    1.0 / (1.0 + eco.HaulingProxyPerHex * hexDist);
                 // a non-homeworld anchor at this hex is a development bonus,
                 // not the selector (ColonyValuation's +0.4 idiom) — PickHex's
                 // old selecting job, demoted to a score nudge.
@@ -254,7 +253,26 @@ public static class CapabilityOps
                         if (body.IsNone) continue;
                         opportunity = ExtractionOpportunity(
                             state, hex, body, type, fields, system);
-                        distance = proximity * hauling;
+                        // hauling: the real per-unit freight cost of moving
+                        // this working's output to the port market, as the
+                        // fraction of value fuel eats en route (design §2) —
+                        // fuel-grounded, not an arbitrary decay, so a
+                        // cheap/bulky good hauled far is discounted hard while
+                        // a high-value good shrugs off distance. Same orbital
+                        // geometry the staffing commute uses: working body →
+                        // the system's own port body.
+                        int orbitalSteps = OrbitGeometry.OrbitDistance(
+                            system!, body, portBody,
+                            (int)eco.CrossStarHopOrbitSteps);
+                        double fuelPrice =
+                            market.Price[(int)Substrate.GoodId.Fuel];
+                        if (!(fuelPrice > 0))
+                            fuelPrice = Market.InitialPrice(
+                                eco, Substrate.GoodId.Fuel);
+                        double unitValue = UnitValueAtPort(eco, market,
+                            Substrate.Infrastructure.Get(type));
+                        distance = proximity * HaulingDiscount(
+                            eco, unitValue, fuelPrice, hexDist + orbitalSteps);
                     }
                     else
                     {
@@ -371,6 +389,43 @@ public static class CapabilityOps
             sum += market.Price[(int)g] / Market.InitialPrice(eco, g);
         double mean = sum / def.Produces.Count;
         return Math.Min(3.0, Math.Max(0.5, mean));
+    }
+
+    /// <summary>The fuel-grounded hauling discount (design §2) applied to an
+    /// extraction working's opportunity score: the fraction of the output's
+    /// value that SURVIVES the freight-fuel bite to the port market. Freight
+    /// cost per unit is <c>FuelPerUnitPerHex × steps × fuelPrice</c> (steps =
+    /// hexDist + intra-system orbital hop, the same geometry staffing uses),
+    /// so a cheap/bulky good hauled far is discounted hard while a high-value
+    /// good shrugs off distance. Floored at <c>HaulingDiscountFloor</c> so a
+    /// rich-but-distant body is never scored at literally zero value (freight
+    /// alone would push the raw fraction negative). Pure, roll-free — a siting
+    /// estimate, not a runtime money move (goods aren't localized yet).</summary>
+    public static double HaulingDiscount(EconomyKnobs eco, double unitValue,
+                                         double fuelPrice, int steps)
+    {
+        if (!(unitValue > 0)) return eco.HaulingDiscountFloor;
+        double freightPerUnit = eco.FuelPerUnitPerHex * steps * fuelPrice;
+        return Math.Max(eco.HaulingDiscountFloor,
+                        (unitValue - freightPerUnit) / unitValue);
+    }
+
+    /// <summary>The produced good's value at the port market — mean price over
+    /// the type's <c>Produces</c> (matching <see cref="PriceSignal"/>'s
+    /// treatment), the <c>unitValue</c> the hauling discount measures freight
+    /// against. Falls back to the mean founding price if the live market prices
+    /// are non-positive (a fresh market), so unitValue is always &gt; 0.</summary>
+    internal static double UnitValueAtPort(EconomyKnobs eco, Market market,
+                                           Substrate.InfraDef def)
+    {
+        if (def.Produces.Count == 0) return 1.0;
+        double sum = 0;
+        foreach (var g in def.Produces) sum += market.Price[(int)g];
+        double mean = sum / def.Produces.Count;
+        if (mean > 0) return mean;
+        double init = 0;
+        foreach (var g in def.Produces) init += Market.InitialPrice(eco, g);
+        return init / def.Produces.Count;
     }
 
     /// <summary>A hex's system for scoring: the settled read, else a roll-free

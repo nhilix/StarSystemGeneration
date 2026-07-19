@@ -220,6 +220,70 @@ public class SettleOpsTests
             e => e.Type == WorldEventType.OutpostFounded);
     }
 
+    // --- R2: the election settles the MOST under-served hex, not the first in
+    //     spiral order (near-core). Two worked satellite hexes in one domain. ---
+
+    /// <summary>Build a one-port domain with a single thin port-hex funder and
+    /// no worked hex yet — the caller adds the workings it wants to contest.</summary>
+    private static (SimState state, Port port) TwoHexDomain()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var a0 = state.Actors[0];
+        a0.Entered = true;
+        var port = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(port.Id, state.Config.Economy));
+        state.WorldYear = 500;
+        state.Segments.Add(new PopulationSegment(0, port.Id, 0, 0, 0.5)
+        { Hex = a0.Seat, Wealth = 100.0 });
+        return (state, port);
+    }
+
+    private static void AddMine(SimState state, Port port, HexCoordinate hex)
+    {
+        state.Facilities.Add(new Facility(state.Facilities.Count,
+            (int)InfraTypeId.Mine, 1, hex, port.OwnerActorId, builtYear: 0)
+        { CommissionedYear = state.WorldYear - 100 });   // matured
+    }
+
+    [Fact]
+    public void Election_RanksByShortfallMagnitude_NotRawDistance()
+    {
+        // a NEAR hex (dist 2) carrying TWO mines has a larger absolute
+        // weighted-labor shortfall than a FAR hex (dist 5) with one — so the
+        // election settles the near hex, proving it ranks by shortfall
+        // magnitude, with fringe-most only a subordinate tiebreak.
+        var (state, port) = TwoHexDomain();
+        var near = new HexCoordinate(port.Hex.Q + 2, port.Hex.R);
+        var far = new HexCoordinate(port.Hex.Q + 5, port.Hex.R);
+        AddMine(state, port, near);
+        AddMine(state, port, near);                       // two workings, near
+        AddMine(state, port, far);                        // one working, far
+
+        Assert.Equal(1, SettleOps.Step(state));
+        Assert.Single(state.Outposts);
+        Assert.Equal(near, state.Outposts[0].Hex);        // greater shortfall wins
+    }
+
+    [Fact]
+    public void Election_TieBreaksFringeMost_WhenShortfallEqual()
+    {
+        // with the staffing commute flat (falloff 0), two identical single-mine
+        // hexes at different distances have the SAME weighted workforce and thus
+        // the SAME shortfall — an exact tie. The election then breaks fringe-most:
+        // the FARTHER hex (dist 5) settles, never the near one (dist 2).
+        var (state, port) = TwoHexDomain();
+        state.Config.Economy.StaffingDistanceFalloff = 0.0;   // commute-flat → equal shortfall
+        var near = new HexCoordinate(port.Hex.Q + 2, port.Hex.R);
+        var far = new HexCoordinate(port.Hex.Q + 5, port.Hex.R);
+        AddMine(state, port, near);
+        AddMine(state, port, far);
+
+        Assert.Equal(1, SettleOps.Step(state));
+        Assert.Single(state.Outposts);
+        Assert.Equal(far, state.Outposts[0].Hex);         // fringe-most breaks the tie
+    }
+
     [Fact]
     public void Deterministic_SameConfig_SameOutpostName()
     {

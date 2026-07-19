@@ -61,15 +61,24 @@ public static class SettleOps
         return founded;
     }
 
-    /// <summary>Find the first candidate satellite hex in this port's domain
-    /// (spiral order) and, if a segment is eligible, settle it. One outpost
-    /// per domain per pass.</summary>
+    /// <summary>Elect the MOST under-served satellite hex in this port's domain
+    /// and, if a segment is eligible, settle it. One outpost per domain per
+    /// pass. The neediest hex — not the first in spiral order — is chosen (R2,
+    /// design §3): the near-core hexes the port already reaches by commute get
+    /// settled only when their shortfall genuinely exceeds the fringe's; the
+    /// fringe, where the commute really fails, is where an outpost forms and can
+    /// later densify. Ranked (weighted-labor shortfall desc, then fringe-most
+    /// = hex distance from the port desc, then spiral order) — a total,
+    /// deterministic order needing no tiebreak roll.</summary>
     private static bool TrySettleDomain(SimState state, Port port)
     {
         var cfg = state.Config;
         int radius = PortDomains.ServiceRadius(cfg, port.Tier)
                      + TechOps.AstroRadiusBonus(state, port.OwnerActorId);
-        var portCell = HexGrid.CellOf(port.Hex);
+        bool haveBest = false;
+        double bestShortfall = 0;
+        int bestDist = -1;
+        HexCoordinate bestHex = default;
         foreach (var cell in state.Skeleton.Cells)        // cell spiral order (P6)
         {
             if (cell.IsVoid) continue;
@@ -80,18 +89,30 @@ public static class SettleOps
                 > radius + HexGrid.CellRadius) continue;
             foreach (var hex in HexGrid.Spiral(cellCenter, HexGrid.CellRadius))
             {                                             // hex spiral order (P6)
-                if (HexGrid.Distance(port.Hex, hex) > radius) continue;
+                int dist = HexGrid.Distance(port.Hex, hex);
+                if (dist > radius) continue;
                 if (hex.Equals(port.Hex)) continue;       // the port hex is home
-                if (!IsUnderLaboredWorkedHex(state, port, hex)) continue;
+                if (!TryUnderLaboredShortfall(state, port, hex,
+                                              out double shortfall)) continue;
                 if (HasResident(state, hex)) continue;    // already settled
                 if (PortAtHex(state, hex)) continue;      // never over a port
-                var seg = ElectSegment(state, port);
-                if (seg == null) continue;                // no eligible funder
-                Settle(state, port, seg, hex);
-                return true;
+                // strict replace keeps the first-encountered hex (spiral order)
+                // on a full tie, after shortfall then fringe-most.
+                if (!haveBest || shortfall > bestShortfall
+                    || (shortfall == bestShortfall && dist > bestDist))
+                {
+                    haveBest = true;
+                    bestShortfall = shortfall;
+                    bestDist = dist;
+                    bestHex = hex;
+                }
             }
         }
-        return false;
+        if (!haveBest) return false;
+        var seg = ElectSegment(state, port);
+        if (seg == null) return false;                    // no eligible funder
+        Settle(state, port, seg, bestHex);
+        return true;
     }
 
     /// <summary>A satellite hex qualifies when its worked facilities attached
@@ -99,10 +120,14 @@ public static class SettleOps
     /// world-time "sustained" derivation) and their combined weighted
     /// workforce falls short of their combined LaborRequired by more than the
     /// configured fraction. No producing facility here (or a too-young one) →
-    /// not a candidate.</summary>
-    private static bool IsUnderLaboredWorkedHex(SimState state, Port port,
-                                                HexCoordinate hex)
+    /// not a candidate. On a qualifying hex, <paramref name="shortfall"/>
+    /// returns the weighted-labor shortfall (required − workforce) so the
+    /// election can rank the neediest hex (R2). Deterministic, side-effect-free
+    /// — a pure read over the hex's facilities.</summary>
+    private static bool TryUnderLaboredShortfall(SimState state, Port port,
+        HexCoordinate hex, out double shortfall)
     {
+        shortfall = 0;
         var exp = state.Config.Expansion;
         double required = 0, workforce = 0;
         bool anyWorking = false;
@@ -123,7 +148,10 @@ public static class SettleOps
             workforce += StaffingOps.WeightedWorkforce(state, f, port.Id);
         }
         if (!anyWorking || required <= 0) return false;
-        return workforce < required * (1.0 - exp.SettleLaborShortfallFraction);
+        if (workforce >= required * (1.0 - exp.SettleLaborShortfallFraction))
+            return false;
+        shortfall = required - workforce;
+        return true;
     }
 
     /// <summary>Any peopled segment already settled at this hex (any domain).</summary>

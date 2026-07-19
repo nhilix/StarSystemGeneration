@@ -295,23 +295,48 @@ all user-approved. §1/§4/§2 of the design were amended in-branch.
   subordinate; foreign-domain graduation allowed (tension-priced). 13 reworked
   tests. But graduation STILL 0/32 — outposts form as near-core SUBURBS, not
   fringe satellites (next two parts).
-- [ ] **R1 — Hauling model regrounded** (Opus: Stage-1 siting × economy). Replace
-  the arbitrary `1/(1+HaulingProxyPerHex·dist)` decay with the fuel-grounded
-  freight estimate (decision #3, amended §2): `freightPerUnit = FuelPerUnitPerHex
-  × (hexDist + OrbitGeometry.OrbitDistance(workingBody,portBody)) × fuelPrice`,
-  discount `= max(HaulingDiscountFloor, (unitValue − freightPerUnit)/unitValue)`.
-  Retire `Economy.HaulingProxyPerHex`; add `Economy.HaulingDiscountFloor`
-  (KnobRegistry + TUNING.md). Good-specific → extraction reaches frontier bodies →
-  domain blooms → T1 magnitude drop reverses → fringe workings exist. Siting-only,
-  roll-free, conservation-neutral. Ensemble-bar the economy shift (SIMHEALTH).
-- [ ] **R2 — Settle election targets the most-under-served (fringe) hex** (Opus/
-  Sonnet: Stage-2). `SettleOps.TrySettleDomain` currently settles the FIRST
-  under-labored hex in spiral order (near-core → port suburb). Change it to elect
-  the worked hex with the GREATEST weighted-labor shortfall (commute genuinely
-  fails at the fringe), tie-break fringe-most (max dist from port), so outposts
-  form as real satellites that can densify. World-time + conservation discipline
-  unchanged. Then **re-run the sweep: graduation MUST now fire (>0/32, single
-  digits is fine — design frames it as rare)**; report the count + worst residual.
+- [x] **R1 — Hauling model regrounded** — DONE. `CapabilityOps.HaulingDiscount`
+  (fuel-grounded: `max(HaulingDiscountFloor, (unitValue − FuelPerUnitPerHex ×
+  (hexDist + OrbitDistance(workingBody→portBody)) × fuelPrice) / unitValue)`) +
+  `UnitValueAtPort` (mean `Produces` price at the port market, initial-price
+  fallback). `Economy.HaulingProxyPerHex` RETIRED (field + KnobRegistry + TUNING
+  row gone, zero code refs); `Economy.HaulingDiscountFloor` added (default 0.05,
+  registered + TUNING). Siting-only, roll-free. Tests: `HaulingDiscount_IsFuel
+  Grounded_GoodSpecificAndFloored`, `HaulingDiscountFloor_IsRegistered_AndProxy
+  KnobRetired`. **NOTE:** with `FuelPerUnitPerHex=0.005` the discount is ≈1.0 at
+  all realistic domain distances — it removes the old over-suppression but barely
+  spreads the workings that become outposts; baseline seed-42 final Supply
+  8.9994e5 (≈ pre-regrounding, no magnitude recovery observed at sweep scale).
+- [x] **R2 — Settle election targets the most-under-served (fringe) hex** — DONE.
+  `SettleOps.TrySettleDomain` now scans ALL qualifying satellite hexes and elects
+  the GREATEST weighted-labor shortfall, tie-broken fringe-most (max dist from
+  port) then spiral order (a total deterministic order — no tiebreak roll).
+  `IsUnderLaboredWorkedHex` refactored → `TryUnderLaboredShortfall(…, out
+  shortfall)` (returns `required − workforce`, side-effect-free). World-time +
+  conservation discipline unchanged. Tests: `Election_RanksByShortfallMagnitude_
+  NotRawDistance`, `Election_TieBreaksFringeMost_WhenShortfallEqual`. Verified R2
+  reaches the fringe when far workings exist (seed 8128: an outpost at dist 8).
+
+- 🚧 **R1+R2 VERIFICATION — graduation STILL 0/32** (sweep on this branch tip).
+  32-run `debt-diagnosis` sweep: worst relative `Money.ConservationResidual`
+  **1.43e-14** (flush-start/42 e37; tol 1.3e-9 — conservation-clean); graduation
+  **0/32**. Direct 8-baseline-seed instrument (throwaway, removed): outposts
+  form near-core (parentDist mean 1.0–1.8, max 1–8); frontier=0 every seed;
+  **`bestSlackToAnyPort` −2…−4** — the MOST-isolated outpost across ALL 8 seeds
+  is still 2 hexes too close to some neighbor port core. ROOT CAUSE is
+  **structural, beyond R1/R2**: these radius-21 histories are DENSE (162–298
+  entered ports, cores ~2–3 hexes apart), and R0's frontier gate `G =
+  ServiceRadius(1)+margin = 5` requires an outpost ≥5 hexes from EVERY port core
+  — unsatisfiable when ports already sit <5 apart. R1 removed the hauling
+  over-suppression and R2 correctly settles the fringe-most worked hex, but
+  neither touches inter-port spacing, which is what binds. **Needs a USER DESIGN
+  CALL** (galaxy port density vs. the anti-adjacency gate — the T3.2-class
+  blocker resurfacing at a different layer). Not patched (design-is-spec,
+  R0 was user-adjudicated). See `scratchpad/dx-r1r2-report.md`.
+- [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
+  Extend the view: per-outpost candidacy status (interior vs frontier,
+  distance-to-nearest-port vs `G`); settle + graduation events in history/news.
+  SIMHEALTH graduation metric.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.
