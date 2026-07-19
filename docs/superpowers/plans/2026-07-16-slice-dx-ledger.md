@@ -41,13 +41,20 @@ the *shape* is settled:
    within a tier-1 reach → never adjacent. Founding inside a foreign domain is
    ALLOWED (fires the encroachment-tension bump — priced, not forbidden; user
    call 2026-07-19). Knob `Expansion.GraduationMarginHexes` (default 1).
-3. **Hauling-cost proxy (§2):** a multiplicative discount on the extraction
-   opportunity score, `1 / (1 + Economy.HaulingProxyPerHex * hexDistToPort)`,
-   where `hexDistToPort = HexGrid.Distance(port.Hex, hex)` — separate from the
-   `StaffingDistanceFalloff` proximity term (that prices labor commute; this
-   prices moving *output* back to the port market). New knob
-   `Economy.HaulingProxyPerHex`. Farther hexes are worth less; the port hex and
-   near neighbors keep an advantage scarcity must overcome.
+3. **Hauling-cost proxy (§2) — REDESIGNED 2026-07-19 (user brainstorm; §2
+   amended).** The original arbitrary decay `1/(1 + HaulingProxyPerHex × dist)`
+   was a fudge — it computed no real hauling cost. Replaced by a **fuel-grounded
+   freight estimate**: `freightPerUnit = Economy.FuelPerUnitPerHex × (hexDist +
+   orbitalSteps) × fuelPrice` (orbitalSteps = `OrbitGeometry.OrbitDistance`
+   working-body→port-body, the same geometry staffing uses; fuelPrice = port
+   market fuel price, or initial price in the roll-free preview), discounting the
+   opportunity score by `max(HaulingDiscountFloor, (unitValue − freightPerUnit)/
+   unitValue)`. Good-specific (bulky/cheap ore hauled far is hit hard; exotics
+   shrug off distance), so extraction reaches rich frontier bodies → domain
+   blooms outward → the T1 magnitude drop largely reverses → fringe workings
+   exist. `Economy.HaulingProxyPerHex` RETIRES; new knob `Economy.HaulingDiscountFloor`.
+   Siting-only (goods aren't localized yet — filed as the "localize goods" forward
+   follow-up, the prerequisite for real freight / the deferred Option B).
 
 All three new knobs (`GraduationMarginHexes`, `HaulingProxyPerHex`, plus Stage-2
 habitat/settle knobs) MUST be registered in `KnobRegistry.cs` (name-sorted) and
@@ -274,6 +281,37 @@ payment) and #2 (wage redirect)** — sweep-verify the worst
     outposts form, frontier=0, slack −14/−15 hexes) and geometrically. The
     promotion code is correct; the ladder's third rung is unreachable. **Needs a
     USER DESIGN CALL — escalated 2026-07-18 (see below).** Do not patch around it.
+
+### Stage-3 reconciliation (user-adjudicated 2026-07-18/19) — three parts
+
+The blocker resolved into TWO design corrections + a mechanism regrounding,
+all user-approved. §1/§4/§2 of the design were amended in-branch.
+
+- [x] **R0 — Frontier gate corrected to anti-adjacency densification** (`e24f4cb`).
+  `OutpostOps.IsFrontier`: `G = ServiceRadius(1) + GraduationMarginHexes` (drop
+  the incumbent radius + AstroBonus — that was the expedition-leap conflation),
+  eligible iff `dist ≥ G` from every port core. A fringe outpost of a tier-2+
+  domain graduates *inside* the parent's domain (densification); near-core stays
+  subordinate; foreign-domain graduation allowed (tension-priced). 13 reworked
+  tests. But graduation STILL 0/32 — outposts form as near-core SUBURBS, not
+  fringe satellites (next two parts).
+- [ ] **R1 — Hauling model regrounded** (Opus: Stage-1 siting × economy). Replace
+  the arbitrary `1/(1+HaulingProxyPerHex·dist)` decay with the fuel-grounded
+  freight estimate (decision #3, amended §2): `freightPerUnit = FuelPerUnitPerHex
+  × (hexDist + OrbitGeometry.OrbitDistance(workingBody,portBody)) × fuelPrice`,
+  discount `= max(HaulingDiscountFloor, (unitValue − freightPerUnit)/unitValue)`.
+  Retire `Economy.HaulingProxyPerHex`; add `Economy.HaulingDiscountFloor`
+  (KnobRegistry + TUNING.md). Good-specific → extraction reaches frontier bodies →
+  domain blooms → T1 magnitude drop reverses → fringe workings exist. Siting-only,
+  roll-free, conservation-neutral. Ensemble-bar the economy shift (SIMHEALTH).
+- [ ] **R2 — Settle election targets the most-under-served (fringe) hex** (Opus/
+  Sonnet: Stage-2). `SettleOps.TrySettleDomain` currently settles the FIRST
+  under-labored hex in spiral order (near-core → port suburb). Change it to elect
+  the worked hex with the GREATEST weighted-labor shortfall (commute genuinely
+  fails at the fringe), tie-break fringe-most (max dist from port), so outposts
+  form as real satellites that can densify. World-time + conservation discipline
+  unchanged. Then **re-run the sweep: graduation MUST now fire (>0/32, single
+  digits is fine — design frames it as rare)**; report the count + worst residual.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.

@@ -124,14 +124,34 @@ body machinery the sim already uses:
   form of the overflow case that started this thread: a full hex simply loses
   to a neighbor with a free body, at every siting decision, automatically.
 
-The raw richness is then **discounted by distance**: the existing staffing
-falloff shape (`StaffingOps.ProximityWeight` uses
-`1 / (1 + StaffingDistanceFalloff * dist)`) plus a **hauling proxy** — a
-distance term standing in for the cost of moving output back to the port
-market. (Its exact form is an implementation-plan choice, §"Open
-implementation choices"; the design fixes only that farther hexes are worth
-less, so the port hex and its near neighbors keep an advantage that scarcity
-must overcome.)
+The raw richness is then **discounted by two real costs**, both grounded in the
+sim's own economics rather than an arbitrary decay:
+
+- **Labor commute** — the existing staffing falloff shape
+  (`StaffingOps.ProximityWeight`, `1 / (1 + StaffingDistanceFalloff * dist)`):
+  crewing a distant working costs.
+- **Hauling** — the **real per-unit freight cost of moving the working's output
+  to the port market**, expressed as the fraction of value fuel eats en route.
+  Freight cost per unit `= Economy.FuelPerUnitPerHex × (hexDist + orbitalSteps)
+  × fuelPrice`, where `hexDist` is hexes from the working's hex to the port hex,
+  `orbitalSteps = OrbitGeometry.OrbitDistance(system, workingBody, portBody)` is
+  the intra-system hop (the *same* geometry the labor commute uses, so hauling
+  and staffing share one distance model), and `fuelPrice` is the port market's
+  fuel price (settled hex) or the initial fuel price (roll-free preview). The
+  **hauling discount** applied to the opportunity score is
+  `max(HaulingDiscountFloor, (unitValue − freightCostPerUnit) / unitValue)`,
+  `unitValue` being the good's price — so a working is discounted by exactly the
+  share of its output value that fuel consumes reaching market.
+
+Because the discount is **good-specific and fuel-grounded**, not a flat decay, a
+cheap/bulky good (ore) hauled far is discounted hard while a high-value good
+(exotics) shrugs off distance, and extraction genuinely reaches rich frontier
+bodies — the domain blooms outward instead of collapsing onto the port. The port
+hex and near neighbors still keep an advantage (near-zero freight), which
+scarcity must overcome. *This is an honest approximation, not the real thing:
+output still posts directly to the port market with no located goods — see the
+Forward roadmap's "localize goods" item, the prerequisite for freight becoming a
+true runtime cost rather than a siting estimate.*
 
 For **support and processing types** (everything in
 `CapabilityOps.BuildableTypes` that is not extraction — Refinery, Fabricator,
@@ -443,6 +463,19 @@ claim, per standing convention.
   settle election: segments continuously re-sorting across a domain's hexes as
   work shifts, the finer-grained cousin of domain-to-domain migration. Flagged,
   not decided.
+- **Localize goods → real freight (the big one).** A gap in the locality arc:
+  Slice L localized *bodies*, *stocks*, and *population*, but a facility's
+  OUTPUT still posts directly to the port market with no address
+  (`MarketEngine.SupplyLands` → `BookOps.PostSupply`). Until goods themselves
+  are located — a produced stock that lives at the working's hex/body and must
+  actually be *hauled* to market — every hauling/freight cost is an
+  approximation (DX's §2 hauling term is a fuel-grounded *estimate*, not a real
+  charge). Localizing goods turns hauling into a true runtime cost, makes the
+  "who hauls locally" question real (a settlement provides local hauling that
+  cheapens its fringe workings — a settle→cheaper-haul→densify feedback), and is
+  the prerequisite for DX's deferred **Option B** (hauling as an economic force,
+  not just a siting signal). Its own slice: touches production→market flow and
+  conservation. Raised by the user during DX's Stage-3 reconciliation.
 
 ## Open implementation choices (decided at plan time, not reopened here)
 
@@ -451,7 +484,12 @@ claim, per standing convention.
 - The exact parameterization of `G` (§4) — which service radii and which
   margin — exposed as **registered knobs** (`KnobRegistry`; an unregistered
   knob silently reverts on reload, so `G`'s inputs must be in the table).
-- The exact form of the **hauling-cost proxy** in the Stage 1 score (§2).
+- ~~The exact form of the hauling-cost proxy in the Stage 1 score (§2).~~
+  **DECIDED (amended 2026-07-19):** a fuel-grounded freight estimate
+  (`FuelPerUnitPerHex × (hexDist + orbitalSteps) × fuelPrice`, discounting the
+  opportunity score by the value-fraction fuel eats — see §2), replacing the
+  original arbitrary `1/(1 + HaulingProxyPerHex × dist)` decay. Only the
+  `HaulingDiscountFloor` remains a tunable knob.
 
 ## Provided interface
 
