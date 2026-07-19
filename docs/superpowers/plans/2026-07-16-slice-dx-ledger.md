@@ -25,16 +25,22 @@ the *shape* is settled:
    `PortId`. It reuses the `StagedEvent` news mechanism but shares none of the
    gradient logic. A new dedicated step (its own world-time cadence gate),
    sequenced in the same phase family as `Migrate`.
-2. **`G`'s parameterization (§4):** an outpost at hex `h` is frontier-eligible
-   iff for **every** existing entered port `p`,
-   `HexGrid.Distance(p.Hex, h) > ServiceRadius(cfg, 1) + ServiceRadius(cfg, p.Tier) + Expansion.GraduationMarginHexes`.
-   This is exactly `ColonyValuation.EncroachedPolities`' overlap geometry
-   (newcomer tier-1 radius + incumbent radius), tightened from a scored penalty
-   to a hard gate — so a graduated port can never overlap an existing domain,
-   structurally, at any config. New knob `Expansion.GraduationMarginHexes`
-   (default TBD by the Stage-3 subagent; ≥ 0; a small positive so "outside the
-   domain *plus a margin*"). `AstroRadiusBonus` folded in to match
-   `EncroachedPolities` exactly.
+2. **`G`'s parameterization (§4) — CORRECTED 2026-07-19 (see the T3.2 blocker
+   resolution).** The original decision here CONFLATED graduation with the
+   expedition reach-leap: it used `EncroachedPolities`' overlap geometry
+   (`ServiceRadius(1) + ServiceRadius(p.Tier) + margin`), which demands an
+   outpost sit *beyond every domain* — impossible for an in-domain outpost, so
+   graduation never fired. Graduation is **densification**, not a leap. The
+   correct gate is a pure **anti-adjacency spacing**: an outpost is eligible iff
+   for **every** existing entered port `p`,
+   `HexGrid.Distance(p.Hex, h) ≥ ServiceRadius(cfg, 1) + Expansion.GraduationMarginHexes`
+   — the *newcomer's own tier-1 reach* + margin, NOT the incumbent's radius, NOT
+   `EncroachedPolities`. A fringe outpost of a tier-2+ domain (far from its
+   parent core but inside the parent's larger domain) clears it → real
+   densification; near-core outposts stay subordinate; no two port cores ever
+   within a tier-1 reach → never adjacent. Founding inside a foreign domain is
+   ALLOWED (fires the encroachment-tension bump — priced, not forbidden; user
+   call 2026-07-19). Knob `Expansion.GraduationMarginHexes` (default 1).
 3. **Hauling-cost proxy (§2):** a multiplicative discount on the extraction
    opportunity score, `1 / (1 + Economy.HaulingProxyPerHex * hexDistToPort)`,
    where `hexDistToPort = HexGrid.Distance(port.Hex, hex)` — separate from the

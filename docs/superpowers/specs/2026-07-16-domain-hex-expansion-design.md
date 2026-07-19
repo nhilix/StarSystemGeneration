@@ -65,11 +65,14 @@ distinct actor-scale and funding source:
    not reach; no convoy.
 
 The explicit anti-goal, fixed by the user: **starports must never end up
-founding adjacent to each other.** Infill graduation accepts domain-edge
-spacing (an outpost can graduate at the fringe of its parent's domain), but a
-hard frontier gate (§4) derived from service radii guarantees no two ports sit
-within each other's reach — spacing scales with config, never an absolute
-constant.
+founding adjacent to each other.** Infill graduation is **densification** — an
+outpost can graduate at the fringe of its parent's domain, *inside* it — so the
+gate is not "outside every domain" but a hard **anti-adjacency spacing** (§4)
+derived from the tier-1 service radius: no two port cores ever sit within a
+newcomer port's own reach of each other. Spacing scales with config, never an
+absolute constant. (This is categorically distinct from the expedition's
+gate-range *reach leap*, which founds a fresh colony far away and is the mechanic
+`EncroachedPolities` governs — graduation must not borrow that geometry.)
 
 This is a **sim-only slice**. The REPL is the eyeball surface (§6). The atlas
 rendering of blooming domains, outposts, and graduation is explicitly deferred
@@ -269,22 +272,33 @@ complementary to the expedition's **reach**.
 
 ### The frontier gate — the anti-clustering guarantee
 
-An outpost is **candidacy-eligible only at distance ≥ G from every existing
-port**, where `G` is derived from service radii — "outside every port's domain
-plus a margin," never an absolute constant. Concretely, `G` is a function of
-`PortDomains.ServiceRadius` for the relevant tiers plus a configured margin
-(exact parameterization is an implementation-plan choice registered as a knob —
-§"Open implementation choices"). Because `G` scales with the same radii that
-define domains, promotion **cannot** produce two ports within each other's
-reach — the anti-goal is structurally impossible, at any config. This is the
-`EncroachedPolities`/`ColonyValuation` spacing discipline, tightened from
-"penalize encroachment" to "forbid it for infill."
+An outpost is **candidacy-eligible only when it sits at least `G` from every
+existing port *core*,** where `G = PortDomains.ServiceRadius(cfg, 1) +
+Expansion.GraduationMarginHexes` — the **newcomer's own (tier-1) reach** plus a
+configured margin, never an absolute constant. This is a pure **anti-adjacency**
+spacing: it guarantees no two port cores ever fall within a tier-1 port's reach
+of each other, so a graduated port can never land **adjacent** to an existing
+one — the anti-goal, structurally impossible at any config (spacing scales with
+the tier-1 service radius).
 
-Interior outposts — those *inside* some port's domain, closer than `G` to a
-port — **never graduate.** They are permanently subordinate density: worked
-hexes with residents that stay under their parent's administration. This is
-correct and intended (the domain has interior *and* frontier; only the
-frontier reaches port scale).
+It is deliberately **NOT** the expedition's `EncroachedPolities` geometry (the
+*sum* of both ports' radii). Graduation is **densification, not a reach leap**,
+so it must not inherit the leap's "stay outside every existing domain" rule.
+A graduating port may sit **inside** an existing, larger domain — its own
+parent's, or a foreign polity's — as long as it clears `G` from that domain's
+*core*. Founding inside a foreign domain is **allowed** and fires the same
+encroachment-tension bump an expedition does (the diplomacy is *priced* by the
+tension layer, not *forbidden* by the gate).
+
+**Interior outposts — those within `G` of a port core — never graduate.** They
+are permanently subordinate density: worked hexes with residents that stay under
+their parent's administration. Only an outpost at the **fringe of its parent's
+domain** (far from the parent core, yet still served by it) reaches port scale —
+the densifying *second center* of a large domain. A small tier-1 domain, whose
+entire radius lies within `G`, cannot densify until its port is raised
+(`PortRaise`) and the domain grows — correct and intended (the domain has
+interior *and* frontier; only the frontier — the far reach of a big domain —
+reaches port scale).
 
 ### The promotion
 
