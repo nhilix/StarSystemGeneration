@@ -271,7 +271,14 @@ public static class CapabilityOps
                                 eco, Substrate.GoodId.Fuel);
                         double unitValue = UnitValueAtPort(eco, market,
                             Substrate.Infrastructure.Get(type));
-                        distance = proximity * HaulingDiscount(
+                        // anti-clustering (design §2): fan the 2nd/3rd
+                        // same-class working off the builder's first so
+                        // extraction spreads across the domain instead of
+                        // stacking on the port body — support/processing is
+                        // untouched (it keeps port-body affinity, above).
+                        double dispersion = DispersionFactor(
+                            state, hex, type, builderActorId, eco);
+                        distance = proximity * dispersion * HaulingDiscount(
                             eco, unitValue, fuelPrice, hexDist + orbitalSteps);
                     }
                     else
@@ -453,6 +460,37 @@ public static class CapabilityOps
                     (Substrate.InfraTypeId)other.TypeId, type))
                 claimed.Add(other.Body);
         return BodySiting.Assign(system, type, portBody, claimed);
+    }
+
+    /// <summary>The anti-clustering (dispersion) factor for an extraction
+    /// candidate (design §2, the amended dispersion paragraph). Penalizes the
+    /// hex by proximity to the BUILDER's OWN nearest existing SAME-CLASS
+    /// extraction working — same-class = an own extraction facility whose type
+    /// <see cref="BodySiting.CompetesForBody"/> the candidate <paramref
+    /// name="type"/> — so the 2nd/3rd mine (skimmer, …) of a class fans off the
+    /// port body instead of stacking beside the first. Factor =
+    /// <c>1 − DispersionWeight / (1 + nearestDist)</c>, bounded in
+    /// <c>[1 − DispersionWeight, 1)</c> so it never zeroes a rich isolated site;
+    /// <c>1</c> (unpenalized) when the builder has no competing same-class
+    /// working yet. Reads <c>state.Facilities</c> in id order — pure, roll-free,
+    /// deterministic, a siting score only (conservation-neutral). Computed
+    /// identically in the settled and preview branches: own facilities are real
+    /// state, never preview.</summary>
+    private static double DispersionFactor(SimState state, HexCoordinate hex,
+        Substrate.InfraTypeId type, int builderActorId, EconomyKnobs eco)
+    {
+        int nearest = int.MaxValue;
+        foreach (var f in state.Facilities)                   // id order (P6)
+        {
+            if (f.OwnerActorId != builderActorId) continue;
+            var ft = (Substrate.InfraTypeId)f.TypeId;
+            if (!BodySiting.IsExtraction(ft)
+                || !BodySiting.CompetesForBody(ft, type)) continue;
+            int d = HexGrid.Distance(hex, f.Hex);
+            if (d < nearest) nearest = d;
+        }
+        if (nearest == int.MaxValue) return 1.0;   // no own same-class working
+        return 1.0 - eco.DispersionWeight / (1 + nearest);
     }
 
     /// <summary>The roll-free opportunity of an extraction type at its claimed

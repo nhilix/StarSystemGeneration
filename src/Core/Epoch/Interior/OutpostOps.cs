@@ -12,30 +12,33 @@ namespace StarGen.Core.Epoch;
 /// FACTION graduation (schisms/coups), this is OUTPOST graduation eligibility.
 ///
 /// <para>Graduation is <b>densification, not a reach leap</b>: an outpost
-/// graduates at the FRINGE of its parent's domain — the far reach of a big
-/// domain — <em>inside</em> that domain, becoming its densifying second center.
-/// So the gate is deliberately NOT
+/// graduates <em>inside</em> its parent's domain — a genuine second centre that
+/// is not stacked on another port — becoming the domain's densifying second
+/// core. So the gate is deliberately NOT
 /// <see cref="ColonyValuation.EncroachedPolities"/>' domain-exclusion geometry
 /// (the sum of both ports' radii, which demands the newcomer stay outside every
-/// existing domain — impossible for an in-domain outpost). It is a pure
-/// <b>anti-adjacency spacing</b>: the distance an outpost must clear is only the
-/// newcomer's OWN tier-1 service radius plus a configured margin
-/// (<see cref="ExpansionKnobs.GraduationMarginHexes"/>):
-/// <c>G = ServiceRadius(cfg, 1) + GraduationMarginHexes</c>. G is uniform across
-/// EVERY port — parent, our own other ports, foreign ports alike — never scaled
-/// by the incumbent's tier. Because the threshold scales with the tier-1 service
-/// radius that defines a domain, a promotion can never place two port cores
-/// within a tier-1 port's reach of each other, at ANY config — the anti-goal
-/// (no two ports adjacent) is structurally impossible.</para>
+/// existing domain — impossible for an in-domain outpost), NOR any
+/// radius-derived spacing at all. It is the <b>literal anti-adjacency</b>
+/// spacing: an outpost must sit at least G hexes from every port core, where
+/// <c>G = 1 + GraduationMarginHexes</c>
+/// (<see cref="ExpansionKnobs.GraduationMarginHexes"/>, default margin 1 →
+/// <b>G = 2</b>). G is uniform across EVERY port — parent, our own other ports,
+/// foreign ports alike — never scaled by the incumbent's tier. "Never adjacent"
+/// read literally is "not in a touching hex" ⇔ <c>dist ≥ 2</c>: a promotion can
+/// never place two port cores in touching hexes, at ANY config — the anti-goal
+/// (no two ports adjacent) is structurally impossible. Two earlier domain-scale
+/// formulations of G blocked graduation entirely (outposts form 1–3 hexes from
+/// their parent, so any domain-scale threshold was unreachable); the literal
+/// G = 2 is the reconciliation (ledger decision #2 FINAL, 2026-07-20).</para>
 ///
 /// <para>An outpost within <c>G</c> of any port core is INTERIOR and never
 /// graduates — permanently subordinate density, correct and intended (design §4,
 /// "Interior outposts never graduate"). The parent port is an existing port too
-/// and falls out with no special-casing: a near-parent outpost (dist &lt; G)
-/// reads interior; a fringe outpost of a tier-2+ domain (dist between G and the
-/// parent's larger service radius) clears the gate and densifies. A small tier-1
-/// domain, whose whole radius lies within G, has no fringe to densify until its
-/// port is raised — correct and intended.</para>
+/// and falls out with no special-casing: a stacked-on-a-port outpost (dist 1)
+/// reads interior; a second-centre outpost that has cleared its parent by
+/// G ≥ 2 hexes graduates while still sitting inside the parent's larger service
+/// radius (densification). GraduationMarginHexes is the knob: raise it to make
+/// graduation rarer (a wider dead gap around every port).</para>
 ///
 /// <para>Foreign-domain graduation is ALLOWED: the gate excludes no domain, so
 /// an outpost may sit inside a foreign polity's larger domain as long as it
@@ -68,15 +71,19 @@ public static class OutpostOps
         if (outpost.Graduated) return new FrontierStanding(false, 0, 0, 0);
 
         var cfg = state.Config;
-        // G = the newcomer's OWN tier-1 reach + margin, UNIFORM across every
-        // port (design §4 / ledger decision #2 CORRECTED). NOT the incumbent's
-        // radius, NOT the astro bonus, NOT EncroachedPolities' overlap sum —
-        // graduation is densification, not a reach leap. A fringe outpost of a
-        // tier-2+ domain clears it (dist ≈ ServiceRadius(parentTier) ≥ G); a
-        // near-core outpost stays interior — the parent falls out naturally,
-        // no special-case.
-        int g = PortDomains.ServiceRadius(cfg, 1)
-                + cfg.Expansion.GraduationMarginHexes;
+        // G = the LITERAL anti-adjacency spacing: 1 + margin (default margin 1
+        // → G = 2), UNIFORM across every port (design §4 / ledger decision #2
+        // FINAL, 2026-07-20). NOT radius-derived — the two earlier domain-scale
+        // formulations (ServiceRadius(1)+margin, and the EncroachedPolities
+        // overlap sum) both tied G to domain scale and blocked graduation
+        // entirely: instrumentation settled that outposts form 1–3 hexes from
+        // their parent (0 at dist ≥ 4), so any domain-scale G is unreachable.
+        // "Never adjacent" is the whole anti-goal, read literally: not in a
+        // touching hex ⇔ dist ≥ 2. A stacked-on-a-port outpost (dist 1) stays
+        // interior/subordinate; a genuine second-centre outpost (dist ≥ G)
+        // graduates; real neighbours (~9 hexes away) are never crowded. The
+        // parent falls out naturally, no special-case.
+        int g = 1 + cfg.Expansion.GraduationMarginHexes;
         int bindingDist = 0, minSlack = int.MaxValue;
         bool anyPort = false;
         foreach (var p in state.Ports)                    // id order (P6)
@@ -110,7 +117,7 @@ public static class OutpostOps
 /// <param name="IsFrontier">Candidacy-eligible: not graduated and clear of
 /// every port core by the anti-adjacency spacing G.</param>
 /// <param name="PortDistance">Hex distance to the binding (nearest) port core.</param>
-/// <param name="Threshold">The uniform gate distance G = ServiceRadius(1) + margin.</param>
+/// <param name="Threshold">The uniform gate distance G = 1 + margin (default 2).</param>
 /// <param name="Slack">PortDistance − Threshold; &gt;= 0 iff frontier.</param>
 public readonly record struct FrontierStanding(
     bool IsFrontier, int PortDistance, int Threshold, int Slack);

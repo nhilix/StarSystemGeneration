@@ -734,6 +734,26 @@ public sealed class EconomyKnobs
     /// frontier. A fraction in (0, 1]; smaller → distant workings are cut
     /// harder before the floor catches them.</summary>
     public double HaulingDiscountFloor { get; set; } = 0.05;
+    /// <summary>Anti-clustering (dispersion) weight on extraction siting
+    /// (domain-hex-expansion §2, the amended dispersion paragraph): a candidate
+    /// extraction hex is penalized by proximity to the BUILDER's OWN existing
+    /// SAME-CLASS extraction workings, so the 2nd/3rd mine of a class fans off
+    /// the port body instead of stacking beside the first. The factor is
+    /// <c>1 − this / (1 + nearestOwnSameClassDist)</c> (nearest by
+    /// <see cref="HexGrid.Distance"/>; factor 1 when the builder has no
+    /// competing same-class working yet), naturally bounded in
+    /// <c>[1 − this, 1)</c> — so it never zeroes a genuinely rich isolated
+    /// site. At the 0.6 default a same-hex second working keeps 0.4 of its
+    /// score, an adjacent (dist 1) hex 0.7, a dist-2 hex 0.8, a dist-3 hex
+    /// 0.85: with the gentle staffing/hauling falloff this makes a dist-2
+    /// "second centre" the siting sweet spot for the second same-class working
+    /// (exactly the G = 2 graduation distance), fanning extraction outward so
+    /// domains visibly spread and worked hexes reach the frontier. 0 recovers
+    /// the pre-dispersion port-clustered siting. Same-class = extraction that
+    /// <see cref="BodySiting.CompetesForBody"/> the candidate type; support/
+    /// processing (port-body affinity) is untouched. Siting-only, roll-free,
+    /// deterministic, conservation-neutral.</summary>
+    public double DispersionWeight { get; set; } = 0.6;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year
@@ -1056,17 +1076,19 @@ public sealed class ExpansionKnobs
     /// clock. At the 25-year default a coarse generation step behaves
     /// exactly as before; a 1-year clock founds at the same world pace.</summary>
     public double FoundingCadenceYears { get; set; } = 25.0;
-    /// <summary>Extra hex buffer, beyond the no-overlap distance, an outpost
-    /// must clear from EVERY entered port before it is frontier / candidacy-
-    /// eligible to graduate into a starport (domain-hex-expansion §4, the
-    /// frontier gate — the anti-clustering guarantee). The gate distance is
-    /// G = ServiceRadius(1) + ServiceRadius(port.Tier) + AstroRadiusBonus +
-    /// this — exactly EncroachedPolities' no-overlap geometry (a graduated
-    /// tier-1 port's domain never overlaps an incumbent's) PLUS this margin,
-    /// so "outside every port's domain, plus a buffer." 0 = domains may touch
-    /// at their edges; a small positive leaves a visible dead gap between
-    /// ports. Scales with the service radii, never an absolute constant, so
-    /// no two ports can end up within each other's reach at any config.</summary>
+    /// <summary>Extra hex buffer, beyond bare adjacency, an outpost must clear
+    /// from EVERY entered port before it is frontier / candidacy-eligible to
+    /// graduate into a starport (domain-hex-expansion §4, the frontier gate —
+    /// the anti-clustering guarantee). The gate distance is the LITERAL
+    /// anti-adjacency spacing G = 1 + this (default 1 → G = 2): an outpost is
+    /// eligible iff it sits at least G hexes from every port core. "Never
+    /// adjacent" read literally is "not in a touching hex" ⇔ dist ≥ 2, so
+    /// margin 0 → G = 1 admits an outpost that touches a port and margin 1 →
+    /// G = 2 leaves a one-hex dead gap around every port. NOT radius-derived:
+    /// two earlier domain-scale formulations tied G to service radii and
+    /// blocked graduation entirely (outposts form 1–3 hexes from their parent),
+    /// so this is a small config-tunable spacing. Raise it to make graduation
+    /// rarer.</summary>
     public int GraduationMarginHexes { get; set; } = 1;
     /// <summary>World-years an outpost's administrative promotion project takes
     /// to raise a real starport (domain-hex-expansion §4; time-not-ticks, P7):

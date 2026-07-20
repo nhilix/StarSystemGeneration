@@ -11,13 +11,15 @@ namespace StarGen.Core.Tests.Epoch;
 /// never end up founding adjacent to each other</b>. Graduation is
 /// <b>densification, not a reach leap</b>: an outpost is frontier /
 /// candidacy-eligible iff it sits at distance &gt;= G from EVERY entered port
-/// <i>core</i>, where <c>G = ServiceRadius(1) + GraduationMarginHexes</c> — the
-/// <b>newcomer's own tier-1 reach</b> plus a configured margin, UNIFORM across
-/// every port and INDEPENDENT of the incumbent's tier. It is a pure
-/// anti-adjacency spacing (no two port cores within a tier-1 reach), NOT the
-/// EncroachedPolities domain-exclusion sum. An outpost within G of any core is
-/// interior and never graduates; a fringe outpost of a tier-2+ domain (inside
-/// that domain, yet &gt;= G from its core) densifies.</summary>
+/// <i>core</i>, where <c>G = 1 + GraduationMarginHexes</c> (default margin 1 →
+/// <b>G = 2</b>) — the <b>literal anti-adjacency</b> spacing, "not in a touching
+/// hex" ⇔ <c>dist ≥ 2</c>, NOT any radius-derived / domain-scale distance
+/// (decision #2 FINAL, 2026-07-20 — two earlier domain-scale gates blocked
+/// graduation entirely because outposts form only 1–3 hexes from their parent).
+/// A stacked-on-a-port outpost (dist 1) is interior and never graduates; a
+/// second-centre outpost that has cleared every port by G hexes densifies —
+/// even inside a larger tier-2+ domain. G is uniform across every port and
+/// INDEPENDENT of the incumbent's tier.</summary>
 public class OutpostOpsTests
 {
     // --- a clean single-actor world with no ports until the test adds them ---
@@ -54,96 +56,93 @@ public class OutpostOpsTests
             new HexCoordinate(origin.Q + dist, origin.R), parentPortId, 0L)
         { Graduated = graduated };
 
-    // G for an era-standard-tech world (AstroRadiusBonus == 0): the newcomer's
-    // OWN tier-1 service radius + margin — INDEPENDENT of any incumbent tier.
+    // G = the literal anti-adjacency spacing 1 + margin — INDEPENDENT of any
+    // port's tier / service radius.
     private static int G(SimState state)
-        => PortDomains.ServiceRadius(state.Config, 1)
-         + state.Config.Expansion.GraduationMarginHexes;
+        => 1 + state.Config.Expansion.GraduationMarginHexes;
 
     // ---------------------------------------------------------------------
     // THE anti-adjacency test (headline): an outpost within G of a port core
     // (distance < G) is NEVER frontier, at/beyond G it IS — asserted across
-    // several configs so the gate is shown to scale with the MARGIN, never a
-    // constant, AND to be INVARIANT to the incumbent's tier (the correction:
-    // G is the newcomer's own reach, not the incumbent's domain sum).
+    // several margins so the gate is shown to move with the MARGIN alone, AND
+    // to be INVARIANT to the incumbent's tier (G is the literal spacing 1 +
+    // margin, not the incumbent's domain size). At the defaults (margin 1 →
+    // G = 2) a dist-1 "stacked on a port" outpost is interior and a dist-2
+    // "genuine second centre" outpost is eligible — the crux of decision #2.
     // ---------------------------------------------------------------------
 
     [Theory]
-    // tier-1 incumbent, default margin (G = 4 + 1 = 5)
-    [InlineData(1, 1, 4, false)]   // one short of G — interior
-    [InlineData(1, 1, 5, true)]    // exactly at G — eligible (>= G)
-    [InlineData(1, 1, 6, true)]    // past G — frontier
-    // widened margin (G = 4 + 3 = 7): the margin alone moves the boundary —
-    // a distance that was frontier at margin 1 is interior at margin 3.
-    [InlineData(1, 3, 6, false)]   // frontier at margin 1, interior at margin 3
-    [InlineData(1, 3, 7, true)]    // exactly at the widened G — frontier
-    // tier-2 incumbent, default margin: G is UNCHANGED at 5 — the newcomer's
-    // own reach, NOT the incumbent's bigger domain. Under the OLD (wrong) gate
-    // a tier-2 incumbent pushed the boundary to 13; the corrected gate does not
-    // move. dist 5 is INSIDE the tier-2 domain (radius 8) yet still eligible —
-    // densification.
-    [InlineData(2, 1, 4, false)]   // interior below the same G
-    [InlineData(2, 1, 5, true)]    // at G — eligible though INSIDE the tier-2 domain
+    // tier-1 incumbent, default margin (G = 1 + 1 = 2)
+    [InlineData(1, 1, 1, false)]   // dist 1 — touching a port, interior
+    [InlineData(1, 1, 2, true)]    // dist 2 — exactly at G, eligible (>= G)
+    [InlineData(1, 1, 3, true)]    // dist 3 — past G, frontier
+    // widened margin (G = 1 + 2 = 3): the margin alone moves the boundary —
+    // a distance that was frontier at margin 1 is interior at margin 2.
+    [InlineData(1, 2, 2, false)]   // frontier at margin 1, interior at margin 2
+    [InlineData(1, 2, 3, true)]    // exactly at the widened G — frontier
+    // tier-2 incumbent, default margin: G is UNCHANGED at 2 — the literal
+    // spacing, NOT the incumbent's bigger domain. dist 2 is INSIDE the tier-2
+    // domain (radius 8) yet still eligible — densification, not a reach leap.
+    [InlineData(2, 1, 1, false)]   // interior below the same G
+    [InlineData(2, 1, 2, true)]    // at G — eligible though INSIDE the tier-2 domain
     public void FrontierGate_ScalesWithMargin_InvariantToIncumbentTier(
         int tier, int margin, int dist, bool expectedFrontier)
     {
         var state = World();
         state.Config.Expansion.GraduationMarginHexes = margin;
         var port = AddPort(state, tier);
-        // G bookkeeping: it depends ONLY on the tier-1 radius + margin, never
-        // on the incumbent's tier.
-        Assert.Equal(PortDomains.ServiceRadius(state.Config, 1) + margin,
-                     G(state));
+        // G bookkeeping: it depends ONLY on the margin (1 + margin), never on
+        // the incumbent's tier or service radius.
+        Assert.Equal(1 + margin, G(state));
 
         var outpost = OutpostAt(port.Hex, dist);
         Assert.Equal(expectedFrontier, OutpostOps.IsFrontier(state, outpost));
     }
 
     [Fact]
-    public void IncumbentTier_DoesNotMoveTheGate_OnlyTheNewcomersReachCounts()
+    public void IncumbentTier_DoesNotMoveTheGate_OnlyLiteralAdjacencyCounts()
     {
-        // the correction, made concrete: an outpost 5 hexes out is frontier
-        // beside a tier-1 port AND still frontier beside a tier-2 port — the
-        // incumbent's larger domain does NOT push the boundary out (as the old
-        // EncroachedPolities-sum gate wrongly did). Only the newcomer's own
-        // tier-1 reach + margin (G = 5) counts, uniform across tiers.
+        // the correction, made concrete: an outpost 2 hexes out (a genuine
+        // second centre) is frontier beside a tier-1 port AND still frontier
+        // beside a tier-2 port — the incumbent's larger domain does NOT push
+        // the boundary out (as the old domain-scale gates wrongly did). Only
+        // the literal spacing G = 2 counts, uniform across tiers.
         var s1 = World();
         var p1 = AddPort(s1, tier: 1);
-        Assert.True(OutpostOps.IsFrontier(s1, OutpostAt(p1.Hex, 5)));
+        Assert.True(OutpostOps.IsFrontier(s1, OutpostAt(p1.Hex, 2)));
 
         var s2 = World();
         var p2 = AddPort(s2, tier: 2);
-        Assert.True(OutpostOps.IsFrontier(s2, OutpostAt(p2.Hex, 5)));
+        Assert.True(OutpostOps.IsFrontier(s2, OutpostAt(p2.Hex, 2)));
     }
 
     // ---------------------------------------------------------------------
-    // Densification works: a FRINGE outpost of a tier-2+ domain — inside the
-    // parent's domain, past G from its core — IS eligible. This is the case the
-    // OLD (domain-exclusion) gate wrongly rejected: it demanded the outpost sit
-    // beyond the parent's whole domain, which an in-domain outpost never can.
+    // Densification works: a second-centre outpost inside a tier-2+ domain —
+    // cleared its parent by G but still within the parent's service radius —
+    // IS eligible. This is the case the OLD (domain-scale) gates wrongly
+    // rejected: they demanded the outpost sit beyond the parent's whole domain,
+    // which an in-domain outpost never can.
     // ---------------------------------------------------------------------
 
     [Fact]
-    public void FringeOutpostOfATier2Domain_IsEligible_InsideTheParentDomain()
+    public void SecondCentreInsideATier2Domain_IsEligible()
     {
         var state = World();
         var parent = AddPort(state, tier: 2);          // ServiceRadius(2) = 8
-        int g = G(state);                              // 5 at defaults
+        int g = G(state);                              // 2 at defaults
         int parentRadius = PortDomains.ServiceRadius(state.Config, 2);
-        // dist 6: past G (>= 5) yet still WITHIN the parent's domain (<= 8) —
-        // the far reach of a big domain, its densifying second center.
-        var fringe = OutpostAt(parent.Hex, 6, parentPortId: parent.Id);
-        // dist 6 lies in [G=5, parentRadius=8]: at/past the gate, yet within the
-        // parent's service reach — inside the parent's domain, not beyond it.
-        Assert.True(g <= 6 && 6 <= parentRadius,
-            $"6 must lie in [G={g}, parentRadius={parentRadius}]");
+        // dist 4: past G (>= 2) yet still WELL WITHIN the parent's domain
+        // (<= 8) — a densifying second centre, not a reach leap outside.
+        var fringe = OutpostAt(parent.Hex, 4, parentPortId: parent.Id);
+        Assert.True(g <= 4 && 4 <= parentRadius,
+            $"4 must lie in [G={g}, parentRadius={parentRadius}]");
         Assert.True(HexGrid.Distance(parent.Hex, fringe.Hex) <= parentRadius,
-            "the fringe outpost must still be within the parent's service reach");
+            "the second-centre outpost must still be within the parent's reach");
         Assert.True(OutpostOps.IsFrontier(state, fringe));
     }
 
     // ---------------------------------------------------------------------
-    // A frontier outpost IS eligible; interior stays subordinate.
+    // A frontier outpost IS eligible; a stacked-on-a-port one stays subordinate.
     // ---------------------------------------------------------------------
 
     [Fact]
@@ -156,46 +155,55 @@ public class OutpostOpsTests
     }
 
     [Fact]
-    public void NearAPortCore_IsInterior_SubordinateDensity()
+    public void StackedOnAPortCore_IsInterior_SubordinateDensity()
     {
         var state = World();
         var parent = AddPort(state, tier: 1);
-        // the outpost sits within the parent's gate distance (dist < G). It must
-        // read interior — permanently subordinate, never a candidate.
-        var outpost = OutpostAt(parent.Hex, 3, parentPortId: parent.Id);
+        // the outpost sits one hex from the parent (dist 1 < G = 2) — stacked
+        // on the port, the majority case. It must read interior — permanently
+        // subordinate, never a candidate.
+        var outpost = OutpostAt(parent.Hex, 1, parentPortId: parent.Id);
         Assert.False(OutpostOps.IsFrontier(state, outpost));
     }
 
     // ---------------------------------------------------------------------
-    // The parent port counts — no special-casing.
+    // The parent port counts — no special-casing. An outpost 1 hex from its
+    // OWN parent is interior even if far from every other port.
     // ---------------------------------------------------------------------
 
     [Fact]
-    public void ParentPortCounts_NoExemption_AndNoAutomaticDisqualification()
+    public void ParentPortCounts_ADistOneOutpostIsInterior_EvenIfFarFromAllOthers()
     {
         var state = World();
-        var parent = AddPort(state, tier: 1);
-        // near the parent (the only port): interior — the parent is not exempt.
-        Assert.False(OutpostOps.IsFrontier(state,
-            OutpostAt(parent.Hex, 3, parentPortId: parent.Id)));
-        // pushed past G from the parent (still the only port): frontier — the
-        // parent gates like any port, not a free pass and not an auto-fail.
-        Assert.True(OutpostOps.IsFrontier(state,
-            OutpostAt(parent.Hex, G(state) + 1, parentPortId: parent.Id)));
+        var parent = AddPort(state, tier: 1);                 // id 0, at seat
+        // a second, VERY distant port — irrelevant to this outpost's verdict.
+        var far = new Port(state.Ports.Count, 0,
+            new HexCoordinate(parent.Hex.Q + 40, parent.Hex.R), 1, 0);
+        state.Ports.Add(far);
+
+        // 1 hex from its own parent (far from `far`): the parent gates like any
+        // port — no free pass — so the outpost is interior.
+        var stacked = OutpostAt(parent.Hex, 1, parentPortId: parent.Id);
+        Assert.False(OutpostOps.IsFrontier(state, stacked));
+
+        // pushed to dist 2 from the parent (still far from `far`): now frontier.
+        var second = OutpostAt(parent.Hex, 2, parentPortId: parent.Id);
+        Assert.True(OutpostOps.IsFrontier(state, second));
     }
 
     [Fact]
-    public void MustClearEveryPort_ASecondNearbyPortMakesItInterior()
+    public void MustClearEveryPort_ASecondAdjacentPortMakesItInterior()
     {
         var state = World();
         var parent = AddPort(state, tier: 1);                 // id 0
-        // clear of the parent...
-        var outpost = OutpostAt(parent.Hex, G(state) + 2, parentPortId: parent.Id);
+        // clear of the parent (dist 2 = G)...
+        var outpost = OutpostAt(parent.Hex, 3, parentPortId: parent.Id);
         Assert.True(OutpostOps.IsFrontier(state, outpost));
 
-        // ...but a second entered port sits right on the outpost's hex: now it
-        // is within THAT core's G, so the gate (every port) fails.
-        var neighbour = new Port(state.Ports.Count, 0, outpost.Hex, 1, 0);
+        // ...but a second entered port sits one hex from the outpost: now it is
+        // within THAT core's G (dist 1 < 2), so the gate (every port) fails.
+        var neighbour = new Port(state.Ports.Count, 0,
+            new HexCoordinate(outpost.Hex.Q + 1, outpost.Hex.R), 1, 0);
         state.Ports.Add(neighbour);
         Assert.False(OutpostOps.IsFrontier(state, outpost));
     }
@@ -218,11 +226,11 @@ public class OutpostOpsTests
             new HexCoordinate(parent.Hex.Q + 20, parent.Hex.R), ownerActorId: 1);
         int foreignRadius = PortDomains.ServiceRadius(state.Config, 3);   // 12
 
-        // the outpost sits 6 hexes from the foreign core — INSIDE its big domain
-        // (<= 12) yet >= G (5) from it; and 14 hexes from the parent (>= G).
-        var outpost = OutpostAt(foreign.Hex, -6, parentPortId: parent.Id);
-        Assert.Equal(6, HexGrid.Distance(foreign.Hex, outpost.Hex));
-        Assert.True(6 <= foreignRadius,                       // inside foreign domain
+        // the outpost sits 4 hexes from the foreign core — INSIDE its big domain
+        // (<= 12) yet >= G (2) from it; and 16 hexes from the parent (>= G).
+        var outpost = OutpostAt(foreign.Hex, -4, parentPortId: parent.Id);
+        Assert.Equal(4, HexGrid.Distance(foreign.Hex, outpost.Hex));
+        Assert.True(4 <= foreignRadius,                       // inside foreign domain
             "the outpost must sit inside the foreign domain");
         Assert.True(HexGrid.Distance(parent.Hex, outpost.Hex) >= G(state));
 
@@ -270,13 +278,13 @@ public class OutpostOpsTests
     {
         var state = World();
         var port = AddPort(state, tier: 1);
-        int g = G(state);                          // 5 at defaults
+        int g = G(state);                          // 2 at defaults
 
-        var interior = OutpostOps.FrontierStatus(state, OutpostAt(port.Hex, 3));
+        var interior = OutpostOps.FrontierStatus(state, OutpostAt(port.Hex, 1));
         Assert.False(interior.IsFrontier);
-        Assert.Equal(3, interior.PortDistance);
+        Assert.Equal(1, interior.PortDistance);
         Assert.Equal(g, interior.Threshold);
-        Assert.Equal(3 - g, interior.Slack);       // negative → interior
+        Assert.Equal(1 - g, interior.Slack);       // negative → interior
 
         var frontier = OutpostOps.FrontierStatus(state, OutpostAt(port.Hex, g + 2));
         Assert.True(frontier.IsFrontier);
@@ -295,9 +303,9 @@ public class OutpostOpsTests
             new HexCoordinate(near.Hex.Q + 40, near.Hex.R), 1, 0);
         state.Ports.Add(far);
 
-        var outpost = OutpostAt(near.Hex, 3);                 // 3 from near, 37 from far
+        var outpost = OutpostAt(near.Hex, 1);                 // 1 from near, 39 from far
         var status = OutpostOps.FrontierStatus(state, outpost);
-        Assert.Equal(3, status.PortDistance);                 // the nearest, not 37
+        Assert.Equal(1, status.PortDistance);                 // the nearest, not 39
         Assert.False(status.IsFrontier);
     }
 

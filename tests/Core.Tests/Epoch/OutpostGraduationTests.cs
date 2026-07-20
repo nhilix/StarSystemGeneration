@@ -37,8 +37,11 @@ public class OutpostGraduationTests
         state.Markets.Add(new Market(parent.Id, state.Config.Economy));
         state.PolityOf(a0.Id).ExpansionPoints = expansionPoints;
 
-        // G at tier-1 defaults = ServiceRadius(1)*2 + margin; a frontier hex
-        // sits well past it, in a real non-void cell.
+        // G is the literal anti-adjacency spacing 1 + margin (default 2); a
+        // frontier hex sits well past it, in a real non-void cell. We reuse a
+        // domain-scale distance here purely to guarantee "far" — any hex a few
+        // hexes out already clears G=2, but a domain-scale reach keeps the
+        // fixture unambiguous and on a real committed cell.
         int g = PortDomains.ServiceRadius(state.Config, 1) * 2 + margin;
         var hex = FarValidHex(state, parent, g + 3);
 
@@ -120,8 +123,10 @@ public class OutpostGraduationTests
     public void InteriorOutpost_IsNeverAGraduationCandidate(int margin)
     {
         var (state, parent, _, _, _) = FrontierDomain(margin: margin);
-        // move the sole outpost INSIDE the parent's domain (interior).
-        var interiorHex = new HexCoordinate(parent.Hex.Q + 3, parent.Hex.R);
+        // stack the sole outpost on the parent port (dist 1 < G): interior under
+        // the literal anti-adjacency gate (G = 1 + margin ≥ 2), the majority
+        // "suburb" case that must never graduate.
+        var interiorHex = new HexCoordinate(parent.Hex.Q + 1, parent.Hex.R);
         state.Outposts[0] = state.Outposts[0] with { Hex = interiorHex };
         state.Segments[0].Hex = interiorHex;
 

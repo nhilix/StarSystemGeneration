@@ -59,6 +59,27 @@ public class CapabilityDomainScanTests
         return sys;
     }
 
+    /// <summary>A star system with TWO free planetoid belts (BodyRef(0,0) and
+    /// BodyRef(0,1)) — a second same-class Mine can claim the second belt at the
+    /// same hex, the dispersion-floor case (an own working already on this hex).</summary>
+    private static StarSystem TwoBeltSystem(string name)
+    {
+        var sys = new StarSystem(name);
+        var star = new Star();
+        star.Slots.Add(new OrbitSlot
+        {
+            Index = 0, Band = OrbitBand.Inner,
+            Body = new Body { Kind = BodyKind.PlanetoidBelt, Size = 6 },
+        });
+        star.Slots.Add(new OrbitSlot
+        {
+            Index = 1, Band = OrbitBand.Inner,
+            Body = new Body { Kind = BodyKind.PlanetoidBelt, Size = 6 },
+        });
+        sys.Stars.Add(star);
+        return sys;
+    }
+
     [Fact]
     public void ConstructionCandidatesFor_IsDeterministic_ByteIdenticalAcrossRuns()
     {
@@ -241,6 +262,108 @@ public class CapabilityDomainScanTests
         }
         Assert.True(floor, "Economy.HaulingDiscountFloor must be registered");
         Assert.False(proxy, "Economy.HaulingProxyPerHex must be retired");
+    }
+
+    // -- Anti-clustering (dispersion) term (R3, design §2 amended): an
+    //    extraction candidate is penalized by proximity to the builder's OWN
+    //    nearest existing SAME-CLASS extraction working, so the 2nd/3rd same-
+    //    class working fans off the port body. Support/processing is untouched. --
+
+    // the mine candidate's Score at a FIXED hex X = (2,0), in a world whose only
+    // free ore body sits at X, with the builder's own existing Mine placed at
+    // `ownMineHex`. Scanned through the EXTRACTION-niche corp path so the type
+    // set is extraction-only (no support/processing to crowd the single mine out
+    // of the per-port top-3). Both own-mine placements attach to the single port,
+    // so existing[Mine] == 1 either way and the /(1+existing) saturation factor
+    // cancels — only the dispersion factor (nearest own same-class dist) differs.
+    private static double MineScoreAtX(HexCoordinate ownMineHex)
+    {
+        var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 4);
+        state.Skeleton.CellAt(new HexCoordinate(0, 0)).Metallicity = 1.0; // rich ore
+        state.Markets[0].Price[(int)GoodId.Ore] =
+            Market.InitialPrice(state.Config.Economy, GoodId.Ore) * 5.0;
+        var candHex = new HexCoordinate(2, 0);
+        foreach (var hex in HexGrid.Spiral(portHex, radius: 4))
+            state.SettledSystems[hex] = BarrenSystem("B");
+        state.SettledSystems[candHex] = BeltSystem("X");    // the lone free belt
+        var corp = new Corporation(0, actorId: 100, "Extractco",
+            hostPolityId: actorId, CorporateNiche.Extraction,
+            homePortId: 0, foundedYear: 0);
+        state.Corporations.Add(corp);
+        // the builder's (corp's) own existing mine (Body irrelevant to dispersion)
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, tier: 1,
+            ownMineHex, corp.ActorId, 0) { Body = new BodyRef(0, 0) });
+
+        var cands = CapabilityOps.ConstructionCandidatesForCorp(state, corp);
+        var mine = cands.Single(c => c.TypeId == (int)InfraTypeId.Mine
+            && c.Hex.Equals(candHex));
+        return mine.Score;
+    }
+
+    [Fact]
+    public void Dispersion_AdjacentOwnSameClassWorking_ScoresLowerThanAFarOne()
+    {
+        // the same candidate mine at X scores LOWER when the builder's own mine
+        // sits one hex away than when it sits far off — the dispersion penalty
+        // fans the second mine off the first, everything else held equal.
+        double adjacent = MineScoreAtX(new HexCoordinate(1, 0));   // 1 hex from X
+        double far = MineScoreAtX(new HexCoordinate(20, 0));       // 18 hexes off
+        Assert.True(adjacent < far,
+            $"adjacent own-mine score {adjacent} must be < far {far}");
+    }
+
+    [Fact]
+    public void Dispersion_DoesNotAffectSupportProcessingScoring()
+    {
+        // support/processing never routes through the dispersion term (it keeps
+        // port-body affinity, not extraction). Placing an own Mine right beside
+        // the port must not move the top support candidate's score at all.
+        double TopSupport(bool addMine)
+        {
+            var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 2);
+            foreach (var hex in HexGrid.Spiral(portHex, radius: 2))
+                state.SettledSystems[hex] = BarrenSystem("B");
+            if (addMine)
+                state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine,
+                    tier: 1, HexGrid.Neighbor(portHex, 0), actorId, 0)
+                { Body = new BodyRef(0, 0) });
+            var cands = CapabilityOps.ConstructionCandidatesFor(state, actorId);
+            var support = cands.First(
+                c => !BodySiting.IsExtraction((InfraTypeId)c.TypeId));
+            return support.Score;
+        }
+        Assert.Equal(TopSupport(addMine: false), TopSupport(addMine: true), 12);
+    }
+
+    [Fact]
+    public void Dispersion_FloorHolds_NeverZeroesAnOwnHexSecondBody()
+    {
+        // an own same-class working already ON the candidate hex (nearestDist 0)
+        // drives dispersion to its FLOOR 1 − DispersionWeight, NOT to zero: a
+        // second free body at that hex still sites (a rich isolated site is kept
+        // in contention, the whole point of the floor). Two belts at the port
+        // hex; own mine on belt 0; the candidate mine takes belt 1 at dist 0.
+        // Scanned through the extraction-niche corp path (extraction-only types).
+        var (state, actorId, portHex) = MinimalPort(serviceRadiusBase: 1);
+        state.Skeleton.CellAt(new HexCoordinate(0, 0)).Metallicity = 1.0;
+        state.Markets[0].Price[(int)GoodId.Ore] =
+            Market.InitialPrice(state.Config.Economy, GoodId.Ore) * 10.0;
+        foreach (var n in HexGrid.Neighbors(portHex))
+            state.SettledSystems[n] = BarrenSystem("N");
+        state.SettledSystems[portHex] = TwoBeltSystem("PORT");   // two ore belts
+        var corp = new Corporation(0, actorId: 100, "Extractco",
+            hostPolityId: actorId, CorporateNiche.Extraction,
+            homePortId: 0, foundedYear: 0);
+        state.Corporations.Add(corp);
+        // the builder's (corp's) own mine already holds belt 0 at the port hex
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, tier: 1,
+            portHex, corp.ActorId, 0) { Body = new BodyRef(0, 0) });
+
+        var cands = CapabilityOps.ConstructionCandidatesForCorp(state, corp);
+        var mine = cands.FirstOrDefault(c => c.TypeId == (int)InfraTypeId.Mine
+            && c.Hex.Equals(portHex));
+        Assert.NotNull(mine);           // floored at 1 − W (0.4), not zeroed out
+        Assert.True(mine!.Score > 0);
     }
 
     [Fact]
