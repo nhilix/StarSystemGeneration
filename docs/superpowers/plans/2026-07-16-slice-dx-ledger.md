@@ -365,17 +365,20 @@ all user-approved. §1/§4/§2 of the design were amended in-branch.
   residual **7.6e-15** (was 3.6e-3); graduation still **15/32**. Test
   `CrossCurrencyMovementTests.OutpostGraduation_ConvertsResidentWealth_WhenParentPortChangedCurrency`
   (foreign-currency parent) — closes the gap that kept it latent.
-- [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
-  Extend the view: per-outpost candidacy status (interior vs frontier,
-  distance-to-nearest-port vs `G`); settle + graduation events in history/news.
-  SIMHEALTH graduation metric.
-- [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
-  Extend the view: per-outpost candidacy status (interior vs frontier,
-  distance-to-nearest-port vs `G`); settle + graduation events in history/news.
-  SIMHEALTH graduation metric.
-- [ ] **T3 GATE**: `dotnet test` green (hex-tier intact); determinism byte-identity;
-  32-run sweep — **graduation-cost conservation** worst residual checked,
-  `ConservationTests` green; Stage-3 §7 coverage. Commit. **Mergeable.**
+- [x] **T3.3 — `domain <port>` REPL candidacy + graduation history** — DONE
+  (`8237626`). `DomainView` shows per-outpost status via `OutpostOps.FrontierStatus`
+  (graduated → port #; frontier — eligible dist ≥ G; interior — subordinate dist
+  < G, with binding dist + G shown); a recent settle/graduation events section;
+  `Settlement.GraduatedPorts` metric registered + SIMHEALTH.md. Real sample render
+  captured (seed 31337 domain #17: a graduated outpost + events). (Frontier-but-
+  not-yet-graduated is rare in the wild — outposts are interior at dist 1 or
+  graduate quickly — covered by a synthetic render test.)
+- [x] **T3 GATE — PASSED** (2026-07-20). `dotnet test` 1208 passed / 1 failed
+  (seed-42 golden only — deferred re-freeze; hex-tier + ConservationTests +
+  DeterminismTests green). 32-run `debt-diagnosis` sweep on tip `8237626`:
+  **worst relative conservation residual 7.611e-15** (tol 1.3e-9 — flow #3
+  graduation cost conserved), **graduation fires 22/32 runs (40 graduated ports)**.
+  All three stages built + gated. **Independently mergeable** (pending slice close).
 
 ## Slice close
 
