@@ -27,7 +27,13 @@ public sealed record RelationBrief(
     int DynasticTies, IReadOnlyList<CasusBelliOption> CasusBelli,
     double OtherDefensiveStrength,
     IReadOnlyList<WarObjectiveSpec> ObjectiveCandidates,
-    double OverlapShare);
+    double OverlapShare,
+    /// <summary>The other partner's monetary credibility (its bank's
+    /// <see cref="Bank.BackedShare"/>, 0.0 pre-genesis) — a live structural
+    /// fusion input, computed fresh at snapshot build like
+    /// <see cref="OverlapShare"/>, not routed through belief (slice CU-4
+    /// monetary-federation design §3b).</summary>
+    double OtherCredibility);
 
 /// <summary>One viable declared goal on the menu (war.md §Causes).</summary>
 public sealed record CasusBelliOption(CasusBelli Cause, int SubjectId);
@@ -111,6 +117,11 @@ public sealed class PerceptionView
     /// <summary>Own headline war weight (strike + sustained, readiness-
     /// discounted) — what vassal choices size threats against (slice H).</summary>
     public double OwnStrength { get; }
+    /// <summary>Own monetary credibility (own bank's <see cref="Bank.BackedShare"/>,
+    /// 0.0 pre-genesis) — the self half of the fusion credibility discount
+    /// (slice CU-4 monetary-federation design §3b), computed live like
+    /// <see cref="OwnStrength"/>, never routed through belief.</summary>
+    public double OwnCredibility { get; }
     /// <summary>Own throne is a lineage — dynastic instruments bind only
     /// between such forms (slice H).</summary>
     public bool SelfDynastic { get; }
@@ -143,6 +154,7 @@ public sealed class PerceptionView
                           IReadOnlyList<CorporateBrief>? hostedCorporations = null,
                           IReadOnlyList<RelationBrief>? relations = null,
                           double ownStrength = 0,
+                          double ownCredibility = 0,
                           bool selfDynastic = false,
                           IReadOnlyList<WarBrief>? wars = null,
                           IReadOnlyList<QuarantineCandidate>? plagueFrontier
@@ -161,6 +173,7 @@ public sealed class PerceptionView
         HostedCorporations = hostedCorporations ?? NoCorporations;
         Relations = relations ?? NoRelations;
         OwnStrength = ownStrength;
+        OwnCredibility = ownCredibility;
         SelfDynastic = selfDynastic;
         Wars = wars ?? NoWars;
         SelfId = selfId;
@@ -270,13 +283,15 @@ public sealed class GenesisController : IController
                 if (stance < DiplomaticPosture.Cordial) continue;
                 if (rel.OfferedRung > rel.Rung
                     && rel.OfferedById == rel.OtherPolityId
-                    && rel.Warmth >= EffectiveGate(rel, rel.OfferedRung)
+                    && rel.Warmth >= EffectiveGate(rel, rel.OfferedRung,
+                        perceived.OwnCredibility)
                     && FederationTermsAgreeable(perceived, rel, rel.OfferedRung))
                     acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
                         (int)rel.OfferedRung, TreatyVerb.Accept));
                 else if (rel.OfferedRung == TreatyRung.None
                     && rel.Rung < TreatyRung.Federation
-                    && rel.Warmth >= EffectiveGate(rel, rel.Rung + 1)
+                    && rel.Warmth >= EffectiveGate(rel, rel.Rung + 1,
+                        perceived.OwnCredibility)
                     && FederationTermsAgreeable(perceived, rel, rel.Rung + 1))
                     acts.Add(new TreatyAct(perceived.SelfId, rel.OtherPolityId,
                         (int)(rel.Rung + 1), TreatyVerb.Offer));
@@ -636,13 +651,20 @@ public sealed class GenesisController : IController
     };
 
     /// <summary>The warmth gate for a rung, discounted at the top rung by
-    /// entanglement: interleaved friendly borders push toward fusion.</summary>
-    private double EffectiveGate(RelationBrief rel, TreatyRung rung)
+    /// entanglement (interleaved friendly borders push toward fusion) and
+    /// by monetary credibility, min-aggregated across the pair (slice CU-4
+    /// monetary-federation design §3a/§3b) — mirrors the true gate in
+    /// <see cref="FederationOps.FederationGateHolds"/> so a discount that
+    /// opens the true gate also generates the offer that reaches it.</summary>
+    private double EffectiveGate(RelationBrief rel, TreatyRung rung,
+        double ownCredibility)
     {
         double gate = RelationsOps.TreatyGate(_config, rung);
         if (rung == TreatyRung.Federation)
             gate -= _config.Relations.FederationOverlapDiscount
-                    * rel.OverlapShare;
+                    * rel.OverlapShare
+                + _config.Relations.FederationCredibilityDiscount
+                    * System.Math.Min(ownCredibility, rel.OtherCredibility);
         return gate;
     }
 

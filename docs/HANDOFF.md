@@ -1,48 +1,65 @@
-# Session Handoff — 2026-07-17 (Slice CU-3 MERGED · next up: CU-4, closes the CU chain)
+# Session Handoff — 2026-07-18 (Slice CU-4 MERGED + PUSHED · the CU chain is CLOSED)
 
-**Slice CU-3 — federation-triggered currency consolidation — MERGED** to `main`
-locally at `5a6dfa4` with `--no-ff`. **Not pushed** — push on say-so. 1137/1137
-`dotnet test` on the merged tip · 32-run conservation sweep holds at **1.22e-15
-relative** across real merges · one fable whole-branch review (**MERGE**, 0
-Critical/Important, 1 doc-nit Minor fixed) · golden unchanged (CU-3 is a 0→0 no-op
-at seed-42's golden range, verified). Design
-`docs/superpowers/specs/2026-07-17-cu3-currency-consolidation-design.md`; ledger
-`docs/superpowers/plans/2026-07-17-slice-cu3-ledger.md`.
+**Slice CU-4 — bank/currency-union strength → federation generation — MERGED &
+PUSHED** to `main` at `9947532` with `--no-ff`. 1145/1145 `dotnet test` on the
+merged tip · 32-run conservation sweep **1.223e-15 relative** (= CU-3) · clock
+instrument telescopes (`live_polities` byte-identical across 25/5/1y) · no runaway
+(Polity.Live 59.6→59.4) · one fable whole-branch review (**MERGE**, 0
+Critical/Important-blocking; one fix wave cleared 2 Important test/doc + 1 Minor) ·
+golden re-frozen (diff is *exactly* the two knob-stamp lines — seed-42 is a 0→0
+no-op; the effect fires on other seeds). Design
+`docs/superpowers/specs/2026-07-18-cu4-monetary-federation-design.md`; ledger
+`docs/superpowers/plans/2026-07-18-slice-cu4-ledger.md`.
 
-**What CU-3 shipped:** `FederationOps.MergeInto` now consolidates an absorbed
-bank's balance sheet into the survivor's, instead of stranding the reserve and
-orphaning the claim. **Reserve** (money) converts into the survivor's reserve,
-*recorded* as a conversion (union pools its members' backing); **claim book** (not
-money) reprices into the survivor's claim book *without* a recorded conversion
-(survivor inherits the debt-to-its-own-bank, so BF's sink is preserved). That
-asymmetry — reserve recorded, claim not — is the slice's whole correctness point,
-verified by the sweep. Instant, fusion-only, no new knobs, no serialization change.
+**What CU-4 shipped — the CU chain's closing link (economy ←→ politics).** Monetary
+credibility now feeds the federation *decision*, so the economy the chain built
+shapes the political map:
+- **`Bank.BackedShare`** = `Reserve/(Reserve+ClaimOnState)` (0/0→0) — one bounded
+  [0,1] signal (1 = saver, 0 = debtor), the sibling of BF's FX `unbacked`. Shared
+  guard `SimState.BackedShareOf(currencyId)`.
+- **Peer fusion** — `FederationCredibilityDiscount × min(cred_A, cred_B)` discounts
+  the federation warmth gate, **mirrored across BOTH** the true gate
+  (`FederationOps.FederationGateHolds`) and the perceived offer gate
+  (`ControllerContract.EffectiveGate`) — a true-gate-only discount is inert (offers
+  filtered upstream). Plumbed live via `RelationBrief.OtherCredibility` +
+  `PerceptionView.OwnCredibility` at the `Phases.cs` snapshot build (the
+  `OverlapShare` precedent — **no serialization change**).
+- **Vassal absorption** — `VassalAbsorptionCredibilityDiscount × max(0, cred_overlord
+  − cred_vassal)` eases only the warmth bar in `VassalExits` (the world-year duration
+  gate is untouched → clock-invariant by construction; `max(0,…)` = a more-credible
+  vassal earns no discount but never a penalty).
+- Two knobs, both registered in `KnobRegistry`, **activated at 0.20** (validated on
+  the committed instruments via an inert-at-0 checkpoint, BF discipline).
 
-**The emergence gift CU-3 handed CU-4:** peer fusions select *saver* super-states
-(deep reserves, `ClaimOnState` 0) that fuse peacefully; chronic *deficit-borrowers*
-(deep claim books) exit via *war annexation*. So monetary strength already
-correlates with federation-vs-conquest — but as an accident of dynamics, nothing
-reads bank strength to *drive* it. That's exactly CU-4's raw material.
+**The emergence, now a mechanism** (was CU-3's accidental gift): a monetarily weak
+vassal (cred 0) under a credible overlord (cred 1) is peacefully absorbed where the
+plain warmth bar would leave it bound forever — eyeball seed 9091 (Lusshaka absorbs
+Misha) and seed 31337 (Nyduzen absorbs Thano).
 
-**NEXT UP: Slice CU-4 — bank/currency-union strength → federation generation. The
-LAST CU slice; it closes the loop (economy ← → politics).** Kickoff:
-`docs/superpowers/plans/2026-07-17-slice-cu4-kickoff-prompt.md`. CU-4 makes the
-saver-fuses/debtor-conquered split a *mechanism* (a monetary term in the federation
-*decision*, not just the execution CU-3 changed), keyed off the real measures BF/CU-3
-made computable: reserve depth, backing ratio `Reserve ÷ ClaimOnState`, FX track
-record.
-
-**Earlier this chain (all merged this session):** **BF** (bank as monetary
-authority, `0bdb009`), **MC** (P7-clean polity entry + the clock-invariance
-instrument, `0d93250` — see its section below). The whole CU chain is now
-MC ✅ → BF ✅ → CU-3 ✅ → **CU-4 (next)**.
+**The whole CU chain is now CLOSED: CU-1 ✅ → CU-2 ✅ → BF ✅ → MC ✅ → CU-3 ✅ →
+CU-4 ✅.** No CU-5. Follow-ups noted, not chained (see the CU-4 "carried" block below).
 
 **Also live, not next:** WT (war termination, L2-chained, parallel-safe) and DX
-(domain hex expansion, was HELD pending "CU-3's hiccups" — those resolved into the
-BF→MC detour, which is now complete; the hold can lift).
+(domain hex expansion — HELD lifted 2026-07-17, a `dx-worker` was spawned parallel to
+CU-4; check its status). Neither depends on CU-4.
 
-**CU-4 spawned 2026-07-17** (psmux `slice-cu4`, orchestrator) — the chain's
-final slice is IN PROGRESS.
+## Carried from CU-4 (follow-ups, none blocking)
+
+1. **Effect concentrates on the absorption seam at 0.20.** Peer fusion needs a rarer
+   both-credible near-threshold pair (the `min` rule), so no *new* fusion appeared in
+   the sampled seeds — the fusions that occur fire regardless of the knob. Clean
+   headroom to **0.30 / asymmetric knobs** (fusion higher than absorption) if a more
+   legible fusion effect is ever wanted — validated-safe on conservation/clock.
+2. **Credibility is read LIVE, not belief-mediated.** `OtherCredibility` is computed
+   at snapshot from true state (the `OverlapShare` precedent). A future slice could
+   route it through `BeliefOps` so foreign monetary standing is *discoverable* (stale
+   at distance, like `OtherStrength`). Deliberately not done — structural-input
+   treatment.
+3. **Binding gate + seek-protector trigger stay military-driven.** CU-4 eases only
+   absorption *completion*, not vassalage *entry*. Making monetary collapse itself
+   initiate a bid for protection is the perceived-view trigger change CU-4 declined.
+4. **War/conquest decisions untouched** — debtor-conquest stays emergent (Slice WT's
+   seam).
 
 ## Slice MC — P7-clean polity entry + clock-invariance instrument (MERGED)
 

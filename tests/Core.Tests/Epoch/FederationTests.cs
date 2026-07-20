@@ -159,6 +159,58 @@ public class FederationTests
                         < state.Config.Relations.FederationOpennessFloor);
     }
 
+    /// <summary>Slice CU-4 T4 — the fusion true gate carries a monetary-
+    /// credibility discount, mirroring the overlap discount, aggregated
+    /// with <c>min</c> (design §3a): a credible ally pair fuses at a lower
+    /// warmth bar; a debtor partner drags the term to ~0, so it earns none.</summary>
+    [Fact]
+    public void FederationGate_CredibilityDiscount_LowersBarForCrediblePairOnly()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        var a = state.PolityOf(rel.PolityAId);
+        var b = state.PolityOf(rel.PolityBId);
+        rel.Rung = TreatyRung.DefenseAlliance;
+        rel.RungYear = state.WorldYear
+            - state.Config.Relations.FederationAllianceEpochs
+              * state.Config.Sim.GenerationYears;
+        for (int ax = 0; ax < 4; ax++)
+            b.Interior!.OfficialIdeology[ax] = a.Interior!.OfficialIdeology[ax];
+        a.Interior!.Cohesion = 0.8;
+        b.Interior!.Cohesion = 0.8;
+        a.Interior.OfficialIdeology[(int)IdeologyAxis.OpenInsular] = 0.05;
+        b.Interior.OfficialIdeology[(int)IdeologyAxis.OpenInsular] = 0.05;
+
+        // the plain (undiscounted-by-credibility) gate this exact pair sees —
+        // computed the same way FederationGateHolds does, so the test stays
+        // correct regardless of this pair's actual border overlap
+        double plainGate = RelationsOps.TreatyGate(state.Config, TreatyRung.Federation)
+            - state.Config.Relations.FederationOverlapDiscount
+              * RelationsOps.OverlapShare(state, rel.PolityAId, rel.PolityBId);
+        rel.Warmth = plainGate - 0.05;   // just below the plain gate
+
+        // knob pinned to 0: behavior identical to pre-CU-4 — fails regardless
+        // of credibility, since the term is exactly 0 (pin explicitly; the
+        // shipped default is now live at 0.20)
+        state.BankOf(a.CurrencyId).Reserve = 100.0;
+        state.BankOf(a.CurrencyId).ClaimOnState = 0.0;
+        state.BankOf(b.CurrencyId).Reserve = 100.0;
+        state.BankOf(b.CurrencyId).ClaimOnState = 0.0;
+        state.Config.Relations.FederationCredibilityDiscount = 0.0;
+        Assert.False(FederationOps.FederationGateHolds(state, rel));
+
+        // both partners credible (BackedShare 1.0 each) + knob live: the
+        // min-aggregated discount opens the gate at this same warmth
+        state.Config.Relations.FederationCredibilityDiscount = 0.25;
+        Assert.True(FederationOps.FederationGateHolds(state, rel));
+
+        // a debtor partner (Reserve 0, ClaimOnState > 0 → BackedShare 0) drags
+        // the pair's min to 0: no discount, the gate stays shut (min rule)
+        state.BankOf(b.CurrencyId).Reserve = 0.0;
+        state.BankOf(b.CurrencyId).ClaimOnState = 500.0;
+        Assert.False(FederationOps.FederationGateHolds(state, rel));
+    }
+
     [Fact]
     public void Vassalage_Binds_TributeFlows_TableCloses()
     {
@@ -240,6 +292,91 @@ public class FederationTests
         foreach (var p in state.Ports)
             Assert.NotEqual(vassal, p.OwnerActorId);
         Assert.Equal(creditsBefore, TotalCredits(state), 6);
+    }
+
+    /// <summary>Slice CU-4 T6 — the absorption gate carries the credibility
+    /// GAP (overlord − vassal, floored at 0): a monetarily weak vassal under
+    /// a credible overlord completes annexation at a warmth just below the
+    /// plain bar, once the discount knob is live.</summary>
+    [Fact]
+    public void Absorption_CredibilityGapDiscount_LowersBarForWeakVassalUnderCredibleOverlord()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int vassal = rel.PolityAId, overlord = rel.PolityBId;
+        FederationOps.Bind(state, rel, vassal);
+        rel.VassalSinceYear = state.WorldYear
+            - state.Config.Relations.VassalAbsorptionEpochs
+              * state.Config.Sim.GenerationYears;
+        state.PolityOf(overlord).Interior!.Cohesion = 0.7;
+        // just below the plain warmth bar — fails without the discount
+        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth - 0.05;
+
+        var overlordPr = state.PolityOf(overlord);
+        var vassalPr = state.PolityOf(vassal);
+        // overlord: pure saver (BackedShare 1.0); vassal: pure debtor (0.0) —
+        // the credibility gap is maximal (1.0)
+        state.BankOf(overlordPr.CurrencyId).Reserve = 100.0;
+        state.BankOf(overlordPr.CurrencyId).ClaimOnState = 0.0;
+        state.BankOf(vassalPr.CurrencyId).Reserve = 0.0;
+        state.BankOf(vassalPr.CurrencyId).ClaimOnState = 500.0;
+
+        // knob pinned to 0: behavior identical to pre-CU-4 — the plain bar
+        // isn't met, so no absorption fires (pin explicitly; the shipped
+        // default is now live at 0.20)
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.0;
+        var (absorbedAtZero, _) = FederationOps.VassalExits(state);
+        Assert.Equal(0, absorbedAtZero);
+        Assert.Equal(vassal, rel.VassalPolityId);   // still bound
+
+        // knob live: the discount opens the gate at this same warmth
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.5;
+        var (absorbed, seceded) = FederationOps.VassalExits(state);
+        Assert.Equal(1, absorbed);
+        Assert.Equal(0, seceded);
+        Assert.True(state.Actors[vassal].Retired);
+        Assert.Equal(-1, rel.VassalPolityId);
+    }
+
+    /// <summary>A vassal MORE credible than its overlord earns no discount
+    /// (design §4's <c>max(0, …)</c> floor) — but crucially also no PENALTY
+    /// that could block an otherwise-qualifying absorption. With the floor,
+    /// the negative gap clamps to 0 → effective bar is the plain 0.60 → a
+    /// warmth of 0.65 clears it and the vassal is absorbed. Without the
+    /// floor, the negative gap would instead RAISE the bar (0.60 + 0.5*1.0 =
+    /// 1.10) → 0.65 would fail and this assertion would catch it — so this
+    /// test has teeth on the floor, unlike a warmth pinned below the plain
+    /// bar (which passes with or without the floor).</summary>
+    [Fact]
+    public void Absorption_VassalMoreCredibleThanOverlord_NoDiscountButNoPenalty()
+    {
+        var state = Run();
+        var rel = EpochTestKit.FirstLiveRelation(state);
+        int vassal = rel.PolityAId, overlord = rel.PolityBId;
+        FederationOps.Bind(state, rel, vassal);
+        rel.VassalSinceYear = state.WorldYear
+            - state.Config.Relations.VassalAbsorptionEpochs
+              * state.Config.Sim.GenerationYears;
+        state.PolityOf(overlord).Interior!.Cohesion = 0.7;   // healthy — no secession pre-empt
+        // above the plain warmth bar (0.60) — would qualify on its own
+        rel.Warmth = state.Config.Relations.VassalAbsorptionWarmth + 0.05;
+
+        var overlordPr = state.PolityOf(overlord);
+        var vassalPr = state.PolityOf(vassal);
+        // reversed: overlord is the debtor (0.0), vassal is the saver (1.0) —
+        // the gap (overlord − vassal) is negative, floored to 0 by max(0, …)
+        state.BankOf(overlordPr.CurrencyId).Reserve = 0.0;
+        state.BankOf(overlordPr.CurrencyId).ClaimOnState = 500.0;
+        state.BankOf(vassalPr.CurrencyId).Reserve = 100.0;
+        state.BankOf(vassalPr.CurrencyId).ClaimOnState = 0.0;
+
+        state.Config.Relations.VassalAbsorptionCredibilityDiscount = 0.5;
+        FederationOps.VassalExits(state);
+        // this pair's bond was absorbed — floored gap, not a raised bar
+        // (other history vassals may confound an aggregate count, so assert
+        // on THIS relation, not the returned tallies)
+        Assert.Equal(-1, rel.VassalPolityId);
+        Assert.True(state.Actors[vassal].Retired);
     }
 
     [Fact]

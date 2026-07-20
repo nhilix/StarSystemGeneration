@@ -86,6 +86,9 @@ public sealed class PerceptionPhase : ISimPhase
                                                      infected));
                 }
             double ownCredits = 0;
+            // own monetary credibility (slice CU-4 §3b) — the self half of
+            // the fusion discount, live like OwnStrength, never belief-routed
+            double ownCredibility = 0;
             List<CorporateBrief>? hosted = null;
             List<RelationBrief>? relations = null;
             List<WarBrief>? wars = null;
@@ -95,6 +98,7 @@ public sealed class PerceptionPhase : ISimPhase
             if (a.Kind == ActorKind.Polity)
             {
                 ownCredits = state.PolityOf(a.Id).Credits;
+                ownCredibility = CredibilityOf(state, a.Id);
                 // the capability brief: own-side rates the planner
                 // schedules against (spec §2), assembled fresh each step
                 capability = CapabilityOps.BriefFor(state, a.Id);
@@ -177,6 +181,7 @@ public sealed class PerceptionPhase : ISimPhase
                                               relations,
                                               strengths.TryGetValue(a.Id,
                                                   out double own) ? own : 0,
+                                              ownCredibility,
                                               a.Kind == ActorKind.Polity
                                                   && RelationsOps.IsDynastic(
                                                       state, a.Id),
@@ -231,10 +236,24 @@ public sealed class PerceptionPhase : ISimPhase
                     belief.Menu,
                     belief.DefensiveStrength,
                     belief.ObjectiveCandidates,
-                    RelationsOps.OverlapShare(state, selfId, other)));
+                    RelationsOps.OverlapShare(state, selfId, other),
+                    // the OTHER partner's monetary credibility — live
+                    // structural input, same treatment as OverlapShare
+                    // just above (slice CU-4 §3b, not belief-routed)
+                    CredibilityOf(state, other)));
         }
         return relations;
     }
+
+    /// <summary>A polity's monetary credibility (its bank's
+    /// <see cref="Bank.BackedShare"/>, 0.0 pre-genesis) — reads true state
+    /// live at snapshot build, the same treatment <see cref="RelationsOps.OverlapShare"/>
+    /// gets (slice CU-4 monetary-federation design §3b). Shared by both the
+    /// self (<c>OwnCredibility</c>) and other-partner (<c>OtherCredibility</c>)
+    /// halves of the perception snapshot. Thin wrapper over
+    /// <see cref="SimState.BackedShareOf"/>.</summary>
+    private static double CredibilityOf(SimState state, int polityId) =>
+        state.BackedShareOf(state.PolityOf(polityId).CurrencyId);
 
     /// <summary>Current-mark designs per chassis cell, design-id order —
     /// the briefs ShipbuildingPriorities are keyed by.</summary>

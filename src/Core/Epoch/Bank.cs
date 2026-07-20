@@ -42,6 +42,19 @@ public sealed class Bank
         CurrencyId = currencyId;
     }
 
+    /// <summary>The bounded-share sibling of BF's <c>unbacked</c> FX signal
+    /// (<c>FxOps.cs</c>: <c>unbacked = max(0, ClaimOnState − Reserve)</c>) —
+    /// where that measures un-backing as unbounded supply-equivalent money,
+    /// this is a bounded [0,1] share of how much of the claim book is
+    /// reserve-backed (slice CU-4 monetary-federation design §2). 1.0 is a
+    /// pure saver (<see cref="ClaimOnState"/> zero); 0.0 is a pure debtor
+    /// (<see cref="Reserve"/> zero); 0.5 is exactly backed. A fresh bank
+    /// (both zero) guards to 0.0 — credibility is accumulated, not granted.
+    /// A pure computed property: no state, no allocation.</summary>
+    public double BackedShare =>
+        (Reserve + ClaimOnState) <= 0 ? 0.0
+                                      : Reserve / (Reserve + ClaimOnState);
+
     /// <summary>Book this bank as the creditor of a sovereign mint (slice BF
     /// bank-flow design §3) — the CLAIM half only. The money creation itself
     /// stays where it has always been, at the
