@@ -767,14 +767,34 @@ public static class ProjectOps
                             tier: 1, completionYear);
         state.Ports.Add(port);
         state.Markets.Add(new Market(port.Id, cfg.Economy));
-        // the residents RE-ATTACH: they already live at the hex, so only their
+        // the residents RE-ATTACH: they already live at the hex, so their
         // administering domain changes from the parent port to the new one (the
-        // single sanctioned PortId mutation, design §3). Their Wealth is
-        // untouched — no money moves at completion, so conservation is trivial
-        // here; the cost was already spent as wages during the project.
+        // single sanctioned PortId mutation, design §3). Usually a no-op on money
+        // (parent and new port share the graduating polity's own currency), but
+        // if the parent port changed hands during the promotion's world-time
+        // duration — conquest, federation, or secession — its administering
+        // currency now differs from the new port's, so the residents' Wealth
+        // crosses a currency boundary at re-attach. SupplyOps buckets segment
+        // wealth by its port-owner currency, so a BARE PortId swap would silently
+        // re-denominate it 1:1 and leak per-currency conservation. Re-denominate
+        // at the frozen rate and record the transfer — the same ownership-seam
+        // discipline SimState.ConvertPortHoldings applies at federation/capture/
+        // secession (plain rate + RecordConversion, no spread skim: this carries
+        // the residents' own money across an administrative seam, it is not a
+        // market payment to a counterparty).
+        int newCur = state.LocalCurrencySafe(port.Id);
         foreach (var s in state.Segments)                 // id order (P6)
             if (s.Hex.Equals(outpost.Hex) && s.PortId == outpost.ParentPortId)
+            {
+                int oldCur = state.LocalCurrencySafe(s.PortId);
+                if (oldCur != newCur && s.Wealth != 0)
+                {
+                    double conv = state.ConvertCurrency(s.Wealth, oldCur, newCur);
+                    state.RecordConversion(oldCur, s.Wealth, newCur, conv);
+                    s.Wealth = conv;
+                }
                 s.PortId = port.Id;
+            }
         // the outpost's own facilities re-resolve their attached market through
         // MarketEngine.AttachedMarketIndex (owner's nearest port): the new port
         // sits AT their hex, distance 0, so it captures them automatically —
