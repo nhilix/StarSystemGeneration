@@ -25,22 +25,21 @@ the *shape* is settled:
    `PortId`. It reuses the `StagedEvent` news mechanism but shares none of the
    gradient logic. A new dedicated step (its own world-time cadence gate),
    sequenced in the same phase family as `Migrate`.
-2. **`G`'s parameterization (§4) — CORRECTED 2026-07-19 (see the T3.2 blocker
-   resolution).** The original decision here CONFLATED graduation with the
-   expedition reach-leap: it used `EncroachedPolities`' overlap geometry
-   (`ServiceRadius(1) + ServiceRadius(p.Tier) + margin`), which demands an
-   outpost sit *beyond every domain* — impossible for an in-domain outpost, so
-   graduation never fired. Graduation is **densification**, not a leap. The
-   correct gate is a pure **anti-adjacency spacing**: an outpost is eligible iff
-   for **every** existing entered port `p`,
-   `HexGrid.Distance(p.Hex, h) ≥ ServiceRadius(cfg, 1) + Expansion.GraduationMarginHexes`
-   — the *newcomer's own tier-1 reach* + margin, NOT the incumbent's radius, NOT
-   `EncroachedPolities`. A fringe outpost of a tier-2+ domain (far from its
-   parent core but inside the parent's larger domain) clears it → real
-   densification; near-core outposts stay subordinate; no two port cores ever
-   within a tier-1 reach → never adjacent. Founding inside a foreign domain is
-   ALLOWED (fires the encroachment-tension bump — priced, not forbidden; user
-   call 2026-07-19). Knob `Expansion.GraduationMarginHexes` (default 1).
+2. **`G`'s parameterization (§4) — FINAL after two wrong turns (2026-07-19/20).**
+   Two earlier formulations both tied `G` to *domain scale* and blocked
+   graduation entirely: (a) the `EncroachedPolities` sum
+   `ServiceRadius(1)+ServiceRadius(pTier)+margin` (the reach-leap conflation);
+   (b) `ServiceRadius(1)+margin` (=5). Instrumentation settled it: port cores are
+   ~9 hexes apart (median), outposts form 1–3 hexes from their parent, 0 at
+   dist ≥4 — so any domain-scale `G` is unreachable. **FINAL gate:** `G = 1 +
+   Expansion.GraduationMarginHexes` (default margin 1 → **G=2**), eligible iff
+   `HexGrid.Distance(p.Hex, h) ≥ G` for **every** entered port `p` (parent
+   included). This is the *literal* anti-goal — "never adjacent" = not in a
+   touching hex = `dist ≥ 2` — a small config-tunable spacing, NOT radius-derived.
+   Stacked-on-parent outposts (dist 1, the majority) stay subordinate; genuine
+   second-centre outposts (dist ≥ 2) graduate; neighbours (~9 away) never
+   crowded. Foreign-domain graduation ALLOWED (tension-priced; user 2026-07-19).
+   Knob `Expansion.GraduationMarginHexes` (default 1 → G=2; raise for rarer).
 3. **Hauling-cost proxy (§2) — REDESIGNED 2026-07-19 (user brainstorm; §2
    amended).** The original arbitrary decay `1/(1 + HaulingProxyPerHex × dist)`
    was a fudge — it computed no real hauling cost. Replaced by a **fuel-grounded
@@ -317,22 +316,41 @@ all user-approved. §1/§4/§2 of the design were amended in-branch.
   NotRawDistance`, `Election_TieBreaksFringeMost_WhenShortfallEqual`. Verified R2
   reaches the fringe when far workings exist (seed 8128: an outpost at dist 8).
 
-- 🚧 **R1+R2 VERIFICATION — graduation STILL 0/32** (sweep on this branch tip).
-  32-run `debt-diagnosis` sweep: worst relative `Money.ConservationResidual`
-  **1.43e-14** (flush-start/42 e37; tol 1.3e-9 — conservation-clean); graduation
-  **0/32**. Direct 8-baseline-seed instrument (throwaway, removed): outposts
-  form near-core (parentDist mean 1.0–1.8, max 1–8); frontier=0 every seed;
-  **`bestSlackToAnyPort` −2…−4** — the MOST-isolated outpost across ALL 8 seeds
-  is still 2 hexes too close to some neighbor port core. ROOT CAUSE is
-  **structural, beyond R1/R2**: these radius-21 histories are DENSE (162–298
-  entered ports, cores ~2–3 hexes apart), and R0's frontier gate `G =
-  ServiceRadius(1)+margin = 5` requires an outpost ≥5 hexes from EVERY port core
-  — unsatisfiable when ports already sit <5 apart. R1 removed the hauling
-  over-suppression and R2 correctly settles the fringe-most worked hex, but
-  neither touches inter-port spacing, which is what binds. **Needs a USER DESIGN
-  CALL** (galaxy port density vs. the anti-adjacency gate — the T3.2-class
-  blocker resurfacing at a different layer). Not patched (design-is-spec,
-  R0 was user-adjudicated). See `scratchpad/dx-r1r2-report.md`.
+- **R1+R2 VERIFICATION + the two diagnoses that followed** (2026-07-19/20).
+  Post-R1+R2 sweep: worst residual **1.43e-14** (conservation-clean), graduation
+  still **0/32**. Two instrumented investigations then corrected the picture:
+  - **Distance-distribution probe** (throwaway, removed): the "dense galaxy /
+    ports 2–3 apart" claim was WRONG — port cores are ~**9 hexes apart** (median);
+    the binding constraint is each outpost's **own parent** (outposts form 1–3
+    hexes from it). So `G=5` was too big *because it was domain-scale*, not
+    because the galaxy is dense. → **R4** (gate = G2, decision #2 FINAL).
+  - **Domain-spread investigation** (`scratchpad/dx-domain-spread-investigation.md`):
+    outposts don't reach dist ≥4 because the **economic map is flat & sparse** —
+    body value ~uniform (oppMean ≈0.6, oppMax ≈1.0) at *every* distance band,
+    55–100% of hexes have a body, and only ~2.6 industry facilities are built per
+    domain (< cap). H1 (distance penalty) refuted — far sites score 3.5× the floor
+    yet go unbuilt; H3 (floor) refuted and backfires. Root cause = no value
+    gradient + monotone proximity + low density → ~90% of extraction stacks on the
+    port body. **User decision (2026-07-20): ship DX honest** — contained fixes
+    (R3 dispersion + R4 G2), file the flat/sparse economy as a Forward-roadmap
+    follow-up (the root lever, sim-wide, its own pass). Graduation stays *rare* on
+    the flat map — accepted.
+- [ ] **R3 — Anti-clustering (dispersion) term on extraction siting** (Opus:
+  Stage-1 siting × economy; §2 amended). Penalize a hex's extraction score by
+  proximity to the builder's OWN existing same-class extraction workings (reward
+  when the nearest own same-class working is far), so the 2nd/3rd mine fans off
+  the port body instead of stacking — the general always-on form of body-claim
+  overflow. New registered knob (dispersion weight; KnobRegistry + TUNING). Keep
+  roll-free/deterministic/conservation-neutral. Verify domains visibly spread
+  (extraction no longer ~90% on the port body).
+- [ ] **R4 — Frontier gate → G=2** (Sonnet: mechanical, decision #2 FINAL).
+  `OutpostOps`: `G = 1 + Expansion.GraduationMarginHexes` (default margin 1 →
+  G=2), eligible iff `dist ≥ G` from every entered port core (parent included).
+  Drop the `ServiceRadius(1)` term. Update `OutpostOpsTests` to the literal-
+  adjacency semantics (dist-1 stacked → interior; dist-2 → eligible; multi-margin
+  theory). Then **re-run the sweep with R3+R4: graduation MUST fire > 0/32**
+  (single digits fine — rare by design on the flat map); report count + worst
+  residual + baseline supplies.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.

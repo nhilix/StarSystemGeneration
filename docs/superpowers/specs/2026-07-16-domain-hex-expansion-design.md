@@ -145,13 +145,25 @@ sim's own economics rather than an arbitrary decay:
 
 Because the discount is **good-specific and fuel-grounded**, not a flat decay, a
 cheap/bulky good (ore) hauled far is discounted hard while a high-value good
-(exotics) shrugs off distance, and extraction genuinely reaches rich frontier
-bodies — the domain blooms outward instead of collapsing onto the port. The port
-hex and near neighbors still keep an advantage (near-zero freight), which
-scarcity must overcome. *This is an honest approximation, not the real thing:
-output still posts directly to the port market with no located goods — see the
-Forward roadmap's "localize goods" item, the prerequisite for freight becoming a
-true runtime cost rather than a siting estimate.*
+(exotics) shrugs off distance. The port hex and near neighbors still keep an
+advantage (near-zero freight), which scarcity must overcome. *This is an honest
+approximation, not the real thing: output still posts directly to the port
+market with no located goods — see the Forward roadmap's "localize goods" item,
+the prerequisite for freight becoming a true runtime cost rather than a siting
+estimate.*
+
+**Anti-clustering (dispersion) term.** With the map as flat and uniform as it is
+today (near-equal body value at every distance — see the Forward roadmap), the
+distance discounts alone make the *nearest* body win every time, so extraction
+piles onto the port-hex body and the domain never spreads. To counter that, the
+extraction score is **penalized by proximity to the builder's own existing
+same-class extraction workings** (or, equivalently, rewarded when the nearest
+own same-class working is far): the second and third mine no longer stack beside
+the first — they fan out across the domain's bodies even before body-claim
+overflow forces them to. This is the general, always-on form of the overflow
+case, and the *contained* lever that makes a domain visibly spread on a flat map;
+the *root* lever (giving the map a real value gradient) is deferred to the
+Forward roadmap. Its weight is a registered knob.
 
 For **support and processing types** (everything in
 `CapabilityOps.BuildableTypes` that is not extraction — Refinery, Fabricator,
@@ -293,32 +305,39 @@ complementary to the expedition's **reach**.
 ### The frontier gate — the anti-clustering guarantee
 
 An outpost is **candidacy-eligible only when it sits at least `G` from every
-existing port *core*,** where `G = PortDomains.ServiceRadius(cfg, 1) +
-Expansion.GraduationMarginHexes` — the **newcomer's own (tier-1) reach** plus a
-configured margin, never an absolute constant. This is a pure **anti-adjacency**
-spacing: it guarantees no two port cores ever fall within a tier-1 port's reach
-of each other, so a graduated port can never land **adjacent** to an existing
-one — the anti-goal, structurally impossible at any config (spacing scales with
-the tier-1 service radius).
+existing port *core*** (its own parent included), where `G = 1 +
+Expansion.GraduationMarginHexes` (default margin 1 → **G = 2**). This is the
+**literal anti-goal**: "never found a port *adjacent* to another" = never within
+a touching hex = `dist ≥ 2`. It is a small, config-tunable **anti-adjacency
+spacing** — deliberately **NOT** derived from a service radius. (Two earlier
+formulations were wrong and are recorded in the ledger: the expedition's
+`EncroachedPolities` *sum* of both radii, and `ServiceRadius(1) + margin`. Both
+tied graduation to *domain scale*, demanding a graduated port sit outside its
+parent's whole domain — but graduation is **densification**, so a new port
+belongs *inside* the parent's domain, near it; the only real constraint is that
+it not stack *on top of* an existing port. Instrumentation settled it: port
+cores are a median ~9 hexes apart, outposts form 1–3 hexes from their parent, so
+a domain-scale `G` blocked graduation entirely while `G = 2` admits the genuine
+second-centre outposts and still forbids the stacked ones.)
 
-It is deliberately **NOT** the expedition's `EncroachedPolities` geometry (the
-*sum* of both ports' radii). Graduation is **densification, not a reach leap**,
-so it must not inherit the leap's "stay outside every existing domain" rule.
 A graduating port may sit **inside** an existing, larger domain — its own
-parent's, or a foreign polity's — as long as it clears `G` from that domain's
-*core*. Founding inside a foreign domain is **allowed** and fires the same
-encroachment-tension bump an expedition does (the diplomacy is *priced* by the
-tension layer, not *forbidden* by the gate).
+parent's, or a foreign polity's. Founding inside a foreign domain is **allowed**
+and fires the same encroachment-tension bump an expedition does (the diplomacy
+is *priced* by the tension layer, not *forbidden* by the gate).
 
-**Interior outposts — those within `G` of a port core — never graduate.** They
-are permanently subordinate density: worked hexes with residents that stay under
-their parent's administration. Only an outpost at the **fringe of its parent's
-domain** (far from the parent core, yet still served by it) reaches port scale —
-the densifying *second center* of a large domain. A small tier-1 domain, whose
-entire radius lies within `G`, cannot densify until its port is raised
-(`PortRaise`) and the domain grows — correct and intended (the domain has
-interior *and* frontier; only the frontier — the far reach of a big domain —
-reaches port scale).
+**Interior outposts — those within `G` (adjacent, `dist < 2`) of a port core —
+never graduate.** An outpost stacked on its parent stays subordinate density;
+only one that formed a genuine hex or more away becomes the densifying *second
+centre*. Margin raises the bar if graduation should be rarer (margin 2 → G = 3).
+
+**On rarity (measured, not assumed):** graduation is intentionally uncommon, and
+today it is *doubly* so because the sim's economic map is **flat and sparse** —
+body value is near-uniform at every distance and only ~2–3 industry facilities
+are built per domain, so work rarely reaches even a hex or two out (see §2's
+anti-clustering term, which spreads what work there is, and the Forward
+roadmap's "flat & sparse economic geography" item — the real lever that will let
+domains genuinely bloom and graduate more than rarely). DX ships the correct
+machinery; a richer map is a separate pass.
 
 ### The promotion
 
@@ -463,6 +482,22 @@ claim, per standing convention.
   settle election: segments continuously re-sorting across a domain's hexes as
   work shifts, the finer-grained cousin of domain-to-domain migration. Flagged,
   not decided.
+- **Flat & sparse economic geography (the root lever for a living domain).**
+  DX's Stage-3 investigation (2026-07-20) found the sim's economic map is nearly
+  uniform and thinly built: body value is flat (~0.6 mean, ~1.0 max) at *every*
+  distance band with 55–100% of hexes carrying an eligible body, and only ~2–3
+  industry facilities are ever built per domain over 1000 years (well under the
+  cap). So there is neither a **value gradient** (no rich frontier worth reaching
+  for — every near hex is as good as any far one) nor the **build density** that
+  would push development outward. DX's dispersion term (§2) spreads what little
+  work exists, but the domain can only *truly* bloom — and graduation rise above
+  rare — once richness is **heavy-tailed** (many poor bodies, few rich, so a
+  distant rich body genuinely out-values the core) and/or build density rises.
+  This is a genesis/economy pass (touches body-resource generation and the
+  planner's construction appetite), sim-wide, well beyond domain expansion — and
+  the same "richness needs real variance" theme Slice L first hit. Pairs with the
+  localize-goods item below (both make the economy physically real rather than
+  approximated). Raised by the user during DX's Stage-3 reconciliation.
 - **Localize goods → real freight (the big one).** A gap in the locality arc:
   Slice L localized *bodies*, *stocks*, and *population*, but a facility's
   OUTPUT still posts directly to the port market with no address
