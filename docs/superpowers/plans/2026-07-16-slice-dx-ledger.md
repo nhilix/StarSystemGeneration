@@ -335,22 +335,33 @@ all user-approved. §1/§4/§2 of the design were amended in-branch.
     (R3 dispersion + R4 G2), file the flat/sparse economy as a Forward-roadmap
     follow-up (the root lever, sim-wide, its own pass). Graduation stays *rare* on
     the flat map — accepted.
-- [ ] **R3 — Anti-clustering (dispersion) term on extraction siting** (Opus:
-  Stage-1 siting × economy; §2 amended). Penalize a hex's extraction score by
-  proximity to the builder's OWN existing same-class extraction workings (reward
-  when the nearest own same-class working is far), so the 2nd/3rd mine fans off
-  the port body instead of stacking — the general always-on form of body-claim
-  overflow. New registered knob (dispersion weight; KnobRegistry + TUNING). Keep
-  roll-free/deterministic/conservation-neutral. Verify domains visibly spread
-  (extraction no longer ~90% on the port body).
-- [ ] **R4 — Frontier gate → G=2** (Sonnet: mechanical, decision #2 FINAL).
-  `OutpostOps`: `G = 1 + Expansion.GraduationMarginHexes` (default margin 1 →
-  G=2), eligible iff `dist ≥ G` from every entered port core (parent included).
-  Drop the `ServiceRadius(1)` term. Update `OutpostOpsTests` to the literal-
-  adjacency semantics (dist-1 stacked → interior; dist-2 → eligible; multi-margin
-  theory). Then **re-run the sweep with R3+R4: graduation MUST fire > 0/32**
-  (single digits fine — rare by design on the flat map); report count + worst
-  residual + baseline supplies.
+- [x] **R3 — Anti-clustering (dispersion) term on extraction siting** — DONE
+  (`7a78c02`). `Economy.DispersionWeight` (default 0.6, registered + TUNING);
+  extraction score ×= `1 − DispersionWeight/(1 + nearestOwnSameClassDist)`.
+  Roll-free/deterministic/conservation-neutral. 3 unit tests. **Effect on the
+  flat map is small/mixed** (it only moves the 2nd+ same-class working, and
+  domains build ~2.6 facilities) — as expected; the real spread lever is the
+  filed flat-economy pass.
+- [x] **R4 — Frontier gate → G=2** — DONE (`7a78c02`). `G = 1 +
+  GraduationMarginHexes` (default 2), `dist ≥ G` from every port core (parent
+  incl.), `ServiceRadius(1)` term dropped. `OutpostOpsTests` rewritten to
+  literal-adjacency. **R4 is the graduation enabler.**
+- 🎯 **R3+R4 VERIFICATION — GRADUATION FIRES: 15/32 sweep runs** (was 0/32; R4
+  alone gets 5/8 baseline). The three-rung ladder works end to end. Full suite
+  1206/1 (golden). **BUT a conservation leak surfaced** ↓.
+- [ ] **R5 — Fix the graduation-born-port cross-currency conservation leak**
+  (Opus, CU-invariant; IN PROGRESS). R4 making graduation fire exposed a LATENT
+  bug: a graduation-born `Port`+`Market` (design §4 allows foreign-domain
+  graduation) begins clearing **cross-currency** trade the same step it's born,
+  with a per-currency `convIn/convOut` vs realized-supply mismatch → worst sweep
+  residual **3.6e-3** (bar 1.3e-9), negative, one-epoch-transient, in a
+  newly-entered foreign currency. NOT in graduation's own money path (TryGraduate/
+  wage stream/completion are conserved) — in the born port's first-step CU market
+  wiring; latent because graduation never fired in a real sweep before, so unit
+  tests (no foreign currency) never hit it. Fix = mirror `CompleteExpedition`'s
+  born-port currency wiring / phase-ordering (CU-1 discipline); add a conservation
+  test exercising a graduation-born port clearing cross-currency. MUST return
+  residual to ~1e-8 with graduation still firing. Hard-gate blocker for merge.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.
