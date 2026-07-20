@@ -19,6 +19,7 @@ public class DomainViewTests
     public void RendersSatelliteFacilitiesAndOutpostResidents()
     {
         var (_, state) = EpochTestKit.Seeded();
+        state.Actors[0].Entered = true;
         var portHex = HexGrid.CellCenter(state.Skeleton.Cells[0].Coord);
         var port = new Port(0, state.Actors[0].Id, portHex, 2, (int)state.WorldYear);
         state.Ports.Add(port);
@@ -47,7 +48,66 @@ public class DomainViewTests
         Assert.Contains("#0", rendered);                  // segment/facility id
         Assert.Contains($"({satelliteHex.Q},{satelliteHex.R})", rendered);
         Assert.Contains("Mine", rendered);                // the satellite facility
-        Assert.Contains("candidacy: (stage 3)", rendered);  // the labeled Stage-3 slot
+        // the outpost sits one hex from its own parent's core (dist 1 < G 2)
+        // — interior, permanently subordinate.
+        Assert.Contains("interior", rendered);
+        Assert.Contains("subordinate", rendered);
+    }
+
+    [Fact]
+    public void RendersCandidacyForInteriorFrontierAndGraduatedOutposts()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        state.Actors[0].Entered = true;
+        var portHex = HexGrid.CellCenter(state.Skeleton.Cells[0].Coord);
+        var port = new Port(0, state.Actors[0].Id, portHex, 2, (int)state.WorldYear);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+        int g = 1 + state.Config.Expansion.GraduationMarginHexes;   // G = 2 (defaults)
+
+        // interior: dist 1 < G — stacked on the parent core, never graduates.
+        var interiorHex = new HexCoordinate(portHex.Q + 1, portHex.R);
+        var interior = new Outpost(0, "Innerhold", interiorHex, port.Id,
+            state.WorldYear);
+        state.Outposts.Add(interior);
+
+        // frontier: dist == G — candidacy-eligible (a genuine second centre).
+        var frontierHex = new HexCoordinate(portHex.Q + g, portHex.R);
+        var frontier = new Outpost(1, "Fringehold", frontierHex, port.Id,
+            state.WorldYear);
+        state.Outposts.Add(frontier);
+
+        // graduated: already promoted into a real starport at its own hex.
+        var gradHex = new HexCoordinate(portHex.Q - g - 1, portHex.R);
+        var graduated = new Outpost(2, "Bornstead", gradHex, port.Id,
+            state.WorldYear)
+        { Graduated = true };
+        state.Outposts.Add(graduated);
+        var newPort = new Port(1, state.Actors[0].Id, gradHex, 1,
+            (int)state.WorldYear + 5);
+        state.Ports.Add(newPort);
+        state.Markets.Add(new Market(1, state.Config.Economy));
+
+        // events: a settle (OutpostFounded) for the interior outpost, and the
+        // graduation's own PortEstablished at the new port's (== outpost's) hex.
+        state.Log.Append(state.WorldYear, ClockStratum.Generational,
+            WorldEventType.OutpostFounded, new[] { port.OwnerActorId }, interiorHex,
+            1.0, 1.0, EventVisibility.Regional,
+            new OutpostFoundedPayload(state.Actors[port.OwnerActorId].Name,
+                interior.Id));
+        state.Log.Append(state.WorldYear + 5, ClockStratum.Generational,
+            WorldEventType.PortEstablished, new[] { newPort.OwnerActorId }, gradHex,
+            1.0, 1.0, EventVisibility.Public,
+            new PortEstablishedPayload(state.Actors[newPort.OwnerActorId].Name,
+                newPort.Id));
+
+        var rendered = DomainView.Render(state, port.Id);
+
+        Assert.Contains($"interior — subordinate (dist 1 < G {g}", rendered);
+        Assert.Contains($"frontier — eligible (dist {g} ≥ G {g}", rendered);
+        Assert.Contains("graduated → port #1", rendered);
+        Assert.Contains("outpost takes root (#0)", rendered);   // the settle event
+        Assert.Contains("establishes a port (#1)", rendered);   // the graduation event
     }
 
     [Fact]
@@ -63,6 +123,7 @@ public class DomainViewTests
 
         Assert.Contains("no satellite workings", rendered);
         Assert.Contains("no outposts yet", rendered);
+        Assert.Contains("no settle or graduation events yet", rendered);
     }
 
     [Fact]

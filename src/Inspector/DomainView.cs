@@ -76,11 +76,12 @@ public static class DomainView
             sb.AppendLine(Invariant($"  #{o.Id} {o.Name} at ({o.Hex.Q},{o.Hex.R}) — ")
                 + Invariant($"founded y{o.FoundingYear}")
                 + (o.Graduated ? " [graduated]" : ""));
-            // Stage 3 (Task 3.3, domain-hex-expansion design §4/§6) fills this
-            // slot in: interior (never graduates) vs frontier (candidacy-
-            // eligible, distance-to-nearest-port vs the derived gate G). Left
-            // labeled on purpose — do NOT compute graduation eligibility here.
-            sb.AppendLine("    candidacy: (stage 3)");
+            // Stage 3 candidacy (design §4/§6): graduated outposts stay in the
+            // registry as history; a live outpost's standing against the
+            // frontier gate comes straight from OutpostOps.FrontierStatus — the
+            // binding (nearest) port core, the uniform gate G, and the slack
+            // that shows why it reads interior vs frontier.
+            sb.AppendLine("    candidacy: " + CandidacyLine(state, o));
             bool anyResident = false;
             foreach (var s in state.Segments)               // id order (P6)
             {
@@ -98,6 +99,69 @@ public static class DomainView
         }
         if (!anyOutpost) sb.AppendLine("  (no outposts yet)");
 
+        // ---- events: settle + graduation events for this domain (design §6
+        // "Settle and graduation events in the history/news output"). Settles
+        // are OutpostFounded events whose outpost belongs to this domain.
+        // Graduations reuse the Outposts.Graduated registry as the source of
+        // truth (the design's own suggested simplification) matched to the
+        // PortEstablished event at that outpost's hex — this tells a
+        // graduation's PortEstablished apart from an expedition's without
+        // inventing a new event type or payload field.
+        sb.AppendLine("events:");
+        bool anyEvent = false;
+        foreach (var e in state.Log.Events)                 // log order (P6)
+        {
+            if (e.Type == WorldEventType.OutpostFounded
+                && e.Payload is OutpostFoundedPayload op
+                && op.OutpostId >= 0 && op.OutpostId < state.Outposts.Count
+                && state.Outposts[op.OutpostId].ParentPortId == portId)
+            {
+                sb.AppendLine("  " + SimTraceView.Describe(e));
+                anyEvent = true;
+                continue;
+            }
+            if (e.Type != WorldEventType.PortEstablished) continue;
+            foreach (var o in state.Outposts)               // id order (P6)
+                if (o.ParentPortId == portId && o.Graduated
+                    && o.Hex.Equals(e.Location))
+                {
+                    sb.AppendLine("  " + SimTraceView.Describe(e));
+                    anyEvent = true;
+                    break;
+                }
+        }
+        if (!anyEvent) sb.AppendLine("  (no settle or graduation events yet)");
+
         return sb.ToString();
+    }
+
+    /// <summary>The Stage-3 candidacy line for one outpost (design §4/§6): a
+    /// graduated outpost is history — mark the port it became; a live outpost
+    /// reads its standing straight off <see cref="OutpostOps.FrontierStatus"/>,
+    /// showing the binding (nearest) port core's distance against the uniform
+    /// gate G and the resulting slack, so the reader can SEE why it is interior
+    /// (subordinate, dist &lt; G) vs frontier (candidacy-eligible, dist ≥
+    /// G).</summary>
+    private static string CandidacyLine(SimState state, Outpost o)
+    {
+        if (o.Graduated)
+        {
+            int graduatedPortId = -1;
+            foreach (var p in state.Ports)                  // id order (P6)
+                if (p.Hex.Equals(o.Hex)) { graduatedPortId = p.Id; break; }
+            return graduatedPortId >= 0
+                ? Invariant($"graduated → port #{graduatedPortId}")
+                : "graduated → port (unresolved)";
+        }
+        var standing = OutpostOps.FrontierStatus(state, o);
+        // no entered port anywhere to clash with — vacuously frontier
+        // (OutpostOps.FrontierStatus's documented Slack == int.MaxValue case).
+        if (standing.Slack == int.MaxValue)
+            return "frontier — eligible (no entered port yet)";
+        return standing.IsFrontier
+            ? Invariant($"frontier — eligible (dist {standing.PortDistance} ")
+                + Invariant($"≥ G {standing.Threshold}, slack {standing.Slack})")
+            : Invariant($"interior — subordinate (dist {standing.PortDistance} ")
+                + Invariant($"< G {standing.Threshold}, slack {standing.Slack})");
     }
 }

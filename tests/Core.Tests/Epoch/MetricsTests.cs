@@ -137,6 +137,9 @@ public class MetricsTests
         Assert.Equal(1, row.Outposts);   // the graduated one no longer counts
         Assert.Equal(1.0,
             MetricRegistry.Find("Settlement.Outposts")!.Get(row), 9);
+        Assert.Equal(1, row.GraduatedPorts);   // the graduated one counts here
+        Assert.Equal(1.0,
+            MetricRegistry.Find("Settlement.GraduatedPorts")!.Get(row), 9);
     }
 
     [Fact]

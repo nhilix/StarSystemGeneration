@@ -81,7 +81,7 @@ public sealed record MetricRow(
     IReadOnlyList<CurrencyResidualRow> Currencies,
     int SettledHexes, double BodyStockRemaining,
     double PolityReceipts, double CorpReceipts, int Ports, int Outposts,
-    double GoodsTransacted, double GoodsValueCleared);
+    double GoodsTransacted, double GoodsValueCleared, int GraduatedPorts);
 
 /// <summary>One entered polity's narrow per-epoch row — the distribution
 /// behind the galaxy medians ("who is negative, since when").</summary>
@@ -257,9 +257,9 @@ public static class MetricsOps
         // outpost (Stage 3) leaves this count and Settlement.Ports gains one,
         // so the two columns read as a handoff rather than double-counting
         // the same settlement.
-        int outposts = 0;
+        int outposts = 0, graduatedPorts = 0;
         foreach (var o in state.Outposts)
-            if (!o.Graduated) outposts++;
+            if (!o.Graduated) outposts++; else graduatedPorts++;
 
         return new MetricRow(state.EpochIndex, state.WorldYear, money,
             credits.Count, negative, min, median, max,
@@ -268,7 +268,7 @@ public static class MetricsOps
             state.CumulativeSteadyIssuance, currencyRows,
             state.SettledSystems.Count, bodyStock,
             polityReceipts, corpReceipts, state.Ports.Count, outposts,
-            goodsTransacted, state.GoodsValueCleared);
+            goodsTransacted, state.GoodsValueCleared, graduatedPorts);
     }
 
     /// <summary>Per-entered-polity narrow rows, actor-id order (P6).</summary>

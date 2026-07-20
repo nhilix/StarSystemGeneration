@@ -95,6 +95,9 @@ public static class SimTraceView
             PolityEmergedPayload p => $"{p.PolityName} enters the galactic stage",
             PortEstablishedPayload p =>
                 Invariant($"{p.PolityName} establishes a port (#{p.PortId})"),
+            OutpostFoundedPayload p =>
+                Invariant($"{p.PolityName} settles a satellite hex — an ")
+                + Invariant($"outpost takes root (#{p.OutpostId})"),
             LaneOpenedPayload p =>
                 Invariant($"a lane opens between ports #{p.PortAId} and #{p.PortBId}"),
             PortTierRaisedPayload p =>

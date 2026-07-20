@@ -107,6 +107,11 @@ public static class MetricRegistry
           r => r.Population),
 
         // ---- Settlement (locality — frozen hex-tier state) ----
+        M("Settlement.GraduatedPorts",
+          "outposts promoted into starports via Stage-3 infill graduation "
+          + "(domain-hex-expansion §4) — the densification twin of an "
+          + "expedition-founded port; cumulative, never falls",
+          r => r.GraduatedPorts),
         M("Settlement.Outposts",
           "living (non-graduated) outposts — pop-follows-work settlements in a "
           + "domain's satellite hexes (domain-hex-expansion §3); a graduated "
