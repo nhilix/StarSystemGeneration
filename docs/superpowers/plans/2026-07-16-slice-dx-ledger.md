@@ -349,19 +349,22 @@ all user-approved. §1/§4/§2 of the design were amended in-branch.
 - 🎯 **R3+R4 VERIFICATION — GRADUATION FIRES: 15/32 sweep runs** (was 0/32; R4
   alone gets 5/8 baseline). The three-rung ladder works end to end. Full suite
   1206/1 (golden). **BUT a conservation leak surfaced** ↓.
-- [ ] **R5 — Fix the graduation-born-port cross-currency conservation leak**
-  (Opus, CU-invariant; IN PROGRESS). R4 making graduation fire exposed a LATENT
-  bug: a graduation-born `Port`+`Market` (design §4 allows foreign-domain
-  graduation) begins clearing **cross-currency** trade the same step it's born,
-  with a per-currency `convIn/convOut` vs realized-supply mismatch → worst sweep
-  residual **3.6e-3** (bar 1.3e-9), negative, one-epoch-transient, in a
-  newly-entered foreign currency. NOT in graduation's own money path (TryGraduate/
-  wage stream/completion are conserved) — in the born port's first-step CU market
-  wiring; latent because graduation never fired in a real sweep before, so unit
-  tests (no foreign currency) never hit it. Fix = mirror `CompleteExpedition`'s
-  born-port currency wiring / phase-ordering (CU-1 discipline); add a conservation
-  test exercising a graduation-born port clearing cross-currency. MUST return
-  residual to ~1e-8 with graduation still firing. Hard-gate blocker for merge.
+- [x] **R5 — Graduation-born-port cross-currency conservation leak FIXED**
+  (`887bf15`, Opus). Root cause (NOT what the first diagnosis guessed): the leak
+  wasn't the born market's first clear — it was `CompleteGraduation` re-attaching
+  resident segments with a **bare `s.PortId` swap**. `SupplyOps` buckets segment
+  wealth by port-owner currency, so it's a no-op when parent & born port share a
+  currency — but when the **parent port changed hands during the multi-year
+  promotion** (conquest/federation/secession → different currency), the bare swap
+  silently re-denominated the resident's whole wealth 1:1 across the boundary with
+  NO `RecordConversion`. Exactly the `ConvertPortHoldings` ownership-seam pattern
+  the codebase already applies to federation/war-capture/secession — graduation
+  was never wired to it. **Fix:** convert-and-`RecordConversion` at re-attach when
+  currencies differ (plain rate, no spread — a re-denomination, not a market
+  payment); same-currency stays byte-identical (determinism holds). Sweep worst
+  residual **7.6e-15** (was 3.6e-3); graduation still **15/32**. Test
+  `CrossCurrencyMovementTests.OutpostGraduation_ConvertsResidentWealth_WhenParentPortChangedCurrency`
+  (foreign-currency parent) — closes the gap that kept it latent.
 - [ ] **T3.3 — `domain <port>` REPL candidacy + graduation history** (Sonnet).
   Extend the view: per-outpost candidacy status (interior vs frontier,
   distance-to-nearest-port vs `G`); settle + graduation events in history/news.
