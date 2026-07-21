@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using StarGen.Core.Galaxy;
+using StarGen.Core.Generation;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Epoch;
@@ -69,74 +70,239 @@ public static class CapabilityOps
     };
 
     /// <summary>Top 3 candidates per own under-capacity port, score-ranked
-    /// (ties: lower TypeId, then cell spiral order). Under-construction
-    /// facilities count against the port cap and occupy their hexes — a
-    /// plan must not double-book a site.</summary>
+    /// (ties: lower TypeId, then hex spiral order). The scan is per HEX across
+    /// the port's whole domain (domain hex-expansion §2), not per cell: a
+    /// body-aware opportunity score sites extraction on the richest free body at
+    /// the frontier while support/processing stays anchored at the port hex.
+    /// Under-construction facilities count against the port cap and occupy their
+    /// hexes — a plan must not double-book a site.</summary>
     public static List<ConstructionCandidate> ConstructionCandidatesFor(
         SimState state, int actorId)
     {
-        var cfg = state.Config;
-        var eco = cfg.Economy;
         var pr = state.PolityOf(actorId);
         var result = new List<ConstructionCandidate>();
         foreach (var port in state.Ports)                     // id order (P6)
         {
-            if (port.OwnerActorId != actorId) continue;
-            int cap = port.Tier * cfg.Infrastructure.FacilitiesPerPortTier;
-            int attached = 0;
-            foreach (var f in state.Facilities)
-            {
-                // gates draw on their own slot budget, not industry's
-                if (f.TypeId == (int)Substrate.InfraTypeId.Gate) continue;
-                if (f.OwnerActorId == pr.ActorId
-                    && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
-                    attached++;
-            }
-            if (attached >= cap) continue;
-            var market = state.Markets[port.Id];
-            var workforce = MarketEngine.EmbodimentOf(state, pr.SpeciesId);
+            if (port.OwnerActorId != actorId) continue;       // polity owns ports
+            ScanPortDomain(state, port, builderActorId: actorId,
+                           workforceSpeciesId: pr.SpeciesId,
+                           types: BuildableTypes, result);
+        }
+        return result;
+    }
 
-            // per-port top 3 (score desc, TypeId asc, hex spiral order)
-            var top = new List<ConstructionCandidate>(3);
-            foreach (var cell in state.Skeleton.Cells)        // spiral order (P6)
-            {
-                var center = HexGrid.CellCenter(cell.Coord);
-                if (HexGrid.Distance(port.Hex, center)
-                    > PortDomains.ServiceRadius(cfg, port.Tier)
-                      + TechOps.AstroRadiusBonus(state, pr.ActorId)) continue;
-                if (cell.IsVoid) continue;
-                var fields = MarketEngine.FieldsAt(state, center);
-                var site = new Substrate.CellSite(fields,
-                    Connectivity: Math.Min(1.0, LaneCount(state, port.Id) / 4.0),
-                    IsPortHeart: cell.Coord.Equals(HexGrid.CellOf(port.Hex)),
-                    PortTier: port.Tier, DevelopmentTier: port.Tier,
-                    IsChokepoint: cell.IsChokepoint);
-                foreach (var type in BuildableTypes)
+    /// <summary>Niche type sets the corp scan is restricted to — the same
+    /// families <c>CorporationOps.PlannedFacility</c> already chose among, so a
+    /// corp gains hex-granular siting across its home domain WITHOUT gaining the
+    /// ability to build military/support types it never could (design §2 "the
+    /// same scan", kept sensible: a corp never emits a Fortress/Shipyard/Arsenal).
+    /// Extraction: the depletable/renewable extractors; Fabrication: the
+    /// processing chain.</summary>
+    private static readonly Substrate.InfraTypeId[] CorpExtractionTypes =
+    {
+        Substrate.InfraTypeId.Mine, Substrate.InfraTypeId.Skimmer,
+        Substrate.InfraTypeId.ExcavationSite,
+    };
+    private static readonly Substrate.InfraTypeId[] CorpProcessingTypes =
+    {
+        Substrate.InfraTypeId.Refinery, Substrate.InfraTypeId.Chemworks,
+        Substrate.InfraTypeId.Fabricator, Substrate.InfraTypeId.Foundry,
+        Substrate.InfraTypeId.ExoticsLab, Substrate.InfraTypeId.ComputeCore,
+    };
+
+    /// <summary>The corp variant of the domain scan (domain hex-expansion §2,
+    /// "Corporations run the same domain scan"). Scoped to the corp's HOME-PORT
+    /// domain (<c>corp.HomePortId</c>), NOT by owner identity: a corp's actor id
+    /// never equals a port's owner — its home port belongs to its HostPolityId —
+    /// so the owner-filtered <see cref="ConstructionCandidatesFor"/> would scan
+    /// ZERO ports and return empty (the "owner-filter seam", a latent bug the
+    /// moment a corp id is passed to it). Labor at the port is the host polity's
+    /// population, so the support/processing score reads the HOST's species;
+    /// saturation/cap count the corp's OWN facilities at the port; the type set is
+    /// restricted to the corp's niche. The gate on WHETHER a corp scans at all
+    /// (<c>WantsFacility</c>, niche) stays at the caller (Phases.cs Perceive).</summary>
+    public static List<ConstructionCandidate> ConstructionCandidatesForCorp(
+        SimState state, Corporation corp)
+    {
+        var result = new List<ConstructionCandidate>();
+        var port = state.Ports[corp.HomePortId];              // scope by home port
+        int workforceSpeciesId = state.PolityOf(corp.HostPolityId).SpeciesId;
+        var types = corp.Niche == CorporateNiche.Extraction
+            ? CorpExtractionTypes : CorpProcessingTypes;
+        ScanPortDomain(state, port, builderActorId: corp.ActorId,
+                       workforceSpeciesId, types, result);
+        return result;
+    }
+
+    /// <summary>The per-port, per-hex opportunity scan — the shared body both the
+    /// polity path (each owned port) and the corp path (its single home port)
+    /// call. Appends the port's top-3 candidates to <paramref name="result"/>.
+    /// <para><paramref name="builderActorId"/> is the actor whose existing
+    /// facilities count toward the port cap and per-type saturation (the polity
+    /// itself, or the corp itself — so a corp self-limits its own siting at a port
+    /// without being blocked by, or blocking, the host polity's slots).
+    /// <paramref name="workforceSpeciesId"/> is the labor pool the support/
+    /// processing <c>Siting.Score</c> reads. <paramref name="types"/> is the
+    /// buildable set to consider. The domain radius and the Fortress military-tech
+    /// gate read the port's OWNING polity (the domain is the owner's — matching
+    /// <c>ColonyValuation</c>'s <c>AstroRadiusBonus(port.OwnerActorId)</c> idiom);
+    /// for the polity path the owner IS the builder, so this is byte-identical to
+    /// the pre-extraction inline scan.</para></summary>
+    private static void ScanPortDomain(SimState state, Port port,
+        int builderActorId, int workforceSpeciesId,
+        IReadOnlyList<Substrate.InfraTypeId> types,
+        List<ConstructionCandidate> result)
+    {
+        var cfg = state.Config;
+        var eco = cfg.Economy;
+        var owner = state.PolityOf(port.OwnerActorId);
+        int cap = port.Tier * cfg.Infrastructure.FacilitiesPerPortTier;
+        int attached = 0;
+        foreach (var f in state.Facilities)
+        {
+            // gates draw on their own slot budget, not industry's
+            if (f.TypeId == (int)Substrate.InfraTypeId.Gate) continue;
+            if (f.OwnerActorId == builderActorId
+                && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                attached++;
+        }
+        if (attached >= cap) return;
+        var market = state.Markets[port.Id];
+        var workforce = MarketEngine.EmbodimentOf(state, workforceSpeciesId);
+        int radius = PortDomains.ServiceRadius(cfg, port.Tier)
+                     + TechOps.AstroRadiusBonus(state, port.OwnerActorId);
+        double connectivity = Math.Min(1.0, LaneCount(state, port.Id) / 4.0);
+        var portCell = HexGrid.CellOf(port.Hex);
+
+        // per-port, per-type facts hoisted out of the hex loop: the price
+        // signal is market-scoped and the saturation count port-scoped —
+        // neither varies hex to hex, so each is assembled once.
+        var signal = new double[types.Count];
+        var existing = new int[types.Count];
+        for (int t = 0; t < types.Count; t++)
+            signal[t] = PriceSignal(eco, market,
+                Substrate.Infrastructure.Get(types[t]));
+        foreach (var f in state.Facilities)               // id order (P6)
+            if (f.OwnerActorId == builderActorId
+                && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
+                for (int t = 0; t < types.Count; t++)
+                    if (f.TypeId == (int)types[t]) { existing[t]++; break; }
+
+        // per-port top 3 (score desc, TypeId asc, hex spiral order)
+        var top = new List<ConstructionCandidate>(3);
+        foreach (var cell in state.Skeleton.Cells)        // cell spiral order (P6)
+        {
+            if (cell.IsVoid) continue;
+            var cellCenter = HexGrid.CellCenter(cell.Coord);
+            // whole-cell reject: every hex sits within CellRadius of the
+            // center, so a center farther than radius + CellRadius can hold
+            // no serviced hex — skip it without touching its hexes.
+            if (HexGrid.Distance(port.Hex, cellCenter)
+                > radius + HexGrid.CellRadius) continue;
+            // FieldsAt is cell-granular (the natural raster's resolution) —
+            // every hex in the cell shares these fields; the per-hex signal
+            // is the real body the settled/previewed system carries there.
+            var fields = MarketEngine.FieldsAt(state, cellCenter);
+            var site = new Substrate.CellSite(fields, connectivity,
+                IsPortHeart: cell.Coord.Equals(portCell),
+                PortTier: port.Tier, DevelopmentTier: port.Tier,
+                IsChokepoint: cell.IsChokepoint);
+            foreach (var hex in HexGrid.Spiral(cellCenter, HexGrid.CellRadius))
+            {                                             // hex spiral order (P6)
+                int hexDist = HexGrid.Distance(port.Hex, hex);
+                if (hexDist > radius) continue;
+                // the scan unit: the hex's system (settled read, else a
+                // roll-free preview) and its port body, resolved once and
+                // reused across every type — no commit, no roll (Stage 1 is
+                // roll-free; the preview is discarded).
+                var system = SystemRegistry.IsSettled(state, hex)
+                    ? state.SettledSystems[hex] : PreviewSystem(state, hex);
+                var portBody = BodySiting.PortBody(system);
+                // the staffing commute shape (labor), applied to every type;
+                // extraction pays a SECOND, fuel-grounded hauling discount
+                // (moving output back to the port market) computed per body in
+                // the extraction branch. Support rides the commute term only —
+                // it sells at the port it sits beside.
+                double proximity =
+                    1.0 / (1.0 + eco.StaffingDistanceFalloff * hexDist);
+                // a non-homeworld anchor at this hex is a development bonus,
+                // not the selector (ColonyValuation's +0.4 idiom) — PickHex's
+                // old selecting job, demoted to a score nudge.
+                double anchorBonus = 0.0;
+                foreach (var a in cell.Anchors)
+                    if (a.Hex.Equals(hex)
+                        && a.Type != Galaxy.AnchorType.Homeworld)
+                    { anchorBonus = 0.4; break; }
+                for (int t = 0; t < types.Count; t++)
                 {
+                    var type = types[t];
                     // fortification tiers gate on Military tech
                     // (economy/technology.md) — tier 2 unlocks the type
                     if (type == Substrate.InfraTypeId.Fortress
-                        && pr.TechTier[(int)TechDomain.Military] < 2) continue;
-                    var def = Substrate.Infrastructure.Get(type);
-                    double signal = PriceSignal(eco, market, def);
-                    int existing = 0;
-                    foreach (var f in state.Facilities)
-                        if (f.TypeId == (int)type && f.OwnerActorId == pr.ActorId
-                            && MarketEngine.AttachedMarketIndex(state, f) == port.Id)
-                            existing++;
+                        && owner.TechTier[(int)TechDomain.Military] < 2) continue;
+                    double opportunity;
+                    double distance;
+                    if (BodySiting.IsExtraction(type))
+                    {
+                        var body = BestUnclaimedBody(state, hex, type,
+                                                     system, portBody);
+                        // the generalized overflow case: the type's only
+                        // eligible body is already claimed (or the hex bears
+                        // none) — it scores zero here, so a free-bodied
+                        // neighbor wins automatically.
+                        if (body.IsNone) continue;
+                        opportunity = ExtractionOpportunity(
+                            state, hex, body, type, fields, system);
+                        // hauling: the real per-unit freight cost of moving
+                        // this working's output to the port market, as the
+                        // fraction of value fuel eats en route (design §2) —
+                        // fuel-grounded, not an arbitrary decay, so a
+                        // cheap/bulky good hauled far is discounted hard while
+                        // a high-value good shrugs off distance. Same orbital
+                        // geometry the staffing commute uses: working body →
+                        // the system's own port body.
+                        int orbitalSteps = OrbitGeometry.OrbitDistance(
+                            system!, body, portBody,
+                            (int)eco.CrossStarHopOrbitSteps);
+                        double fuelPrice =
+                            market.Price[(int)Substrate.GoodId.Fuel];
+                        if (!(fuelPrice > 0))
+                            fuelPrice = Market.InitialPrice(
+                                eco, Substrate.GoodId.Fuel);
+                        double unitValue = UnitValueAtPort(eco, market,
+                            Substrate.Infrastructure.Get(type));
+                        // anti-clustering (design §2): fan the 2nd/3rd
+                        // same-class working off the builder's first so
+                        // extraction spreads across the domain instead of
+                        // stacking on the port body — support/processing is
+                        // untouched (it keeps port-body affinity, above).
+                        double dispersion = DispersionFactor(
+                            state, hex, type, builderActorId, eco);
+                        distance = proximity * dispersion * HaulingDiscount(
+                            eco, unitValue, fuelPrice, hexDist + orbitalSteps);
+                    }
+                    else
+                    {
+                        // support/processing keeps port-body affinity —
+                        // scored on the cell raster + portness, pulled hard
+                        // toward the port hex by the commute term so the
+                        // industrial core stays anchored at the port.
+                        opportunity =
+                            Substrate.Siting.Score(type, site, workforce);
+                        distance = proximity;
+                    }
                     // saturation: the second of a kind must out-earn a first
                     // of another — ports diversify their chain
-                    double score = Substrate.Siting.Score(type, site, workforce)
-                                   * signal / (1 + existing);
-                    if (score <= cfg.Infrastructure.ConstructionScoreFloor) continue;
-                    var hex = PickHex(state, cell, center);
+                    double score = opportunity * signal[t] / (1 + existing[t])
+                                   * distance + anchorBonus;
+                    if (score <= cfg.Infrastructure.ConstructionScoreFloor)
+                        continue;
                     InsertTop3(top, new ConstructionCandidate(
                         (int)type, hex, port.Id, score));
                 }
             }
-            result.AddRange(top);
         }
-        return result;
+        result.AddRange(top);
     }
 
     /// <summary>Own-side capability facts assembled fresh (spec §2): trailing
@@ -232,18 +398,126 @@ public static class CapabilityOps
         return Math.Min(3.0, Math.Max(0.5, mean));
     }
 
-    /// <summary>First anchor hex in the cell free of facilities, else the
-    /// cell center — the facility is anchored at groundbreaking (P1).</summary>
-    internal static HexCoordinate PickHex(SimState state, Galaxy.RegionCell cell,
-                                          HexCoordinate center)
+    /// <summary>The fuel-grounded hauling discount (design §2) applied to an
+    /// extraction working's opportunity score: the fraction of the output's
+    /// value that SURVIVES the freight-fuel bite to the port market. Freight
+    /// cost per unit is <c>FuelPerUnitPerHex × steps × fuelPrice</c> (steps =
+    /// hexDist + intra-system orbital hop, the same geometry staffing uses),
+    /// so a cheap/bulky good hauled far is discounted hard while a high-value
+    /// good shrugs off distance. Floored at <c>HaulingDiscountFloor</c> so a
+    /// rich-but-distant body is never scored at literally zero value (freight
+    /// alone would push the raw fraction negative). Pure, roll-free — a siting
+    /// estimate, not a runtime money move (goods aren't localized yet).</summary>
+    public static double HaulingDiscount(EconomyKnobs eco, double unitValue,
+                                         double fuelPrice, int steps)
     {
-        foreach (var a in cell.Anchors)
+        if (!(unitValue > 0)) return eco.HaulingDiscountFloor;
+        double freightPerUnit = eco.FuelPerUnitPerHex * steps * fuelPrice;
+        return Math.Max(eco.HaulingDiscountFloor,
+                        (unitValue - freightPerUnit) / unitValue);
+    }
+
+    /// <summary>The produced good's value at the port market — mean price over
+    /// the type's <c>Produces</c> (matching <see cref="PriceSignal"/>'s
+    /// treatment), the <c>unitValue</c> the hauling discount measures freight
+    /// against. Falls back to the mean founding price if the live market prices
+    /// are non-positive (a fresh market), so unitValue is always &gt; 0.</summary>
+    internal static double UnitValueAtPort(EconomyKnobs eco, Market market,
+                                           Substrate.InfraDef def)
+    {
+        if (def.Produces.Count == 0) return 1.0;
+        double sum = 0;
+        foreach (var g in def.Produces) sum += market.Price[(int)g];
+        double mean = sum / def.Produces.Count;
+        if (mean > 0) return mean;
+        double init = 0;
+        foreach (var g in def.Produces) init += Market.InitialPrice(eco, g);
+        return init / def.Produces.Count;
+    }
+
+    /// <summary>A hex's system for scoring: the settled read, else a roll-free
+    /// preview generated and DISCARDED — exactly SystemQuery.At's unsettled
+    /// branch without SystemRegistry.Commit, so the hex stays pristine and the
+    /// preview is a pure function of (config, hex), repeatable and roll-free.</summary>
+    private static StarSystem? PreviewSystem(SimState state, HexCoordinate hex)
+    {
+        var context = new GalaxyContext(state.Skeleton.Config)
+        { Skeleton = state.Skeleton };
+        return Generator.Generate(context, hex).System;
+    }
+
+    /// <summary>The body an extraction type would claim at a hex, claim-aware —
+    /// mirrors ProjectOps.PlaceFacilityBody's per-resource-class claim scan
+    /// (BodySiting.CompetesForBody) but commits nothing. None when the hex bears
+    /// no eligible body or its only one is already taken by a competitor.</summary>
+    private static BodyRef BestUnclaimedBody(SimState state, HexCoordinate hex,
+        Substrate.InfraTypeId type, StarSystem? system, BodyRef portBody)
+    {
+        var claimed = new List<BodyRef>();
+        foreach (var other in state.Facilities)               // id order (P6)
+            if (other.Hex.Equals(hex) && !other.Body.IsNone
+                && BodySiting.CompetesForBody(
+                    (Substrate.InfraTypeId)other.TypeId, type))
+                claimed.Add(other.Body);
+        return BodySiting.Assign(system, type, portBody, claimed);
+    }
+
+    /// <summary>The anti-clustering (dispersion) factor for an extraction
+    /// candidate (design §2, the amended dispersion paragraph). Penalizes the
+    /// hex by proximity to the BUILDER's OWN nearest existing SAME-CLASS
+    /// extraction working — same-class = an own extraction facility whose type
+    /// <see cref="BodySiting.CompetesForBody"/> the candidate <paramref
+    /// name="type"/> — so the 2nd/3rd mine (skimmer, …) of a class fans off the
+    /// port body instead of stacking beside the first. Factor =
+    /// <c>1 − DispersionWeight / (1 + nearestDist)</c>, bounded in
+    /// <c>[1 − DispersionWeight, 1)</c> so it never zeroes a rich isolated site;
+    /// <c>1</c> (unpenalized) when the builder has no competing same-class
+    /// working yet. Reads <c>state.Facilities</c> in id order — pure, roll-free,
+    /// deterministic, a siting score only (conservation-neutral). Computed
+    /// identically in the settled and preview branches: own facilities are real
+    /// state, never preview.</summary>
+    private static double DispersionFactor(SimState state, HexCoordinate hex,
+        Substrate.InfraTypeId type, int builderActorId, EconomyKnobs eco)
+    {
+        int nearest = int.MaxValue;
+        foreach (var f in state.Facilities)                   // id order (P6)
         {
-            bool taken = false;
-            foreach (var f in state.Facilities)
-                if (f.Hex.Equals(a.Hex)) { taken = true; break; }
-            if (!taken && a.Type != Galaxy.AnchorType.Homeworld) return a.Hex;
+            if (f.OwnerActorId != builderActorId) continue;
+            var ft = (Substrate.InfraTypeId)f.TypeId;
+            if (!BodySiting.IsExtraction(ft)
+                || !BodySiting.CompetesForBody(ft, type)) continue;
+            int d = HexGrid.Distance(hex, f.Hex);
+            if (d < nearest) nearest = d;
         }
-        return center;
+        if (nearest == int.MaxValue) return 1.0;   // no own same-class working
+        return 1.0 - eco.DispersionWeight / (1 + nearest);
+    }
+
+    /// <summary>The roll-free opportunity of an extraction type at its claimed
+    /// body. Depletable (Mine/ExcavationSite): the remaining BodyResources stock
+    /// if the body is already worked, else the pre-roll expected mean (never
+    /// rolled — Stage 1 is roll-free), both normalized by BodyStockOreScale so a
+    /// fresh body reads back its [0,1] raster richness, comparable to the
+    /// renewable-yield and support Siting.Score bands. Renewable (Skimmer/
+    /// AgriComplex): BodySiting.RenewableYield of the body's real attributes.</summary>
+    private static double ExtractionOpportunity(SimState state, HexCoordinate hex,
+        BodyRef body, Substrate.InfraTypeId type, Substrate.CellFields fields,
+        StarSystem? system)
+    {
+        var eco = state.Config.Economy;
+        if (type == Substrate.InfraTypeId.Mine
+            || type == Substrate.InfraTypeId.ExcavationSite)
+        {
+            double richness = type == Substrate.InfraTypeId.Mine
+                ? Substrate.Potentials.Ore(fields)
+                : Substrate.Potentials.Exotics(fields);
+            double stock =
+                state.BodyResources.TryGetValue((hex, body), out var s)
+                    ? s.Quantity
+                    : eco.BodyStockOreScale * richness;
+            double scale = eco.BodyStockOreScale > 0 ? eco.BodyStockOreScale : 1.0;
+            return stock / scale;
+        }
+        return BodySiting.RenewableYield(system, body, type);
     }
 }

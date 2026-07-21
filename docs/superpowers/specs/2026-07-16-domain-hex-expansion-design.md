@@ -65,11 +65,14 @@ distinct actor-scale and funding source:
    not reach; no convoy.
 
 The explicit anti-goal, fixed by the user: **starports must never end up
-founding adjacent to each other.** Infill graduation accepts domain-edge
-spacing (an outpost can graduate at the fringe of its parent's domain), but a
-hard frontier gate (§4) derived from service radii guarantees no two ports sit
-within each other's reach — spacing scales with config, never an absolute
-constant.
+founding adjacent to each other.** Infill graduation is **densification** — an
+outpost can graduate at the fringe of its parent's domain, *inside* it — so the
+gate is not "outside every domain" but a hard **anti-adjacency spacing** (§4)
+derived from the tier-1 service radius: no two port cores ever sit within a
+newcomer port's own reach of each other. Spacing scales with config, never an
+absolute constant. (This is categorically distinct from the expedition's
+gate-range *reach leap*, which founds a fresh colony far away and is the mechanic
+`EncroachedPolities` governs — graduation must not borrow that geometry.)
 
 This is a **sim-only slice**. The REPL is the eyeball surface (§6). The atlas
 rendering of blooming domains, outposts, and graduation is explicitly deferred
@@ -121,14 +124,46 @@ body machinery the sim already uses:
   form of the overflow case that started this thread: a full hex simply loses
   to a neighbor with a free body, at every siting decision, automatically.
 
-The raw richness is then **discounted by distance**: the existing staffing
-falloff shape (`StaffingOps.ProximityWeight` uses
-`1 / (1 + StaffingDistanceFalloff * dist)`) plus a **hauling proxy** — a
-distance term standing in for the cost of moving output back to the port
-market. (Its exact form is an implementation-plan choice, §"Open
-implementation choices"; the design fixes only that farther hexes are worth
-less, so the port hex and its near neighbors keep an advantage that scarcity
-must overcome.)
+The raw richness is then **discounted by two real costs**, both grounded in the
+sim's own economics rather than an arbitrary decay:
+
+- **Labor commute** — the existing staffing falloff shape
+  (`StaffingOps.ProximityWeight`, `1 / (1 + StaffingDistanceFalloff * dist)`):
+  crewing a distant working costs.
+- **Hauling** — the **real per-unit freight cost of moving the working's output
+  to the port market**, expressed as the fraction of value fuel eats en route.
+  Freight cost per unit `= Economy.FuelPerUnitPerHex × (hexDist + orbitalSteps)
+  × fuelPrice`, where `hexDist` is hexes from the working's hex to the port hex,
+  `orbitalSteps = OrbitGeometry.OrbitDistance(system, workingBody, portBody)` is
+  the intra-system hop (the *same* geometry the labor commute uses, so hauling
+  and staffing share one distance model), and `fuelPrice` is the port market's
+  fuel price (settled hex) or the initial fuel price (roll-free preview). The
+  **hauling discount** applied to the opportunity score is
+  `max(HaulingDiscountFloor, (unitValue − freightCostPerUnit) / unitValue)`,
+  `unitValue` being the good's price — so a working is discounted by exactly the
+  share of its output value that fuel consumes reaching market.
+
+Because the discount is **good-specific and fuel-grounded**, not a flat decay, a
+cheap/bulky good (ore) hauled far is discounted hard while a high-value good
+(exotics) shrugs off distance. The port hex and near neighbors still keep an
+advantage (near-zero freight), which scarcity must overcome. *This is an honest
+approximation, not the real thing: output still posts directly to the port
+market with no located goods — see the Forward roadmap's "localize goods" item,
+the prerequisite for freight becoming a true runtime cost rather than a siting
+estimate.*
+
+**Anti-clustering (dispersion) term.** With the map as flat and uniform as it is
+today (near-equal body value at every distance — see the Forward roadmap), the
+distance discounts alone make the *nearest* body win every time, so extraction
+piles onto the port-hex body and the domain never spreads. To counter that, the
+extraction score is **penalized by proximity to the builder's own existing
+same-class extraction workings** (or, equivalently, rewarded when the nearest
+own same-class working is far): the second and third mine no longer stack beside
+the first — they fan out across the domain's bodies even before body-claim
+overflow forces them to. This is the general, always-on form of the overflow
+case, and the *contained* lever that makes a domain visibly spread on a flat map;
+the *root* lever (giving the map a real value gradient) is deferred to the
+Forward roadmap. Its weight is a registered knob.
 
 For **support and processing types** (everything in
 `CapabilityOps.BuildableTypes` that is not extraction — Refinery, Fabricator,
@@ -269,22 +304,40 @@ complementary to the expedition's **reach**.
 
 ### The frontier gate — the anti-clustering guarantee
 
-An outpost is **candidacy-eligible only at distance ≥ G from every existing
-port**, where `G` is derived from service radii — "outside every port's domain
-plus a margin," never an absolute constant. Concretely, `G` is a function of
-`PortDomains.ServiceRadius` for the relevant tiers plus a configured margin
-(exact parameterization is an implementation-plan choice registered as a knob —
-§"Open implementation choices"). Because `G` scales with the same radii that
-define domains, promotion **cannot** produce two ports within each other's
-reach — the anti-goal is structurally impossible, at any config. This is the
-`EncroachedPolities`/`ColonyValuation` spacing discipline, tightened from
-"penalize encroachment" to "forbid it for infill."
+An outpost is **candidacy-eligible only when it sits at least `G` from every
+existing port *core*** (its own parent included), where `G = 1 +
+Expansion.GraduationMarginHexes` (default margin 1 → **G = 2**). This is the
+**literal anti-goal**: "never found a port *adjacent* to another" = never within
+a touching hex = `dist ≥ 2`. It is a small, config-tunable **anti-adjacency
+spacing** — deliberately **NOT** derived from a service radius. (Two earlier
+formulations were wrong and are recorded in the ledger: the expedition's
+`EncroachedPolities` *sum* of both radii, and `ServiceRadius(1) + margin`. Both
+tied graduation to *domain scale*, demanding a graduated port sit outside its
+parent's whole domain — but graduation is **densification**, so a new port
+belongs *inside* the parent's domain, near it; the only real constraint is that
+it not stack *on top of* an existing port. Instrumentation settled it: port
+cores are a median ~9 hexes apart, outposts form 1–3 hexes from their parent, so
+a domain-scale `G` blocked graduation entirely while `G = 2` admits the genuine
+second-centre outposts and still forbids the stacked ones.)
 
-Interior outposts — those *inside* some port's domain, closer than `G` to a
-port — **never graduate.** They are permanently subordinate density: worked
-hexes with residents that stay under their parent's administration. This is
-correct and intended (the domain has interior *and* frontier; only the
-frontier reaches port scale).
+A graduating port may sit **inside** an existing, larger domain — its own
+parent's, or a foreign polity's. Founding inside a foreign domain is **allowed**
+and fires the same encroachment-tension bump an expedition does (the diplomacy
+is *priced* by the tension layer, not *forbidden* by the gate).
+
+**Interior outposts — those within `G` (adjacent, `dist < 2`) of a port core —
+never graduate.** An outpost stacked on its parent stays subordinate density;
+only one that formed a genuine hex or more away becomes the densifying *second
+centre*. Margin raises the bar if graduation should be rarer (margin 2 → G = 3).
+
+**On rarity (measured, not assumed):** graduation is intentionally uncommon, and
+today it is *doubly* so because the sim's economic map is **flat and sparse** —
+body value is near-uniform at every distance and only ~2–3 industry facilities
+are built per domain, so work rarely reaches even a hex or two out (see §2's
+anti-clustering term, which spreads what work there is, and the Forward
+roadmap's "flat & sparse economic geography" item — the real lever that will let
+domains genuinely bloom and graduate more than rarely). DX ships the correct
+machinery; a richer map is a separate pass.
 
 ### The promotion
 
@@ -429,6 +482,44 @@ claim, per standing convention.
   settle election: segments continuously re-sorting across a domain's hexes as
   work shifts, the finer-grained cousin of domain-to-domain migration. Flagged,
   not decided.
+- **Outpost abandonment as a first-class event.** An outpost *should* be able to
+  die — its work depletes or its residents leave and it empties. DX makes this
+  possible only as a silent side-effect (a settle election could relocate a
+  domain's whole population); the settle election now elects the *smallest*
+  eligible household precisely to avoid emptying the parent by accident (user
+  call at the DX eyeball). A real abandonment mechanic — a triggered event when an
+  outpost's residents fall to zero or its workings deplete, with its own news
+  pulse, REPL surface, and metric — is deferred. Raised by the user at the DX
+  eyeball (2026-07-20).
+- **Flat & sparse economic geography (the root lever for a living domain).**
+  DX's Stage-3 investigation (2026-07-20) found the sim's economic map is nearly
+  uniform and thinly built: body value is flat (~0.6 mean, ~1.0 max) at *every*
+  distance band with 55–100% of hexes carrying an eligible body, and only ~2–3
+  industry facilities are ever built per domain over 1000 years (well under the
+  cap). So there is neither a **value gradient** (no rich frontier worth reaching
+  for — every near hex is as good as any far one) nor the **build density** that
+  would push development outward. DX's dispersion term (§2) spreads what little
+  work exists, but the domain can only *truly* bloom — and graduation rise above
+  rare — once richness is **heavy-tailed** (many poor bodies, few rich, so a
+  distant rich body genuinely out-values the core) and/or build density rises.
+  This is a genesis/economy pass (touches body-resource generation and the
+  planner's construction appetite), sim-wide, well beyond domain expansion — and
+  the same "richness needs real variance" theme Slice L first hit. Pairs with the
+  localize-goods item below (both make the economy physically real rather than
+  approximated). Raised by the user during DX's Stage-3 reconciliation.
+- **Localize goods → real freight (the big one).** A gap in the locality arc:
+  Slice L localized *bodies*, *stocks*, and *population*, but a facility's
+  OUTPUT still posts directly to the port market with no address
+  (`MarketEngine.SupplyLands` → `BookOps.PostSupply`). Until goods themselves
+  are located — a produced stock that lives at the working's hex/body and must
+  actually be *hauled* to market — every hauling/freight cost is an
+  approximation (DX's §2 hauling term is a fuel-grounded *estimate*, not a real
+  charge). Localizing goods turns hauling into a true runtime cost, makes the
+  "who hauls locally" question real (a settlement provides local hauling that
+  cheapens its fringe workings — a settle→cheaper-haul→densify feedback), and is
+  the prerequisite for DX's deferred **Option B** (hauling as an economic force,
+  not just a siting signal). Its own slice: touches production→market flow and
+  conservation. Raised by the user during DX's Stage-3 reconciliation.
 
 ## Open implementation choices (decided at plan time, not reopened here)
 
@@ -437,7 +528,12 @@ claim, per standing convention.
 - The exact parameterization of `G` (§4) — which service radii and which
   margin — exposed as **registered knobs** (`KnobRegistry`; an unregistered
   knob silently reverts on reload, so `G`'s inputs must be in the table).
-- The exact form of the **hauling-cost proxy** in the Stage 1 score (§2).
+- ~~The exact form of the hauling-cost proxy in the Stage 1 score (§2).~~
+  **DECIDED (amended 2026-07-19):** a fuel-grounded freight estimate
+  (`FuelPerUnitPerHex × (hexDist + orbitalSteps) × fuelPrice`, discounting the
+  opportunity score by the value-fraction fuel eats — see §2), replacing the
+  original arbitrary `1/(1 + HaulingProxyPerHex × dist)` decay. Only the
+  `HaulingDiscountFloor` remains a tunable knob.
 
 ## Provided interface
 

@@ -122,6 +122,27 @@ public class MetricsTests
     }
 
     [Fact]
+    public void SnapshotCountsLivingOutpostsOnly()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var hex0 = new StarGen.Core.Model.HexCoordinate(1, 1);
+        var hex1 = new StarGen.Core.Model.HexCoordinate(2, 2);
+        state.Outposts.Add(new Outpost(0, "Firsthold", hex0, 0, state.WorldYear));
+        state.Outposts.Add(new Outpost(1, "Graduated Reach", hex1, 0,
+            state.WorldYear)
+        { Graduated = true });
+
+        var row = MetricsOps.Snapshot(state);
+
+        Assert.Equal(1, row.Outposts);   // the graduated one no longer counts
+        Assert.Equal(1.0,
+            MetricRegistry.Find("Settlement.Outposts")!.Get(row), 9);
+        Assert.Equal(1, row.GraduatedPorts);   // the graduated one counts here
+        Assert.Equal(1.0,
+            MetricRegistry.Find("Settlement.GraduatedPorts")!.Get(row), 9);
+    }
+
+    [Fact]
     public void ProbeNeverPerturbsTheState()
     {
         var (_, state) = EpochTestKit.Seeded();

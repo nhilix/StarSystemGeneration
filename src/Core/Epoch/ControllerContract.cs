@@ -237,16 +237,29 @@ public sealed class GenesisController : IController
     {
         var policies = PoliciesFor(perceived);
         var acts = new List<Act>();
-        if (perceived.ExpansionPoints >= _config.Expansion.ColonyCost
-            && perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
+        // the single expansion decision (design §4): the polity weighs reach
+        // (a colony expedition) against infill (graduating a frontier outpost)
+        // in ONE ranked list and commits to the top candidate — one decision
+        // site, two possible acts (never a second decision point). Affordability
+        // is the candidate's OWN cost (an expedition's is ColonyCost; a
+        // graduation's is discounted); the convoy gate applies ONLY to an
+        // expedition — infill ships nothing.
+        if (perceived.RealmSubsistence >= _config.Controller.RealmHungerGate
             && perceived.ColonyCandidates.Count > 0
-            // a site must be worth its provocation: when every option in
-            // reach is net-negative (encroachment outweighs the riches),
-            // a wise realm consolidates instead of settling trouble
-            && perceived.ColonyCandidates[0].Score > 0
-            && perceived.ColonyHullsAvailable > 0)   // founding needs a convoy
-            acts.Add(new FoundColonyAct(perceived.SelfId,
-                                        perceived.ColonyCandidates[0].Target));
+            // a site must be worth its provocation: when the top option is
+            // net-negative (encroachment outweighs the riches), a wise realm
+            // consolidates instead of settling trouble
+            && perceived.ColonyCandidates[0].Score > 0)
+        {
+            var top = perceived.ColonyCandidates[0];
+            bool graduation = top.Kind == ColonyCandidateKind.Graduation;
+            double cost = graduation ? top.Cost : _config.Expansion.ColonyCost;
+            if (perceived.ExpansionPoints >= cost
+                && (graduation || perceived.ColonyHullsAvailable > 0))
+                acts.Add(graduation
+                    ? new GraduateOutpostAct(perceived.SelfId, top.OutpostId)
+                    : new FoundColonyAct(perceived.SelfId, top.Target));
+        }
         // vassalage's foreign-policy lock: the bound run no diplomacy of
         // their own (interpolity/relations.md §Vassalage)
         bool selfBound = false;

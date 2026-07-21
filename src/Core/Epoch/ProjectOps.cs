@@ -435,6 +435,11 @@ public static class ProjectOps
             ProjectKind.HullBatch or ProjectKind.Mobilization
                 => Math.Max(0, pr.MilitaryPoints),
             ProjectKind.ColonyExpedition => double.MaxValue,
+            // an outpost graduation streams its discounted cost from the
+            // expansion treasury (conservation flow #3) — the same pool an
+            // expedition draws, spent as wages over the promotion project's
+            // world-time duration rather than charged in a lump at the act.
+            ProjectKind.OutpostGraduation => Math.Max(0, pr.ExpansionPoints),
             _ => Math.Max(0, pr.DevelopmentPoints),
         };
     }
@@ -470,6 +475,11 @@ public static class ProjectOps
             case ProjectKind.HullBatch:
             case ProjectKind.Mobilization: pr.MilitaryPoints -= amount; break;
             case ProjectKind.ColonyExpedition: break;
+            // graduation wages draw the expansion pool (conservation flow #3):
+            // ExpansionPoints leaves here, lands as household wages in Feed's
+            // PayConvertedWages — money conserved, never minted or burned.
+            case ProjectKind.OutpostGraduation:
+                pr.ExpansionPoints -= amount; break;
             default: pr.DevelopmentPoints -= amount; break;
         }
     }
@@ -607,6 +617,9 @@ public static class ProjectOps
             case ProjectKind.ColonyExpedition:
                 CompleteExpedition(state, p, completionYear);
                 break;
+            case ProjectKind.OutpostGraduation:
+                CompleteGraduation(state, p, completionYear);
+                break;
             case ProjectKind.Mobilization:
             {
                 var pr = state.PolityOf(p.OwnerActorId);
@@ -694,6 +707,7 @@ public static class ProjectOps
             Wealth = cfg.Expansion.ColonyCost,
         };
         colonySegment.Body = PopulationSiting.Assign(state, port.Id);
+        colonySegment.Hex = state.Ports[port.Id].Hex;   // settles at its port hex
         // settlers sent by the state carry the official line (slice G)
         if (record.Interior != null)
             for (int ax = 0; ax < 4; ax++)
@@ -719,16 +733,108 @@ public static class ProjectOps
                                  p.Hex);
         // settling into someone's sphere is a provocation: every entangled
         // neighbor's gauge jumps now (slice H — expansion carries risk)
+        BumpEncroachmentTension(state, p.OwnerActorId, p.Hex);
+    }
+
+    /// <summary>An outpost graduates into a starport in place (domain-hex-
+    /// expansion design §4, "The promotion") — the infill mirror of
+    /// <see cref="CompleteExpedition"/>, MINUS the convoy: the people and works
+    /// are already at the hex. Its discounted cost already streamed from
+    /// ExpansionPoints as construction wages over the project's world-time
+    /// duration (conservation flow #3 — no fresh Wealth is minted, unlike an
+    /// expedition's founding segment, because the residents already exist).
+    /// Completion births the tier-1 Port + Market, re-attaches the resident
+    /// households, lets the works re-resolve their market naturally, marks the
+    /// outpost graduated, and fires the same border-friction bump a new port
+    /// always provokes. Same polity, same currency — zero CU interplay.</summary>
+    private static void CompleteGraduation(SimState state, Project p,
+                                           int completionYear)
+    {
+        var cfg = state.Config;
+        if (p.TargetId < 0 || p.TargetId >= state.Outposts.Count) return;
+        var outpost = state.Outposts[p.TargetId];
+        if (outpost.Graduated) return;                    // already promoted
+        // a port that appeared at the hex mid-project (a racing expedition):
+        // abandon the birth but retire the outpost so it stops being a
+        // candidate — the hex is a port either way (truth over perception).
+        foreach (var existing in state.Ports)             // id order (P6)
+            if (existing.Hex.Equals(outpost.Hex))
+            { outpost.Graduated = true; return; }
+        // the new tier-1 starport + its market, born IN PLACE at the outpost
+        // hex (mirrors CompleteExpedition, minus the convoy). Port id ==
+        // market index by lockstep add, as everywhere in the sim.
+        var port = new Port(state.Ports.Count, p.OwnerActorId, outpost.Hex,
+                            tier: 1, completionYear);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(port.Id, cfg.Economy));
+        // the residents RE-ATTACH: they already live at the hex, so their
+        // administering domain changes from the parent port to the new one (the
+        // single sanctioned PortId mutation, design §3). Usually a no-op on money
+        // (parent and new port share the graduating polity's own currency), but
+        // if the parent port changed hands during the promotion's world-time
+        // duration — conquest, federation, or secession — its administering
+        // currency now differs from the new port's, so the residents' Wealth
+        // crosses a currency boundary at re-attach. SupplyOps buckets segment
+        // wealth by its port-owner currency, so a BARE PortId swap would silently
+        // re-denominate it 1:1 and leak per-currency conservation. Re-denominate
+        // at the frozen rate and record the transfer — the same ownership-seam
+        // discipline SimState.ConvertPortHoldings applies at federation/capture/
+        // secession (plain rate + RecordConversion, no spread skim: this carries
+        // the residents' own money across an administrative seam, it is not a
+        // market payment to a counterparty).
+        int newCur = state.LocalCurrencySafe(port.Id);
+        foreach (var s in state.Segments)                 // id order (P6)
+            if (s.Hex.Equals(outpost.Hex) && s.PortId == outpost.ParentPortId)
+            {
+                int oldCur = state.LocalCurrencySafe(s.PortId);
+                if (oldCur != newCur && s.Wealth != 0)
+                {
+                    double conv = state.ConvertCurrency(s.Wealth, oldCur, newCur);
+                    state.RecordConversion(oldCur, s.Wealth, newCur, conv);
+                    s.Wealth = conv;
+                }
+                s.PortId = port.Id;
+            }
+        // the outpost's own facilities re-resolve their attached market through
+        // MarketEngine.AttachedMarketIndex (owner's nearest port): the new port
+        // sits AT their hex, distance 0, so it captures them automatically —
+        // nothing to rewire, the port merely has to exist (verified: §4).
+        // the outpost stays in the registry as history, no longer a candidate.
+        outpost.Graduated = true;
+        // a real new starport is born here (unlike the outpost founding), so the
+        // PortEstablished contract fits — payload carries the real port id.
+        state.Staged.Add(new StagedEvent(
+            ClockStratum.Generational, WorldEventType.PortEstablished,
+            new[] { p.OwnerActorId }, outpost.Hex, Magnitude: 1.0, Valence: 1.0,
+            EventVisibility.Public,
+            new PortEstablishedPayload(state.Actors[p.OwnerActorId].Name,
+                                       port.Id)));
+        // a new starport, however born, provokes the same border friction —
+        // the newly-added port is owned by us, so the loop's own-skip keeps it
+        // from self-bumping.
+        BumpEncroachmentTension(state, p.OwnerActorId, outpost.Hex);
+    }
+
+    /// <summary>Every entangled foreign neighbor's tension gauge jumps when a
+    /// new starport lands (slice H — expansion carries risk): a port owner
+    /// whose domain overlaps the new port's own tier-1 service area, in id
+    /// order, gets a bump on its relation with the founder. Shared by expedition
+    /// founding and outpost graduation (design §4, "Encroachment-tension checks
+    /// reuse CompleteExpedition's").</summary>
+    private static void BumpEncroachmentTension(SimState state, int ownerActorId,
+                                                HexCoordinate hex)
+    {
+        var cfg = state.Config;
         foreach (var other in state.Ports)               // id order (P6)
         {
-            if (other.OwnerActorId == p.OwnerActorId
+            if (other.OwnerActorId == ownerActorId
                 || !state.Actors[other.OwnerActorId].Entered) continue;
-            if (HexGrid.Distance(other.Hex, p.Hex)
+            if (HexGrid.Distance(other.Hex, hex)
                 > PortDomains.ServiceRadius(cfg, 1)
                   + PortDomains.ServiceRadius(cfg, other.Tier)
                   + TechOps.AstroRadiusBonus(state, other.OwnerActorId))
                 continue;
-            var relation = state.RelationOf(p.OwnerActorId, other.OwnerActorId);
+            var relation = state.RelationOf(ownerActorId, other.OwnerActorId);
             if (relation != null)
                 relation.Tension = Math.Min(1.0, relation.Tension
                     + cfg.Relations.EncroachmentTensionBump);

@@ -18,6 +18,25 @@ public sealed record DemandRecord(
 public sealed record BandBid(MarketOrder Order, int MarketIndex,
                              PopulationBand Band, double PostedQty);
 
+/// <summary>Per-port production-wage staffing split (domain-hex-expansion §3,
+/// conservation flow #2): for the port's segments, the aggregate weighted-
+/// staffing contribution each makes to the port's producing facilities, and
+/// their sum. <see cref="MarketEngine.PayProductionWages"/> divides a sale's
+/// labor share by <see cref="Total"/> and hands each segment its <see
+/// cref="BySegId"/> share — so a satellite resident earns the wages of the works
+/// it crews. Memoized per market step (transient, never serialized); the split
+/// is read by iterating segments in id order, never by iterating this map, so
+/// its enumeration order never touches output (P6).</summary>
+internal sealed class ProductionWageSplit
+{
+    /// <summary>Segment id → its aggregate weighted-staffing contribution.</summary>
+    public Dictionary<int, double> BySegId { get; } = new Dictionary<int, double>();
+    /// <summary>Σ of <see cref="BySegId"/> — the denominator the shares divide by;
+    /// ≤ 0 means no producing facilities or no peopled staffing (fall back to
+    /// size-pro-rata).</summary>
+    public double Total { get; set; }
+}
+
 /// <summary>Step-transient market bookkeeping — never state, never
 /// serialized (P6: transients are not state). Holds the famine arithmetic,
 /// the lane-capacity budget, and the routing maps that tie this step's
@@ -299,7 +318,7 @@ public static class MarketEngine
     /// Also the construction-wage channel: treasury spending on lanes, tiers,
     /// and facilities pays the building port's households, so investment
     /// recycles into circulation instead of vanishing.</summary>
-    internal static void PayWages(SimState state, int portId, double wage)
+    public static void PayWages(SimState state, int portId, double wage)
     {
         if (wage <= 0) return;
         double totalSize = 0;
@@ -316,6 +335,80 @@ public static class MarketEngine
         foreach (var s in state.Segments)
             if (s.PortId == portId)
                 s.Wealth += wage * s.Size / totalSize;
+    }
+
+    /// <summary>Production wage distribution (domain-hex-expansion §3,
+    /// conservation flow #2). A sale's labor share splits across the port's
+    /// segments weighted by each segment's aggregate weighted-staffing
+    /// contribution to the port's active PRODUCING facilities — segment share ∝
+    /// Σ over those facilities f of (seg.Size × <see
+    /// cref="StaffingOps.ProximityWeight"/>(f, seg)). A satellite hex's resident
+    /// crews its local works at full weight, so it captures the wages those
+    /// works throw off; the port's distant households crew them weakly and
+    /// capture the port-hex facilities' instead. A working with NO resident is
+    /// still crewed by commuting port households (their reduced-but-positive
+    /// weight), so its wages still flow to them (Stage-1 behavior). This moves
+    /// WHERE credits land, never how many: the shares sum to <paramref
+    /// name="wage"/> by construction.
+    /// <para>Only <see cref="OrderOps.SettleSale"/>'s production wages route
+    /// here; construction, habitat, and refund wages keep the plain size-pro-rata
+    /// <see cref="PayWages"/>. Fallbacks preserve conservation: a port with no
+    /// producing facilities (or no peopled staffing) has zero total weight and
+    /// defers to <see cref="PayWages"/>, which itself reverts an unpeopled port
+    /// to its owner (P4 — credits are never destroyed).</para></summary>
+    public static void PayProductionWages(SimState state, int portId, double wage)
+    {
+        if (wage <= 0) return;
+        var split = ProductionWageSplitFor(state, portId);
+        if (split.Total <= 0)
+        {
+            // no producing facilities (or no peopled staffing) — fall back to
+            // the size-pro-rata channel, which handles the unpeopled→owner revert
+            PayWages(state, portId, wage);
+            return;
+        }
+        foreach (var s in state.Segments)                 // id order (P6)
+            if (s.PortId == portId
+                && split.BySegId.TryGetValue(s.Id, out double w) && w > 0)
+                s.Wealth += wage * w / split.Total;
+    }
+
+    /// <summary>The per-port staffing-weight split <see
+    /// cref="PayProductionWages"/> divides by, memoized for the whole market step
+    /// on <see cref="SimState.ProdWageSplits"/>: SettleSale runs per sale and
+    /// cannot afford a segments×facilities rescan each time. The memo is nulled
+    /// at the top of every <see cref="MarketsPhase"/> step (like <see
+    /// cref="SimState.GoodsValueCleared"/>), so it is rebuilt fresh each step and
+    /// never stales across steps — within a step the facility set and segment
+    /// positions are fixed, so one snapshot serves every sale.</summary>
+    private static ProductionWageSplit ProductionWageSplitFor(SimState state,
+                                                              int portId)
+    {
+        state.ProdWageSplits ??= new Dictionary<int, ProductionWageSplit>();
+        if (state.ProdWageSplits.TryGetValue(portId, out var cached))
+            return cached;
+
+        var split = new ProductionWageSplit();
+        foreach (var f in state.Facilities)               // id order (P6)
+        {
+            if (!IsActive(state, f)) continue;
+            // a facility's wages land at the port it sells into (its attached
+            // market == its nearest owner-port); only that port's residents crew it
+            if (AttachedMarketIndex(state, f) != portId) continue;
+            if (Infrastructure.Get((InfraTypeId)f.TypeId).Produces.Count == 0)
+                continue;                                 // keystone/support: no wages
+            foreach (var seg in state.Segments)           // id order (P6)
+            {
+                if (seg.PortId != portId || seg.Size <= 0) continue;
+                double w = seg.Size * StaffingOps.ProximityWeight(state, f, seg);
+                if (w <= 0) continue;
+                split.BySegId.TryGetValue(seg.Id, out double acc);
+                split.BySegId[seg.Id] = acc + w;
+                split.Total += w;
+            }
+        }
+        state.ProdWageSplits[portId] = split;
+        return split;
     }
 
     // ------------------------------------------------------------------

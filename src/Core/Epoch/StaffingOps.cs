@@ -12,14 +12,15 @@ namespace StarGen.Core.Epoch;
 public static class StaffingOps
 {
     /// <summary>Proximity weight in (0, 1]: 1 on the facility's own body,
-    /// falling with hex-hop + local-hop distance from it.</summary>
+    /// falling with hex-hop + local-hop distance from it. The hex-hop is
+    /// measured segment-hex → facility-hex (domain-hex-expansion design
+    /// §3): a resident of a satellite hex crews it at full weight, while a
+    /// port's distant households crew it weakly.</summary>
     public static double ProximityWeight(SimState state, Facility f,
                                          PopulationSegment seg)
     {
         var eco = state.Config.Economy;
-        int hexHop = 0;
-        if (seg.PortId >= 0 && seg.PortId < state.Ports.Count)
-            hexHop = HexGrid.Distance(state.Ports[seg.PortId].Hex, f.Hex);
+        int hexHop = HexGrid.Distance(seg.Hex, f.Hex);
         int localHop = 0;
         if (hexHop == 0 && !seg.Body.IsNone && !f.Body.IsNone
             && state.SettledSystems.TryGetValue(f.Hex, out var system)

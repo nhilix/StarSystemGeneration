@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\StarGen.Core.csproj" />
+    <ProjectReference Include="..\..\src\Inspector\StarGen.Inspector.csproj" />
   </ItemGroup>
 
   <ItemGroup>

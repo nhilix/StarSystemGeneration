@@ -129,6 +129,68 @@ public class CrossCurrencyMovementTests
         Assert.Equal(50.0, state.CurrencyOf(1).CumulativeConvertedIn, 9);
     }
 
+    // ---- outpost graduation re-attaches residents across a currency seam ----
+
+    [Fact]
+    public void OutpostGraduation_ConvertsResidentWealth_WhenParentPortChangedCurrency()
+    {
+        // the graduation seam (domain-hex-expansion §4): CompleteGraduation
+        // re-attaches an outpost's residents from the parent port to the newly
+        // born tier-1 port. Usually same-currency (the graduating polity's own
+        // ports), so a no-op. But if the parent port changed hands during the
+        // promotion's multi-year duration (conquest/federation/secession), the
+        // residents' Wealth crosses a currency boundary at re-attach: SupplyOps
+        // buckets segment wealth by its port-owner currency, so a BARE PortId
+        // swap silently re-denominates it 1:1 and leaks the whole segment's
+        // wealth per-currency (the DX-slice sweep leak). It must convert-and-
+        // record, the ConvertPortHoldings ownership-seam discipline.
+        var state = NewState();
+        AddCurrency(state, 0, 1.0);   // the graduating polity (born port)
+        AddCurrency(state, 1, 4.0);   // the parent's NEW owner (seized it)
+        AddPolity(state, 0, currencyId: 0);   // graduator / born-port owner
+        AddPolity(state, 1, currencyId: 1);   // took the parent mid-promotion
+        state.Actors[1].Entered = false;      // keep the encroachment bump inert
+
+        // the parent port now belongs to polity 1 (currency 1) — it changed
+        // hands after the outpost was founded; its administering currency is 1.
+        var parent = AddPort(state, ownerActorId: 1);
+        var hex = new HexCoordinate(3, 0);
+        var outpost = new Outpost(state.Outposts.Count, "Fringe", hex,
+                                  parent.Id, 0L);
+        state.Outposts.Add(outpost);
+        // a resident administered by the (now foreign) parent, at the outpost hex
+        var seg = new PopulationSegment(state.Segments.Count, parent.Id, 0, 0, 10.0)
+        { Hex = hex, Wealth = 200.0 };
+        state.Segments.Add(seg);
+
+        // the promotion project the graduating polity (0) funded before the
+        // parent was seized — its born port is owned by polity 0 (currency 0).
+        var proj = new Project(state.Projects.Count, ProjectKind.OutpostGraduation,
+            ownerActorId: 0, funderActorId: 0, portId: parent.Id, hex: hex,
+            yearsRequired: 5, startedYear: 0)
+        { TargetId = outpost.Id };
+        state.Projects.Add(proj);
+
+        double outBefore = state.CurrencyOf(1).CumulativeConvertedOut;
+        double inBefore = state.CurrencyOf(0).CumulativeConvertedIn;
+
+        ProjectOps.Complete(state, proj, completionYear: 100);
+
+        var born = state.Ports[^1];
+        Assert.Equal(0, born.OwnerActorId);            // born under the graduator
+        Assert.Equal(born.Id, seg.PortId);             // resident re-attached
+        Assert.True(state.Outposts[outpost.Id].Graduated);
+        // 200 of cur1 → cur0 at the frozen rate (200 * 4/1 = 800), NOT a raw 200
+        double converted = state.ConvertCurrency(200.0, 1, 0);
+        Assert.Equal(converted, seg.Wealth, 9);
+        // the transfer is booked so the per-currency residual nets out: cur1
+        // sheds the 200 it lost, cur0 books the converted sum it gained.
+        Assert.Equal(outBefore + 200.0,
+                     state.CurrencyOf(1).CumulativeConvertedOut, 9);
+        Assert.Equal(inBefore + converted,
+                     state.CurrencyOf(0).CumulativeConvertedIn, 9);
+    }
+
     // Construction wages that cross the funder→build-port currency boundary
     // (a foreign-owned build port, or a GatePair end in another polity) and
     // cross-polity migration are integration paths exercised end-to-end by the

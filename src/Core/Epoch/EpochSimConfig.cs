@@ -737,6 +737,36 @@ public sealed class EconomyKnobs
     /// local-hop distance from the facility's body (locality slice §3):
     /// weight = 1/(1 + this × distance). 0 recovers flat domain staffing.</summary>
     public double StaffingDistanceFalloff { get; set; } = 0.15;
+    /// <summary>Floor on the fuel-grounded hauling discount that scales a
+    /// satellite working's opportunity score (domain hex-expansion §2): the
+    /// discount is <c>max(this, (unitValue − freightPerUnit) / unitValue)</c>,
+    /// the share of output value that survives the freight-fuel bite to the
+    /// port market. The floor keeps a rich-but-distant body from being scored
+    /// at literally zero value (freight alone would push the raw fraction
+    /// negative), so real richness differences still decide siting at the
+    /// frontier. A fraction in (0, 1]; smaller → distant workings are cut
+    /// harder before the floor catches them.</summary>
+    public double HaulingDiscountFloor { get; set; } = 0.05;
+    /// <summary>Anti-clustering (dispersion) weight on extraction siting
+    /// (domain-hex-expansion §2, the amended dispersion paragraph): a candidate
+    /// extraction hex is penalized by proximity to the BUILDER's OWN existing
+    /// SAME-CLASS extraction workings, so the 2nd/3rd mine of a class fans off
+    /// the port body instead of stacking beside the first. The factor is
+    /// <c>1 − this / (1 + nearestOwnSameClassDist)</c> (nearest by
+    /// <see cref="HexGrid.Distance"/>; factor 1 when the builder has no
+    /// competing same-class working yet), naturally bounded in
+    /// <c>[1 − this, 1)</c> — so it never zeroes a genuinely rich isolated
+    /// site. At the 0.6 default a same-hex second working keeps 0.4 of its
+    /// score, an adjacent (dist 1) hex 0.7, a dist-2 hex 0.8, a dist-3 hex
+    /// 0.85: with the gentle staffing/hauling falloff this makes a dist-2
+    /// "second centre" the siting sweet spot for the second same-class working
+    /// (exactly the G = 2 graduation distance), fanning extraction outward so
+    /// domains visibly spread and worked hexes reach the frontier. 0 recovers
+    /// the pre-dispersion port-clustered siting. Same-class = extraction that
+    /// <see cref="BodySiting.CompetesForBody"/> the candidate type; support/
+    /// processing (port-body affinity) is untouched. Siting-only, roll-free,
+    /// deterministic, conservation-neutral.</summary>
+    public double DispersionWeight { get; set; } = 0.6;
 
     // -- Demand: absolute per-capita rates the normalized profiles multiply --
     /// <summary>Subsistence-band units per population unit per world-year
@@ -1059,6 +1089,52 @@ public sealed class ExpansionKnobs
     /// clock. At the 25-year default a coarse generation step behaves
     /// exactly as before; a 1-year clock founds at the same world pace.</summary>
     public double FoundingCadenceYears { get; set; } = 25.0;
+    /// <summary>Extra hex buffer, beyond bare adjacency, an outpost must clear
+    /// from EVERY entered port before it is frontier / candidacy-eligible to
+    /// graduate into a starport (domain-hex-expansion §4, the frontier gate —
+    /// the anti-clustering guarantee). The gate distance is the LITERAL
+    /// anti-adjacency spacing G = 1 + this (default 1 → G = 2): an outpost is
+    /// eligible iff it sits at least G hexes from every port core. "Never
+    /// adjacent" read literally is "not in a touching hex" ⇔ dist ≥ 2, so
+    /// margin 0 → G = 1 admits an outpost that touches a port and margin 1 →
+    /// G = 2 leaves a one-hex dead gap around every port. NOT radius-derived:
+    /// two earlier domain-scale formulations tied G to service radii and
+    /// blocked graduation entirely (outposts form 1–3 hexes from their parent),
+    /// so this is a small config-tunable spacing. Raise it to make graduation
+    /// rarer.</summary>
+    public int GraduationMarginHexes { get; set; } = 1;
+    /// <summary>World-years an outpost's administrative promotion project takes
+    /// to raise a real starport (domain-hex-expansion §4; time-not-ticks, P7):
+    /// the in-place equivalent of an expedition's crossing time, over which the
+    /// discounted cost streams from <c>ExpansionPoints</c> as construction
+    /// wages. No convoy, no fuel, no goods — just world-time and wages.</summary>
+    public double GraduationYears { get; set; } = 5.0;
+    /// <summary>Fraction of <see cref="ColonyCost"/> knocked off an outpost's
+    /// graduation cost per existing facility at its hex (domain-hex-expansion
+    /// §4: a facility-rich outpost is "already half a colony" — the sim should
+    /// not charge full price for infrastructure that exists). The discount from
+    /// facilities and residents together is floored so cost never drops below
+    /// <see cref="GraduationMinCostFraction"/> × ColonyCost.</summary>
+    public double GraduationCostDiscountPerFacility { get; set; } = 0.08;
+    /// <summary>Fraction of <see cref="ColonyCost"/> knocked off an outpost's
+    /// graduation cost per unit of resident segment Size at its hex
+    /// (domain-hex-expansion §4): existing population is settlement the
+    /// expedition would otherwise ship. Paired with
+    /// <see cref="GraduationCostDiscountPerFacility"/>, floored at
+    /// <see cref="GraduationMinCostFraction"/>.</summary>
+    public double GraduationCostDiscountPerResident { get; set; } = 0.05;
+    /// <summary>Floor on an outpost's graduation cost as a fraction of
+    /// <see cref="ColonyCost"/> (domain-hex-expansion §4): however developed the
+    /// outpost, promotion still costs at least this share — raising a starport
+    /// is never free. 0.4 = never below 40% of a full colony's price.</summary>
+    public double GraduationMinCostFraction { get; set; } = 0.4;
+    /// <summary>Flat score bonus a frontier outpost's graduation candidate
+    /// carries over a raw expedition target of the same terrain (domain-hex-
+    /// expansion §4): a mature outpost is a known-good, already-worked site, so
+    /// infill weighs favorably against reach in the ONE ranked expansion list
+    /// the controller reads. Added to the outpost hex's terrain score; the cost
+    /// discount is the other half of infill's appeal.</summary>
+    public double GraduationScoreBonus { get; set; } = 0.3;
     /// <summary>Colony-score penalty per foreign polity whose domain the
     /// new port's service area would overlap — settling someone's sphere
     /// must be outweighed by real riches (slice H: contiguous borders).</summary>
@@ -1078,6 +1154,32 @@ public sealed class ExpansionKnobs
     public double PortUpgradeExoticsPerYearPerTier { get; set; } = 0.25;
     public double HomeworldSegmentSize { get; set; } = 3.0;
     public double ColonySegmentSize { get; set; } = 0.5;
+    /// <summary>Real habitat construction cost a relocating segment pays to
+    /// settle a satellite hex (domain-hex-expansion §3, settle election —
+    /// conservation flow #1): drawn from the segment's own Wealth and paid
+    /// straight back out as construction wages across the domain's households
+    /// (MarketEngine.PayWages), so it moves WHERE credits land, never how many.
+    /// A segment whose Wealth is below this cannot fund a meaningful habitat
+    /// and is not eligible to settle.</summary>
+    public double SettleHabitatCost { get; set; } = 5.0;
+    /// <summary>Fractional weighted-labor shortfall a satellite hex's worked
+    /// facilities must exceed before a segment settles it (domain-hex-expansion
+    /// §3): the hex is under-labored when its facilities' combined weighted
+    /// workforce falls below LaborRequired × (1 − this). 0 = any shortfall
+    /// triggers; 1 = only a totally unstaffed hex does.</summary>
+    public double SettleLaborShortfallFraction { get; set; } = 0.25;
+    /// <summary>World-years a satellite hex's facilities must have been
+    /// commissioned before the shortfall counts as SUSTAINED (domain-hex-
+    /// expansion §3; time-not-ticks, P7): "sustained" is derived from facility
+    /// maturity, not a per-hex timer, so a finer clock settles no faster over
+    /// the same world-years. A brief spike at a young working never triggers.</summary>
+    public double SettleMaturityYears { get; set; } = 50.0;
+    /// <summary>World-years between settle elections within ONE port's domain
+    /// (domain-hex-expansion §3; P7, mirrors FoundingCadenceYears): at most one
+    /// outpost founds per this many world-years per domain, checked against the
+    /// domain's last outpost founding year — so the pass does not settle a fresh
+    /// hex every step.</summary>
+    public double SettleCadenceYears { get; set; } = 25.0;
     /// <summary>Logistic population growth per world-year toward the port-tier cap.</summary>
     public double SegmentGrowthPerYear { get; set; } = 0.01;
     /// <summary>Port population cap = port tier × this, shared across segments.</summary>

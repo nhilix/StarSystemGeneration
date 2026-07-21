@@ -80,6 +80,12 @@ public sealed class SimState
     /// sites; the narrative layer compiles them in I (P4).</summary>
     public List<WreckageRecord> Wreckage { get; } = new List<WreckageRecord>();
     public List<PopulationSegment> Segments { get; } = new List<PopulationSegment>();
+    /// <summary>Lightweight settlement records (domain-hex-expansion design §3) —
+    /// founded when a segment settles a worked satellite hex; NOT actors (no
+    /// treasury/market/controller), residents trade through the parent port.
+    /// Id order (P6); graduated outposts stay as history. Empty until Stage 2
+    /// founds any.</summary>
+    public List<Outpost> Outposts { get; } = new List<Outpost>();
     /// <summary>One market per port, parallel to Ports (market id = port id).</summary>
     public List<Market> Markets { get; } = new List<Market>();
     /// <summary>The slow identity layer's registry. Seeded one per species;
@@ -163,6 +169,15 @@ public sealed class SimState
     /// It carries no cross-step memory, so there is nothing for an artifact to
     /// preserve.</para></summary>
     public double GoodsValueCleared { get; set; }
+    /// <summary>Per-market-step memo backing <see cref="MarketEngine.
+    /// PayProductionWages"/>: portId → the segment staffing-weight split a sale's
+    /// production wages divide by (domain-hex-expansion §3, conservation flow #2).
+    /// Transient like <see cref="GoodsValueCleared"/> — never serialized;
+    /// <see cref="MarketsPhase"/> nulls it at the top of every step so it is
+    /// rebuilt fresh and never stales across steps (determinism). Filled lazily
+    /// per port on the step's first sale there, since SettleSale runs per sale
+    /// and cannot afford a segments×facilities rescan each time.</summary>
+    internal Dictionary<int, ProductionWageSplit>? ProdWageSplits { get; set; }
     public EventLog Log { get; } = new EventLog();
     public List<PhaseTraceEntry> Trace { get; } = new List<PhaseTraceEntry>();
     /// <summary>Events emitted this step, finalized by Chronicle.</summary>

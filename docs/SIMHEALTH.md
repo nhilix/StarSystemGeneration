@@ -217,6 +217,34 @@ meant to be caught by evidence, not assumed safe. If a long sweep shows
 actual developed footprint, that is the signal to revisit eviction, not
 a bug in this metric.
 
+`Settlement.Outposts` counts **living** (non-graduated) `SimState.Outposts`
+records — settlements founded when a population segment elects to relocate
+to a worked satellite hex within a port's domain (domain-hex-expansion
+design §3, Stage 2: "pop follows work"). It rises as domains fill in and
+falls by one every time an outpost graduates (Stage 3) — the same
+settlement then counted by `Settlement.GraduatedPorts`/`Settlement.Ports`
+instead, so the pair reads as a handoff rather than a double-count.
+
+**Healthy shape**: rises and falls as a domain's interior fills in
+(permanently subordinate density, never promoted) while its frontier
+outposts occasionally graduate into a new port. Graduation is intentionally
+uncommon (design §4 "On rarity") — do not expect this column to fall often.
+
+`Settlement.GraduatedPorts` counts `SimState.Outposts` records with
+`Graduated == true` — outposts promoted into real starports through Stage
+3's infill graduation (domain-hex-expansion design §4), the densification
+counterpart to an expedition-founded port. Cumulative: an outpost's
+`Graduated` flag never resets, so this column never falls, and every
+increment pairs with a `Settlement.Outposts` decrement and a
+`Settlement.Ports` increment in the same epoch.
+
+**Healthy shape**: monotonic non-decreasing, and — given the map's
+currently flat/sparse economic geography (design's Forward roadmap) —
+expected to stay small (rare graduations) relative to `Settlement.Outposts`
+and `Settlement.Ports` for the foreseeable term. A flat zero line all run
+is not itself unhealthy; it means no outpost has yet cleared the frontier
+gate, which is by design the common case.
+
 ## Adding a metric
 
 1. Extend `MetricRow` (or `MoneyRow`) in `MetricsOps.cs` — levels and

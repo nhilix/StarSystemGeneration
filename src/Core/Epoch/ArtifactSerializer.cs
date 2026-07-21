@@ -27,12 +27,12 @@ public static class ArtifactSerializer
     {
         ("config", 6), ("clock", 3), ("raster", 2), ("species", 1),
         ("actors", 10), ("ports", 2), ("lanes", 3), ("facilities", 3),
-        ("fleets", 3), ("segments", 3), ("events", 1), ("markets", 6),
+        ("fleets", 3), ("segments", 4), ("events", 1), ("markets", 6),
         ("features", 1), ("origins", 2), ("precursors", 1), ("interior", 6),
         ("corporations", 4), ("relations", 5), ("wars", 2), ("belief", 1),
         ("pulses", 1), ("pois", 1), ("plagues", 1), ("projects", 3),
         ("shipments", 1), ("orders", 1), ("couriers", 1), ("settled", 1),
-        ("bodyresources", 1), ("banks", 2),
+        ("bodyresources", 1), ("banks", 2), ("outposts", 1),
     };
 
     public static string ToText(SimState state)
@@ -231,12 +231,14 @@ public static class ArtifactSerializer
         Layer(w, "segments");
         foreach (var s in state.Segments)
             // segments v3 (locality): the two trailing body-ref fields ride along
+            // segments v4 (domain-hex-expansion): the settled hex trails after
             w.WriteLine(Join("SEGMENT", s.Id.ToString(Inv), s.PortId.ToString(Inv),
                 s.SpeciesId.ToString(Inv), s.CultureId.ToString(Inv), R(s.Size),
                 R(s.SoL), R(s.Wealth), R(s.LastSubsistence),
                 R(s.Ideology[0]), R(s.Ideology[1]), R(s.Ideology[2]),
                 R(s.Ideology[3]),
-                s.Body.StarIndex.ToString(Inv), s.Body.SlotIndex.ToString(Inv)));
+                s.Body.StarIndex.ToString(Inv), s.Body.SlotIndex.ToString(Inv),
+                s.Hex.Q.ToString(Inv), s.Hex.R.ToString(Inv)));
 
         Layer(w, "events");
         foreach (var e in state.Log.Events)
@@ -617,6 +619,18 @@ public static class ArtifactSerializer
                 R(bank.Reserve), R(bank.CumulativeSpreadIntake),
                 R(bank.CumulativeReserveFunded), R(bank.ClaimOnState),
                 R(bank.CumulativeLentToState), R(bank.CumulativeRetired)));
+
+        Layer(w, "outposts");
+        // lightweight settlement records (domain-hex-expansion design §3) — NOT
+        // actors (no treasury/market/controller); residents trade through the
+        // parent port. Written in id order (P6). The free-text Name rides
+        // through Name() (guards the pipe/semicolon/newline delimiters);
+        // Graduated flips only at Stage-3 graduation.
+        foreach (var o in state.Outposts)
+            w.WriteLine(Join("OUTPOST", o.Id.ToString(Inv), Name(o.Name),
+                o.Hex.Q.ToString(Inv), o.Hex.R.ToString(Inv),
+                o.ParentPortId.ToString(Inv), o.FoundingYear.ToString(Inv),
+                o.Graduated ? "1" : "0"));
         w.WriteLine("END");
     }
 
@@ -1271,6 +1285,12 @@ public static class ArtifactSerializer
                         if (f.Length > 14)
                             segment.Body = new BodyRef(int.Parse(f[13], Inv),
                                                        int.Parse(f[14], Inv));
+                        // segments v4 (domain-hex-expansion): settled hex trails
+                        // after the body-ref (f[15]/f[16]); restores the persisted
+                        // hex, never defaults it (a v4 record always carries it)
+                        if (f.Length > 16)
+                            segment.Hex = new HexCoordinate(int.Parse(f[15], Inv),
+                                                            int.Parse(f[16], Inv));
                         state!.Segments.Add(segment);
                         break;
                     case "CURRENCY":
@@ -1306,6 +1326,17 @@ public static class ArtifactSerializer
                             ClaimOnState = double.Parse(f[5], Inv),
                             CumulativeLentToState = double.Parse(f[6], Inv),
                             CumulativeRetired = double.Parse(f[7], Inv),
+                        });
+                        break;
+                    case "OUTPOST":
+                        // outposts layer loads last; dense id-order guard is safe
+                        if (int.Parse(f[1], Inv) != state!.Outposts.Count)
+                            throw new InvalidDataException("outpost ids out of order");
+                        state.Outposts.Add(new Outpost(int.Parse(f[1], Inv), f[2],
+                            new HexCoordinate(int.Parse(f[3], Inv), int.Parse(f[4], Inv)),
+                            int.Parse(f[5], Inv), long.Parse(f[6], Inv))
+                        {
+                            Graduated = f[7] == "1",
                         });
                         break;
                     case "CULTURE":
@@ -1831,6 +1862,8 @@ public static class ArtifactSerializer
         PolityEmergedPayload e => Join("polityEmerged", Name(e.PolityName)),
         PortEstablishedPayload e => Join("portEstablished", Name(e.PolityName),
             e.PortId.ToString(Inv)),
+        OutpostFoundedPayload e => Join("outpostFounded", Name(e.PolityName),
+            e.OutpostId.ToString(Inv)),
         LaneOpenedPayload e => Join("laneOpened", e.PortAId.ToString(Inv),
             e.PortBId.ToString(Inv)),
         PortTierRaisedPayload e => Join("portTierRaised", e.PortId.ToString(Inv),
@@ -2007,6 +2040,7 @@ public static class ArtifactSerializer
         "spaceflightReached" => new SpaceflightReachedPayload(int.Parse(f[at + 1], Inv)),
         "polityEmerged" => new PolityEmergedPayload(f[at + 1]),
         "portEstablished" => new PortEstablishedPayload(f[at + 1], int.Parse(f[at + 2], Inv)),
+        "outpostFounded" => new OutpostFoundedPayload(f[at + 1], int.Parse(f[at + 2], Inv)),
         "laneOpened" => new LaneOpenedPayload(int.Parse(f[at + 1], Inv),
             int.Parse(f[at + 2], Inv)),
         "portTierRaised" => new PortTierRaisedPayload(int.Parse(f[at + 1], Inv),

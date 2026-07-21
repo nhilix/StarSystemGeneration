@@ -25,6 +25,25 @@ public class PopulationSitingTests
     }
 
     [Fact]
+    public void Assign_WithHex_SettlesAtAnArbitraryDomainHex_NotThePort()
+    {
+        // domain-hex-expansion §3: the settle election resolves a resident's
+        // body within a SATELLITE hex's committed system, not the port's.
+        var (_, state) = EpochTestKit.Seeded();
+        var a0 = state.Actors[0];
+        var port = new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0);
+        state.Ports.Add(port);
+        var satHex = new StarGen.Core.Model.HexCoordinate(a0.Seat.Q + 3, a0.Seat.R);
+
+        var body = PopulationSiting.Assign(state, port.Id, satHex);
+
+        Assert.True(SystemRegistry.IsSettled(state, satHex));
+        Assert.Equal(BodySiting.PortBody(state.SettledSystems[satHex]), body);
+        // the port hex is a different system — the overload did not resolve there
+        Assert.NotEqual(satHex, port.Hex);
+    }
+
+    [Fact]
     public void HomeworldSegments_HaveARealBody_AfterGenesis()
     {
         var (_, state) = EpochTestKit.Seeded();

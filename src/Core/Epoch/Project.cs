@@ -13,6 +13,13 @@ public enum ProjectKind
     HullBatch = 3,
     ColonyExpedition = 4,
     Mobilization = 5,
+    /// <summary>The administrative promotion of a mature frontier outpost into
+    /// a tier-1 starport (domain-hex-expansion design §4): no convoy, no fuel,
+    /// no goods basket — its discounted cost streams from the funder polity's
+    /// <c>ExpansionPoints</c> as construction wages to the parent domain's
+    /// households over a world-time duration (conservation flow #3), completing
+    /// in-place into a new Port + Market at the outpost hex.</summary>
+    OutpostGraduation = 6,
 }
 
 /// <summary>Draw order among one funder's projects: lower drinks first

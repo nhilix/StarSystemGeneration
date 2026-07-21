@@ -54,16 +54,21 @@ public class CorpPackingTests
         CorporationOps.Operate(state);
         Assert.Equal(0, Funded());
 
-        // the plan schedules the founding build; savings carry it
+        // DX Stage 1 (domain hex-expansion §2): the corp now runs the SAME
+        // hex-granular domain scan as a polity, so Perception offers its top
+        // domain candidates (best hexes across the home-port domain), not a
+        // single synthesized pick. The greedy packer schedules the whole
+        // AFFORDABLE slate against income + savings — identical discipline to
+        // the polity scheduler (Planner.BuildCorpPlan). The wallet here is
+        // deliberately huge to isolate packing; staggering under a realistic
+        // budget is the per-year timeline's job, not a one-pick-per-cycle cap.
         Cycle();
-        Assert.Equal(1, Funded());
+        int offered = actor.Perception!.ConstructionCandidates.Count;
+        Assert.True(offered >= 1, "the domain scan offers real candidates");
+        Assert.Equal(offered, Funded());   // the affordable slate breaks ground
 
-        // the war chest staggers the NEXT build through the schedule —
-        // one plan entry per pick, never the whole portfolio at once
-        Cycle();
-        Assert.Equal(2, Funded());
-
-        // a broke corp with no income packs nothing new
+        // a broke corp with no income packs nothing new — capacity collapses to
+        // zero, so no candidate fits the schedule (the real invariant)
         corp.Withdraw(state, corp.Credits, 0);   // drain the wallet to zero
         corp.LastIncomePerYear = 0;
         int before = Funded();
