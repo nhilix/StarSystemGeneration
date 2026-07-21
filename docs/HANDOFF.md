@@ -1,3 +1,82 @@
+# Session Handoff — 2026-07-20 (Slice DX MERGED + PUSHED · a starport's domain comes alive)
+
+**Slice DX — domain hex expansion — MERGED & PUSHED** to `main` at `6ab5f0f`
+(`--no-ff`, pushed). **1218/1218** `dotnet test` on the merged tip · 32-run
+conservation sweep worst relative residual **6.3e-15** (all three DX money flows +
+the graduation cross-currency fix) · determinism byte-identity · graduation fires
+**22/32** sweep runs (40 ports) · one fable whole-branch review (**MERGE**, 0
+Critical/0 Important/0 Minor) · golden re-frozen fresh at slice end. Design
+`docs/superpowers/specs/2026-07-16-domain-hex-expansion-design.md`; ledger
+`docs/superpowers/plans/2026-07-16-slice-dx-ledger.md`.
+
+**What DX shipped — a starport's service radius stops being a glow and becomes a
+living region.** Three phase gates (the Slice L pattern):
+- **Stage 1 — Satellite workings.** `CapabilityOps.ConstructionCandidatesFor` scans
+  per **hex** across a port's domain (was per cell), body-aware: extraction scores on
+  the best eligible-unclaimed body (settled → real `SettledSystems`/`BodyResources`;
+  unsettled → a **roll-free `Generator.Generate` preview**, discarded), discounted by
+  labor commute **and a fuel-grounded hauling term** (`FuelPerUnitPerHex × (hexDist +
+  orbitalSteps) × fuelPrice`, discounting by the value-fraction fuel eats) **and a
+  dispersion term** (fans same-class extraction off the port body). Support/processing
+  keeps port affinity. Corps run the same scan scoped to `HomePortId` (the owner-filter
+  latent bug, fixed). No new persisted state.
+- **Stage 2 — Outposts.** `PopulationSegment.Hex` (serialized, segments **v3→v4**) +
+  `SimState.Outposts` (new `outposts` layer). A world-time **settle election**
+  (`Interior/SettleOps.cs`, `RollChannel.OutpostName = 79`) relocates the **smallest**
+  eligible household (keeps the port core peopled — user call) to the **most-under-served**
+  worked hex, spending its own `Wealth` on habitat wages (conserved), founding an
+  `Outpost`. Staffing rewired to `seg.Hex`; production wages redirect to residents
+  (`MarketEngine.PayProductionWages`, staffing-weighted, conserved).
+- **Stage 3 — Frontier graduation.** A mature outpost **≥ G from every port core**
+  (`G = 1 + GraduationMarginHexes`, default **2** — literal anti-adjacency: "never
+  found a port adjacent to another"; parent counted; NOT domain-scale) enters the same
+  polity expansion scoring (`GraduateOutpostAct`, `ProjectKind.OutpostGraduation`), cost
+  = `ColonyCost` discounted by facilities+pop from `ExpansionPoints` recycled as
+  promotion wages (conserved), completing **in-place** into a tier-1 `Port`+`Market`,
+  re-attaching residents (cross-currency-safe), firing the encroachment bump.
+
+**The Stage-3 saga (why this slice was long) — three corrections, all user-adjudicated:**
+1. **Gate geometry** was twice conflated with the *expedition reach-leap*
+   (`EncroachedPolities` sum, then `ServiceRadius(1)+margin`) — both demanded an outpost
+   sit *outside* its parent's domain, impossible since outposts form *inside* it.
+   Corrected to **densification**: `G=2` literal anti-adjacency (§4 amended twice).
+2. **Hauling** was an arbitrary decay — **regrounded** to real freight (§2 amended),
+   user-brainstormed.
+3. **The domain barely spreads** because the sim's **economic map is flat & sparse**
+   (uniform body value at every distance, ~2.6 industry facilities/domain) — DX
+   *exposed* a pre-existing, sim-wide gap. Decision: **ship DX honest** (dispersion term
+   + G=2 make graduation fire, rarely, on the flat map), file the root fix as a pass.
+   *A conservation leak that only surfaced once graduation fired (a bare `PortId`
+   re-attach re-denominating resident wealth 1:1 across a currency boundary) was
+   root-caused and fixed (convert + `RecordConversion`, the `ConvertPortHoldings`
+   pattern).*
+
+**Follow-ups DX filed (in the design's Forward roadmap) — the natural successors:**
+- **Flat & sparse economic geography (THE domain-bloom lever).** Heavy-tail body value
+  (few rich, many poor → a real reason to reach for a frontier body) + higher build
+  density. Genesis/economy pass, sim-wide, the same "richness needs variance" theme
+  Slice L hit. **This is the standout next step — it makes DX's machinery actually
+  bloom.**
+- **Localize goods → real freight.** Output posts directly to the port market with no
+  address; until goods live at a hex/body and must be *hauled*, freight is an estimate.
+  Prerequisite for hauling as a real runtime force (DX's deferred "Option B"). Pairs
+  with the flat-economy pass.
+- **Outpost abandonment as a first-class event** (residents-to-zero / workings deplete →
+  a real triggered event with news/REPL/metric).
+
+**NEXT UP:** no forced chain (the CU chain is closed; DX is done). Recommend the user
+pick from: **(a) the flat/sparse-economy pass** (DX's standout follow-up — a
+brainstorm→spec→slice, makes domains genuinely come alive), (b) **WT** (war termination,
+kickoff ready, parallel-safe), (c) **K6** (economy surfaces / TRADE lens), (d) **PL**
+(nominal price level), or (e) the gap-list backlog. Write the chosen kickoff once they
+decide (the flat-economy one starts with a brainstorm).
+
+**Standing preference update (2026-07-20):** **push on merge by default** — the user
+clarified "not pushing isn't really a convention; push whenever you merge unless I say
+otherwise." (Older HANDOFF/CLAUDE text saying "push only on say-so" is superseded.)
+
+---
+
 # Session Handoff — 2026-07-18 (Slice CU-4 MERGED + PUSHED · the CU chain is CLOSED)
 
 **Slice CU-4 — bank/currency-union strength → federation generation — MERGED &

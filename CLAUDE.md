@@ -56,7 +56,8 @@ psmux windows of their own. Each slice session:
 7. **Wrap-up, in order**: merge to main locally · update `docs/HANDOFF.md` ·
    **write the next slice's kickoff prompt** (see below) · sync the Trello
    board (move the finished card to Merged, file anything new surfaced
-   mid-session) if reachable · push only when the user says to.
+   mid-session) if reachable · **push on merge by default** (user standing
+   preference, 2026-07-20: "push whenever you merge unless I say otherwise").
 
 **Each session writes the next session's kickoff prompt** — informed by what
 just landed (real file paths, real interfaces, surprises encountered). Pattern:
