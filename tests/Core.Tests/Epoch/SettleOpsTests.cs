@@ -138,6 +138,7 @@ public class SettleOpsTests
 
         double cost = state.Config.Expansion.SettleHabitatCost;
         double segBefore = seg.Wealth;
+        var portHex = port.Hex;
 
         SettleOps.Step(state);
 
@@ -145,6 +146,37 @@ public class SettleOpsTests
         // the other household (size 3 of 6) banked the other half: +cost/2.
         Assert.Equal(segBefore - cost + cost * 0.5, seg.Wealth, 9);
         Assert.Equal(cost * 0.5, other.Wealth, 9);
+        // the tie-break by lowest id is what made `seg` (id 0) the funder — it
+        // relocated to the outpost hex, `other` (id 1) stayed at the port.
+        Assert.NotEqual(portHex, seg.Hex);
+        Assert.Equal(portHex, other.Hex);
+    }
+
+    [Fact]
+    public void ElectSegment_PicksSmallestEligible_NotLargest()
+    {
+        // pop follows work with the FEWEST people it can get away with: a
+        // marginal household settles the frontier while the parent port keeps
+        // its core population. A much larger, equally-funded segment at the
+        // same port hex must NOT be the one that relocates. Both segments'
+        // sizes feed the satellite hex's weighted workforce (StaffingOps),
+        // and that contribution does NOT dilute with facility count (each
+        // facility separately draws the full weighted pool) — so the hex is
+        // placed at the domain's fringe (dist 8, the tier-2 service-radius
+        // edge), where the commute weight is weak enough that even the
+        // larger segment's added pull leaves the mine genuinely
+        // under-labored.
+        var (state, port, seg, work) = Domain(portHexDistance: 8, segSize: 0.5);
+        var larger = new PopulationSegment(state.Segments.Count, port.Id, 0, 0,
+            1.0) { Hex = port.Hex, Wealth = 100.0 };
+        state.Segments.Add(larger);
+
+        Assert.Equal(1, SettleOps.Step(state));
+        Assert.Single(state.Outposts);
+        // the smaller segment settled the satellite hex...
+        Assert.Equal(work.Hex, seg.Hex);
+        // ...and the larger one stayed put at the port.
+        Assert.Equal(port.Hex, larger.Hex);
     }
 
     [Fact]

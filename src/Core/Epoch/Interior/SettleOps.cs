@@ -172,9 +172,9 @@ public static class SettleOps
     /// <summary>Elect the eligible funder: a segment administered by this port,
     /// still resident at the port hex, with Size &gt; 0 and Wealth ≥ the habitat
     /// cost (below that it cannot fund a meaningful habitat — design §3).
-    /// Deterministic pick: largest Size (the segment most able to bankroll and
-    /// populate a viable outpost), ties broken by lowest Id — a total order, so
-    /// no tiebreak roll is needed.</summary>
+    /// Deterministic pick: smallest eligible Size, so the parent port keeps its
+    /// core population and a marginal household settles the frontier, ties
+    /// broken by lowest Id — a total order, so no tiebreak roll is needed.</summary>
     private static PopulationSegment? ElectSegment(SimState state, Port port)
     {
         var exp = state.Config.Expansion;
@@ -185,7 +185,7 @@ public static class SettleOps
             if (s.Size <= 0) continue;
             if (!s.Hex.Equals(port.Hex)) continue;        // a port household
             if (s.Wealth < exp.SettleHabitatCost) continue;
-            if (best == null || s.Size > best.Size)       // ties keep lower id
+            if (best == null || s.Size < best.Size)       // ties keep lower id
                 best = s;
         }
         return best;
