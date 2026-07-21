@@ -482,6 +482,15 @@ claim, per standing convention.
   settle election: segments continuously re-sorting across a domain's hexes as
   work shifts, the finer-grained cousin of domain-to-domain migration. Flagged,
   not decided.
+- **Outpost abandonment as a first-class event.** An outpost *should* be able to
+  die — its work depletes or its residents leave and it empties. DX makes this
+  possible only as a silent side-effect (a settle election could relocate a
+  domain's whole population); the settle election now elects the *smallest*
+  eligible household precisely to avoid emptying the parent by accident (user
+  call at the DX eyeball). A real abandonment mechanic — a triggered event when an
+  outpost's residents fall to zero or its workings deplete, with its own news
+  pulse, REPL surface, and metric — is deferred. Raised by the user at the DX
+  eyeball (2026-07-20).
 - **Flat & sparse economic geography (the root lever for a living domain).**
   DX's Stage-3 investigation (2026-07-20) found the sim's economic map is nearly
   uniform and thinly built: body value is flat (~0.6 mean, ~1.0 max) at *every*
