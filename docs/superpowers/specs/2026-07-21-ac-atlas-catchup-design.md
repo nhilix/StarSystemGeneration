@@ -1,8 +1,9 @@
-# K6 broadened — the atlas catch-up — design (2026-07-21)
+# Slice AC — the atlas catch-up — design (2026-07-21)
 
-Status: approved (brainstormed with the user 2026-07-21), supersedes the scope
-of the original K6 kickoff (`2026-07-12-slice-k6-kickoff-prompt.md`, "economy
-surfaces" only). One mega-slice, four independently-mergeable phase gates,
+Status: approved (brainstormed with the user 2026-07-21). **Renamed from
+"K6 broadened" at user direction** — this SUPERSEDES the original K6 kickoff
+(`2026-07-12-slice-k6-kickoff-prompt.md`, "economy surfaces" only), which
+should not be run; its scope is Phase 2 of this slice. One mega-slice, four independently-mergeable phase gates,
 each with its own short editor eyeball (user decision — atlas work is
 inherently visual; a grammar misstep in phase 1 must not survive into phase 4).
 
