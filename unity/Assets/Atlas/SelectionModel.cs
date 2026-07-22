@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace StarGen.AtlasView
 {
     public enum SelectionKind
-    { None, Hex, Port, Project, Shipment, Fleet, Poi, Facility, System }
+    { None, Hex, Port, Outpost, Project, Shipment, Fleet, Poi, Facility, System }
 
     /// <summary>What the user selected: a typed registry id plus the hex
     /// it stands on. The dock routes kinds to panels.</summary>
@@ -38,6 +38,7 @@ namespace StarGen.AtlasView
 
         private HexCoordinate? _hovered;
         private HexInfo _hoverInfo;
+        private OutpostMark? _hoveredOutpost;
         private StagePick? _stageHover;
         private Vector2 _pressPos;
         private bool _pressLive;
@@ -47,6 +48,10 @@ namespace StarGen.AtlasView
 
         public HexCoordinate? HoveredHex => _hovered;
         public HexInfo HoverInfo => _hoverInfo;
+        /// <summary>The live outpost under the cursor (AC1.4), or null — the
+        /// hover source for the outpost tooltip line. Graduated outposts are a
+        /// port now and read as the port, so they never surface here.</summary>
+        public OutpostMark? HoveredOutpost => _hoveredOutpost;
         /// <summary>The orbit-view thing under the cursor while the stage
         /// is live (K5) — same selection model, one more source.</summary>
         public StagePick? StageHover => _stageHover;
@@ -149,6 +154,7 @@ namespace StarGen.AtlasView
                 ? HexQuery.At(root.SimHost.Model,
                     EyeContext.God(root.SimHost.State.WorldYear), hex.Value)
                 : null;
+            _hoveredOutpost = hex != null ? OutpostAt(hex.Value) : null;
             HoverChanged?.Invoke();
         }
 
@@ -211,22 +217,64 @@ namespace StarGen.AtlasView
             var model = root.SimHost.Model;
             var state = root.SimHost.State;
             var eye = EyeContext.God(state.WorldYear);
-
-            var selection = new Selection(SelectionKind.Hex, -1, hex);
             var info = _hoverInfo ?? HexQuery.At(model, eye, hex);
-            if (info.PortId >= 0)
-                selection = new Selection(SelectionKind.Port, info.PortId, hex);
-            else if (FindProject(state, hex) is int projectId)
-                selection = new Selection(SelectionKind.Project, projectId, hex);
-            else if (FindFreight(model, eye, hex) is int shipmentId)
-                selection = new Selection(SelectionKind.Shipment, shipmentId, hex);
-            else if (FindFleet(state, hex) is int fleetId)
-                selection = new Selection(SelectionKind.Fleet, fleetId, hex);
-            else if (info.LivePois.Count > 0)
-                selection = new Selection(SelectionKind.Poi,
-                                          info.LivePois[0].Id, hex);
             MarkHex(hex);
-            Selected?.Invoke(selection);
+            Selected?.Invoke(Resolve(model, state, eye, hex, info));
+        }
+
+        /// <summary>Resolve a clicked hex to a typed selection, most specific
+        /// first (the K3 order, AC1.4 inserting the outpost): port · outpost ·
+        /// construction site · freight · fleet · live POI · bare hex. An
+        /// outpost is the headline of its hex — after a real port (a graduated
+        /// outpost's hex IS a port, which wins), before the works. Pure over
+        /// the read model so resolution is EditMode-coverable without the
+        /// pointer stack.</summary>
+        public static Selection Resolve(AtlasReadModel model,
+            Core.Epoch.SimState state, EyeContext eye, HexCoordinate hex,
+            HexInfo info)
+        {
+            if (info.PortId >= 0)
+                return new Selection(SelectionKind.Port, info.PortId, hex);
+            if (FindOutpost(state, hex) is int outpostId)
+                return new Selection(SelectionKind.Outpost, outpostId, hex);
+            if (FindProject(state, hex) is int projectId)
+                return new Selection(SelectionKind.Project, projectId, hex);
+            if (FindFreight(model, eye, hex) is int shipmentId)
+                return new Selection(SelectionKind.Shipment, shipmentId, hex);
+            if (FindFleet(state, hex) is int fleetId)
+                return new Selection(SelectionKind.Fleet, fleetId, hex);
+            if (info.LivePois.Count > 0)
+                return new Selection(SelectionKind.Poi, info.LivePois[0].Id, hex);
+            return new Selection(SelectionKind.Hex, -1, hex);
+        }
+
+        private static int? FindOutpost(Core.Epoch.SimState state,
+                                        HexCoordinate hex)
+        {
+            foreach (var o in state.Outposts)         // id order (P6), first match
+                if (o.Hex.Equals(hex)) return o.Id;
+            return null;
+        }
+
+        /// <summary>The live outpost mark at a hex (name + candidacy for the
+        /// tooltip), resolved through the same DomainInteriorMarks derivation
+        /// the outpost layer draws.</summary>
+        private OutpostMark? OutpostAt(HexCoordinate hex)
+        {
+            var model = root.SimHost.Model;
+            var state = root.SimHost.State;
+            if (model == null || state == null) return null;
+            var eye = EyeContext.God(state.WorldYear);
+            foreach (var o in state.Outposts)
+            {
+                if (o.Graduated || !o.Hex.Equals(hex)) continue;
+                foreach (var m in
+                         DomainInteriorMarks.ForPort(model, eye, o.ParentPortId)
+                             .Outposts)
+                    if (m.OutpostId == o.Id) return m;
+                return null;
+            }
+            return null;
         }
 
         private static int? FindProject(Core.Epoch.SimState state,

@@ -81,6 +81,9 @@ namespace StarGen.AtlasView
             if (info.PortId >= 0)
                 Line($"port #{info.PortId} · tier {info.PortTier} · "
                      + info.PortOwnerName);
+            if (selection.HoveredOutpost is OutpostMark outpost)
+                Line($"outpost {outpost.Name} · "
+                     + DomainInteriorMarks.CandidacyText(outpost.Candidacy));
             foreach (var poi in info.LivePois)
                 Line($"{poi.TypeName}" + (poi.Dormant ? " · DORMANT" : ""));
         }

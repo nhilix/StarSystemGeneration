@@ -312,6 +312,13 @@ namespace StarGen.AtlasView
                 PanelType.Polity, card.OwnerActorId)));
             Line(ownerRow, Inv($"{card.OwnerName}'s domain — founded y{card.FoundedYear}"));
 
+            // AC1.4: a selected outpost rides its parent port's economic panel
+            // as a leading section — it trades through this market, it is not a
+            // market of its own. Keyed by SubId; a plain port click (SubId −1)
+            // renders nothing here.
+            if (request.SubId >= 0)
+                OutpostSection(body, ctx, request.Id, request.SubId);
+
             Sect(body, "the larder");
             Kv(body, "stock capacity / good",
                Inv($"{card.StockCapacity:0.#}"), "acc");
@@ -363,6 +370,59 @@ namespace StarGen.AtlasView
                 Line(row, Inv($"port #{lane.OtherPortId} (lane #{lane.LaneId})"));
             }
             return (Inv($"MARKET #{card.PortId}"), body);
+        }
+
+        /// <summary>AC1.4 — the selected outpost's own detail, rendered inside
+        /// its parent port's Market panel (the outpost has no market of its
+        /// own). Reads the SAME DomainInteriorQuery card the atlas marks read,
+        /// so the panel and the map never drift.</summary>
+        private static void OutpostSection(VisualElement body, PanelContext ctx,
+                                           int portId, int outpostId)
+        {
+            var card = DomainInteriorQuery.Card(ctx.Model, ctx.Eye, portId);
+            DomainOutpostCard outpost = null;
+            if (card != null)
+                foreach (var o in card.Outposts)
+                    if (o.Id == outpostId) { outpost = o; break; }
+            Sect(body, "selected outpost");
+            if (outpost == null)
+            {
+                Line(body, "(outpost no longer in this domain)", dim: true);
+                return;
+            }
+            var head = new VisualElement
+            { style = { flexDirection = FlexDirection.Row } };
+            if (outpost.Graduated) Tag(head, "GRADUATED", "good");
+            Line(head, outpost.Name);
+            body.Add(head);
+            Kv(body, "at", Inv($"({outpost.Hex.Q},{outpost.Hex.R})"));
+            Kv(body, "founded", Inv($"y{outpost.FoundingYear}"));
+            bool frontier =
+                outpost.Candidacy.Kind == DomainCandidacyKind.Frontier
+                || outpost.Candidacy.Kind == DomainCandidacyKind.FrontierNoPort;
+            Kv(body, "candidacy",
+               DomainInteriorMarks.CandidacyText(outpost.Candidacy.Kind),
+               frontier ? "acc" : null);
+            if (outpost.Candidacy.Kind == DomainCandidacyKind.Graduated
+                && outpost.Candidacy.GraduatedPortId >= 0)
+            {
+                int gpid = outpost.Candidacy.GraduatedPortId;
+                var row = Row(body, () => ctx.Open(
+                    new PanelRequest(PanelType.Market, gpid)));
+                Line(row, Inv($"became port #{gpid}"));
+            }
+            if (outpost.Residents.Count == 0)
+                Line(body, "(unpeopled — a claim, not yet a home)", dim: true);
+            foreach (var r in outpost.Residents)
+                Kv(body, SpeciesName(ctx, r.SpeciesId),
+                   Inv($"size {r.Size:0.00}, SoL {r.SoL:0.00}"));
+        }
+
+        private static string SpeciesName(PanelContext ctx, int speciesId)
+        {
+            var species = ctx.Model.State.Skeleton.Species;
+            return speciesId >= 0 && speciesId < species.Count
+                ? species[speciesId].Name : Inv($"species #{speciesId}");
         }
 
         private static (string, VisualElement) Project(PanelRequest request,

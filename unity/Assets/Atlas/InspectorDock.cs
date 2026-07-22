@@ -25,14 +25,21 @@ namespace StarGen.AtlasView
         public readonly int Id;
         public readonly HexCoordinate Hex;
         public readonly string Text;
+        /// <summary>A secondary subject id a panel may key a section to
+        /// without needing its own PanelType — AC1.4 uses it to render the
+        /// selected outpost's detail inside its parent port's Market panel.
+        /// −1 (the default) means "no sub-subject": the panel renders plain.</summary>
+        public readonly int SubId;
 
         public PanelRequest(PanelType type, int id = -1,
-                            HexCoordinate hex = default, string text = null)
+                            HexCoordinate hex = default, string text = null,
+                            int subId = -1)
         {
             Type = type;
             Id = id;
             Hex = hex;
             Text = text;
+            SubId = subId;
         }
     }
 
@@ -179,6 +186,24 @@ namespace StarGen.AtlasView
                             state.Ports[sel.Id].OwnerActorId));
                     Show(new PanelRequest(PanelType.Market, sel.Id),
                          clearUnpinned: false);
+                    break;
+                case SelectionKind.Outpost:
+                    // An outpost is not an actor — it has no treasury and no
+                    // market of its own; its residents trade through the
+                    // parent port. So an outpost click opens the SAME two
+                    // panels a port click does (the parent's Polity + Market),
+                    // and the outpost's own detail rides the Market panel as a
+                    // leading section keyed by SubId — no new PanelType.
+                    var st = root.SimHost.State;
+                    if (sel.Id >= 0 && sel.Id < st.Outposts.Count)
+                    {
+                        int parentPortId = st.Outposts[sel.Id].ParentPortId;
+                        if (parentPortId >= 0 && parentPortId < st.Ports.Count)
+                            Show(new PanelRequest(PanelType.Polity,
+                                st.Ports[parentPortId].OwnerActorId));
+                        Show(new PanelRequest(PanelType.Market, parentPortId,
+                                subId: sel.Id), clearUnpinned: false);
+                    }
                     break;
                 case SelectionKind.Project:
                     Show(new PanelRequest(PanelType.Project, sel.Id));
