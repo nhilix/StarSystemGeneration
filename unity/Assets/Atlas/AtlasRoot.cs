@@ -10,6 +10,8 @@ namespace StarGen.AtlasView
         [SerializeField] private SimHost simHost;
         [SerializeField] private StarfieldLayer starfield;
         [SerializeField] private DomainFieldLayer domainField;
+        [SerializeField] private DomainInteriorLayer domainInterior;
+        [SerializeField] private OutpostLayer outpostLayer;
         [SerializeField] private NatureFieldLayer natureField;
         [SerializeField] private LatticeLayer lattice;
         [SerializeField] private LaneLayer laneLayer;
@@ -26,6 +28,8 @@ namespace StarGen.AtlasView
         public SimHost SimHost => simHost;
         public StarfieldLayer Starfield => starfield;
         public DomainFieldLayer DomainField => domainField;
+        public DomainInteriorLayer DomainInterior => domainInterior;
+        public OutpostLayer OutpostLayer => outpostLayer;
         public NatureFieldLayer NatureField => natureField;
         public LatticeLayer Lattice => lattice;
         public LaneLayer LaneLayer => laneLayer;
@@ -40,7 +44,8 @@ namespace StarGen.AtlasView
         public PriceFieldLayer PriceField => priceField;
 
         public void Wire(SimHost host, StarfieldLayer stars,
-                         DomainFieldLayer domains, NatureFieldLayer nature,
+                         DomainFieldLayer domains, DomainInteriorLayer interior,
+                         OutpostLayer outposts, NatureFieldLayer nature,
                          LatticeLayer grid, LaneLayer lanes, PortLayer ports,
                          CameraRig rig, FleetLayer fleets, PoiLayer pois,
                          WorksLayer works, PlagueLayer plague, WarLayer war,
@@ -49,6 +54,8 @@ namespace StarGen.AtlasView
             simHost = host;
             starfield = stars;
             domainField = domains;
+            domainInterior = interior;
+            outpostLayer = outposts;
             natureField = nature;
             lattice = grid;
             laneLayer = lanes;
@@ -105,6 +112,8 @@ namespace StarGen.AtlasView
             var model = simHost.Model;
             starfield.Show(model);
             domainField.Show(model, eye);
+            domainInterior.Show(model, eye);
+            outpostLayer.Show(model, eye);
             natureField.Show(model, eye);
             lattice.Prepare(model);
             laneLayer.Show(model, eye);
@@ -133,6 +142,8 @@ namespace StarGen.AtlasView
             // dissolves as the stage fades up (starfield stays — space
             // is still space under the orbit view)
             portLayer.OnZoom(distance, extent);
+            outpostLayer.OnZoom(distance, extent);
+            domainInterior.OnZoom(distance, extent);
             newsLayer.OnZoom(distance, extent);
             domainField.OnZoom(distance, extent);
             natureField.OnZoom(distance, extent);

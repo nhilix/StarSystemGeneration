@@ -27,6 +27,8 @@ namespace StarGen.AtlasView.EditorTools
             var host = Object.FindAnyObjectByType<SimHost>();
             var stars = Object.FindAnyObjectByType<StarfieldLayer>();
             var domains = Object.FindAnyObjectByType<DomainFieldLayer>();
+            var interior = Object.FindAnyObjectByType<DomainInteriorLayer>();
+            var outposts = Object.FindAnyObjectByType<OutpostLayer>();
             var nature = Object.FindAnyObjectByType<NatureFieldLayer>();
             var price = Object.FindAnyObjectByType<PriceFieldLayer>();
             var lattice = Object.FindAnyObjectByType<LatticeLayer>();
@@ -44,6 +46,8 @@ namespace StarGen.AtlasView.EditorTools
             // Edit mode: Awake never ran; each layer builds its own material.
             stars.EnsureMaterial();
             domains.EnsureMaterial();
+            interior.EnsureMaterial();
+            outposts.EnsureMaterial();
             nature.EnsureMaterial();
             price.EnsureMaterial();
             lattice.EnsureMaterial();
@@ -66,6 +70,8 @@ namespace StarGen.AtlasView.EditorTools
             var model = host.Model;
             stars.Show(model);
             domains.Show(model, eye);
+            interior.Show(model, eye);
+            outposts.Show(model, eye);
             nature.Show(model, eye);
             price.Show(model, eye);
             lattice.Prepare(model);
@@ -216,6 +222,8 @@ namespace StarGen.AtlasView.EditorTools
             plague.OnZoom(rig.Distance, extent);
             war.OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<PortLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<OutpostLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<DomainInteriorLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<NewsLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<DomainFieldLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<NatureFieldLayer>().OnZoom(rig.Distance, extent);

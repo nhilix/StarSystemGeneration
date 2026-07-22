@@ -46,6 +46,8 @@ namespace StarGen.AtlasView.EditorTools
 
             var stars = new GameObject("Starfield").AddComponent<StarfieldLayer>();
             var domains = new GameObject("DomainField").AddComponent<DomainFieldLayer>();
+            var interior = new GameObject("DomainInterior").AddComponent<DomainInteriorLayer>();
+            var outposts = new GameObject("OutpostLayer").AddComponent<OutpostLayer>();
             var nature = new GameObject("NatureField").AddComponent<NatureFieldLayer>();
             var price = new GameObject("PriceField").AddComponent<PriceFieldLayer>();
             var lattice = new GameObject("Lattice").AddComponent<LatticeLayer>();
@@ -61,8 +63,9 @@ namespace StarGen.AtlasView.EditorTools
             var atlasGo = new GameObject("Atlas");
             var host = atlasGo.AddComponent<SimHost>();
             var root = atlasGo.AddComponent<AtlasRoot>();
-            root.Wire(host, stars, domains, nature, lattice, lanes, ports,
-                      rig, fleets, pois, works, plague, war, news, price);
+            root.Wire(host, stars, domains, interior, outposts, nature, lattice,
+                      lanes, ports, rig, fleets, pois, works, plague, war, news,
+                      price);
 
             var selection = atlasGo.AddComponent<SelectionModel>();
             selection.Wire(root);

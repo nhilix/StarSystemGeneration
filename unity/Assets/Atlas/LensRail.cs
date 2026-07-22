@@ -219,6 +219,10 @@ namespace StarGen.AtlasView
             bool domainsVisible = _domains || _war || _tension || _tech;
             root.DomainField.SetVisible(domainsVisible);
             root.DomainField.SetAccent(Accent);
+            // AC1.3: the worked skeleton is interior structure ON the domains
+            // lens — it rides the existing chip, no new rail key. (Outpost
+            // marks are always-on, the subordinate sibling of the port dots.)
+            root.DomainInterior.SetVisible(domainsVisible);
             root.WarLayer.SetVisible(_war);
 
             bool lanesVisible = _lanes || _traffic || _plague;
