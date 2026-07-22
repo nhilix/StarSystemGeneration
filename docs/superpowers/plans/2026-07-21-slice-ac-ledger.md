@@ -180,6 +180,41 @@ Map grammar first; every later phase draws over it.
       (`docs/diagrams/unity-atlas-design.html` §8/§9) → write next kickoff →
       sync Trello (Slice AC → Merged; retire superseded K6 framing).
 
+## Sim-side observations surfaced at Eyeball 1 (NOT AC scope — file to sim roadmap)
+
+The atlas renders **faithfully** in both cases below (verified against the actual
+seed-42 artifact + `SystemQuery.At` dumps); these are pre-existing sim/generation
+gaps the catch-up *exposed*, exactly as the design's boundary anticipates ("if the
+surfaces make the flatness visible, that is evidence for a future pass, not scope
+here"). Both are the same theme: **the hex-tier generation layer and the epoch sim
+disagree about a hex.**
+
+- **Obs-A — facilities built in systemless "empty reach" hexes.** Arsenal #201 @
+  (58,-18) and Fabricator #154 @ (58,-19) exist with `Body=None` on hexes where
+  `SystemQuery.At` reports **`HasSystem=False`** (the generator produced no system
+  at all). DX's per-hex satellite siting (`CapabilityOps.ConstructionCandidatesFor`)
+  gates **only extraction** facilities on a resolvable body (Slice L Phase 2);
+  non-extraction types (Heavy/Processing/Support — arsenal, fabricator, gate) get
+  no system/body-presence check, so they land in empty space. Sibling of Slice L
+  follow-up #1 (adjacent-hex spillover) + `Siting.Score` body-blindness. Fix theme:
+  extend a system/body-presence (or real-adjacency) gate to non-extraction satellite
+  siting; pairs with the flat/sparse-economy pass.
+- **Obs-B — generation `Body.Settlement` decoupled from epoch settlement.**
+  `BodyGenerator.cs:78` table-picks `Body.Settlement ∈ {None,Outpost,Colony,
+  MajorWorld}` (`BodyTables.SettlementTable`); `SocietyGenerator` uses it only for
+  genesis society sizing. The `SystemStage` rings `settled` bodies **amber**
+  (`SettledColor 0xFF,0xBF,0x4F`) straight off this attribute. So a genesis-"Colony"
+  the epoch sim never populated shows as a live colony — e.g. **Mirin I @ (56,-17)**:
+  `settlement=Colony` but `PortId=-1, Facilities=0`, and it's a **Barren** world.
+  Fix theme (a design question): reconcile genesis settlement with epoch state, or
+  the atlas must distinguish "genesis backstory settlement" from "live epoch
+  settlement." **AC-adjacent question for the user:** is the amber ring meaning
+  genesis-flavor (leave as sim follow-up) or should AC clarify the ring's semantics
+  (small in-scope readability fix)?
+
+Route at wrap-up to the flat/sparse-economy pass roadmap + `docs/HANDOFF.md`;
+offer Trello cards. (Not fixed here — zero sim behavior.)
+
 ## Log (append as work lands)
 
 - **AC1.1+1.2 DONE** (commit `908c56f`, Opus). `DomainInteriorQuery.Card(model,
