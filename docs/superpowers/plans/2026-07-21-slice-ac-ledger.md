@@ -81,34 +81,40 @@ suite verified separately in a batch run.
 
 ---
 
-## Phase 1 — Domain interior (DX surfaces)  [spec §1]
+## Phase 1 — Domain interior (DX surfaces)  [spec §1]  ✅ CLOSED — Eyeball 1 ACCEPTED
 
-Map grammar first; every later phase draws over it.
+Map grammar first; every later phase draws over it. **Eyeball 1 accepted
+(2026-07-22)**: grammar reads right; mark size/alpha nudges deferred to the
+final polish/review pass (user call). Two sim-side gaps surfaced (Obs-A/Obs-B
+above) — filed, not fixed (zero sim behavior). **Committed `Atlas.unity` NOT yet
+regenerated** with the new layers — deferred to slice-end (regenerate once for
+all phases via `AtlasViewSceneSetup.RunFromCli`, editor closed; for a live
+eyeball before then run the "StarGen/Setup Atlas Scene" menu).
 
-- [ ] **AC1.1** — `DomainInteriorQuery` in Core.Atlas: for a port/domain scope,
+- [x] **AC1.1** — `DomainInteriorQuery` in Core.Atlas: for a port/domain scope,
       worked hexes (facilities where `MarketEngine.AttachedMarketIndex==portId`
       && hex≠port hex — the `DomainView.Render` derivation, moved to Core),
       outposts (`SimState.Outposts` by `ParentPortId`) each with name, parent
       port, resident presence (`Segments` at `(PortId,Hex)`), founding year,
       candidacy (`OutpostOps.FrontierStatus`), graduated flag. **Opus** (spans
       registry/facility/candidacy reads). TDD: xUnit query tests.
-- [ ] **AC1.2** — `DomainView.Render` (Inspector `domain <port>`) re-pointed at
+- [x] **AC1.2** — `DomainView.Render` (Inspector `domain <port>`) re-pointed at
       `DomainInteriorQuery` (parity; the Inspector stops holding its own
       derivation). Verify `domain` output byte-stable or intentionally-changed.
-- [ ] **AC1.3** — `DomainFieldLayer` interior structure: worked/outpost hexes
+- [x] **AC1.3** — `DomainFieldLayer` interior structure: worked/outpost hexes
       read as filled/inhabited against the plain domain glow. Stay in the
       visual grammar (glows/billboards, never a painted hex board). `.linear`
       vertex colors if any mesh colors are set.
-- [ ] **AC1.4** — Outpost marks: named marks in the port-mark family, visually
+- [x] **AC1.4** — Outpost marks: named marks in the port-mark family, visually
       subordinate (smaller, no service ring, no market affordance). Tooltip =
       name + candidacy. New `SelectionKind` + `InspectorDock` routing to parent
       port panels + an outpost row (no new `PanelType`).
-- [ ] **AC1.5** — Events: `OutpostFounded=314` (payload `OutpostId`) +
+- [x] **AC1.5** — Events: `OutpostFounded=314` (payload `OutpostId`) +
       graduation (rides `PortEstablished`) read correctly in news/chronicle
       surfaces. Verify copy/payload rendering.
-- [ ] **AC1.6** — `SystemStage`/`SystemQuery.At` satellite-hex works: **verify,
+- [x] **AC1.6** — `SystemStage`/`SystemQuery.At` satellite-hex works: **verify,
       don't rebuild** (`SystemQuery.cs:114` already filters per hex).
-- [ ] **AC1.G** — Phase gate: `dotnet test` green + golden byte-untouched
+- [x] **AC1.G** — Phase gate: `dotnet test` green + golden byte-untouched
       (asserted) · determinism · EditMode green (`LegendDriftTests` if a
       domain-mode key changed) · **Eyeball 1** (seed 42 late-epoch: worked
       hexes + named outpost structure a domain; a graduated outpost reads as a

@@ -1,3 +1,88 @@
+# Session Handoff — 2026-07-22 (Slice AC · PHASE 1 CLOSED — domain interior · Phase 2 next, fresh session)
+
+**Slice AC (the atlas catch-up) is IN PROGRESS on branch `claude/slice-ac-0e02d9`,
+worktree `.claude/worktrees/slice-ac-0e02d9/`. NOT merged** — this is a
+**mid-slice phase handoff**: Phase 1 (of 4) is done and eyeball-accepted; a
+**separate session picks up Phase 2** on this same branch/worktree. The design is
+one mega-slice, four independently-mergeable phase gates, but **one fable
+whole-branch review + one merge at slice END** (after Phase 4), per the spec —
+do NOT merge per phase. Design spec:
+`docs/superpowers/specs/2026-07-21-ac-atlas-catchup-design.md`. Kickoff:
+`docs/superpowers/plans/2026-07-21-slice-ac-kickoff-prompt.md`. **The committed
+ledger `docs/superpowers/plans/2026-07-21-slice-ac-ledger.md` is the live
+resumability record — read it first; it holds the full seam map, the 5 decided
+implementation choices, the per-phase task breakdown (AC2.x…AC4.x), and the two
+sim observations below.**
+
+**Branch state (HEAD `884f106`), linear:** `908c56f` DomainInteriorQuery extracted
+into Core.Atlas (+REPL parity) · `7d9c92a` domain interior render path · `6404139`
+outpost selection/tooltip/panel · plus ledger commits. (An implementer briefly
+committed on a stray branch `slice-ac-domain-interior`; already folded into
+`claude/slice-ac-0e02d9` and deleted — no work lost.) **Branch pushed to origin.**
+
+**Phase 1 gate — GREEN:** `dotnet test` **1227/1227** (1218 base + 9) · seed-42
+golden **byte-untouched** (asserted, git-clean — zero sim behavior) · Unity
+compile clean (326KB log) · EditMode **16/16** (14 base + 2). **Eyeball 1
+ACCEPTED** (2026-07-22): domain skeleton + outpost marks read right; mark
+size/alpha nudges deferred to the final polish pass.
+
+**What Phase 1 shipped:** `DomainInteriorQuery.Card(model,eye,portId)` in
+Core.Atlas (worked hexes + outposts + candidacy + graduated + events; `domain
+<port>` REPL re-pointed at it, byte-parity pinned). Unity: a **subordinate
+billboard marks layer** (`DomainInteriorMarks` derivation + `DotMarkLayer` base +
+`DomainInteriorLayer` worked-dust + `OutpostLayer`), riding the existing
+**domains** lens (NO new rail key). `SelectionKind.Outpost` + pure
+`SelectionModel.Resolve` (outpost after Port, before Project/Shipment/Fleet/Poi) +
+tooltip. **Outpost panel routing (accepted):** an outpost click opens the parent
+port's Polity+Market panels and renders a leading "SELECTED OUTPOST" section in
+the Market panel via a new non-breaking `PanelRequest.SubId` (no new PanelType).
+
+**Env already set up in the worktree** (a fresh session inherits it): gitignored
+`src/Core/csc.rsp` + `unity/Packages/manifest.json` + `packages-lock.json` copied
+from main; **Unity Library cache is warm** (incremental compile/EditMode are ~1-2
+min, not the 10-min first import). `dotnet` base 1218, EditMode base 14.
+
+**Two DEFERRED items (not Phase-2 blockers):**
+1. **Committed `unity/Assets/Scenes/Atlas.unity` NOT regenerated** with Phase-1's
+   new layers — regenerate ONCE at slice-end for all phases via
+   `AtlasViewSceneSetup.RunFromCli` (batchmode, **editor must be CLOSED**), commit
+   as a `chore: atlas scene rebuilt` (K4/K5 precedent). For a live-editor eyeball
+   before then, run the **"StarGen/Setup Atlas Scene"** menu item.
+2. **11 untracked `src/Core/**/*.cs.meta`** for pre-existing Core files —
+   `.gitignore:491` wants them tracked; fold into the AC4.4 cheap-debt sweep.
+   **Never `git add -A`** meanwhile (would sweep them + ProjectSettings churn).
+
+**Two SIM-SIDE gaps surfaced at Eyeball 1 (atlas is FAITHFUL — file to sim
+roadmap, do NOT fix in AC; user decided leave-as-is):** see the ledger's
+"Sim-side observations" section for full evidence.
+- **Obs-A:** non-extraction satellite facilities (arsenal #201 @(58,-18),
+  fabricator #154 @(58,-19)) built in `HasSystem=False` "empty reach" hexes — DX
+  per-hex siting gates only *extraction* on a body.
+- **Obs-B:** generation `Body.Settlement` (Mirin I @(56,-17) = `Colony`, Barren,
+  no epoch port/facilities) rings amber in `SystemStage` — genesis-flavor
+  decoupled from epoch settlement. **User decision: the amber "settled" ring stays
+  as-is; reconciliation is future sim work.**
+
+**NEXT UP — Phase 2 (economy/trade, the old K6), spec §2, ledger tasks AC2.1–AC2.G.**
+Fresh session: run the slice-session workflow against this branch/worktree (scope
+is already nodded — this is a continuation, so a one-line re-confirm suffices).
+Subagent-driven-development; **Sonnet default, escalate `TradeLens` (AC2.1) to
+Opus** (the one derivation-move with drift risk). **No per-task reviews** (project
+convention — one fable whole-branch review at slice END). **Dispatch implementers
+synchronously (`run_in_background:false`) and verify with `git log`** (the standing
+trap; an implementer already strayed onto its own branch this session). Phase-2
+decided choices (in the ledger): freight **purpose is derived** (`CourierOps.
+OfShipment`+`Channel`, not a stored field); `TradeLens` **keeps the saturation
+filter verbatim** (`BookOps.AskQty(cheapPort,good)>1e-9`); a new rail key threads
+through **three** places (`LegendQuery.For` + `LensRail` + `LegendDriftTests.
+RailKeys`) + `EpochMapView` for REPL parity. Reading: spec §2, the CE spec, the K3
+ledger (DockKit/panels), `EpochMapView.TradeCells` (`src/Inspector/EpochMapView.cs:361`),
+`BookOps`/`CourierOps`. Unity gates: **editor must be CLOSED for batchmode**
+(compile/EditMode/AtlasSmoke); `atlas-smoke*.png` land at worktree root
+(gitignored). Per-phase Eyeball 2 at phase end.
+
+---
+
 # Session Handoff — 2026-07-20 (Slice DX MERGED + PUSHED · a starport's domain comes alive)
 
 **Slice DX — domain hex expansion — MERGED & PUSHED** to `main` at `6ab5f0f`
