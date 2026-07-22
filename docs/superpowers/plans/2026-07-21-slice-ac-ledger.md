@@ -181,3 +181,39 @@ Map grammar first; every later phase draws over it.
       sync Trello (Slice AC → Merged; retire superseded K6 framing).
 
 ## Log (append as work lands)
+
+- **AC1.1+1.2 DONE** (commit `908c56f`, Opus). `DomainInteriorQuery.Card(model,
+  eye, portId)→DomainInteriorCard?` extracted into Core.Atlas; `DomainView.Render`
+  is now a pure formatter, output byte-identical (pinned by a new parity test).
+  Public shape: `DomainInteriorCard(PortId, Tier, Hex, OwnerActorId, OwnerName,
+  FoundedYear, SatelliteHexes[DomainSatelliteHex{Hex, Facilities[DomainFacilityRow{
+  Id,TypeName,Tier,Active,Condition,Body}]}], Outposts[DomainOutpostCard{Id, Name,
+  Hex, FoundingYear, Graduated, Candidacy(DomainCandidacyKind{Graduated,
+  FrontierNoPort, Frontier, Interior}, GraduatedPortId, FrontierStanding),
+  Residents[DomainResident{SegmentId, SpeciesId, Size, SoL}]}], Events[WorldEvent])`.
+  **1227/1227** (1218 + 9), golden untouched. **Carry:** `DomainResident` gives
+  `SpeciesId` not a resolved name — the Unity consumer (AC1.4) must resolve against
+  `state.Skeleton.Species` (same as the REPL) or we add `SpeciesName` to the query
+  if drift risk appears.
+- **AC1.3+1.4 DONE** (commits `7d9c92a`, `6404139`, Opus). Domain interior
+  surfaced in Unity: a **subordinate billboard marks layer** (`DomainInteriorMarks`
+  derivation Unity-side + `DotMarkLayer` base + `DomainInteriorLayer` worked-dust +
+  `OutpostLayer`), riding the existing **domains** lens (NO new rail key, legend
+  untouched), `.linear` vertex colors, worked/outpost non-overlap, graduated
+  outposts left as ports. `SelectionKind.Outpost` + pure `SelectionModel.Resolve`
+  (outpost after Port, before Project/Shipment/Fleet/Poi) + tooltip
+  (`name · candidacy`). **Panel-routing UI call (for the eyeball):** outpost click
+  opens the parent port's Polity+Market panels and renders a leading "SELECTED
+  OUTPOST" section inside the Market panel via a new non-breaking
+  `PanelRequest.SubId` (no new PanelType). +2 EditMode tests. **Carries for the
+  eyeball:** mark sizes/alpha are first-pass taste values; seed-42 has ONE live
+  outpost (Belmi, port #7) so worked-skeleton density reads best live/richer seed.
+- **Env cleanup:** reverted a CRLF-only churn on
+  `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` (Unity
+  re-save noise). **Latent debt found:** 11 untracked `src/Core/**/*.cs.meta` for
+  pre-existing Core files (BodyRef/Currency/ClockPlan/…) — `.gitignore:491`
+  (`!src/Core/**/*.meta`) intends them TRACKED but past slices committed the .cs
+  without metas; Unity regenerated them here. **Fold into AC4.4 cheap-debt sweep**;
+  never `git add -A` meanwhile.
+- **Phase 1 gate (AC1.G): dotnet 1227/1227 · golden byte-untouched (git-clean) ·
+  Unity compile clean (326KB log) · EditMode 16/16 (was 14).** → Eyeball 1.
