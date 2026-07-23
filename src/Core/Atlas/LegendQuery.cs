@@ -86,6 +86,20 @@ public static class LegendQuery
                     new LegendEntry(LegendSwatch.Stroke, TrafficLens.LaneHue,
                         "heavy — five or more trips a year"),
                 };
+            case "trade":
+                return new[]
+                {
+                    new LegendEntry(LegendSwatch.Stroke,
+                        new Rgba(TradeLens.MarginGold.R, TradeLens.MarginGold.G,
+                                 TradeLens.MarginGold.B, 60),
+                        "thin margin — barely worth the run"),
+                    new LegendEntry(LegendSwatch.Stroke,
+                        new Rgba(TradeLens.MarginGold.R, TradeLens.MarginGold.G,
+                                 TradeLens.MarginGold.B, 150),
+                        "firm margin — a worthwhile trip"),
+                    new LegendEntry(LegendSwatch.Stroke, TradeLens.MarginGold,
+                        "steep margin — arbitrage territory, price doubled or more"),
+                };
             case "fleets":
                 return new[]
                 {

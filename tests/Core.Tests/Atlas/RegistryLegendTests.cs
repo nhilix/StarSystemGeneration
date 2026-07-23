@@ -103,7 +103,7 @@ public class RegistryLegendTests
     public void EveryRailLensHasALegend()
     {
         foreach (var key in new[] { "domains", "war", "tension", "lanes",
-            "traffic", "fleets", "works", "price", "tech", "plague",
+            "traffic", "trade", "fleets", "works", "price", "tech", "plague",
             "news", "pois", "ports", "nature" })
         {
             var entries = LegendQuery.For(key, GoodId.Provisions);

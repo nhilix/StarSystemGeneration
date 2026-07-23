@@ -8,8 +8,10 @@ namespace StarGen.AtlasView
     /// <summary>What the lane strokes say (K2): Status is the K1 read
     /// (open/quarantined/severed colors), Traffic weights width and
     /// brightness by posted trips/year, QuarantineOnly is the plague
-    /// lens's approaches-closed read with the rest of the network dark.</summary>
-    public enum LaneMode { Status, Traffic, QuarantineOnly }
+    /// lens's approaches-closed read with the rest of the network dark,
+    /// Trade (AC2.3) weights width and brightness by the steepest
+    /// actionable price gradient on the lane (margin gold).</summary>
+    public enum LaneMode { Status, Traffic, QuarantineOnly, Trade }
 
     /// <summary>Lanes as thin, screen-constant highways on the plane.
     /// Base width tracks camera altitude continuously; each stroke can
@@ -21,6 +23,10 @@ namespace StarGen.AtlasView
         private const float Z = -0.05f;
         private const float WidthPx = 1.4f;
         private const float FovDegrees = 50f;
+        // Dead-lane trade idle read — matches TrafficLens.IdleAlpha and
+        // TradeLens's own flat-spread floor (both 45): posted, nothing
+        // to arbitrage.
+        private const byte IdleTradeAlpha = 45;
 
         private readonly struct Stroke
         {
@@ -128,6 +134,40 @@ namespace StarGen.AtlasView
                         AtlasGeometry.HexToWorld(seg.A, Z),
                         AtlasGeometry.HexToWorld(seg.B, Z),
                         AtlasGeometry.ToColor32(seg.Color), factor));
+                }
+                return;
+            }
+            if (_mode == LaneMode.Trade)
+            {
+                // Segments emits LIVE lanes only — match by LaneId, never by
+                // index. A lane with no reading (dead, or the lane lens's
+                // wound) draws the same idle treatment traffic gives a
+                // posted-but-quiet lane: ghost-thin margin gold.
+                var byLane = new Dictionary<int, TradeSegment>();
+                foreach (var seg in TradeLens.Segments(_model, _eye))
+                    byLane[seg.LaneId] = seg;
+                foreach (var lane in _model.State.Lanes)
+                {
+                    var a = _model.State.Ports[lane.PortAId].Hex;
+                    var b = _model.State.Ports[lane.PortBId].Hex;
+                    if (byLane.TryGetValue(lane.Id, out var seg))
+                    {
+                        float factor = 0.45f + 2.55f * (float)seg.Weight;
+                        _strokes.Add(new Stroke(
+                            AtlasGeometry.HexToWorld(seg.A, Z),
+                            AtlasGeometry.HexToWorld(seg.B, Z),
+                            AtlasGeometry.ToColor32(seg.Color), factor));
+                    }
+                    else
+                    {
+                        var idle = new Rgba(TradeLens.MarginGold.R,
+                            TradeLens.MarginGold.G, TradeLens.MarginGold.B,
+                            IdleTradeAlpha);
+                        _strokes.Add(new Stroke(
+                            AtlasGeometry.HexToWorld(a, Z),
+                            AtlasGeometry.HexToWorld(b, Z),
+                            AtlasGeometry.ToColor32(idle), 0.45f));
+                    }
                 }
                 return;
             }

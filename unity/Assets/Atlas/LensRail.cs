@@ -31,7 +31,7 @@ namespace StarGen.AtlasView
 
         // The lens selection — what the user has toggled on.
         private bool _domains = true, _war, _tension, _tech;
-        private bool _lanes = true, _traffic, _fleets, _works, _price;
+        private bool _lanes = true, _traffic, _trade, _fleets, _works, _price;
         private bool _plague, _news, _pois;
         private GoodId _priceGood = GoodId.Provisions;
         private NatureLayer? _nature;
@@ -49,6 +49,7 @@ namespace StarGen.AtlasView
             : _tech ? "tech"
             : _plague ? "plague"
             : _price ? "price"
+            : _trade ? "trade"
             : _traffic ? "traffic"
             : _works ? "works"
             : _fleets ? "fleets"
@@ -107,9 +108,15 @@ namespace StarGen.AtlasView
 
             Group(rail, "LOGISTICS");
             Chip(rail, "lanes", new Color32(0x56, 0xC4, 0xDC, 255),
-                 () => _lanes, v => { _lanes = v; if (v) _traffic = false; });
+                 () => _lanes,
+                 v => { _lanes = v; if (v) _traffic = _trade = false; });
             Chip(rail, "traffic", new Color32(0x2E, 0x7E, 0x96, 255),
-                 () => _traffic, v => { _traffic = v; if (v) _lanes = false; });
+                 () => _traffic,
+                 v => { _traffic = v; if (v) _lanes = _trade = false; });
+            Chip(rail, "trade", new Color32(TradeLens.MarginGold.R,
+                     TradeLens.MarginGold.G, TradeLens.MarginGold.B, 255),
+                 () => _trade,
+                 v => { _trade = v; if (v) _lanes = _traffic = false; });
             Chip(rail, "fleets", new Color32(0xC7, 0xD3, 0xEA, 255),
                  () => _fleets, v => _fleets = v);
             Chip(rail, "works", new Color32(0xF0, 0xC3, 0x5F, 255),
@@ -225,10 +232,11 @@ namespace StarGen.AtlasView
             root.DomainInterior.SetVisible(domainsVisible);
             root.WarLayer.SetVisible(_war);
 
-            bool lanesVisible = _lanes || _traffic || _plague;
+            bool lanesVisible = _lanes || _traffic || _trade || _plague;
             root.LaneLayer.SetVisible(lanesVisible);
             root.LaneLayer.SetMode(
                 _traffic ? LaneMode.Traffic
+                : _trade ? LaneMode.Trade
                 : _lanes ? LaneMode.Status
                 : LaneMode.QuarantineOnly);
 

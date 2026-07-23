@@ -134,6 +134,10 @@ namespace StarGen.AtlasView.EditorTools
             Capture(cam, "atlas-smoke-traffic.png");
             lanes.SetMode(LaneMode.Status);
 
+            lanes.SetMode(LaneMode.Trade);
+            Capture(cam, "atlas-smoke-trade.png");
+            lanes.SetMode(LaneMode.Status);
+
             fleets.SetVisible(true);
             Capture(cam, "atlas-smoke-fleets.png");
             fleets.SetVisible(false);
