@@ -284,8 +284,31 @@ disagree about a hex.**
   genesis-flavor (leave as sim follow-up) or should AC clarify the ring's semantics
   (small in-scope readability fix)?
 
+- **Obs-C — off-lane routing is all-or-nothing and unpriced (Eyeball 4,
+  2026-07-23).** User observed 30-40+ hex off-lane courier crawls spanning
+  distances that would be 3-4 gate spans on the network. Verified cause:
+  `ShipmentOps.PlanRoute` (`ShipmentOps.cs:136-153`) elects off-lane ONLY
+  when `LaneNetwork.ShortestPath` finds no live path — and then the ENTIRE
+  journey is one direct crawl. **No mixed routing exists** (lane spans + a
+  short crawl across a gap): one missing link anywhere converts a mostly-
+  laned journey into a full multi-decade crawl. Compounding: contract
+  posting/acceptance nowhere weighs transit years (couriers with 50y+ ETAs
+  get posted and fulfilled), and `PlanBestRoute`'s comment records that the
+  value/urgency-weighted election was explicitly deferred ("design
+  boundary"). Fix themes for the sim review: (a) mixed lane+off-lane path
+  planning; (b) transit-time discount in courier posting/acceptance;
+  (c) the deferred weighted election. Connects to the market-locality
+  research's known off-lane locality gap.
+
 Route at wrap-up to the flat/sparse-economy pass roadmap + `docs/HANDOFF.md`;
 offer Trello cards. (Not fixed here — zero sim behavior.)
+
+- **Eyeball 4 fix (atlas-side, FIXED `df0f992`):** live off-lane crawls
+  double-drew — dashed crawl path + their own launch-step violet memory
+  trail on the same line. `RecentFlowQuery.Trails` now suppresses a trail
+  whose shipment is still in flight at the keyframe (live = crawl's job;
+  trail = completed movement); `eflows` keeps every row, tagging
+  `(in transit)`. 1301/1301 · compile clean · EditMode 16/16 · smoke 18/18.
 
 ## Log (append as work lands)
 
