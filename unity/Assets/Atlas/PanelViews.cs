@@ -37,6 +37,7 @@ namespace StarGen.AtlasView
                 case PanelType.ChroniclePlace: return ChroniclePlace(request, ctx, body);
                 case PanelType.Eras: return Eras(ctx, body);
                 case PanelType.Threads: return Threads(ctx, body);
+                case PanelType.Contracts: return Contracts(ctx, body);
                 case PanelType.Find: return Find(request, ctx, body);
                 case PanelType.Goods: return Goods(ctx, body);
                 case PanelType.Knobs: return Knobs(request, ctx, body);
@@ -79,6 +80,48 @@ namespace StarGen.AtlasView
                 text.style.flexShrink = 1f;
             }
             return ("OPEN THREADS", body);
+        }
+
+        /// <summary>The courier job board (AC2.5, `econtracts` parity):
+        /// open + in-transit contracts — route (by owner name, ports have
+        /// none of their own), cargo, fee, and fulfiller once accepted.
+        /// WAR priority gets the same red tag STALLED wears elsewhere — a
+        /// war convoy jumping the queue is exactly that kind of fact.
+        /// A row opens the DESTINATION port's Market (the ShipmentPanel
+        /// row-click idiom) — where the delivery lands.</summary>
+        private static (string, VisualElement) Contracts(PanelContext ctx,
+                                                          VisualElement body)
+        {
+            var rows = ContractsPanel.Rows(ctx.Model, ctx.Eye);
+            Line(body, Inv($"the courier board — {rows.Count} open ")
+                + (rows.Count == 1 ? "contract" : "contracts"), dim: true);
+            if (rows.Count == 0)
+                Line(body, "(a quiet board — nothing posted)", dim: true);
+            foreach (var c in rows)
+            {
+                var captured = c;
+                var row = Row(body, () => ctx.Open(new PanelRequest(
+                    PanelType.Market, captured.DestPortId)));
+                if (captured.Priority == Core.Epoch.CourierPriority.War)
+                    Tag(row, "WAR", "bad");
+                var cargo = new List<string>();
+                foreach (var line in captured.Cargo)
+                {
+                    if (cargo.Count >= 3) break;
+                    cargo.Add(Inv($"{line.Qty:0.#} {line.GoodName}"));
+                }
+                string status = captured.Status == Core.Epoch.CourierStatus.Open
+                    ? "OPEN"
+                    : Inv($"in transit ({captured.FulfillerName})");
+                var text = Line(row, Inv($"#{captured.Id} ")
+                    + captured.OriginPortOwnerName + " → "
+                    + captured.DestPortOwnerName + " · "
+                    + string.Join(", ", cargo)
+                    + Inv($" · fee {captured.FeeEscrow:0.0} · ") + status
+                    + " (" + captured.PosterName + ")");
+                text.style.flexShrink = 1f;
+            }
+            return ("CONTRACTS", body);
         }
 
         // ---- selection panels ----

@@ -954,29 +954,37 @@ public sealed class Repl
         }
     }
 
-    /// <summary>`econtracts` (slice CE): the courier job board — open and
-    /// in-transit contracts with route, cargo, fee, and fulfiller.</summary>
+    /// <summary>`econtracts` (slice CE; AC2.5 re-point): the courier job
+    /// board — open and in-transit contracts with route, cargo, fee, and
+    /// fulfiller. A pure formatter over <see
+    /// cref="Core.Atlas.ContractsPanel"/> — the derivation (registry walk,
+    /// poster filter, fulfiller resolution) lives in Core now, the SAME
+    /// query a future Unity job-board panel reads.</summary>
     private static void RenderContracts(Core.Epoch.SimState sim, int poster)
     {
+        var rows = Core.Atlas.ContractsPanel.Rows(
+            new Core.Atlas.AtlasReadModel(sim),
+            Core.Atlas.EyeContext.God(sim.WorldYear), poster);
         bool any = false;
         Console.WriteLine("  id     prio    route          cargo                        fee      status");
-        foreach (var c in sim.Couriers)
+        foreach (var c in rows)
         {
-            if (poster >= 0 && c.PosterActorId != poster) continue;
             any = true;
             var cargo = new System.Collections.Generic.List<string>();
-            for (int g = 0; g < c.Qty.Length && cargo.Count < 3; g++)
-                if (c.Qty[g] > 0)
-                    cargo.Add(FormattableString.Invariant(
-                        $"{c.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            foreach (var line in c.Cargo)
+            {
+                if (cargo.Count >= 3) break;
+                cargo.Add(FormattableString.Invariant(
+                    $"{line.Qty:0.#} {line.GoodName}"));
+            }
             string status = c.Status == Core.Epoch.CourierStatus.Open
                 ? "OPEN"
-                : $"in transit ({OwnerName(sim, c.FulfillerActorId)})";
+                : $"in transit ({c.FulfillerName})";
             Console.WriteLine(FormattableString.Invariant(
                 $"  #{c.Id,-6} {c.Priority,-7} #{c.OriginPortId}->#{c.DestPortId,-8} ")
                 + FormattableString.Invariant(
                 $"{string.Join(", ", cargo),-28} {c.FeeEscrow,7:0.0}  ")
-                + status + $"  ({OwnerName(sim, c.PosterActorId)})");
+                + status + $"  ({c.PosterName})");
         }
         if (!any) Console.WriteLine("  (no open contracts)");
     }

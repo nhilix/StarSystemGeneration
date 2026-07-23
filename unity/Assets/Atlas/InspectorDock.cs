@@ -14,7 +14,7 @@ namespace StarGen.AtlasView
         Hex, Polity, Market, Project, Shipment, Fleet, Designs, Wars, War,
         Relations, Character, Corporations, Poi, Beliefs, News, Stances,
         Chronicle, ChroniclePlace, Eras, Threads, Find, Goods, Knobs, Stats,
-        Facility, System,
+        Facility, System, Contracts,
     }
 
     /// <summary>What to open: a panel type plus its subject id/hex/text
