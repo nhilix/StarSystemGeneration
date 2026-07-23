@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Atlas;
+using StarGen.Core.Epoch;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -60,10 +61,14 @@ namespace StarGen.AtlasView
         /// captured flows (Core renders per sailed leg, aggregates
         /// corridors, and filters to the two rendering purposes — this
         /// only draws; the flows carry their own route hexes, so no state
-        /// lookup is needed here at all).</summary>
-        public void Show(IReadOnlyList<RecentFlow> flows)
+        /// lookup is needed here at all). <paramref name="inFlightShipments"/>
+        /// (Eyeball 4 fix): a shipment still in the live registry at this
+        /// moment is the crawl's job to draw — Core suppresses its trail so
+        /// the two never double-draw the same origin→dest line.</summary>
+        public void Show(IReadOnlyList<RecentFlow> flows,
+            IReadOnlyCollection<Shipment> inFlightShipments = null)
         {
-            _trails = RecentFlowQuery.Trails(flows);
+            _trails = RecentFlowQuery.Trails(flows, inFlightShipments);
             Rebuild();
         }
 

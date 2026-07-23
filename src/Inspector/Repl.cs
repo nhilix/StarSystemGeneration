@@ -986,9 +986,15 @@ public sealed class Repl
     /// this is their record. Empty until a step runs in-session — the same
     /// "none yet" a freshly loaded atlas artifact shows. Derivation is
     /// Core.Atlas.RecentFlowQuery's (capture + Renders filter); this
-    /// formats.</summary>
+    /// formats. Eyeball 4 follow-up: the atlas TRAIL suppresses a flow
+    /// still in flight (the crawl draws it instead), but `eflows` lists
+    /// what launched — every row still prints, tagged "(in transit)" for a
+    /// shipment still in the live registry, so the list is never lighter
+    /// than what actually happened this step.</summary>
     private void RenderFlows(Core.Epoch.SimState sim)
     {
+        var inFlight = new System.Collections.Generic.HashSet<int>();
+        foreach (var s in sim.Shipments) inFlight.Add(s.Id);
         bool any = false;
         foreach (var f in _recentFlows)
         {
@@ -1011,9 +1017,10 @@ public sealed class Repl
             string route = FormattableString.Invariant(
                 $"#{f.OriginPortId}->#{f.DestPortId} ({f.RouteHexes.Count - 1} leg")
                 + (f.RouteHexes.Count - 1 == 1 ? ")" : "s)");
+            string transit = inFlight.Contains(f.ShipmentId) ? " (in transit)" : "";
             Console.WriteLine(FormattableString.Invariant(
                 $"  #{f.ShipmentId,-6} {purpose,-11} {route,-16} ")
-                + $"{string.Join(", ", cargo),-32} ({owner})");
+                + $"{string.Join(", ", cargo),-32} ({owner}){transit}");
         }
         if (!any)
             Console.WriteLine("no recent courier/war-convoy flows — estep to "

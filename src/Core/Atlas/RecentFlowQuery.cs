@@ -61,15 +61,30 @@ public static class RecentFlowQuery
     /// (the eyeball-fix rule): each flow contributes one stroke per route
     /// leg — never a straight origin→dest line across hexes no lane
     /// connects (an off-lane crawl's single leg IS the direct line, the
-    /// honest special case). Filtered to the rendering purposes;
-    /// aggregated per (leg, purpose) with the leg's hex pair normalized so
-    /// both sailing directions stack one corridor's intensity; emitted in
-    /// first-seen order at first-seen orientation (capture order is
-    /// dispatch order — deterministic); purpose tint at trail alpha.</summary>
+    /// honest special case). Filtered to the rendering purposes AND to
+    /// flows that have actually completed (Eyeball 4, AC2.F2 follow-up):
+    /// a shipment still present in <paramref name="inFlightShipments"/> at
+    /// the queried moment is the live crawl's job to draw — trailing it
+    /// too double-draws the same origin→dest line. Only the keyframe that
+    /// captured the launch can ever hold it, so this only ever suppresses
+    /// the launching keyframe's own trail; a flow that delivered within its
+    /// step (the common courier case) still trails, and later keyframes
+    /// never re-capture it. Aggregated per (leg, purpose) with the leg's
+    /// hex pair normalized so both sailing directions stack one corridor's
+    /// intensity; emitted in first-seen order at first-seen orientation
+    /// (capture order is dispatch order — deterministic); purpose tint at
+    /// trail alpha.</summary>
     public static IReadOnlyList<FlowTrailMark> Trails(
-        IReadOnlyList<RecentFlow> flows)
+        IReadOnlyList<RecentFlow> flows,
+        IReadOnlyCollection<Shipment>? inFlightShipments = null)
     {
         if (flows.Count == 0) return Array.Empty<FlowTrailMark>();
+        HashSet<int>? inFlightIds = null;
+        if (inFlightShipments != null && inFlightShipments.Count > 0)
+        {
+            inFlightIds = new HashSet<int>();
+            foreach (var s in inFlightShipments) inFlightIds.Add(s.Id);
+        }
         var order = new List<(HexCoordinate From, HexCoordinate To,
                               FreightPurpose P)>();
         var counts = new Dictionary<(HexCoordinate, HexCoordinate,
@@ -77,6 +92,9 @@ public static class RecentFlowQuery
         foreach (var f in flows)
         {
             if (!Renders(f.Purpose)) continue;
+            // still in flight at the queried moment: the crawl draws it
+            if (inFlightIds != null && inFlightIds.Contains(f.ShipmentId))
+                continue;
             for (int leg = 0; leg + 1 < f.RouteHexes.Count; leg++)
             {
                 var from = f.RouteHexes[leg];

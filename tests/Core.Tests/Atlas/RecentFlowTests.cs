@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using StarGen.Core.Atlas;
 using StarGen.Core.Epoch;
@@ -160,6 +161,63 @@ public class RecentFlowTests
         Assert.Equal(H0, mark.From);
         Assert.Equal(H1, mark.To);
         Assert.Equal(2, mark.Flows);
+    }
+
+    [Fact]
+    public void Trails_ShipmentStillInFlight_YieldsNoTrail()
+    {
+        // Eyeball 4 finding: a shipment still in state.Shipments at the
+        // queried moment is the live crawl's job to draw — trailing it
+        // too double-draws the same origin→dest line
+        var flows = new[] { Flow(1, FreightPurpose.Courier, H0, H1) };
+        var inFlight = new[]
+        {
+            new Shipment(1, 0, ShipmentChannel.Freight, 0, 1, 0,
+                Array.Empty<int>(), new double[] { 5 }),
+        };
+
+        var trails = RecentFlowQuery.Trails(flows, inFlight);
+
+        Assert.Empty(trails);
+    }
+
+    [Fact]
+    public void Trails_SameFlow_ShipmentDelivered_YieldsItsTrail()
+    {
+        // the same flow once its shipment is no longer in the registry
+        // (delivered within the step, the common courier case) still
+        // trails — only STILL in flight is suppressed
+        var flows = new[] { Flow(1, FreightPurpose.Courier, H0, H1) };
+
+        var trails = RecentFlowQuery.Trails(flows,
+            inFlightShipments: Array.Empty<Shipment>());
+
+        var mark = Assert.Single(trails);
+        Assert.Equal(H0, mark.From);
+        Assert.Equal(H1, mark.To);
+    }
+
+    [Fact]
+    public void Trails_InFlightFilter_OnlySuppressesItsOwnShipment()
+    {
+        // one flow's shipment is still in flight, a second flow's is not —
+        // only the matching one is suppressed
+        var flows = new[]
+        {
+            Flow(1, FreightPurpose.Courier, H0, H1),
+            Flow(2, FreightPurpose.Courier, H1, H2),
+        };
+        var inFlight = new[]
+        {
+            new Shipment(1, 0, ShipmentChannel.Freight, 0, 1, 0,
+                Array.Empty<int>(), new double[] { 5 }),
+        };
+
+        var trails = RecentFlowQuery.Trails(flows, inFlight);
+
+        var mark = Assert.Single(trails);
+        Assert.Equal(H1, mark.From);
+        Assert.Equal(H2, mark.To);
     }
 
     [Fact]

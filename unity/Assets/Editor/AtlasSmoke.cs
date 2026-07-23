@@ -91,8 +91,10 @@ namespace StarGen.AtlasView.EditorTools
             pois.Show(model, eye);
             works.Show(model, eye);
             // AC2.F2: the loaded base frame has no captured flows (no step
-            // preceded it in-session) — an honest empty, same as the REPL
-            flowTrails.Show(host.Machine.CurrentFlows);
+            // preceded it in-session) — an honest empty, same as the REPL.
+            // Eyeball 4 fix: pass the live registry so a still-in-flight
+            // shipment's trail is suppressed (the crawl draws it instead).
+            flowTrails.Show(host.Machine.CurrentFlows, host.State.Shipments);
             // AC4.1: off-lane crawl paths — the loaded base frame's own
             // off-lane shipments (if any survived to this artifact year)
             crawlPaths.Show(model, eye);

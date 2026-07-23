@@ -135,11 +135,14 @@ namespace StarGen.AtlasView
             // AC2.F2: the trails read the TimeMachine's per-keyframe flow
             // capture (in-memory beside the keyframe, never on the state) —
             // null-guarded so an older serialized scene stays alive until
-            // the setup regenerates it
+            // the setup regenerates it. Eyeball 4 fix: pass the live
+            // registry so Core can suppress the trail of any shipment
+            // still in flight — that's the crawl's job, not the trail's.
             if (flowTrailLayer != null)
                 flowTrailLayer.Show(simHost.Machine != null
                     ? simHost.Machine.CurrentFlows
-                    : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>());
+                    : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>(),
+                    simHost.State?.Shipments);
             // AC4.1: live off-lane crawl paths — null-guarded for the same
             // reason as the trails (an older serialized scene predating
             // this layer stays alive until the setup regenerates it)
