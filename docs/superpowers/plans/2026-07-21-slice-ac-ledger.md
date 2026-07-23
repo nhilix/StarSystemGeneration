@@ -155,21 +155,44 @@ Alpha 70/130 stands for now; final polish pass may revisit.
       wave (AC2.F1 tables `7aff333`, AC2.F2 recent flows `6376180`, per-leg
       trails `38de1e2`; final gate dotnet **1276/1276**).
 
-## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]
+## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]  — gate GREEN, Eyeball 3 pending
 
-- [ ] **AC3.1** — Currency-zone tint mode on the existing polity/domain render
+- [x] **AC3.1** — Currency-zone tint mode on the existing polity/domain render
       (`DomainAccent` gains a `Currency` member; tint by currency id, unions
       share a color, `Retired` zone disappears). Legend drift-tested.
-- [ ] **AC3.2** — `PolityCard` monetary block: currency name, numeraire/FX rate
+- [x] **AC3.2** — `PolityCard` monetary block: currency name, numeraire/FX rate
       + recent drift, bank reserve, backing ratio (`Reserve/ClaimOnState`) —
       mirror `InteriorView.cs:47-77`. `PolityPanel` query + `PanelViews` arm.
-- [ ] **AC3.3** — `MarketCard` prices state their currency
+      *(Drift NOT derivable read-only — no stored rate history anywhere in
+      state; rate shown alone, gap filed below.)*
+- [x] **AC3.3** — `MarketCard` prices state their currency
       (`LocalCurrencyOf(portId)` → currency name) — no reader guesses the unit.
-- [ ] **AC3.4** — `RelationsPanel` names monetary credibility where CU-4's term
-      participates (BackedShare-derived, read-only, no new derivation).
-- [ ] **AC3.G** — Phase gate + **Eyeball 3** (currency mode shows zones; a
-      union shares one tint; a polity panel reads reserve/backing/rate coherent
-      with the REPL line).
+- [x] **AC3.4** — `RelationsPanel` names monetary credibility where CU-4's term
+      participates (BackedShare-derived, read-only, no new derivation; the
+      panel had no natural row — minimal federation-context row added).
+- [ ] **AC3.G** — Phase gate ✅ (2026-07-22: dotnet **1289/1289** · golden
+      byte-untouched (last golden touch `93a4ea1`, pre-Phase-2) · determinism
+      green · Unity compile clean · EditMode **16/16** · AtlasSmoke **18/18**
+      incl. `atlas-smoke-currency.png` with real zones) + **Eyeball 3**
+      PENDING (currency mode zones; union shares a tint; polity panel
+      reserve/backing/rate vs REPL line — panels are live-editor only).
+
+### Phase 3 log
+- **AC3.1 DONE** (`5bf598f`, Sonnet). `CurrencyLens` (new) — deterministic
+  currency-id→color slots, retired zones drop out; fifth accent
+  `DomainAccent.Currency` on `DomainFieldLayer`; `LensRail` + `LegendQuery`
+  + `LegendDriftTests` in sync; smoke gained the currency shot. 1281 (+5).
+- **AC3.2 DONE** (`a4a7de3`, Sonnet). `PolityCard` monetary block
+  (currency/bank/claims incl. backing guard mirrored from the REPL);
+  table-kit rows; REPL untouched, parity by shared-source-field test.
+  1285 (+4). **Gap filed: numeraire-rate drift needs stored rate history —
+  sim-side, route to roadmap at wrap-up.**
+- **AC3.3+3.4 DONE** (`8bf9ee0`, Sonnet, combined — shared `PanelViews`
+  edits). Market panel states its currency at header level (sentinel for
+  currencyless); relations gained a minimal BackedShare credibility row
+  (absent pre-genesis). 1289 (+4).
+- **Phase 3 gate (AC3.G) GREEN** — evidence `.superpowers/sdd/ac3.G-gate.md`.
+  → Eyeball 3.
 
 ## Phase 4 — Off-lane, events, debt sweep (L2 + cheap debt)  [spec §4]
 
