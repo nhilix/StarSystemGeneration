@@ -98,6 +98,93 @@ namespace StarGen.AtlasView
             return btn;
         }
 
+        // ---- structured tables (AC2.F1) — market/book/contracts rows as
+        // aligned columns instead of dense concatenated lines. A "table" is
+        // a plain column of `.ssg-table__row`s; each row is a flex row of
+        // `.ssg-table__cell`s. Width classes (w36…w84) are small reusable
+        // buckets, not per-table bespoke classes — see AtlasChrome.uss.
+        // Cells truncate with ellipsis by default so a long name can never
+        // push a row wider than its table (no horizontal overflow).
+
+        public static VisualElement Table(VisualElement into)
+        {
+            var table = new VisualElement();
+            table.AddToClassList("ssg-table");
+            into.Add(table);
+            return table;
+        }
+
+        /// <summary>A non-interactive table row (header or plain data row).</summary>
+        public static VisualElement TableRow(VisualElement table,
+                                             bool head = false)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("ssg-table__row");
+            if (head) row.AddToClassList("ssg-table__row--head");
+            table.Add(row);
+            return row;
+        }
+
+        /// <summary>A clickable table row — the same block-cursor inversion
+        /// idiom as <see cref="Row"/>, applied to a table row instead of a
+        /// single-line one.</summary>
+        public static Button TableRowLink(VisualElement table, Action onClick)
+        {
+            var row = new Button { text = string.Empty };
+            row.AddToClassList("ssg-table__row");
+            row.AddToClassList("ssg-table__row--link");
+            if (onClick != null) row.clicked += onClick;
+            table.Add(row);
+            return row;
+        }
+
+        /// <summary>One plain-text table cell. <paramref name="widthClass"/>
+        /// is one of the ssg-table__cell--w* buckets, or null for a
+        /// flexible (grow/shrink/ellipsis) column — pass "flex" for that.
+        /// <paramref name="num"/> right-aligns for genuinely numeric
+        /// columns (qty, price, fee…); compound text (grade band, black
+        /// book) reads better left-aligned even in a numeric-leaning
+        /// column.</summary>
+        public static Label Cell(VisualElement row, string text,
+                                 string widthClass, bool num = false,
+                                 string mod = null, bool dim = false)
+        {
+            var cell = new Label(text);
+            cell.AddToClassList("ssg-table__cell");
+            if (widthClass != null)
+                cell.AddToClassList("ssg-table__cell--" + widthClass);
+            if (num) cell.AddToClassList("ssg-table__cell--num");
+            if (dim) cell.AddToClassList("ssg-table__cell--dim");
+            if (mod != null) cell.AddToClassList("ssg-table__cell--" + mod);
+            row.Add(cell);
+            return cell;
+        }
+
+        /// <summary>A two-line cell (main value + a dim sub-line, e.g. a
+        /// route with "posted by X" beneath it) — still one table column,
+        /// no extra row height beyond what the sub-line needs.</summary>
+        public static VisualElement CellStack(VisualElement row,
+                                              string widthClass)
+        {
+            var cell = new VisualElement();
+            cell.AddToClassList("ssg-table__cell");
+            cell.AddToClassList("ssg-table__cell--stack");
+            if (widthClass != null)
+                cell.AddToClassList("ssg-table__cell--" + widthClass);
+            row.Add(cell);
+            return cell;
+        }
+
+        public static Label CellLine(VisualElement stackCell, string text,
+                                     bool dim = false)
+        {
+            var label = new Label(text);
+            label.AddToClassList("ssg-table__line");
+            if (dim) label.AddToClassList("ssg-table__line--dim");
+            stackCell.Add(label);
+            return label;
+        }
+
         public static string Inv(FormattableString text) =>
             FormattableString.Invariant(text);
     }

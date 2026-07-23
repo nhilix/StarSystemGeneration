@@ -320,6 +320,100 @@
     -unity-text-align: middle-right;
 }
 
+/* ---- structured tables (AC2.F1): market/book/contracts rows as aligned
+   columns instead of dense single-line text. A table is a column of
+   .ssg-table__row; each row is a flex row of .ssg-table__cell. Width
+   classes (w36…w84) are small reusable buckets shared across every table
+   rather than bespoke per-table classes; --flex columns (names, routes)
+   grow to fill the rest and ellipsize instead of overflowing. */
+
+.ssg-table {
+    overflow: hidden; /* belt-and-braces: a row can never force the dock
+                          to scroll sideways, even under rounding */
+}
+.ssg-table__row {
+    flex-direction: row;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--ssg-line1);
+    padding: 3px 0;
+}
+.ssg-table__row--head {
+    border-bottom-color: var(--ssg-line2);
+    padding: 0 0 3px 0;
+}
+.ssg-table__row--link {
+    background-color: var(--ssg-panel);
+    border-width: 0;
+    border-radius: 0;
+    margin: 0;
+    transition-property: background-color;
+    transition-duration: 80ms;
+}
+.ssg-table__row--link:hover { background-color: var(--ssg-acc); }
+.ssg-table__row--link:hover .ssg-table__cell,
+.ssg-table__row--link:hover .ssg-table__cell--dim,
+.ssg-table__row--link:hover .ssg-table__line,
+.ssg-table__row--link:hover .ssg-table__line--dim {
+    color: var(--ssg-ground);
+}
+.ssg-table__row--link:hover .ssg-tag {
+    color: var(--ssg-ground);
+    border-color: var(--ssg-ground);
+}
+
+.ssg-table__cell {
+    color: var(--ssg-ink2);
+    font-size: 12px;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    padding-right: 6px;
+    flex-shrink: 0;
+}
+.ssg-table__cell--dim { color: var(--ssg-ink3); }
+.ssg-table__cell--num { -unity-text-align: middle-right; }
+.ssg-table__row--head .ssg-table__cell {
+    color: var(--ssg-ink3);
+    font-size: 11px;
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+}
+/* the flexible name/route/cargo column — grows to fill, ellipsizes first */
+.ssg-table__cell--flex {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 64px;
+}
+.ssg-table__cell--stack {
+    flex-direction: column;
+    overflow: hidden;
+}
+.ssg-table__line {
+    color: var(--ssg-ink1);
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+.ssg-table__line--dim { color: var(--ssg-ink3); font-size: 11px; }
+
+/* value-tint modifiers, same vocabulary as .ssg-kv__v-- */
+.ssg-table__cell--acc { color: var(--ssg-acc); }
+.ssg-table__cell--warn { color: var(--ssg-warn); }
+.ssg-table__cell--bad { color: var(--ssg-bad); }
+.ssg-table__cell--good { color: var(--ssg-good); }
+
+/* fixed-width column buckets, reused across every table */
+.ssg-table__cell--w36 { width: 36px; }
+.ssg-table__cell--w40 { width: 40px; }
+.ssg-table__cell--w44 { width: 44px; }
+.ssg-table__cell--w48 { width: 48px; }
+.ssg-table__cell--w52 { width: 52px; }
+.ssg-table__cell--w64 { width: 64px; }
+.ssg-table__cell--w84 { width: 84px; }
+
 /* ---- hover tooltip ---- */
 
 .ssg-tip {

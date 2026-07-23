@@ -96,30 +96,47 @@ namespace StarGen.AtlasView
             Line(body, Inv($"the courier board — {rows.Count} open ")
                 + (rows.Count == 1 ? "contract" : "contracts"), dim: true);
             if (rows.Count == 0)
+            {
                 Line(body, "(a quiet board — nothing posted)", dim: true);
+                return ("CONTRACTS", body);
+            }
+            var table = Table(body);
+            var head = TableRow(table, head: true);
+            Cell(head, "ROUTE", "flex");
+            Cell(head, "CARGO", "flex");
+            Cell(head, "FEE", "w48", num: true);
+            Cell(head, "PRI", "w40");
+            Cell(head, "FULFILLER", "flex");
             foreach (var c in rows)
             {
                 var captured = c;
-                var row = Row(body, () => ctx.Open(new PanelRequest(
+                var row = TableRowLink(table, () => ctx.Open(new PanelRequest(
                     PanelType.Market, captured.DestPortId)));
-                if (captured.Priority == Core.Epoch.CourierPriority.War)
-                    Tag(row, "WAR", "bad");
+
+                var routeCell = CellStack(row, "flex");
+                CellLine(routeCell, Inv($"#{c.Id}  {c.OriginPortOwnerName} → {c.DestPortOwnerName}"));
+                CellLine(routeCell, Inv($"posted by {c.PosterName}"), dim: true);
+
                 var cargo = new List<string>();
-                foreach (var line in captured.Cargo)
+                foreach (var line in c.Cargo)
                 {
                     if (cargo.Count >= 3) break;
                     cargo.Add(Inv($"{line.Qty:0.#} {line.GoodName}"));
                 }
-                string status = captured.Status == Core.Epoch.CourierStatus.Open
-                    ? "OPEN"
-                    : Inv($"in transit ({captured.FulfillerName})");
-                var text = Line(row, Inv($"#{captured.Id} ")
-                    + captured.OriginPortOwnerName + " → "
-                    + captured.DestPortOwnerName + " · "
-                    + string.Join(", ", cargo)
-                    + Inv($" · fee {captured.FeeEscrow:0.0} · ") + status
-                    + " (" + captured.PosterName + ")");
-                text.style.flexShrink = 1f;
+                Cell(row, string.Join(", ", cargo), "flex");
+
+                Cell(row, Inv($"{c.FeeEscrow:0.0}"), "w48", num: true);
+
+                var priCell = CellStack(row, "w40");
+                if (c.Priority == Core.Epoch.CourierPriority.War)
+                    Tag(priCell, "WAR", "bad");
+                else
+                    CellLine(priCell, "—", dim: true);
+
+                bool open = c.Status == Core.Epoch.CourierStatus.Open;
+                string status = open
+                    ? "OPEN" : Inv($"in transit ({c.FulfillerName})");
+                Cell(row, status, "flex", mod: open ? "acc" : null);
             }
             return ("CONTRACTS", body);
         }
@@ -377,8 +394,14 @@ namespace StarGen.AtlasView
             if (!anyStock) Line(body, "(nothing banked)", dim: true);
 
             Sect(body, "market");
-            Line(body, "good · price · inv · grade · cleared · black book",
-                 dim: true);
+            var goodsTable = Table(body);
+            var goodsHead = TableRow(goodsTable, head: true);
+            Cell(goodsHead, "GOOD", "flex");
+            Cell(goodsHead, "PRICE", "w48", num: true);
+            Cell(goodsHead, "INV", "w44", num: true);
+            Cell(goodsHead, "GRADE", "w64");
+            Cell(goodsHead, "CLEARED", "w48", num: true);
+            Cell(goodsHead, "BLACK BOOK", "w84", num: true);
             foreach (var g in card.Goods)
             {
                 string grade = g.Inventory > 0
@@ -387,7 +410,13 @@ namespace StarGen.AtlasView
                 string black = g.BlackBookDemand > 0
                     ? Inv($"{g.BlackBookDemand:0.#} @ {g.BlackBookPrice:0.00}")
                     : "-";
-                Line(body, Inv($"{g.GoodName,-14} {g.Price,6:0.00} {g.Inventory,7:0.#} {grade,-11} {g.LastCleared,6:0.#}  {black}"));
+                var goodRow = TableRow(goodsTable);
+                Cell(goodRow, g.GoodName, "flex");
+                Cell(goodRow, Inv($"{g.Price:0.00}"), "w48", num: true);
+                Cell(goodRow, Inv($"{g.Inventory:0.#}"), "w44", num: true);
+                Cell(goodRow, grade, "w64");
+                Cell(goodRow, Inv($"{g.LastCleared:0.#}"), "w48", num: true);
+                Cell(goodRow, black, "w84", num: true);
             }
 
             // AC2.4: the resting book, `ebook` parity — reads the SAME
@@ -438,16 +467,45 @@ namespace StarGen.AtlasView
                 if (g.Asks.Count == 0 && g.Bids.Count == 0) continue;
                 any = true;
                 Line(body, Inv($"{g.GoodName} — ref {g.Price:0.00}"));
+                var table = Table(body);
+                var head = TableRow(table, head: true);
+                Cell(head, "SIDE", "w36");
+                Cell(head, "OWNER", "flex");
+                Cell(head, "QTY", "w44", num: true);
+                Cell(head, "GRADE / ESCROW", "w64");
+                Cell(head, "LIMIT", "w48", num: true);
+                Cell(head, "VS REF", "w52", num: true);
                 foreach (var o in g.Asks)
-                    Kv(body, Inv($"  ask {o.Qty:0.#} @ {o.LimitPrice:0.00}"),
-                       Inv($"grade {o.Grade:0.00} · {o.OwnerName}"),
-                       o.RefDelta > 0 ? "warn" : null);
+                    BookOrderCells(table, "ask", o.OwnerName, o.Qty,
+                        Inv($"grade {o.Grade:0.00}"), o.LimitPrice,
+                        o.RefDelta, o.RefDelta > 0);
                 foreach (var o in g.Bids)
-                    Kv(body, Inv($"  bid {o.Qty:0.#} @ {o.LimitPrice:0.00}"),
-                       Inv($"escrow {o.EscrowCredits:0.0} · {o.OwnerName}"),
-                       o.RefDelta < 0 ? "warn" : null);
+                    BookOrderCells(table, "bid", o.OwnerName, o.Qty,
+                        Inv($"escrow {o.EscrowCredits:0.0}"), o.LimitPrice,
+                        o.RefDelta, o.RefDelta < 0);
             }
             if (!any) Line(body, "(bare book — no resting orders)", dim: true);
+        }
+
+        /// <summary>One resting-order table row: side, owner, qty, then the
+        /// grade (ask) or escrow (bid) detail, the limit, and its delta
+        /// against the reference. <paramref name="warn"/> mirrors the
+        /// original Kv coloring — an ask priced above reference, or a bid
+        /// priced below it — now painted on the limit/delta cells
+        /// themselves rather than the owner name.</summary>
+        private static void BookOrderCells(VisualElement table, string side,
+            string owner, double qty, string detail, double limit,
+            double refDelta, bool warn)
+        {
+            var row = TableRow(table);
+            Cell(row, side, "w36");
+            Cell(row, owner, "flex");
+            Cell(row, Inv($"{qty:0.#}"), "w44", num: true);
+            Cell(row, detail, "w64");
+            Cell(row, Inv($"{limit:0.00}"), "w48", num: true,
+                mod: warn ? "warn" : null);
+            Cell(row, Inv($"{refDelta:+0.00;-0.00;0.00}"), "w52", num: true,
+                mod: warn ? "warn" : null);
         }
 
         /// <summary>AC1.4 — the selected outpost's own detail, rendered inside
