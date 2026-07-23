@@ -309,3 +309,30 @@ offer Trello cards. (Not fixed here — zero sim behavior.)
   byte-untouched · determinism green in-suite · Unity compile clean (320KB
   log, 0 error CS) · EditMode 16/16 · AtlasSmoke 17/17 lenses.** Evidence:
   `.superpowers/sdd/ac2.G-gate.md` (worktree scratch). → Eyeball 2.
+- **Eyeball 2 findings (user, 2026-07-22):** (1) *No freight visible anywhere.*
+  Diagnosed to root cause — NOT a render bug: epoch-boundary keyframes (the
+  only displayable moments) never hold lane-borne shipments (transit < the
+  25y step; seed 42: zero at epochs 40–50, 16 by epoch 80 — all off-lane
+  crawls, the only boundary survivors; the golden holds zero SHIP rows).
+  Dead data sources verified: delivered couriers pruned (registry live-only),
+  no shipment/courier event kinds, pulses carry event ids only. **User
+  decision: recent flows for couriers + war convoys** — snapshot-in-time
+  over discrete-step feel. (2) *Market/order-book panels too dense* —
+  restructure as tables.
+- **AC2.F1 DONE** (commit `7aff333`, Sonnet). Market + order-book + contracts
+  panels as structured tables (DockKit table kit + AtlasChrome.uss; REPL
+  formatting untouched, zero Core changes). dotnet 1256/1256. **User
+  accepted; tuning deferred to a future full-panel design pass** (file at
+  wrap-up). Unity compile for this commit rides the next batch run.
+- **AC2.F2 DONE** (commit `6376180`, Opus). Recent flows: passive
+  `ShipmentObserver` tap (transient `SimState` delegate, threaded per step
+  by `EpochEngine`, reset in finally; null ⇒ bit-identical — asserted over
+  12 stepped epochs), `TimeMachine` keeps per-keyframe flows in-memory
+  (base frame honestly empty), `RecentFlowQuery` courier/war-convoy filter +
+  corridor-aggregated `FlowTrailMarks`, Unity `FlowTrailLayer` under the
+  lane strokes on the works chip (no new rail key), REPL twin `eflows`
+  (~90 courier flows per estep on seed 42 while `efreight` shows zero).
+  Design amendment: catch-up spec §2 freight bullet flagged. dotnet
+  **1270/1270** (+14), golden byte-identical. **Unity batch gates for
+  `7aff333`+`6376180` PENDING (editor was open) — run at next closed-editor
+  window, then re-eyeball trails (alpha floor 70/cap 130 = first guess).**
