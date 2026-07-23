@@ -120,7 +120,12 @@ eyeball before then run the "StarGen/Setup Atlas Scene" menu).
       hexes + named outpost structure a domain; a graduated outpost reads as a
       port with history).
 
-## Phase 2 — Economy/trade (the original K6 scope)  [spec §2]  — gate GREEN, Eyeball 2 pending
+## Phase 2 — Economy/trade (the original K6 scope)  [spec §2]  ✅ CLOSED — Eyeball 2 ACCEPTED
+
+**Eyeball 2 accepted (2026-07-22)** after the fix wave: tables accepted
+(tuning deferred to a future full-panel design pass); recent-flow trails
+accepted once per-leg routing landed (`38de1e2` — "looking much better").
+Alpha 70/130 stands for now; final polish pass may revisit.
 
 - [x] **AC2.1** — `TradeLens` in Core.Atlas: port `TradeCells` verbatim
       (saturation filter kept). **Opus** (the one derivation-move with drift
@@ -143,11 +148,12 @@ eyeball before then run the "StarGen/Setup Atlas Scene" menu).
 - [x] **AC2.7** — War-supply readout: War/Fleet panel names the deployed
       fleet's forward depot (`FleetOps.NearestOwnedPortId`); contested-lane
       shading ONLY if a cheap read-only presence query exists (else skip).
-- [ ] **AC2.G** — Phase gate ✅ (2026-07-22: dotnet **1256/1256** · golden
+- [x] **AC2.G** — Phase gate ✅ (2026-07-22: dotnet **1256/1256** · golden
       byte-untouched · determinism green (`DeterminismTests`, 4 facts) ·
       Unity compile clean (0 error CS) · EditMode **16/16** · AtlasSmoke
-      **17/17** shots incl. trade) + **Eyeball 2** PENDING (hub port: book vs
-      `ebook`; job board; TRADE vs `emap trade`; find a war convoy).
+      **17/17** shots incl. trade) + **Eyeball 2 ACCEPTED** after the fix
+      wave (AC2.F1 tables `7aff333`, AC2.F2 recent flows `6376180`, per-leg
+      trails `38de1e2`; final gate dotnet **1276/1276**).
 
 ## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]
 
