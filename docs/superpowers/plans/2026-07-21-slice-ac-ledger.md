@@ -213,11 +213,12 @@ actually wants; panel wording `rate X numeraire` inherited from the REPL.
 - [x] **AC4.4** — Cheap debt: `OrbitRef` alias (`SystemStage.cs:9`) compile-
       verified in a real editor session; `AtlasSmoke` extended to render every
       lens including TRADE + currency mode.
-- [ ] **AC4.G** — Phase gate ✅ (2026-07-23, run whole on final HEAD `7721cda`
-      by the sweep: dotnet **1298/1298** · golden byte-identical · determinism
-      green in-suite · Unity compile clean · EditMode **16/16** · AtlasSmoke
-      **18/18** with flow trails now visible in the works shot) + **Eyeball 4**
-      PENDING (late-epoch off-lane crawl + shipment panel tags; event feed).
+- [x] **AC4.G** — Phase gate ✅ (2026-07-23: dotnet **1301/1301** after the
+      Eyeball-4 overlap fix `df0f992` · golden byte-identical · determinism
+      green · Unity compile clean · EditMode **16/16** · AtlasSmoke **18/18**
+      trails visible) + **Eyeball 4 ACCEPTED** (2026-07-23, "lgtm") after the
+      trail/crawl de-overlap; Obs-C (all-or-nothing off-lane routing) filed to
+      sim roadmap.
 
 ### Phase 4 log
 - **AC4.1 DONE** (`1d4123b`, Sonnet). Off-lane crawl paths: dashed direct
