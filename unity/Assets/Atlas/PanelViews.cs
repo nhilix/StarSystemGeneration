@@ -314,6 +314,51 @@ namespace StarGen.AtlasView
                card.Credits < 0 ? "warn" : null);
             Kv(body, "reserve points", Inv($"{card.ReservePoints:0.0}"), "acc");
 
+            // AC3.2 — currency/bank/claims (currency-and-FX, bank-actor,
+            // bank-flow designs), InteriorView.RenderPolity parity. Absent
+            // for a pre-genesis polity (no currency minted yet).
+            if (card.Monetary != null)
+            {
+                var m = card.Monetary;
+                Sect(body, "currency");
+                Kv(body, m.CurrencyName + Inv($" #{m.CurrencyId}"),
+                   Inv($"rate {m.NumeraireRate:0.000} numeraire · supply {m.Supply:0}"));
+                if (m.Retired) Tag(body, "RETIRED", "bad");
+
+                var bankTable = Table(body);
+                var bankHead = TableRow(bankTable, head: true);
+                Cell(bankHead, "BANK", "flex");
+                Cell(bankHead, "RESERVE", "w64", num: true);
+                Cell(bankHead, "SPREAD", "w64", num: true);
+                Cell(bankHead, "RES-FUND", "w64", num: true);
+                Cell(bankHead, "BACKSTOP", "w64", num: true);
+                var bankRow = TableRow(bankTable);
+                Cell(bankRow, m.CurrencyName, "flex");
+                Cell(bankRow, Inv($"{m.BankReserve:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeSpreadIntake:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeReserveFunded:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeFiatIssued:0}"), "w64", num: true);
+                Line(body, "reserve · spread/res-fund/backstop are cumulative levels", dim: true);
+
+                var claimTable = Table(body);
+                var claimHead = TableRow(claimTable, head: true);
+                Cell(claimHead, "CLAIMS", "flex");
+                Cell(claimHead, "BOOK", "w64", num: true);
+                Cell(claimHead, "BACKING", "w64", num: true);
+                Cell(claimHead, "LENT", "w64", num: true);
+                Cell(claimHead, "RETIRED", "w64", num: true);
+                var claimRow = TableRow(claimTable);
+                Cell(claimRow, m.CurrencyName, "flex");
+                Cell(claimRow, Inv($"{m.ClaimOnState:0}"), "w64", num: true);
+                // -1 sentinel (InteriorView guard): an empty claim book has
+                // no backing ratio to show, not a real zero
+                Cell(claimRow, m.BackingRatio >= 0
+                    ? Inv($"{m.BackingRatio:0.00}") : "-", "w64", num: true);
+                Cell(claimRow, Inv($"{m.CumulativeLentToState:0}"), "w64", num: true);
+                Cell(claimRow, Inv($"{m.CumulativeRetired:0}"), "w64", num: true);
+                Line(body, "book · lent/retired are cumulative levels", dim: true);
+            }
+
             Sect(body, "tech");
             foreach (var t in card.Tech)
                 Kv(body, t.DomainName,
