@@ -120,29 +120,34 @@ eyeball before then run the "StarGen/Setup Atlas Scene" menu).
       hexes + named outpost structure a domain; a graduated outpost reads as a
       port with history).
 
-## Phase 2 — Economy/trade (the original K6 scope)  [spec §2]
+## Phase 2 — Economy/trade (the original K6 scope)  [spec §2]  — gate GREEN, Eyeball 2 pending
 
-- [ ] **AC2.1** — `TradeLens` in Core.Atlas: port `TradeCells` verbatim
+- [x] **AC2.1** — `TradeLens` in Core.Atlas: port `TradeCells` verbatim
       (saturation filter kept). **Opus** (the one derivation-move with drift
       risk). TDD.
-- [ ] **AC2.2** — `EpochMapView.Render` `trade` layer calls `TradeLens`
+- [x] **AC2.2** — `EpochMapView.Render` `trade` layer calls `TradeLens`
       (`emap trade` parity); rail key `"trade"` threaded through `LegendQuery`
-      + `LensRail` + `LegendDriftTests.RailKeys`.
-- [ ] **AC2.3** — TRADE lens Unity layer + rail chip + `AtlasSmoke` shot.
-- [ ] **AC2.4** — Order-book panel (`ebook` parity): resting asks/bids per good
+      + `LensRail` + `LegendDriftTests.RailKeys`. *(Threading landed with
+      AC2.3 — the drift test asserts all three places atomically, so the key
+      couldn't split across tasks; AC2.2 was the REPL re-point alone.)*
+- [x] **AC2.3** — TRADE lens Unity layer + rail chip + `AtlasSmoke` shot.
+- [x] **AC2.4** — Order-book panel (`ebook` parity): resting asks/bids per good
       (owner, qty, grade, limit vs reference) via `BookOps` reads, extending
       `MarketPanel`'s ask depth/grade rows (extend, don't fork). Reachable from
       the Market panel in the same dock.
-- [ ] **AC2.5** — Contracts panel (`econtracts` parity): courier job board
+- [x] **AC2.5** — Contracts panel (`econtracts` parity): courier job board
       (open/in-transit: route, cargo, fee, priority WAR called out, fulfiller).
       Drawer vs dock decided at Eyeball 2.
-- [ ] **AC2.6** — Freight purposes on the map + `ShipmentPanel` purpose field
+- [x] **AC2.6** — Freight purposes on the map + `ShipmentPanel` purpose field
       (derived per choice #2) + rider-contract link (`CourierOps.OfShipment`).
-- [ ] **AC2.7** — War-supply readout: War/Fleet panel names the deployed
+- [x] **AC2.7** — War-supply readout: War/Fleet panel names the deployed
       fleet's forward depot (`FleetOps.NearestOwnedPortId`); contested-lane
       shading ONLY if a cheap read-only presence query exists (else skip).
-- [ ] **AC2.G** — Phase gate + **Eyeball 2** (hub port: book vs `ebook`; job
-      board; TRADE vs `emap trade`; find a war convoy).
+- [ ] **AC2.G** — Phase gate ✅ (2026-07-22: dotnet **1256/1256** · golden
+      byte-untouched · determinism green (`DeterminismTests`, 4 facts) ·
+      Unity compile clean (0 error CS) · EditMode **16/16** · AtlasSmoke
+      **17/17** shots incl. trade) + **Eyeball 2** PENDING (hub port: book vs
+      `ebook`; job board; TRADE vs `emap trade`; find a war convoy).
 
 ## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]
 
@@ -258,3 +263,49 @@ offer Trello cards. (Not fixed here — zero sim behavior.)
   never `git add -A` meanwhile.
 - **Phase 1 gate (AC1.G): dotnet 1227/1227 · golden byte-untouched (git-clean) ·
   Unity compile clean (326KB log) · EditMode 16/16 (was 14).** → Eyeball 1.
+- **AC2.1 DONE** (commit `78e3755`, Opus). `TradeLens` in Core.Atlas: `Segments
+  (model,eye)` (live lanes only, `TradeSegment{LaneId,A,B,Spread,Band,Weight,
+  Color}`), `Cells(model)` (the `emap trade` parity target, loop-identical),
+  `BandOf` (emap glyph thresholds .05/.25/.50/1), `MarginGold` public for the
+  legend, ONE private `SpreadOf` (saturation filter verbatim). 1234/1234 (+7).
+- **AC2.2 DONE** (commit `fb361ca`, Sonnet). `emap trade` re-pointed at
+  `TradeLens.Cells`; private `TradeCells`+threshold chain deleted (−36 net).
+  Output byte-identical (stash before/after capture vs seed-42 artifact).
+- **AC2.3 DONE** (commit `045524f`, Sonnet). TRADE on the rail: `LaneMode.Trade`
+  stroke mode in `LaneLayer` (match by `TradeSegment.LaneId`, never index),
+  three-way radio chip (lanes/traffic/trade), `LegendQuery` `case "trade"` from
+  lens constants, `LegendDriftTests.RailKeys` += "trade" — the three-place
+  contract landed atomically here. `atlas-smoke-trade.png`. **Trap logged:
+  AtlasSmoke regenerates `Atlas.unity` — `git checkout` it before staging.**
+  Minor for final review: `IdleTradeAlpha=45` duplicated (TradeLens.FlatAlpha /
+  TrafficLens.IdleAlpha are private 45s too — widening was out of scope).
+- **AC2.4 DONE** (commit `8d974f2`, Sonnet). Order-book panel: Core book query
+  (asks+bids: owner/qty/grade/limit-vs-reference), `ebook` re-pointed
+  (byte-identical), Market panel gains the book section (extend-don't-fork).
+  1238/1238 (+4). Eyeball notes: no foldout yet (may run long at busy epochs);
+  bid rendering TDD-covered but seed-42/y1750 sample showed asks only.
+- **AC2.5 DONE** (commit `927664a`, Sonnet). Contracts panel: `ContractsPanel`
+  Core query (open/in-transit, route/cargo/fee/WAR-flag/fulfiller),
+  `econtracts` re-pointed (byte-identical, 130-row transcript), Unity dock
+  panel (K3 THREADS/STATS pattern; drawer-vs-dock seam kept for Eyeball 2).
+  1243/1243 (+5). Eyeball note: WAR tag reuses `ssg-tag--bad` (same as
+  STALLED) — confirm the dual meaning reads.
+- **AC2.6 DONE** (commit `18e615a`, Sonnet). Freight purposes:
+  `FreightPurposeQuery` in Core.Atlas (the ONE derivation — decided choice #2),
+  `efreight` re-pointed (byte-identical incl. a live war-convoy row),
+  `WorksLens.FreightMark` purpose tints (+war convoys sized biggest; STALLED
+  red still overrides), works legend +4 purpose entries (no rail-key change),
+  `ShipmentCard` gains `Purpose`+`Rider` + panel link to the contracts board.
+  1251/1251 (+8). Eyeball notes: rider link opens the whole board (no per-row
+  deep-link); stalled war convoy distinguishable by size only; only WarConvoy
+  gets a chip tag.
+- **AC2.7 DONE** (commit `b812a47`, Sonnet). War-supply readout: forward depot
+  (`FleetOps.NearestOwnedPortId`) on Fleet+War panels and both REPL surfaces;
+  contested-lane shading via `WarLens.ContestedLanes` calling
+  `ShipmentOps.WarPresenceMap` **widened private→internal (visibility+doc
+  only — verified zero behavior)**, never re-deriving reach/posture rules.
+  1256/1256 (+5).
+- **Phase 2 gate (AC2.G) GREEN (2026-07-22): dotnet 1256/1256 · golden
+  byte-untouched · determinism green in-suite · Unity compile clean (320KB
+  log, 0 error CS) · EditMode 16/16 · AtlasSmoke 17/17 lenses.** Evidence:
+  `.superpowers/sdd/ac2.G-gate.md` (worktree scratch). → Eyeball 2.
