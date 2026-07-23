@@ -155,7 +155,13 @@ Alpha 70/130 stands for now; final polish pass may revisit.
       wave (AC2.F1 tables `7aff333`, AC2.F2 recent flows `6376180`, per-leg
       trails `38de1e2`; final gate dotnet **1276/1276**).
 
-## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]  — gate GREEN, Eyeball 3 pending
+## Phase 3 — Currency & banking (CU/BF surfaces)  [spec §3]  ✅ CLOSED — Eyeball 3 ACCEPTED
+
+**Eyeball 3 accepted (2026-07-22).** FX-model question raised and answered
+(single numeraire rate; cross-rates implied by ratio). **Polish-pass
+candidate queued:** Relations panel could show the implied CROSS-rate
+between the two compared polities (`A.Rate/B.Rate`) — the number a human
+actually wants; panel wording `rate X numeraire` inherited from the REPL.
 
 - [x] **AC3.1** — Currency-zone tint mode on the existing polity/domain render
       (`DomainAccent` gains a `Currency` member; tint by currency id, unions
@@ -170,7 +176,7 @@ Alpha 70/130 stands for now; final polish pass may revisit.
 - [x] **AC3.4** — `RelationsPanel` names monetary credibility where CU-4's term
       participates (BackedShare-derived, read-only, no new derivation; the
       panel had no natural row — minimal federation-context row added).
-- [ ] **AC3.G** — Phase gate ✅ (2026-07-22: dotnet **1289/1289** · golden
+- [x] **AC3.G** — Phase gate ✅ (2026-07-22: dotnet **1289/1289** · golden
       byte-untouched (last golden touch `93a4ea1`, pre-Phase-2) · determinism
       green · Unity compile clean · EditMode **16/16** · AtlasSmoke **18/18**
       incl. `atlas-smoke-currency.png` with real zones) + **Eyeball 3**
