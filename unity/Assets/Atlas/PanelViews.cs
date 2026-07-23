@@ -797,6 +797,25 @@ namespace StarGen.AtlasView
             Kv(body, "endurance floor",
                Inv($"{v.EnduranceFloor:0.0} (~{(int)card.EnduranceHexesOffLane} hexes off-lane)"));
             Kv(body, "upkeep", Inv($"{v.Upkeep:0.0}"));
+            // patrol coverage (AC4.2) — PatrolCoverage.At's own falloff at
+            // dock and 1/2/3 hexes out; FleetPanel.Card already gates the
+            // list to Patrol posture (empty otherwise), same idiom as the
+            // forward-depot -1 gate above
+            if (card.PatrolCoverageByHexHop.Count > 0)
+            {
+                Sect(body, "patrol coverage");
+                var covTable = Table(body);
+                var covHead = TableRow(covTable, head: true);
+                Cell(covHead, "DOCK", "w64", num: true);
+                Cell(covHead, "1 HEX", "w64", num: true);
+                Cell(covHead, "2 HEX", "w64", num: true);
+                Cell(covHead, "3 HEX", "w64", num: true);
+                var covRow = TableRow(covTable);
+                foreach (var c in card.PatrolCoverageByHexHop)
+                    Cell(covRow, Inv($"{c:0.00}"), "w64", num: true);
+                Line(body, "strongest reach against any hostile — 0 while at peace",
+                    dim: true);
+            }
             Link(body, "DESIGNS", () => ctx.Open(new PanelRequest(
                 PanelType.Designs, row.OwnerActorId)));
             return (Inv($"FLEET #{row.Id}"), body);

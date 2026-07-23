@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using StarGen.Core.Epoch;
 using StarGen.Core.Galaxy;
@@ -25,12 +26,15 @@ public sealed record HullLine(int Count, int DesignId, string DesignName,
 /// ForwardDepotPortId/-DistanceHexes name where a deployed (Blockade or
 /// Expedition) fleet draws supply (AC2.7, FleetOps.SupplyFleets' own
 /// forward-depot criterion) — -1/-1 for any other posture, or a deployed
-/// fleet whose owner holds no port.</summary>
+/// fleet whose owner holds no port. PatrolCoverageByHexHop (AC4.2) names a
+/// Patrol fleet's own enforcement reach — PatrolCoverage.At's falloff
+/// sampled at dock and 1/2/3 hexes out; empty for any other posture.</summary>
 public sealed record FleetCard(FleetRow Row, int HomePortId,
     int CommanderId, string? CommanderName,
     IReadOnlyList<HullLine> Composition, FleetVectors Vectors,
     double EnduranceHexesOffLane, int ForwardDepotPortId,
-    int ForwardDepotDistanceHexes);
+    int ForwardDepotDistanceHexes,
+    IReadOnlyList<double> PatrolCoverageByHexHop);
 
 /// <summary>One design lineage row (`designs` parity).</summary>
 public sealed record DesignRow(int Id, int OwnerActorId, string OwnerName,
@@ -82,7 +86,41 @@ public static class FleetPanel
             composition, vectors,
             vectors.EnduranceFloor
                 * state.Config.Fleet.EnduranceHexesPerPoint,
-            depotPortId, depotDistance);
+            depotPortId, depotDistance,
+            f.Posture == FleetPosture.Patrol
+                ? PatrolCoverageSummary(state, f) : Array.Empty<double>());
+    }
+
+    /// <summary>AC4.2: a Patrol fleet's own enforcement reach at its dock
+    /// and 1/2/3 hexes out — PatrolCoverage.At's falloff (never re-derived
+    /// here), sampled against every registered actor as a candidate victim
+    /// and maxed (mirrors PatrolCoverage.At's own "strongest across
+    /// fleets" idiom, applied here across possible victims instead — the
+    /// magnitude at a given hex-hop distance never depends on WHICH victim
+    /// triggers the hostile gate, only on whether one does). All zero when
+    /// the fleet's owner is at active war with nobody — a patrol projecting
+    /// onto no one is a true, informative reading (PatrolCoverage.At's own
+    /// hostile-only gate), not an omission.</summary>
+    private static IReadOnlyList<double> PatrolCoverageSummary(
+        SimState state, FleetRecord f)
+    {
+        var result = new double[4];
+        for (int hop = 0; hop <= 3; hop++)
+        {
+            var hex = f.Hex;
+            if (hop > 0)
+                foreach (var h in HexGrid.Ring(f.Hex, hop)) { hex = h; break; }
+            double best = 0.0;
+            foreach (var actor in state.Actors)            // id order (P6)
+            {
+                if (actor.Id == f.OwnerActorId) continue;
+                double cover = PatrolCoverage.At(state, hex, BodyRef.None,
+                    actor.Id);
+                if (cover > best) best = cover;
+            }
+            result[hop] = best;
+        }
+        return result;
     }
 
     /// <summary>Design lineages, optionally one actor's (`designs`).</summary>

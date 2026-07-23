@@ -97,6 +97,68 @@ public class FleetPanelTests
         Assert.Equal(-1, card.ForwardDepotDistanceHexes);
     }
 
+    /// <summary>AC4.2: a Patrol fleet's card carries the same falloff
+    /// PatrolCoverage.At computes directly — at dock (hop 0, 1.0) and at
+    /// 1/2/3 hexes out — once its owner is at active war with someone
+    /// (the hostile-only gate PatrolCoverage.At itself enforces).</summary>
+    [Fact]
+    public void APatrollingFleetShowsCoverageMatchingADirectPatrolCoverageRead()
+    {
+        var (model, state) = WithFleet();
+        var patrol = new FleetRecord(state.Fleets.Count, state.Actors[0].Id,
+            state.Ports[0].Hex)
+        { Posture = FleetPosture.Patrol, TargetId = 0, Body = BodyRef.None };
+        state.Fleets.Add(patrol);
+        state.Wars.Add(new War(state.Wars.Count, "the Coverage War",
+            state.Actors[1].Id, state.Actors[0].Id, CasusBelli.BorderIncident,
+            -1, WarDemand.CedeObjectives, state.WorldYear));
+
+        var card = FleetPanel.Card(model, EyeContext.God(state.WorldYear),
+            patrol.Id);
+        Assert.NotNull(card);
+        Assert.Equal(4, card!.PatrolCoverageByHexHop.Count);
+        Assert.Equal(PatrolCoverage.At(state, patrol.Hex, BodyRef.None,
+            state.Actors[1].Id), card.PatrolCoverageByHexHop[0]);
+        for (int hop = 1; hop <= 3; hop++)
+        {
+            HexCoordinate hex = patrol.Hex;
+            foreach (var h in HexGrid.Ring(patrol.Hex, hop)) { hex = h; break; }
+            Assert.Equal(PatrolCoverage.At(state, hex, BodyRef.None,
+                state.Actors[1].Id), card.PatrolCoverageByHexHop[hop]);
+        }
+    }
+
+    /// <summary>AC4.2: peacetime — the owner is at war with nobody, so
+    /// PatrolCoverage.At's own hostile gate zeroes every sample (a true
+    /// reading, not an omission; only the POSTURE gates absence).</summary>
+    [Fact]
+    public void APatrollingFleetAtPeaceShowsZeroCoverage()
+    {
+        var (model, state) = WithFleet();
+        var patrol = new FleetRecord(state.Fleets.Count, state.Actors[0].Id,
+            state.Ports[0].Hex)
+        { Posture = FleetPosture.Patrol, TargetId = 0, Body = BodyRef.None };
+        state.Fleets.Add(patrol);
+
+        var card = FleetPanel.Card(model, EyeContext.God(state.WorldYear),
+            patrol.Id);
+        Assert.NotNull(card);
+        Assert.All(card!.PatrolCoverageByHexHop, v => Assert.Equal(0.0, v));
+    }
+
+    /// <summary>AC4.2: a non-patrolling posture carries no coverage row —
+    /// mirrors how ForwardDepot* already distinguishes posture with an
+    /// absent (here: empty) reading rather than an invented zero.</summary>
+    [Fact]
+    public void ANonPatrollingFleetHasNoCoverageSummary()
+    {
+        var (model, state) = WithFleet();
+        var card = FleetPanel.Card(model, EyeContext.God(state.WorldYear), 0);
+        Assert.NotNull(card);
+        Assert.Equal(FleetPosture.Posted, card!.Row.Posture);
+        Assert.Empty(card.PatrolCoverageByHexHop);
+    }
+
     [Fact]
     public void DesignsFilterByOwner()
     {
