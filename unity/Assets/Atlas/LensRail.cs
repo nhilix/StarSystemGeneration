@@ -246,6 +246,10 @@ namespace StarGen.AtlasView
 
             root.FleetLayer.SetVisible(_fleets);
             root.WorksLayer.SetVisible(_works);
+            // AC2.F2: recent-flow trails ride the works chip — a sibling
+            // layer, not a new rail key (null-guarded for an older scene)
+            if (root.FlowTrailLayer != null)
+                root.FlowTrailLayer.SetVisible(_works);
             root.PriceField.SetGood(_priceGood);
             root.PriceField.SetVisible(_price);
             root.PlagueLayer.SetVisible(_plague);

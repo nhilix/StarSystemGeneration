@@ -37,6 +37,7 @@ namespace StarGen.AtlasView.EditorTools
             var fleets = Object.FindAnyObjectByType<FleetLayer>();
             var pois = Object.FindAnyObjectByType<PoiLayer>();
             var works = Object.FindAnyObjectByType<WorksLayer>();
+            var flowTrails = Object.FindAnyObjectByType<FlowTrailLayer>();
             var plague = Object.FindAnyObjectByType<PlagueLayer>();
             var war = Object.FindAnyObjectByType<WarLayer>();
             var news = Object.FindAnyObjectByType<NewsLayer>();
@@ -56,6 +57,7 @@ namespace StarGen.AtlasView.EditorTools
             fleets.EnsureMaterial();
             pois.EnsureMaterial();
             works.EnsureMaterial();
+            flowTrails.EnsureMaterial();
             plague.EnsureMaterial();
             war.EnsureMaterial();
             news.EnsureMaterial();
@@ -80,6 +82,9 @@ namespace StarGen.AtlasView.EditorTools
             fleets.Show(model, eye);
             pois.Show(model, eye);
             works.Show(model, eye);
+            // AC2.F2: the loaded base frame has no captured flows (no step
+            // preceded it in-session) — an honest empty, same as the REPL
+            flowTrails.Show(model, host.Machine.CurrentFlows);
             plague.Show(model, eye);
             war.Show(model, eye);
             news.Show(model, eye);
@@ -88,6 +93,7 @@ namespace StarGen.AtlasView.EditorTools
             fleets.SetVisible(false);
             pois.SetVisible(false);
             works.SetVisible(false);
+            flowTrails.SetVisible(false);
             plague.SetVisible(false);
             war.SetVisible(false);
             news.SetVisible(false);
@@ -173,8 +179,10 @@ namespace StarGen.AtlasView.EditorTools
             pois.SetVisible(false);
 
             works.SetVisible(true);
+            flowTrails.SetVisible(true);
             Capture(cam, "atlas-smoke-works.png");
             works.SetVisible(false);
+            flowTrails.SetVisible(false);
 
             // ---- K5: the orbit stage — the map's curves die at this
             // distance (MapFade 0) and the system view stands alone ----
@@ -218,6 +226,10 @@ namespace StarGen.AtlasView.EditorTools
             lanes.SetExtent(rig.GalaxyExtent);
             lanes.ViewportPx = Height;
             lanes.OnZoom(rig.Distance);
+            var flowTrails = Object.FindAnyObjectByType<FlowTrailLayer>();
+            flowTrails.SetExtent(rig.GalaxyExtent);
+            flowTrails.ViewportPx = Height;
+            flowTrails.OnZoom(rig.Distance);
             lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
             float extent = rig.GalaxyExtent;
             fleets.OnZoom(rig.Distance, extent);

@@ -20,6 +20,7 @@ namespace StarGen.AtlasView
         [SerializeField] private FleetLayer fleetLayer;
         [SerializeField] private PoiLayer poiLayer;
         [SerializeField] private WorksLayer worksLayer;
+        [SerializeField] private FlowTrailLayer flowTrailLayer;
         [SerializeField] private PlagueLayer plagueLayer;
         [SerializeField] private WarLayer warLayer;
         [SerializeField] private NewsLayer newsLayer;
@@ -38,6 +39,7 @@ namespace StarGen.AtlasView
         public FleetLayer FleetLayer => fleetLayer;
         public PoiLayer PoiLayer => poiLayer;
         public WorksLayer WorksLayer => worksLayer;
+        public FlowTrailLayer FlowTrailLayer => flowTrailLayer;
         public PlagueLayer PlagueLayer => plagueLayer;
         public WarLayer WarLayer => warLayer;
         public NewsLayer NewsLayer => newsLayer;
@@ -49,7 +51,8 @@ namespace StarGen.AtlasView
                          LatticeLayer grid, LaneLayer lanes, PortLayer ports,
                          CameraRig rig, FleetLayer fleets, PoiLayer pois,
                          WorksLayer works, PlagueLayer plague, WarLayer war,
-                         NewsLayer news, PriceFieldLayer price)
+                         NewsLayer news, PriceFieldLayer price,
+                         FlowTrailLayer flowTrails)
         {
             simHost = host;
             starfield = stars;
@@ -64,6 +67,7 @@ namespace StarGen.AtlasView
             fleetLayer = fleets;
             poiLayer = pois;
             worksLayer = works;
+            flowTrailLayer = flowTrails;
             plagueLayer = plague;
             warLayer = war;
             newsLayer = news;
@@ -95,6 +99,8 @@ namespace StarGen.AtlasView
             ShowAll();
             cameraRig.FitTo(AtlasGeometry.DiscBounds(simHost.Model));
             laneLayer.SetExtent(cameraRig.GalaxyExtent);
+            if (flowTrailLayer != null)
+                flowTrailLayer.SetExtent(cameraRig.GalaxyExtent);
             OnZoomChanged(cameraRig.Distance);
         }
 
@@ -121,6 +127,14 @@ namespace StarGen.AtlasView
             fleetLayer.Show(model, eye);
             poiLayer.Show(model, eye);
             worksLayer.Show(model, eye);
+            // AC2.F2: the trails read the TimeMachine's per-keyframe flow
+            // capture (in-memory beside the keyframe, never on the state) —
+            // null-guarded so an older serialized scene stays alive until
+            // the setup regenerates it
+            if (flowTrailLayer != null)
+                flowTrailLayer.Show(model, simHost.Machine != null
+                    ? simHost.Machine.CurrentFlows
+                    : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>());
             plagueLayer.Show(model, eye);
             warLayer.Show(model, eye);
             newsLayer.Show(model, eye);
@@ -131,6 +145,11 @@ namespace StarGen.AtlasView
         {
             laneLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
             laneLayer.OnZoom(distance);
+            if (flowTrailLayer != null)
+            {
+                flowTrailLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
+                flowTrailLayer.OnZoom(distance);
+            }
             lattice.OnZoom(distance, cameraRig.GalaxyExtent);
             float extent = cameraRig.GalaxyExtent;
             fleetLayer.OnZoom(distance, extent);

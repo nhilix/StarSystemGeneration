@@ -56,6 +56,8 @@ namespace StarGen.AtlasView.EditorTools
             var fleets = new GameObject("FleetLayer").AddComponent<FleetLayer>();
             var pois = new GameObject("PoiLayer").AddComponent<PoiLayer>();
             var works = new GameObject("WorksLayer").AddComponent<WorksLayer>();
+            var flowTrails = new GameObject("FlowTrailLayer")
+                .AddComponent<FlowTrailLayer>();
             var plague = new GameObject("PlagueLayer").AddComponent<PlagueLayer>();
             var war = new GameObject("WarLayer").AddComponent<WarLayer>();
             var news = new GameObject("NewsLayer").AddComponent<NewsLayer>();
@@ -65,7 +67,7 @@ namespace StarGen.AtlasView.EditorTools
             var root = atlasGo.AddComponent<AtlasRoot>();
             root.Wire(host, stars, domains, interior, outposts, nature, lattice,
                       lanes, ports, rig, fleets, pois, works, plague, war, news,
-                      price);
+                      price, flowTrails);
 
             var selection = atlasGo.AddComponent<SelectionModel>();
             selection.Wire(root);

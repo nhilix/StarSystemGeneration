@@ -24,14 +24,20 @@ public static class FreightPurposeQuery
     public static FreightPurposeInfo Of(SimState state, Shipment shipment)
     {
         var rider = CourierOps.OfShipment(state, shipment.Id);
-        if (rider != null)
-            return new FreightPurposeInfo(
-                rider.Priority == CourierPriority.War
-                    ? FreightPurpose.WarConvoy : FreightPurpose.Courier,
-                rider.Id);
         return new FreightPurposeInfo(
-            shipment.Channel == ShipmentChannel.Freight
-                ? FreightPurpose.SpreadRun : FreightPurpose.StateHaul,
-            null);
+            FromParts(shipment.Channel, rider != null,
+                      rider?.Priority ?? CourierPriority.Normal),
+            rider?.Id);
     }
+
+    /// <summary>The same rule from parts already in hand — the launch
+    /// observer's capture path (AC2.F2), where the rider is known
+    /// directly at dispatch and the registry lookup above would miss
+    /// sub-step couriers entirely (already resolved when asked).</summary>
+    public static FreightPurpose FromParts(ShipmentChannel channel,
+        bool hasRider, CourierPriority riderPriority) => hasRider
+            ? (riderPriority == CourierPriority.War
+                ? FreightPurpose.WarConvoy : FreightPurpose.Courier)
+            : (channel == ShipmentChannel.Freight
+                ? FreightPurpose.SpreadRun : FreightPurpose.StateHaul);
 }

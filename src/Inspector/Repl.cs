@@ -13,6 +13,12 @@ public sealed class Repl
     private int _spiralIndex;
     private GalaxyContext? _galaxy;
     private Core.Epoch.SimState? _sim;
+    /// <summary>AC2.F2: flows captured during the LAST estep — the atlas
+    /// keyframe-flows' REPL twin. In-memory only; cleared per step and
+    /// whenever a new sim loads (a fresh world starts with none, exactly
+    /// as a freshly loaded atlas artifact does).</summary>
+    private readonly System.Collections.Generic.List<Core.Atlas.RecentFlow>
+        _recentFlows = new();
 
     public void Run()
     {
@@ -49,6 +55,7 @@ public sealed class Repl
                     Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
+                    Console.WriteLine("eflows — courier/war-convoy flows captured during the last estep (the atlas trails' twin)");
                     Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
                     Console.WriteLine("econtracts [actorId] — open/in-transit courier contracts: route, cargo, fee, fulfiller");
                     Console.WriteLine("ehealth [metric|save <base>] — macro health: latest snapshot + debt roster, one metric's trend, or CSV export");
@@ -131,6 +138,7 @@ public sealed class Repl
                     new Core.Epoch.EpochEngine().Run(estate);
                     sw.Stop();
                     _sim = estate;
+                    _recentFlows.Clear();
                     _seed = eseed;
                     _galaxy = new GalaxyContext(eskeleton.Config) { Skeleton = eskeleton };
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
@@ -288,6 +296,12 @@ public sealed class Repl
                 case "efreight":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
+                case "eflows" when _sim != null:
+                    RenderFlows(_sim);
+                    break;
+                case "eflows":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
                 case "econtracts" when _sim != null:
                 {
                     int poster = -1;
@@ -404,8 +418,16 @@ public sealed class Repl
                             $" (generation stays {_sim.Config.Sim.GenerationYears})"));
                     }
                     var engine = new Core.Epoch.EpochEngine();
+                    // AC2.F2: tap launches so `eflows` can show what moved
+                    // during the LAST step — the atlas keyframe capture's twin
+                    engine.ShipmentObserver = l =>
+                        _recentFlows.Add(Core.Atlas.RecentFlowQuery.Capture(l));
                     int traceFrom = _sim!.Trace.Count;
-                    for (int i = 0; i < n; i++) engine.Step(_sim);
+                    for (int i = 0; i < n; i++)
+                    {
+                        _recentFlows.Clear();
+                        engine.Step(_sim);
+                    }
                     for (int i = traceFrom; i < _sim.Trace.Count; i++)
                     {
                         var t = _sim.Trace[i];
@@ -539,6 +561,7 @@ public sealed class Repl
                         }
                         animator.Done();
                         _sim = westate;
+                        _recentFlows.Clear();
                         _seed = wseed;
                         _galaxy = new GalaxyContext(wconfig) { Skeleton = skeleton };
                         Console.WriteLine($"watch complete — sim loaded at epoch {westate.EpochIndex} "
@@ -706,6 +729,7 @@ public sealed class Repl
                         {
                             var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
                             _sim = loaded;
+                            _recentFlows.Clear();
                             _seed = loaded.Skeleton.Config.MasterSeed;
                             _galaxy = new GalaxyContext(loaded.Skeleton.Config)
                             { Skeleton = loaded.Skeleton };
@@ -728,6 +752,7 @@ public sealed class Repl
                         {
                             var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
                             _sim = loaded;
+                            _recentFlows.Clear();
                             _seed = loaded.Skeleton.Config.MasterSeed;
                             _galaxy = new GalaxyContext(loaded.Skeleton.Config)
                             { Skeleton = loaded.Skeleton };
@@ -952,6 +977,41 @@ public sealed class Repl
                 $"{s.YearsInTransit,5:0.0}/{s.TotalYears,-6:0.0} ")
                 + eta + $"  ({owner})");
         }
+    }
+
+    /// <summary>`eflows` (AC2.F2): the recent-flow trails' REPL twin —
+    /// courier and war-convoy launches captured during the LAST estep (the
+    /// step that produced the current moment). Most lane-borne shipments
+    /// launch and arrive inside one step, so `efreight` cannot show them;
+    /// this is their record. Empty until a step runs in-session — the same
+    /// "none yet" a freshly loaded atlas artifact shows. Derivation is
+    /// Core.Atlas.RecentFlowQuery's (capture + Renders filter); this
+    /// formats.</summary>
+    private void RenderFlows(Core.Epoch.SimState sim)
+    {
+        bool any = false;
+        foreach (var f in _recentFlows)
+        {
+            if (!Core.Atlas.RecentFlowQuery.Renders(f.Purpose)) continue;
+            if (!any)
+                Console.WriteLine("recent flows (moved during the last step):");
+            any = true;
+            string owner = f.OwnerActorId >= 0 && f.OwnerActorId < sim.Actors.Count
+                ? sim.Actors[f.OwnerActorId].Name : "—";
+            var cargo = new System.Collections.Generic.List<string>();
+            for (int g = 0; g < f.Qty.Count && cargo.Count < 3; g++)
+                if (f.Qty[g] > 0)
+                    cargo.Add(FormattableString.Invariant(
+                        $"{f.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            string purpose = f.Purpose == Core.Atlas.FreightPurpose.WarConvoy
+                ? "war convoy" : "courier";
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{f.ShipmentId,-6} {purpose,-11} #{f.OriginPortId}->#{f.DestPortId,-6} ")
+                + $"{string.Join(", ", cargo),-32} ({owner})");
+        }
+        if (!any)
+            Console.WriteLine("no recent courier/war-convoy flows — estep to "
+                + "sail a step (a freshly loaded world starts with none)");
     }
 
     /// <summary>`econtracts` (slice CE; AC2.5 re-point): the courier job

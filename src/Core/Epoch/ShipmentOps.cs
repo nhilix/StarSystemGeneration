@@ -27,11 +27,16 @@ public static class ShipmentOps
                     basket, scratch, out _);
 
     /// <summary>Dispatch reporting what became of a sub-step resolution —
-    /// couriers need delivered vs pirated (slice CE).</summary>
+    /// couriers need delivered vs pirated (slice CE). The courier passes
+    /// itself as <paramref name="rider"/> so the launch tap can carry the
+    /// contract linkage (AC2.F2) — at this moment the contract is still
+    /// Open, and a sub-step transit resolves it before any registry lookup
+    /// (CourierOps.OfShipment) could ever find it.</summary>
     internal static Shipment? Dispatch(SimState state, int ownerActorId,
         ShipmentChannel channel, int fromPortId, int toPortId,
         IReadOnlyList<(int Good, double Qty, double Grade)> basket,
-        MarketStepScratch? scratch, out SailOutcome outcome)
+        MarketStepScratch? scratch, out SailOutcome outcome,
+        CourierContract? rider = null)
     {
         var (laneIds, legYears) = PlanRoute(state, fromPortId, toPortId);
         var s = new Shipment(state.NextShipmentId++, ownerActorId, channel,
@@ -41,6 +46,7 @@ public static class ShipmentOps
         outcome = Sail(state, scratch, severed, HunterMap(state),
                        WarPresenceMap(state), s,
                        state.Config.Sim.YearsPerEpoch);
+        NotifyLaunch(state, s, rider);
         if (outcome != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
         state.Shipments.Add(s);
@@ -59,12 +65,28 @@ public static class ShipmentOps
             fromPortId, toPortId, state.WorldYear, laneIds, legYears);
         Fill(s, basket);
         var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
-        if (Sail(state, scratch, severed, HunterMap(state),
-                WarPresenceMap(state), s,
-                state.Config.Sim.YearsPerEpoch) != SailOutcome.InTransit)
+        var outcome = Sail(state, scratch, severed, HunterMap(state),
+                           WarPresenceMap(state), s,
+                           state.Config.Sim.YearsPerEpoch);
+        NotifyLaunch(state, s, rider: null);
+        if (outcome != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
         state.Shipments.Add(s);
         return s;
+    }
+
+    /// <summary>The AC2.F2 passive tap: every launch reported exactly
+    /// once, whether it survives the step or resolves inside it. A null
+    /// observer costs nothing — not even the cargo snapshot allocation.</summary>
+    private static void NotifyLaunch(SimState state, Shipment s,
+                                     CourierContract? rider)
+    {
+        var observe = state.ShipmentObserver;
+        if (observe == null) return;
+        observe(new ShipmentLaunch(s.Id, s.OwnerActorId, s.Channel,
+            s.OriginPortId, s.DestPortId, rider?.Id ?? -1,
+            rider?.Priority ?? CourierPriority.Normal,
+            (double[])s.Qty.Clone()));
     }
 
     private static void Fill(Shipment s,
