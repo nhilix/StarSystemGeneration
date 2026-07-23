@@ -981,46 +981,41 @@ public sealed class Repl
         if (!any) Console.WriteLine("  (no open contracts)");
     }
 
-    /// <summary>`ebook` (slice CE): one port's order book — resting asks
-    /// and bids per good with owners, plus the reference price the
-    /// downstream valuations read. The market IS the book now.</summary>
+    /// <summary>`ebook` (slice CE; AC2.4 re-point): one port's order book —
+    /// resting asks and bids per good with owners, plus the reference price
+    /// the downstream valuations read. The market IS the book now. A pure
+    /// formatter over <see cref="Core.Atlas.MarketPanel"/>'s per-good
+    /// Asks/Bids rows (the DomainView pattern: derivation lives in
+    /// Core.Atlas, the REPL and a future Unity book view read the SAME
+    /// query) — output stays byte-identical with the pre-AC2.4 direct
+    /// SimState scan.</summary>
     private static void RenderBook(Core.Epoch.SimState sim, int portId,
                                    Core.Substrate.GoodId? only)
     {
         if (portId < 0 || portId >= sim.Ports.Count)
         { Console.WriteLine($"no port #{portId} (0..{sim.Ports.Count - 1})"); return; }
-        var market = sim.Markets[portId];
+        var card = Core.Atlas.MarketPanel.Card(new Core.Atlas.AtlasReadModel(sim),
+            Core.Atlas.EyeContext.God(sim.WorldYear), portId)!;
         Console.WriteLine(FormattableString.Invariant(
-            $"book at port #{portId} — {sim.Actors[sim.Ports[portId].OwnerActorId].Name}'s domain"));
+            $"book at port #{portId} — {card.OwnerName}'s domain"));
         bool any = false;
-        for (int g = 0; g < Core.Substrate.Goods.All.Count; g++)
+        foreach (var row in card.Goods)
         {
-            if (only.HasValue && g != (int)only.Value) continue;
-            var asks = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
-            var bids = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
-            foreach (var o in sim.Orders)
-            {
-                if (o.PortId != portId || o.Good != g || o.QtyRemaining <= 0)
-                    continue;
-                (o.Side == Core.Epoch.OrderSide.Sell ? asks : bids).Add(o);
-            }
-            if (asks.Count == 0 && bids.Count == 0 && !only.HasValue) continue;
+            if (only.HasValue && row.Good != only.Value) continue;
+            if (row.Asks.Count == 0 && row.Bids.Count == 0 && !only.HasValue)
+                continue;
             any = true;
-            asks.Sort((x, y) => x.LimitPrice != y.LimitPrice
-                ? x.LimitPrice.CompareTo(y.LimitPrice) : x.Id.CompareTo(y.Id));
-            bids.Sort((x, y) => x.LimitPrice != y.LimitPrice
-                ? y.LimitPrice.CompareTo(x.LimitPrice) : x.Id.CompareTo(y.Id));
             Console.WriteLine(FormattableString.Invariant(
-                $"  {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name,-16} ref {market.Price[g]:0.00}"));
-            foreach (var o in asks)
+                $"  {row.GoodName,-16} ref {row.Price:0.00}"));
+            foreach (var o in row.Asks)
                 Console.WriteLine(FormattableString.Invariant(
-                    $"    ask {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
-                    + $"grade {o.Grade:0.00}  ({OwnerName(sim, o.OwnerActorId)})");
-            foreach (var o in bids)
+                    $"    ask {o.Qty,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + $"grade {o.Grade:0.00}  ({o.OwnerName})");
+            foreach (var o in row.Bids)
                 Console.WriteLine(FormattableString.Invariant(
-                    $"    bid {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    $"    bid {o.Qty,8:0.#} @ {o.LimitPrice,7:0.00}  ")
                     + FormattableString.Invariant(
-                    $"escrow {o.EscrowCredits:0.0}  ({OwnerName(sim, o.OwnerActorId)})"));
+                    $"escrow {o.EscrowCredits:0.0}  ({o.OwnerName})"));
         }
         if (!any) Console.WriteLine("  (bare book — no resting orders)");
     }

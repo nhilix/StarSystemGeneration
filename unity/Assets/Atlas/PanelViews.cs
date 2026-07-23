@@ -347,6 +347,13 @@ namespace StarGen.AtlasView
                 Line(body, Inv($"{g.GoodName,-14} {g.Price,6:0.00} {g.Inventory,7:0.#} {grade,-11} {g.LastCleared,6:0.#}  {black}"));
             }
 
+            // AC2.4: the resting book, `ebook` parity — reads the SAME
+            // per-good Asks/Bids the "market" summary above rolls up (its
+            // Inventory/Grade columns ARE this book's ask side), now at
+            // order granularity: owner, qty, grade, limit vs reference.
+            Sect(body, "order book");
+            BookSection(body, card.Goods);
+
             Sect(body, "segments");
             if (card.Segments.Count == 0) Line(body, "(unpeopled)", dim: true);
             foreach (var s in card.Segments)
@@ -370,6 +377,34 @@ namespace StarGen.AtlasView
                 Line(row, Inv($"port #{lane.OtherPortId} (lane #{lane.LaneId})"));
             }
             return (Inv($"MARKET #{card.PortId}"), body);
+        }
+
+        /// <summary>AC2.4 — the resting order book, per good: reference price,
+        /// then every live ask (cheapest first) and bid (dearest first) with
+        /// owner, qty, grade, and the limit's delta against the reference
+        /// (above reference in "warn" red for an ask — pricier than the
+        /// market; below reference in "warn" for a bid — lowballing it). A
+        /// good with no resting orders is skipped, matching `ebook`'s
+        /// default (unfiltered) view.</summary>
+        private static void BookSection(VisualElement body,
+            IReadOnlyList<MarketGoodRow> goods)
+        {
+            bool any = false;
+            foreach (var g in goods)
+            {
+                if (g.Asks.Count == 0 && g.Bids.Count == 0) continue;
+                any = true;
+                Line(body, Inv($"{g.GoodName} — ref {g.Price:0.00}"));
+                foreach (var o in g.Asks)
+                    Kv(body, Inv($"  ask {o.Qty:0.#} @ {o.LimitPrice:0.00}"),
+                       Inv($"grade {o.Grade:0.00} · {o.OwnerName}"),
+                       o.RefDelta > 0 ? "warn" : null);
+                foreach (var o in g.Bids)
+                    Kv(body, Inv($"  bid {o.Qty:0.#} @ {o.LimitPrice:0.00}"),
+                       Inv($"escrow {o.EscrowCredits:0.0} · {o.OwnerName}"),
+                       o.RefDelta < 0 ? "warn" : null);
+            }
+            if (!any) Line(body, "(bare book — no resting orders)", dim: true);
         }
 
         /// <summary>AC1.4 — the selected outpost's own detail, rendered inside
