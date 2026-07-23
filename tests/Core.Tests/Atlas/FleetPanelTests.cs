@@ -70,6 +70,34 @@ public class FleetPanelTests
     }
 
     [Fact]
+    public void ADeployedFleetNamesItsForwardDepot()
+    {
+        var (model, state) = WithFleet();
+        // the freight fleet (id 0) is Posted, not deployed; blockade the
+        // enemy port with actor 0's own squadron — its forward depot is
+        // its own port #0, not the port it's blockading
+        var fleet = EpochTestKit.BlockadePort(state, state.Actors[0].Id,
+                                              portId: 1);
+        var card = FleetPanel.Card(model, EyeContext.God(state.WorldYear),
+                                   fleet.Id);
+        Assert.NotNull(card);
+        Assert.Equal(0, card!.ForwardDepotPortId);
+        Assert.Equal(HexGrid.Distance(state.Ports[0].Hex, fleet.Hex),
+                     card.ForwardDepotDistanceHexes);
+    }
+
+    [Fact]
+    public void ANonDeployedFleetNamesNoForwardDepot()
+    {
+        var (model, state) = WithFleet();
+        var card = FleetPanel.Card(model, EyeContext.God(state.WorldYear), 0);
+        Assert.NotNull(card);
+        Assert.Equal(FleetPosture.Posted, card!.Row.Posture);
+        Assert.Equal(-1, card.ForwardDepotPortId);
+        Assert.Equal(-1, card.ForwardDepotDistanceHexes);
+    }
+
+    [Fact]
     public void DesignsFilterByOwner()
     {
         var (model, state) = WithFleet();

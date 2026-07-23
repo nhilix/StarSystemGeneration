@@ -76,6 +76,35 @@ public class WarLensTests
     }
 
     [Fact]
+    public void AHostileSquadronWithinReachContestsTheLane()
+    {
+        var (model, state) = WithPorts();
+        EpochTestKit.AddLane(state, 0, 1);
+        int attacker = state.Actors[1].Id;
+        Declare(state, attacker, state.Actors[0].Id);
+        // the attacker blockades the defender's own port (0) — squadron
+        // sits exactly on the lane's endpoint, well within reach
+        var fleet = EpochTestKit.BlockadePort(state, attacker, portId: 0);
+        var lane = Assert.Single(
+            WarLens.ContestedLanes(model, EyeContext.God(state.WorldYear)));
+        Assert.Equal(0, lane.LaneId);
+        Assert.Equal(state.Ports[0].Hex, lane.A);
+        Assert.Equal(state.Ports[1].Hex, lane.B);
+        Assert.Equal(WarLens.ContestedLaneColor, lane.Color);
+        Assert.Equal(fleet.Hex, state.Ports[0].Hex);
+    }
+
+    [Fact]
+    public void APeacetimeSquadronDoesNotContestTheLane()
+    {
+        var (model, state) = WithPorts();
+        EpochTestKit.AddLane(state, 0, 1);
+        EpochTestKit.BlockadePort(state, state.Actors[1].Id, portId: 0);
+        Assert.Empty(
+            WarLens.ContestedLanes(model, EyeContext.God(state.WorldYear)));
+    }
+
+    [Fact]
     public void AHulklessBlockadeStandsNoStation()
     {
         var (model, state) = WithPorts();

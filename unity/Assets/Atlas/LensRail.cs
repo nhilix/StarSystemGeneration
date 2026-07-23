@@ -232,10 +232,14 @@ namespace StarGen.AtlasView
             root.DomainInterior.SetVisible(domainsVisible);
             root.WarLayer.SetVisible(_war);
 
-            bool lanesVisible = _lanes || _traffic || _trade || _plague;
+            // AC2.7: the war lens's own stroke mode — contested lanes only,
+            // rides the same chip as the domain accent/station glyphs, no
+            // new rail key
+            bool lanesVisible = _lanes || _traffic || _trade || _plague || _war;
             root.LaneLayer.SetVisible(lanesVisible);
             root.LaneLayer.SetMode(
-                _traffic ? LaneMode.Traffic
+                _war ? LaneMode.War
+                : _traffic ? LaneMode.Traffic
                 : _trade ? LaneMode.Trade
                 : _lanes ? LaneMode.Status
                 : LaneMode.QuarantineOnly);

@@ -10,8 +10,10 @@ namespace StarGen.AtlasView
     /// brightness by posted trips/year, QuarantineOnly is the plague
     /// lens's approaches-closed read with the rest of the network dark,
     /// Trade (AC2.3) weights width and brightness by the steepest
-    /// actionable price gradient on the lane (margin gold).</summary>
-    public enum LaneMode { Status, Traffic, QuarantineOnly, Trade }
+    /// actionable price gradient on the lane (margin gold). War (AC2.7)
+    /// draws only the lanes a hostile squadron can reach — sparse, like
+    /// the war lens's stations, not the full network.</summary>
+    public enum LaneMode { Status, Traffic, QuarantineOnly, Trade, War }
 
     /// <summary>Lanes as thin, screen-constant highways on the plane.
     /// Base width tracks camera altitude continuously; each stroke can
@@ -124,6 +126,17 @@ namespace StarGen.AtlasView
         private void BuildStrokes()
         {
             _strokes = new List<Stroke>();
+            if (_mode == LaneMode.War)
+            {
+                // sparse overlay, war stations' sibling: only lanes a
+                // hostile squadron can reach, never the full network
+                foreach (var lane in WarLens.ContestedLanes(_model, _eye))
+                    _strokes.Add(new Stroke(
+                        AtlasGeometry.HexToWorld(lane.A, Z),
+                        AtlasGeometry.HexToWorld(lane.B, Z),
+                        AtlasGeometry.ToColor32(lane.Color), 1.6f));
+                return;
+            }
             if (_mode == LaneMode.Traffic)
             {
                 foreach (var seg in TrafficLens.Segments(_model, _eye))

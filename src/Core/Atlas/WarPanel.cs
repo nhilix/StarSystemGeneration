@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Atlas;
@@ -22,9 +23,14 @@ public sealed record WarSide(int LeaderId, string LeaderName,
 public sealed record FrontRow(WarObjectiveType Type, int TargetId,
     ObjectiveStatus Status, int SiegeYears, int? FallsAtYears);
 
-/// <summary>A war fleet on station under the attacker's banner.</summary>
+/// <summary>A war fleet on station under the attacker's banner.
+/// DepotPortId/-DistanceHexes name its forward depot (AC2.7,
+/// FleetOps.NearestOwnedPortId) — every station fleet here is already
+/// Blockade/Expedition (deployed), so DepotPortId is only -1 when the
+/// attacker holds no port at all.</summary>
 public sealed record WarFleetRow(int FleetId, int Hulls, HexCoordinate Hex,
-    string? CommanderName, double Readiness);
+    string? CommanderName, double Readiness, int DepotPortId,
+    int DepotDistanceHexes);
 
 /// <summary>The war card — one campaign readable like a story.</summary>
 public sealed record WarCard(int Id, string Name, bool Active,
@@ -81,10 +87,15 @@ public static class WarPanel
             if (fleet.OwnerActorId != war.AttackerId || fleet.TotalHulls == 0
                 || fleet.Posture is not (FleetPosture.Blockade
                     or FleetPosture.Expedition)) continue;
+            int depotPortId = FleetOps.NearestOwnedPortId(state,
+                fleet.OwnerActorId, fleet.Hex);
+            int depotDistance = depotPortId >= 0
+                ? HexGrid.Distance(state.Ports[depotPortId].Hex, fleet.Hex)
+                : -1;
             fleets.Add(new WarFleetRow(fleet.Id, fleet.TotalHulls, fleet.Hex,
                 fleet.CommanderId >= 0
                     ? state.Characters[fleet.CommanderId].Name : null,
-                fleet.Readiness));
+                fleet.Readiness, depotPortId, depotDistance));
         }
 
         var chronicle = new List<string>();

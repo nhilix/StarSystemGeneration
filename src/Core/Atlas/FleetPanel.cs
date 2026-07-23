@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Atlas;
@@ -20,11 +21,16 @@ public sealed record HullLine(int Count, int DesignId, string DesignName,
     int Mark, ShipRole Role, ShipSize Size, double Grade);
 
 /// <summary>One fleet's full sheet (`fleet &lt;id&gt;` parity): posture,
-/// station, composition, and the computed-never-stored vectors.</summary>
+/// station, composition, and the computed-never-stored vectors.
+/// ForwardDepotPortId/-DistanceHexes name where a deployed (Blockade or
+/// Expedition) fleet draws supply (AC2.7, FleetOps.SupplyFleets' own
+/// forward-depot criterion) — -1/-1 for any other posture, or a deployed
+/// fleet whose owner holds no port.</summary>
 public sealed record FleetCard(FleetRow Row, int HomePortId,
     int CommanderId, string? CommanderName,
     IReadOnlyList<HullLine> Composition, FleetVectors Vectors,
-    double EnduranceHexesOffLane);
+    double EnduranceHexesOffLane, int ForwardDepotPortId,
+    int ForwardDepotDistanceHexes);
 
 /// <summary>One design lineage row (`designs` parity).</summary>
 public sealed record DesignRow(int Id, int OwnerActorId, string OwnerName,
@@ -62,11 +68,21 @@ public static class FleetPanel
                                          d.Role, d.Size, g.Grade));
         }
         var vectors = FleetOps.Vectors(state, f);
+        // forward depot (AC2.7): only a deployed fleet victuals at the
+        // nearest owned port instead of home — FleetOps.SupplyFleets'
+        // own criterion, read here rather than re-derived
+        bool deployed = f.Posture is FleetPosture.Blockade
+            or FleetPosture.Expedition;
+        int depotPortId = deployed
+            ? FleetOps.NearestOwnedPortId(state, f.OwnerActorId, f.Hex) : -1;
+        int depotDistance = depotPortId >= 0
+            ? HexGrid.Distance(state.Ports[depotPortId].Hex, f.Hex) : -1;
         return new FleetCard(RowOf(state, f), f.HomePortId, f.CommanderId,
             f.CommanderId >= 0 ? state.Characters[f.CommanderId].Name : null,
             composition, vectors,
             vectors.EnduranceFloor
-                * state.Config.Fleet.EnduranceHexesPerPoint);
+                * state.Config.Fleet.EnduranceHexesPerPoint,
+            depotPortId, depotDistance);
     }
 
     /// <summary>Design lineages, optionally one actor's (`designs`).</summary>

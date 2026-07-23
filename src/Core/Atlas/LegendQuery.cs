@@ -51,6 +51,9 @@ public static class LegendQuery
                     new LegendEntry(LegendSwatch.Glyph, WarLens.StationBurn,
                         "war fleet on station (blockade/expedition)",
                         "FleetBlockade"),
+                    new LegendEntry(LegendSwatch.Stroke,
+                        WarLens.ContestedLaneColor,
+                        "contested lane — a hostile squadron in reach"),
                 };
             case "tension":
                 return new[]

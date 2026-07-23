@@ -198,8 +198,11 @@ public static class ShipmentOps
     /// (Blockade, Expedition) within InterdictionReachHexes of either
     /// endpoint, plus Escort fleets riding the lane itself — the presence
     /// that contests an enemy's legs and screens a friend's (contract-
-    /// economy spec §4). Fleet-id order per lane (P6). Lookup-only.</summary>
-    private static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
+    /// economy spec §4). Fleet-id order per lane (P6). Lookup-only.
+    /// Internal (not private): the war lens (AC2.7, WarLens.ContestedLanes)
+    /// calls this same read for its contested-lane shading rather than
+    /// re-deriving the reach/posture rule — CALLED, not copied.</summary>
+    internal static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
         WarPresenceMap(SimState state)
     {
         // no active war, no contested legs and no screens worth pricing —

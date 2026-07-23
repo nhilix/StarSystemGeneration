@@ -80,6 +80,36 @@ public class WarRelationsPanelTests
     }
 
     [Fact]
+    public void TheOnStationFleetNamesItsForwardDepot()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        HexCoordinate? a = null, b = null;
+        foreach (var cell in state.Skeleton.Cells)
+        {
+            if (cell.IsVoid) continue;
+            if (a == null) { a = HexGrid.CellCenter(cell.Coord); continue; }
+            b = HexGrid.CellCenter(cell.Coord);
+            break;
+        }
+        // port 0: the defender's — the blockade target. port 1: the
+        // attacker's own — its forward depot (AC2.7).
+        state.Ports.Add(new Port(0, state.Actors[1].Id, a!.Value, 2, 0));
+        state.Ports.Add(new Port(1, state.Actors[0].Id, b!.Value, 2, 0));
+        var war = new War(0, "the Test War", state.Actors[0].Id,
+            state.Actors[1].Id, CasusBelli.ResourceSeizure, -1,
+            WarDemand.CedeObjectives, state.WorldYear);
+        state.Wars.Add(war);
+        var model = new AtlasReadModel(state);
+        var fleet = EpochTestKit.BlockadePort(state, war.AttackerId,
+                                              portId: 0);
+        var card = WarPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        var row = Assert.Single(card.FleetsOnStation);
+        Assert.Equal(1, row.DepotPortId);
+        Assert.Equal(HexGrid.Distance(state.Ports[1].Hex, fleet.Hex),
+                     row.DepotDistanceHexes);
+    }
+
+    [Fact]
     public void RelationsReadTheSourceTermsAndClaims()
     {
         var (_, state) = EpochTestKit.Seeded();

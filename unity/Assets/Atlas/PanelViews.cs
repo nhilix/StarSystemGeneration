@@ -645,6 +645,11 @@ namespace StarGen.AtlasView
             Kv(body, "readiness", Inv($"{row.Readiness:0.00}"));
             Kv(body, "home port", card.HomePortId >= 0
                 ? Inv($"#{card.HomePortId}") : "none");
+            // forward depot (AC2.7) — only a deployed (Blockade/Expedition)
+            // fleet has one; FleetPanel.Card already gates it to -1 otherwise
+            if (card.ForwardDepotPortId >= 0)
+                Kv(body, "forward depot",
+                   Inv($"port #{card.ForwardDepotPortId} ({card.ForwardDepotDistanceHexes} hexes)"));
             if (card.CommanderName != null)
             {
                 var cmd = Row(body, () => ctx.Open(new PanelRequest(
@@ -744,7 +749,13 @@ namespace StarGen.AtlasView
                 var row = Row(body, () => ctx.Open(new PanelRequest(
                     PanelType.Fleet, captured.FleetId)));
                 Line(row, Inv($"fleet #{f.FleetId}: {f.Hulls} hulls at ({f.Hex.Q},{f.Hex.R})")
-                    + (f.CommanderName != null ? " under " + f.CommanderName : ""));
+                    + (f.CommanderName != null ? " under " + f.CommanderName : "")
+                    // forward depot (AC2.7) — every station fleet here is
+                    // already deployed, so DepotPortId is -1 only when the
+                    // attacker holds no port at all
+                    + (f.DepotPortId >= 0
+                        ? Inv($" · depot #{f.DepotPortId} ({f.DepotDistanceHexes}h)")
+                        : " · depot none"));
             }
             Sect(body, "chronicle");
             if (card.Chronicle.Count == 0) Line(body, "(quiet so far)", dim: true);

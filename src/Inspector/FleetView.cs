@@ -1,5 +1,6 @@
 using System.Text;
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using static System.FormattableString;
 
 namespace StarGen.Inspector;
@@ -44,6 +45,17 @@ public static class FleetView
             + (f.HomePortId >= 0 ? Invariant($"#{f.HomePortId}") : "none")
             + " · commander "
             + (f.CommanderId >= 0 ? Invariant($"#{f.CommanderId}") : "(vacant slot)"));
+        // forward depot (AC2.7): deployed (Blockade/Expedition) fleets
+        // victual at their nearest owned port, not home — FleetOps.
+        // SupplyFleets' own criterion (contract-economy spec §4)
+        if (f.Posture is FleetPosture.Blockade or FleetPosture.Expedition)
+        {
+            int depot = FleetOps.NearestOwnedPortId(state, f.OwnerActorId, f.Hex);
+            sb.AppendLine("  forward depot: " + (depot >= 0
+                ? Invariant($"port #{depot} ")
+                  + Invariant($"({HexGrid.Distance(state.Ports[depot].Hex, f.Hex)} hexes)")
+                : "none (no owned port)"));
+        }
 
         if (f.Hulls.Count == 0)
         {
