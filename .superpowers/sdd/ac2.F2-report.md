@@ -280,5 +280,4 @@ path. Flagging for whoever owns the scene file next: confirm whether that
 diff is intentional (e.g. an in-progress `CrawlPathLayer` wiring) before
 either committing or discarding it.
 
-**Commit: (see top-level commit list on this branch for the exact SHA —
-recorded by the caller after this report lands).**
+**Commit: df0f992** on `claude/slice-ac-0e02d9`.
