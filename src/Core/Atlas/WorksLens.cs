@@ -30,6 +30,18 @@ public readonly record struct FreightMark(
 public readonly record struct ConvoyMark(
     int FleetId, HexCoordinate Hex, int OwnerActorId, Rgba Color);
 
+/// <summary>One dash of an off-lane shipment's crawl path (AC4.1): the
+/// direct origin→dest line a lane-less runner sails for decades, split
+/// into dashes so it reads as a LIVE crawl — distinct from AC2.F2's solid,
+/// faded recent-flow trails (a memory) and from the lane strokes (never a
+/// lane at all). From/ToFraction locate the dash along the origin→dest
+/// line in [0,1]; the renderer lerps between the two PORT hexes' world
+/// positions directly — no per-hex rounding, so a long crawl draws the
+/// true straight line instead of zigzagging hex to hex.</summary>
+public readonly record struct CrawlDashMark(
+    int ShipmentId, HexCoordinate Origin, HexCoordinate Dest,
+    double FromFraction, double ToFraction, Rgba Color);
+
 /// <summary>The works lens — the in-flight world (emap works parity, the
 /// T2 layer): construction sites and freight on the move are residue
 /// while they happen. In-flight only; arrivals and completions leave the
@@ -128,6 +140,51 @@ public static class WorksLens
                               from.R + (to.R - from.R) * f),
                 f, stalled, Math.Max(0.0, s.TotalYears - s.YearsInTransit),
                 FreightColorOf(purpose, stalled));
+        }
+        return marks;
+    }
+
+    /// <summary>Dash geometry (AC4.1, taste call — noted for Eyeball 4):
+    /// dash count scales with the hex span so short and long crawls both
+    /// read as a dashed LINE rather than one giant or one microscopic
+    /// segment; the on-fraction leaves a visible gap between dashes. The
+    /// path renders at a fixed alpha well under the freight mark's own
+    /// 190–250 (WorksLens.FreightColorOf) — brighter mark riding a dimmer
+    /// path, so the live position always reads over the intended line.</summary>
+    public const int CrawlDashMin = 6;
+    public const int CrawlDashMax = 24;
+    public const double CrawlDashOnFraction = 0.55;
+    public const byte CrawlPathAlpha = 110;
+
+    /// <summary>Every LIVE off-lane shipment's dashed direct path — lane
+    /// traffic (RouteLaneIds non-empty) never dashes; it rides the lane
+    /// strokes instead (the RenderFreight/efreight off-lane idiom, AC4.1
+    /// decision #4). Purpose-tinted at CrawlPathAlpha (never STALLED — an
+    /// off-lane crawl has no lane leg to close, WorksLensTests
+    /// AnOffLaneCrawlNeverStalls).</summary>
+    public static IReadOnlyList<CrawlDashMark> CrawlPaths(AtlasReadModel model,
+                                                           EyeContext eye)
+    {
+        var state = model.State;
+        if (state.Shipments.Count == 0) return Array.Empty<CrawlDashMark>();
+        var marks = new List<CrawlDashMark>();
+        foreach (var s in state.Shipments)             // id order (P6)
+        {
+            if (s.RouteLaneIds.Count != 0) continue;
+            var from = state.Ports[s.OriginPortId].Hex;
+            var to = state.Ports[s.DestPortId].Hex;
+            var purpose = FreightPurposeQuery.Of(state, s).Purpose;
+            var tint = FreightColorOf(purpose, stalled: false);
+            var color = new Rgba(tint.R, tint.G, tint.B, CrawlPathAlpha);
+            int hexSpan = HexGrid.Distance(from, to);
+            int dashes = Math.Clamp(hexSpan, CrawlDashMin, CrawlDashMax);
+            double cell = 1.0 / dashes;
+            for (int i = 0; i < dashes; i++)
+            {
+                double start = i * cell;
+                marks.Add(new CrawlDashMark(s.Id, from, to, start,
+                    start + cell * CrawlDashOnFraction, color));
+            }
         }
         return marks;
     }

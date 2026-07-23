@@ -700,6 +700,22 @@ namespace StarGen.AtlasView
                 + (card.LaneCount == 0 ? "off-lane"
                    : Inv($"via {card.LaneCount} lane")
                      + (card.LaneCount == 1 ? "" : "s")));
+            // AC4.1: off-lane detection-risk CONTEXT, not a probability —
+            // a bool read of Core.Atlas.ShipmentPanel's PatrolCoverage
+            // sample along the direct path (active-war/hostile-only).
+            if (card.OffLane)
+            {
+                var offLaneRow = new VisualElement();
+                offLaneRow.style.flexDirection = FlexDirection.Row;
+                Tag(offLaneRow, card.CrossesPatrolledSpace ? "PATROLLED" : "OFF-LANE",
+                    card.CrossesPatrolledSpace ? "warn" : null);
+                double remaining = System.Math.Max(0.0,
+                    card.TotalYears - card.SailedYears);
+                Line(offLaneRow, Inv($"off-lane crawl · {remaining:0} years remaining")
+                    + (card.CrossesPatrolledSpace
+                        ? " · crossing patrolled space" : ""), dim: true);
+                body.Add(offLaneRow);
+            }
             Meter(body, "sailed",
                   card.TotalYears > 0 ? card.SailedYears / card.TotalYears : 0,
                   Inv($"{card.SailedYears:0.0}/{card.TotalYears:0.0}"));

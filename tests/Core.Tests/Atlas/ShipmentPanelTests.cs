@@ -113,6 +113,56 @@ public class ShipmentPanelTests
         Assert.Equal(state.WorldYear + 9, cards[1].EtaYear);
     }
 
+    /// <summary>AC4.1: OffLane flags by the RenderFreight idiom
+    /// (RouteLaneIds.Count == 0) — lane-routed false, off-lane true; no
+    /// war staged, so the peacetime detection context reads clean even
+    /// off-lane (nothing hostile to evade — PatrolCoverage's own §5 gate).</summary>
+    [Fact]
+    public void OffLaneFlagsByRouteLaneCount_CleanContextWithNoWar()
+    {
+        var (model, state, _) = WithShipment();
+        var crawl = new Shipment(1, state.Actors[0].Id,
+            ShipmentChannel.Requisition, originPortId: 0, destPortId: 1,
+            departureYear: (int)state.WorldYear,
+            routeLaneIds: System.Array.Empty<int>(), legYears: new[] { 9.0 });
+        state.Shipments.Add(crawl);
+        var cards = ShipmentPanel.Cards(model, EyeContext.God(state.WorldYear));
+        Assert.False(cards[0].OffLane);
+        Assert.False(cards[0].CrossesPatrolledSpace);
+        Assert.True(cards[1].OffLane);
+        Assert.False(cards[1].CrossesPatrolledSpace);
+    }
+
+    /// <summary>AC4.1: a peacetime hostile-would-be patrol projects nothing
+    /// (PatrolCoverage's own hostile-only gate) — only an ACTIVE war
+    /// between the patrol's owner and the shipment's owner, with coverage
+    /// actually reaching the direct path, flips the context flag. Never a
+    /// duplicated seizure roll — a bool read of PatrolCoverage.At only.</summary>
+    [Fact]
+    public void CrossesPatrolledSpace_OnlyUnderActiveWarWithCoverageOnThePath()
+    {
+        var (model, state, _) = WithShipment();
+        var crawl = new Shipment(1, state.Actors[0].Id,
+            ShipmentChannel.Requisition, originPortId: 0, destPortId: 1,
+            departureYear: (int)state.WorldYear,
+            routeLaneIds: System.Array.Empty<int>(), legYears: new[] { 9.0 });
+        state.Shipments.Add(crawl);
+        int enemy = 99;
+        // patrol docked but no war yet — clean
+        state.Fleets.Add(new FleetRecord(state.Fleets.Count, ownerActorId: enemy,
+            state.Ports[1].Hex) { Posture = FleetPosture.Patrol, Body = BodyRef.None });
+        var before = ShipmentPanel.Cards(model, EyeContext.God(state.WorldYear));
+        Assert.False(before[1].CrossesPatrolledSpace);
+        // war declared — now the crawl's context flags the crossing; the
+        // lane-routed sibling is unaffected (off-lane-only context)
+        state.Wars.Add(new War(state.Wars.Count, "the Coverage War",
+            enemy, state.Actors[0].Id, CasusBelli.BorderIncident, -1,
+            WarDemand.CedeObjectives, state.WorldYear));
+        var after = ShipmentPanel.Cards(model, EyeContext.God(state.WorldYear));
+        Assert.True(after[1].CrossesPatrolledSpace);
+        Assert.False(after[0].CrossesPatrolledSpace);
+    }
+
     [Fact]
     public void OneCardByShipmentId_TheFreightMarkClickTarget()
     {

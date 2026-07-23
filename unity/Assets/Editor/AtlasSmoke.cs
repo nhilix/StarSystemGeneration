@@ -38,6 +38,7 @@ namespace StarGen.AtlasView.EditorTools
             var pois = Object.FindAnyObjectByType<PoiLayer>();
             var works = Object.FindAnyObjectByType<WorksLayer>();
             var flowTrails = Object.FindAnyObjectByType<FlowTrailLayer>();
+            var crawlPaths = Object.FindAnyObjectByType<CrawlPathLayer>();
             var plague = Object.FindAnyObjectByType<PlagueLayer>();
             var war = Object.FindAnyObjectByType<WarLayer>();
             var news = Object.FindAnyObjectByType<NewsLayer>();
@@ -58,6 +59,7 @@ namespace StarGen.AtlasView.EditorTools
             pois.EnsureMaterial();
             works.EnsureMaterial();
             flowTrails.EnsureMaterial();
+            crawlPaths.EnsureMaterial();
             plague.EnsureMaterial();
             war.EnsureMaterial();
             news.EnsureMaterial();
@@ -85,6 +87,9 @@ namespace StarGen.AtlasView.EditorTools
             // AC2.F2: the loaded base frame has no captured flows (no step
             // preceded it in-session) — an honest empty, same as the REPL
             flowTrails.Show(host.Machine.CurrentFlows);
+            // AC4.1: off-lane crawl paths — the loaded base frame's own
+            // off-lane shipments (if any survived to this artifact year)
+            crawlPaths.Show(model, eye);
             plague.Show(model, eye);
             war.Show(model, eye);
             news.Show(model, eye);
@@ -94,6 +99,7 @@ namespace StarGen.AtlasView.EditorTools
             pois.SetVisible(false);
             works.SetVisible(false);
             flowTrails.SetVisible(false);
+            crawlPaths.SetVisible(false);
             plague.SetVisible(false);
             war.SetVisible(false);
             news.SetVisible(false);
@@ -183,9 +189,11 @@ namespace StarGen.AtlasView.EditorTools
 
             works.SetVisible(true);
             flowTrails.SetVisible(true);
+            crawlPaths.SetVisible(true);
             Capture(cam, "atlas-smoke-works.png");
             works.SetVisible(false);
             flowTrails.SetVisible(false);
+            crawlPaths.SetVisible(false);
 
             // ---- K5: the orbit stage — the map's curves die at this
             // distance (MapFade 0) and the system view stands alone ----
@@ -233,6 +241,10 @@ namespace StarGen.AtlasView.EditorTools
             flowTrails.SetExtent(rig.GalaxyExtent);
             flowTrails.ViewportPx = Height;
             flowTrails.OnZoom(rig.Distance);
+            var crawlPaths = Object.FindAnyObjectByType<CrawlPathLayer>();
+            crawlPaths.SetExtent(rig.GalaxyExtent);
+            crawlPaths.ViewportPx = Height;
+            crawlPaths.OnZoom(rig.Distance);
             lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
             float extent = rig.GalaxyExtent;
             fleets.OnZoom(rig.Distance, extent);

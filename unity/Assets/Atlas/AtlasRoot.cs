@@ -21,6 +21,7 @@ namespace StarGen.AtlasView
         [SerializeField] private PoiLayer poiLayer;
         [SerializeField] private WorksLayer worksLayer;
         [SerializeField] private FlowTrailLayer flowTrailLayer;
+        [SerializeField] private CrawlPathLayer crawlPathLayer;
         [SerializeField] private PlagueLayer plagueLayer;
         [SerializeField] private WarLayer warLayer;
         [SerializeField] private NewsLayer newsLayer;
@@ -40,6 +41,7 @@ namespace StarGen.AtlasView
         public PoiLayer PoiLayer => poiLayer;
         public WorksLayer WorksLayer => worksLayer;
         public FlowTrailLayer FlowTrailLayer => flowTrailLayer;
+        public CrawlPathLayer CrawlPathLayer => crawlPathLayer;
         public PlagueLayer PlagueLayer => plagueLayer;
         public WarLayer WarLayer => warLayer;
         public NewsLayer NewsLayer => newsLayer;
@@ -52,7 +54,7 @@ namespace StarGen.AtlasView
                          CameraRig rig, FleetLayer fleets, PoiLayer pois,
                          WorksLayer works, PlagueLayer plague, WarLayer war,
                          NewsLayer news, PriceFieldLayer price,
-                         FlowTrailLayer flowTrails)
+                         FlowTrailLayer flowTrails, CrawlPathLayer crawlPaths)
         {
             simHost = host;
             starfield = stars;
@@ -68,6 +70,7 @@ namespace StarGen.AtlasView
             poiLayer = pois;
             worksLayer = works;
             flowTrailLayer = flowTrails;
+            crawlPathLayer = crawlPaths;
             plagueLayer = plague;
             warLayer = war;
             newsLayer = news;
@@ -101,6 +104,8 @@ namespace StarGen.AtlasView
             laneLayer.SetExtent(cameraRig.GalaxyExtent);
             if (flowTrailLayer != null)
                 flowTrailLayer.SetExtent(cameraRig.GalaxyExtent);
+            if (crawlPathLayer != null)
+                crawlPathLayer.SetExtent(cameraRig.GalaxyExtent);
             OnZoomChanged(cameraRig.Distance);
         }
 
@@ -135,6 +140,10 @@ namespace StarGen.AtlasView
                 flowTrailLayer.Show(simHost.Machine != null
                     ? simHost.Machine.CurrentFlows
                     : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>());
+            // AC4.1: live off-lane crawl paths — null-guarded for the same
+            // reason as the trails (an older serialized scene predating
+            // this layer stays alive until the setup regenerates it)
+            if (crawlPathLayer != null) crawlPathLayer.Show(model, eye);
             plagueLayer.Show(model, eye);
             warLayer.Show(model, eye);
             newsLayer.Show(model, eye);
@@ -149,6 +158,11 @@ namespace StarGen.AtlasView
             {
                 flowTrailLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
                 flowTrailLayer.OnZoom(distance);
+            }
+            if (crawlPathLayer != null)
+            {
+                crawlPathLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
+                crawlPathLayer.OnZoom(distance);
             }
             lattice.OnZoom(distance, cameraRig.GalaxyExtent);
             float extent = cameraRig.GalaxyExtent;

@@ -168,6 +168,50 @@ public class WorksLensTests
         Assert.False(mark.Stalled);
     }
 
+    /// <summary>AC4.1: an off-lane crawl's direct origin→dest line renders
+    /// dashed — distinct from AC2.F2's solid recent-flow trails (a live
+    /// crawl, not a memory). Dashes are ordered, non-overlapping fractions
+    /// of the line, all carrying the shipment's id and a dimmer tint than
+    /// the freight mark itself (WorksLens.FreightColorOf's full alpha).</summary>
+    [Fact]
+    public void AnOffLaneCrawlDashesItsDirectPath()
+    {
+        var (model, state) = WithLane();
+        state.Shipments.Add(new Shipment(0, state.Actors[0].Id,
+            ShipmentChannel.Requisition, 0, 1, (int)state.WorldYear,
+            System.Array.Empty<int>(), new[] { 30.0 }));
+        var dashes = WorksLens.CrawlPaths(model, EyeContext.God(state.WorldYear));
+        Assert.NotEmpty(dashes);
+        double lastEnd = -1;
+        foreach (var d in dashes)
+        {
+            Assert.Equal(0, d.ShipmentId);
+            Assert.Equal(state.Ports[0].Hex, d.Origin);
+            Assert.Equal(state.Ports[1].Hex, d.Dest);
+            Assert.InRange(d.FromFraction, 0.0, 1.0);
+            Assert.InRange(d.ToFraction, 0.0, 1.0);
+            Assert.True(d.ToFraction > d.FromFraction);
+            Assert.True(d.FromFraction >= lastEnd);
+            lastEnd = d.FromFraction;
+        }
+        // dimmer than the mark's own full-alpha purpose tint
+        var full = WorksLens.FreightColorOf(FreightPurpose.SpreadRun, stalled: false);
+        Assert.True(dashes[0].Color.A < full.A);
+    }
+
+    /// <summary>A lane-routed shipment never dashes — the crawl path is
+    /// the off-lane special case (the honest line an off-lane runner
+    /// actually sails; lane traffic follows the lane strokes instead).</summary>
+    [Fact]
+    public void ALaneRoutedShipmentHasNoCrawlPath()
+    {
+        var (model, state) = WithLane();
+        state.Shipments.Add(new Shipment(0, state.Actors[0].Id,
+            ShipmentChannel.Freight, 0, 1, (int)state.WorldYear,
+            new[] { 0 }, new[] { 10.0 }));
+        Assert.Empty(WorksLens.CrawlPaths(model, EyeContext.God(state.WorldYear)));
+    }
+
     [Fact]
     public void ExpeditionConvoysMarkTheirLiveHexes()
     {

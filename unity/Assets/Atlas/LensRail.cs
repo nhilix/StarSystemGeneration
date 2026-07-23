@@ -261,6 +261,10 @@ namespace StarGen.AtlasView
             // layer, not a new rail key (null-guarded for an older scene)
             if (root.FlowTrailLayer != null)
                 root.FlowTrailLayer.SetVisible(_works);
+            // AC4.1: live off-lane crawl paths ride the works chip too —
+            // same sibling-layer, null-guarded pattern as the trails
+            if (root.CrawlPathLayer != null)
+                root.CrawlPathLayer.SetVisible(_works);
             root.PriceField.SetGood(_priceGood);
             root.PriceField.SetVisible(_price);
             root.PlagueLayer.SetVisible(_plague);
