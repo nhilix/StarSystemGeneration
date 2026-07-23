@@ -202,19 +202,45 @@ actually wants; panel wording `rate X numeraire` inherited from the REPL.
 
 ## Phase 4 — Off-lane, events, debt sweep (L2 + cheap debt)  [spec §4]
 
-- [ ] **AC4.1** — Off-lane crawls render distinctly (direct hex-path,
+- [x] **AC4.1** — Off-lane crawls render distinctly (direct hex-path,
       dashed/attenuated vs lane traffic); `ShipmentCard` gains off-lane status +
       detection-risk context (`PatrolCoverage.At`, read-only, choice #4).
-- [ ] **AC4.2** — Patrol-coverage readout on `FleetPanel` (falloff from dock,
+- [x] **AC4.2** — Patrol-coverage readout on `FleetPanel` (falloff from dock,
       `OrbitGeometry`-based, read-only).
-- [ ] **AC4.3** — Event readthrough: `CargoSeized=409` off-lane variants +
+- [x] **AC4.3** — Event readthrough: `CargoSeized=409` off-lane variants +
       settle/outpost/graduation events read well in news/chronicle; fix copy/
       payload gaps found, nothing more.
-- [ ] **AC4.4** — Cheap debt: `OrbitRef` alias (`SystemStage.cs:9`) compile-
+- [x] **AC4.4** — Cheap debt: `OrbitRef` alias (`SystemStage.cs:9`) compile-
       verified in a real editor session; `AtlasSmoke` extended to render every
       lens including TRADE + currency mode.
-- [ ] **AC4.G** — Phase gate + **Eyeball 4** (blockade a lane, watch freight
-      elect a visible off-lane crawl; event feed reads the new world cleanly).
+- [ ] **AC4.G** — Phase gate ✅ (2026-07-23, run whole on final HEAD `7721cda`
+      by the sweep: dotnet **1298/1298** · golden byte-identical · determinism
+      green in-suite · Unity compile clean · EditMode **16/16** · AtlasSmoke
+      **18/18** with flow trails now visible in the works shot) + **Eyeball 4**
+      PENDING (late-epoch off-lane crawl + shipment panel tags; event feed).
+
+### Phase 4 log
+- **AC4.1 DONE** (`1d4123b`, Sonnet). Off-lane crawl paths: dashed direct
+  hex-path strokes (all four purpose tints — any purpose can go off-lane) vs
+  AC2.F2's solid two-purpose memory trails; `ShipmentCard` gains off-lane
+  flag (`RouteLaneIds.Count==0`, choice #4) + "crossing patrolled space"
+  context (`PatrolCoverage.At` read-only along the path). 1293 (+4). Taste
+  carry: `WorksLens.CrawlDashMin/Max/OnFraction/CrawlPathAlpha` first-pass.
+- **AC4.2 DONE** (`2df8b38`, Sonnet). FleetPanel patrol-coverage summary via
+  `PatrolCoverage.At` max-over-candidate-victims (magnitude is victim-
+  independent; zero when at war with nobody — true reading, posture gates
+  absence). 1298 (+5). Judgment flagged for Eyeball 4: narrower
+  "actual current enemies" read is a one-loop change if preferred.
+- **AC4.3 DONE** (`175bcfc`, Sonnet). CargoSeized copy no longer implies a
+  lane on off-lane seizures; fractional prizes legible. **Two sim-side
+  payload gaps FILED (not fixed): `CargoSeizedPayload` can't distinguish
+  on-lane vs off-lane seizure; graduation riding `PortEstablished` is
+  indistinguishable from a fresh port.**
+- **AC4.4 DONE** (`7721cda`, Sonnet). Sweep: smoke steps once (trails render
+  headless now); 11 stray Epoch `.cs.meta` tracked; `OrbitRef` alias
+  compile-verified (log evidence, no change); 18-shot coverage confirmed;
+  `TradeLens.FlatAlpha` widened public, `LaneLayer` reads it (alpha-45
+  duplication resolved).
 
 ## Slice-end wrap-up (per CLAUDE.md)
 
