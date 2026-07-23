@@ -438,11 +438,16 @@ namespace StarGen.AtlasView
             }
             if (!anyStock) Line(body, "(nothing banked)", dim: true);
 
+            // AC3.3: the price table states its currency once, at the
+            // header — no reader should wonder which unit a row's price is
+            // in, and a per-row repeat would be noise (units genuinely
+            // differ per zone now that CU-1/CU-4 wired currency-per-polity).
             Sect(body, "market");
             var goodsTable = Table(body);
             var goodsHead = TableRow(goodsTable, head: true);
             Cell(goodsHead, "GOOD", "flex");
-            Cell(goodsHead, "PRICE", "w48", num: true);
+            Cell(goodsHead, Inv($"PRICE ({card.CurrencyName ?? "—"})"),
+                "w48", num: true);
             Cell(goodsHead, "INV", "w44", num: true);
             Cell(goodsHead, "GRADE", "w64");
             Cell(goodsHead, "CLEARED", "w48", num: true);
@@ -908,6 +913,22 @@ namespace StarGen.AtlasView
                 if (r.OfferedRung != Core.Epoch.TreatyRung.None)
                     Kv(body, "on the table",
                        Inv($"{r.OfferedRung} offered by #{r.OfferedById}"), "acc");
+                // AC3.4: monetary credibility (CU-4's BackedShare, the SAME
+                // min-of-both-sides term FederationOps' fusion gate reads) —
+                // absent entirely when neither side has a currency yet.
+                if (r.CredibilityA != null || r.CredibilityB != null)
+                {
+                    var credTable = Table(body);
+                    var credRow = TableRow(credTable);
+                    Cell(credRow, r.PolityAName, "flex");
+                    Cell(credRow, r.CredibilityA != null
+                        ? Inv($"credibility {r.CredibilityA:0%}") : "—",
+                        "w84", num: true);
+                    Cell(credRow, r.PolityBName, "flex");
+                    Cell(credRow, r.CredibilityB != null
+                        ? Inv($"credibility {r.CredibilityB:0%}") : "—",
+                        "w84", num: true);
+                }
                 foreach (var claim in r.Claims)
                     Line(body, Inv($"claim: {claim.HolderName} holds {claim.Type.ToString().ToLowerInvariant()} (raised y{claim.RaisedYear})"), dim: true);
             }

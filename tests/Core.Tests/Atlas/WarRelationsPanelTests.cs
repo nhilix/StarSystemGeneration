@@ -170,6 +170,59 @@ public class WarRelationsPanelTests
         Assert.True(row.PolityAId == entered[0] || row.PolityBId == entered[0]);
     }
 
+    // ---- AC3.4: relations name the CU-4 monetary-credibility term
+    // (BackedShare-derived) that the federation gate reads.
+
+    [Fact]
+    public void RelationsReadEachSidesBackedShareCredibility()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var entered = new System.Collections.Generic.List<int>();
+        foreach (var actor in state.Actors)
+        {
+            if (actor.Kind != ActorKind.Polity || entered.Count == 2) continue;
+            actor.Entered = true;
+            entered.Add(actor.Id);
+        }
+        var currencyA = state.FoundCurrency(entered[0]);
+        state.BankOf(currencyA.Id).Reserve = 30;              // BackedShare 1.0
+        var currencyB = state.FoundCurrency(entered[1]);
+        var bankB = state.BankOf(currencyB.Id);
+        bankB.Reserve = 10;
+        bankB.LendToState(30);                          // BackedShare 0.25
+        state.Relations.Add(new PolityRelation(entered[0], entered[1], 0));
+
+        var model = new AtlasReadModel(state);
+        var row = Assert.Single(RelationsPanel.Rows(model,
+            EyeContext.God(state.WorldYear)));
+        // the SAME derivation the federation gate reads (FederationOps.Credibility)
+        Assert.Equal(state.BackedShareOf(currencyA.Id), row.CredibilityA);
+        Assert.Equal(state.BackedShareOf(currencyB.Id), row.CredibilityB);
+        Assert.Equal(1.0, row.CredibilityA);
+        Assert.Equal(0.25, row.CredibilityB);
+    }
+
+    [Fact]
+    public void CredibilityIsAbsentNotZeroWithoutACurrency()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var entered = new System.Collections.Generic.List<int>();
+        foreach (var actor in state.Actors)
+        {
+            if (actor.Kind != ActorKind.Polity || entered.Count == 2) continue;
+            actor.Entered = true;
+            entered.Add(actor.Id);
+        }
+        // neither side has been minted a currency (pre-genesis sentinel)
+        state.Relations.Add(new PolityRelation(entered[0], entered[1], 0));
+
+        var model = new AtlasReadModel(state);
+        var row = Assert.Single(RelationsPanel.Rows(model,
+            EyeContext.God(state.WorldYear)));
+        Assert.Null(row.CredibilityA);
+        Assert.Null(row.CredibilityB);
+    }
+
     private static int FindUnentered(SimState state)
     {
         foreach (var actor in state.Actors)

@@ -46,10 +46,17 @@ public sealed record FacilityRow(int Id, string TypeName, int Tier,
 /// standing quarantine (FleetOps.SeveredLaneIds).</summary>
 public sealed record LaneLink(int LaneId, int OtherPortId, bool Cut);
 
-/// <summary>The Market panel's card — `market &lt;portId&gt;` typed.</summary>
+/// <summary>The Market panel's card — `market &lt;portId&gt;` typed.
+/// <see cref="CurrencyId"/>/<see cref="CurrencyName"/> (AC3.3) are the
+/// currency every price/order/escrow in <see cref="Goods"/> is denominated
+/// in — <see cref="Epoch.SimState.LocalCurrencyOf"/> resolved once, headline
+/// (not per-row). CurrencyName is null and CurrencyId is the pre-genesis
+/// sentinel (−1) for a currencyless port — the same absent convention
+/// <see cref="PolityPanel.MonetaryLine"/> uses.</summary>
 public sealed record MarketCard(
     int PortId, int Tier, HexCoordinate Hex, int OwnerActorId,
     string OwnerName, long FoundedYear, double StockCapacity,
+    int CurrencyId, string? CurrencyName,
     IReadOnlyList<MarketGoodRow> Goods, IReadOnlyList<SegmentRow> Segments,
     IReadOnlyList<FacilityRow> Facilities, IReadOnlyList<LaneLink> Lanes);
 
@@ -135,9 +142,14 @@ public static class MarketPanel
             lanes.Add(new LaneLink(l.Id, other, severed.Contains(l.Id)));
         }
 
+        int currencyId = state.LocalCurrencyOf(portId);
+        string? currencyName = currencyId >= 0
+            ? state.CurrencyOf(currencyId).Name : null;
+
         return new MarketCard(portId, port.Tier, port.Hex,
             port.OwnerActorId, state.Actors[port.OwnerActorId].Name,
             port.FoundedYear, MarketEngine.StockCapacityAt(state, port),
+            currencyId, currencyName,
             goods, segments, facilities, lanes);
     }
 

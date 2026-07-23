@@ -212,4 +212,31 @@ public class MarketPanelTests
         var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
         Assert.Empty(card.Goods[(int)GoodId.Alloys].Asks);
     }
+
+    // ---- AC3.3: the market states its currency, headline (not per-row).
+
+    [Fact]
+    public void TheCardNamesTheOwningPolitysCurrency()
+    {
+        var (model, state) = WithMarket();
+        // seeded polities start pre-genesis; mint one for port 0's owner
+        var currency = state.FoundCurrency(state.Actors[0].Id);
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        Assert.Equal(currency.Id, card.CurrencyId);
+        Assert.Equal(currency.Name, card.CurrencyName);
+        // the SAME hop state.LocalCurrencyOf(portId) makes — zero drift
+        Assert.Equal(state.LocalCurrencyOf(0), card.CurrencyId);
+    }
+
+    [Fact]
+    public void ACurrencylessPortCarriesTheAbsentSentinel()
+    {
+        var (model, state) = WithMarket();
+        Assert.True(state.LocalCurrencyOf(0) < 0);   // pre-genesis, never founded
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        Assert.Equal(-1, card.CurrencyId);
+        Assert.Null(card.CurrencyName);
+    }
 }
