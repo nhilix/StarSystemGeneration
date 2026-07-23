@@ -16,11 +16,14 @@ public readonly record struct SiteMark(
 /// <summary>Goods on the move: a shipment interpolated along its
 /// origin→destination line by sailed fraction. Stalled = the current
 /// leg's lane is closed (blockade, quarantine, dead gate) — efreight's
-/// STALLED, on the map.</summary>
+/// STALLED, on the map. AC2.6 adds Purpose (FreightPurposeQuery, the SAME
+/// derivation the ShipmentPanel and `efreight` read) — Color tints by it
+/// while moving; STALLED still overrides to the one loud red regardless
+/// of purpose (a closed leg is the same alarm for anyone's cargo).</summary>
 public readonly record struct FreightMark(
     int ShipmentId, ShipmentChannel Channel, int OwnerActorId,
-    HexCoordinate Hex, double Fraction, bool Stalled, double RemainingYears,
-    Rgba Color);
+    FreightPurpose Purpose, HexCoordinate Hex, double Fraction, bool Stalled,
+    double RemainingYears, Rgba Color);
 
 /// <summary>An expedition convoy at its live hex — colony kit and war
 /// columns in the field read as travel, not sites.</summary>
@@ -34,9 +37,35 @@ public readonly record struct ConvoyMark(
 public static class WorksLens
 {
     public static readonly Rgba SiteAmber = new(240, 195, 95, 230);
-    public static readonly Rgba FreightMoving = new(190, 225, 240, 210);
+    /// <summary>Purpose tints, moving only — STALLED overrides all four to
+    /// FreightStalled (below), the one universal "broken" alarm. State
+    /// haul keeps the original pale freight-blue (no behavior change for
+    /// the most common case); spread run borrows the trade-margin gold
+    /// (TradeLens.MarginGold — a trader's own margin, literally); courier
+    /// gets a violet identity the rest of the vocabulary doesn't use;
+    /// war convoy reuses WarLens.StationBurn — red already means "war"
+    /// throughout the atlas (DomainLens.WarShade, WarLens itself) — at
+    /// full alpha, the loudest of the four.</summary>
+    public static readonly Rgba FreightStateHaul = new(190, 225, 240, 210);
+    public static readonly Rgba FreightSpreadRun = new(240, 195, 95, 220);
+    public static readonly Rgba FreightCourier = new(190, 150, 235, 220);
+    public static readonly Rgba FreightWarConvoy = new(235, 75, 55, 250);
     public static readonly Rgba FreightStalled = new(240, 90, 70, 240);
     public static readonly Rgba ConvoyWhite = new(235, 230, 210, 220);
+
+    /// <summary>The freight mark's color: STALLED is the one loud red for
+    /// any purpose; moving reads by purpose (war convoy loudest).</summary>
+    public static Rgba FreightColorOf(FreightPurpose purpose, bool stalled)
+    {
+        if (stalled) return FreightStalled;
+        return purpose switch
+        {
+            FreightPurpose.WarConvoy => FreightWarConvoy,
+            FreightPurpose.Courier => FreightCourier,
+            FreightPurpose.SpreadRun => FreightSpreadRun,
+            _ => FreightStateHaul,
+        };
+    }
 
     /// <summary>Every in-flight project's anchor; gate pairs mark both
     /// ends (EpochMapView.WorkCells, addressed). Travel kinds are
@@ -92,12 +121,13 @@ public static class WorksLens
                           || lane.QuarantinedUntil > state.WorldYear
                           || !LaneMath.IsLive(state, lane);
             }
+            var purpose = FreightPurposeQuery.Of(state, s).Purpose;
             marks[i] = new FreightMark(
-                s.Id, s.Channel, s.OwnerActorId,
+                s.Id, s.Channel, s.OwnerActorId, purpose,
                 HexGrid.Round(from.Q + (to.Q - from.Q) * f,
                               from.R + (to.R - from.R) * f),
                 f, stalled, Math.Max(0.0, s.TotalYears - s.YearsInTransit),
-                stalled ? FreightStalled : FreightMoving);
+                FreightColorOf(purpose, stalled));
         }
         return marks;
     }

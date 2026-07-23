@@ -114,6 +114,48 @@ public class WorksLensTests
         Assert.NotEqual(moving.Color, mark.Color);
     }
 
+    /// <summary>AC2.6: the four freight purposes read distinct colors while
+    /// moving, war convoy loudest (WorksLens.FreightWarConvoy); a war
+    /// convoy's rider is a War-priority courier contract carrying its
+    /// shipment.</summary>
+    [Fact]
+    public void PurposeTintsTheMovingFreightMark_WarConvoyLoudest()
+    {
+        var (model, state) = WithLane();
+        var stateHaul = new Shipment(0, state.Actors[0].Id,
+            ShipmentChannel.Requisition, 0, 1, (int)state.WorldYear,
+            new[] { 0 }, new[] { 10.0 });
+        state.Shipments.Add(stateHaul);
+        var spreadRun = new Shipment(1, state.Actors[0].Id,
+            ShipmentChannel.Freight, 0, 1, (int)state.WorldYear,
+            new[] { 0 }, new[] { 10.0 });
+        state.Shipments.Add(spreadRun);
+        var warShip = new Shipment(2, state.Actors[0].Id,
+            ShipmentChannel.Requisition, 0, 1, (int)state.WorldYear,
+            new[] { 0 }, new[] { 10.0 });
+        state.Shipments.Add(warShip);
+        state.Couriers.Add(new CourierContract(5, state.Actors[0].Id, 0, 1,
+            10, CourierPriority.War, (int)state.WorldYear,
+            (int)state.WorldYear + 5)
+        { Status = CourierStatus.InTransit, ShipmentId = warShip.Id });
+
+        var marks = WorksLens.Freight(model, EyeContext.God(state.WorldYear));
+        Assert.Equal(3, marks.Count);
+        var haulMark = marks[0];
+        var spreadMark = marks[1];
+        var warMark = marks[2];
+        Assert.Equal(FreightPurpose.StateHaul, haulMark.Purpose);
+        Assert.Equal(FreightPurpose.SpreadRun, spreadMark.Purpose);
+        Assert.Equal(FreightPurpose.WarConvoy, warMark.Purpose);
+        Assert.Equal(WorksLens.FreightStateHaul, haulMark.Color);
+        Assert.Equal(WorksLens.FreightSpreadRun, spreadMark.Color);
+        Assert.Equal(WorksLens.FreightWarConvoy, warMark.Color);
+        // three distinct colors, none repeated
+        Assert.NotEqual(haulMark.Color, spreadMark.Color);
+        Assert.NotEqual(haulMark.Color, warMark.Color);
+        Assert.NotEqual(spreadMark.Color, warMark.Color);
+    }
+
     [Fact]
     public void AnOffLaneCrawlNeverStalls()
     {

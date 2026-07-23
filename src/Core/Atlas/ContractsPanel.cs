@@ -41,6 +41,20 @@ public static class ContractsPanel
         return rows;
     }
 
+    /// <summary>One contract by id (AC2.6) — the shipment purpose rider
+    /// link: a courier/war-convoy ShipmentCard's route/fee line reads
+    /// this, the SAME row `econtracts`/the job board prints, no
+    /// duplicated formatting.</summary>
+    public static ContractRow? Row(AtlasReadModel model, EyeContext eye,
+                                   int contractId)
+    {
+        var state = model.State;
+        foreach (var c in state.Couriers)                 // ids are sparse
+            if (c.Id == contractId)
+                return RowOf(state, c);
+        return null;
+    }
+
     private static ContractRow RowOf(SimState state, CourierContract c)
     {
         var cargo = new List<CargoLine>();

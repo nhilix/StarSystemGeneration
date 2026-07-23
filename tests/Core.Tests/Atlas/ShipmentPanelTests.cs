@@ -124,4 +124,39 @@ public class ShipmentPanelTests
         Assert.Null(ShipmentPanel.Card(model,
             EyeContext.God(state.WorldYear), shipmentId: 99));
     }
+
+    /// <summary>AC2.6: with no rider courier, the card's Purpose reads by
+    /// channel alone (the fixture shipment is Freight-channel) and there
+    /// is no Rider row.</summary>
+    [Fact]
+    public void WithNoRider_PurposeReadsByChannelAndRiderIsNull()
+    {
+        var (model, state, _) = WithShipment();
+        var card = Assert.Single(
+            ShipmentPanel.Cards(model, EyeContext.God(state.WorldYear)));
+        Assert.Equal(FreightPurpose.SpreadRun, card.Purpose);
+        Assert.Null(card.Rider);
+    }
+
+    /// <summary>AC2.6: a War-priority rider reads as a war convoy and
+    /// carries the SAME row `econtracts`/the job board would print — no
+    /// duplicated contract formatting.</summary>
+    [Fact]
+    public void AWarPriorityRiderReadsAsAWarConvoyWithItsContractRow()
+    {
+        var (model, state, _) = WithShipment();
+        var s = state.Shipments[0];
+        var c = new CourierContract(11, s.OwnerActorId, s.OriginPortId,
+            s.DestPortId, 42.0, CourierPriority.War, (int)state.WorldYear,
+            (int)state.WorldYear + 5)
+        { Status = CourierStatus.InTransit, ShipmentId = s.Id };
+        state.Couriers.Add(c);
+
+        var card = Assert.Single(
+            ShipmentPanel.Cards(model, EyeContext.God(state.WorldYear)));
+        Assert.Equal(FreightPurpose.WarConvoy, card.Purpose);
+        Assert.NotNull(card.Rider);
+        Assert.Equal(11, card.Rider!.Id);
+        Assert.Equal(42.0, card.Rider.FeeEscrow);
+    }
 }

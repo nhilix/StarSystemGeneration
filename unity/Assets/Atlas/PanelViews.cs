@@ -579,6 +579,11 @@ namespace StarGen.AtlasView
             var card = ShipmentPanel.Card(ctx.Model, ctx.Eye, request.Id);
             if (card == null)
                 return ("SHIPMENT", Missing(body, "no such shipment"));
+            var purposeRow = new VisualElement();
+            purposeRow.style.flexDirection = FlexDirection.Row;
+            Tag(purposeRow, PurposeLabel(card.Purpose),
+                card.Purpose == FreightPurpose.WarConvoy ? "bad" : null);
+            body.Add(purposeRow);
             Kv(body, "channel", card.Channel.ToString().ToLowerInvariant());
             Kv(body, "owner", card.OwnerName);
             var route = Row(body, () => ctx.Open(new PanelRequest(
@@ -604,8 +609,29 @@ namespace StarGen.AtlasView
             foreach (var line in card.Cargo)
                 Kv(body, line.GoodName,
                    Inv($"{line.Qty:0.#} @ {line.Grade:0.00}"));
+            if (card.Rider != null)
+            {
+                Sect(body, "rider contract");
+                Kv(body, "route",
+                   card.Rider.OriginPortOwnerName + " → "
+                   + card.Rider.DestPortOwnerName);
+                Kv(body, "fee", Inv($"{card.Rider.FeeEscrow:0.0}"));
+                Kv(body, "poster", card.Rider.PosterName);
+                Link(body, Inv($"OPEN CONTRACTS BOARD (#{card.Rider.Id})"),
+                    () => ctx.Open(new PanelRequest(PanelType.Contracts)));
+            }
             return (Inv($"SHIPMENT #{card.Id}"), body);
         }
+
+        /// <summary>The 4-way freight-purpose label (AC2.6) — same words
+        /// `efreight` prints, Core.Atlas.FreightPurpose the shared type.</summary>
+        private static string PurposeLabel(FreightPurpose purpose) => purpose switch
+        {
+            FreightPurpose.WarConvoy => "WAR CONVOY",
+            FreightPurpose.Courier => "courier",
+            FreightPurpose.SpreadRun => "spread run",
+            _ => "state haul",
+        };
 
         private static (string, VisualElement) Fleet(PanelRequest request,
             PanelContext ctx, VisualElement body)

@@ -934,18 +934,18 @@ public sealed class Repl
             string eta = stalled ? "STALLED"
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
-            // purpose (slice CE): courier cargo (war convoys called out)
-            // vs a trader's spread run vs the state hauling its own
-            Core.Epoch.CourierContract? rider = null;
-            foreach (var c in sim.Couriers)
-                if (c.Status == Core.Epoch.CourierStatus.InTransit
-                    && c.ShipmentId == s.Id)
-                { rider = c; break; }
-            string purpose = rider != null
-                ? rider.Priority == Core.Epoch.CourierPriority.War
-                    ? "war convoy" : "courier"
-                : s.Channel == Core.Epoch.ShipmentChannel.Freight
-                    ? "spread run" : "state haul";
+            // purpose (slice CE; AC2.6 re-point): courier cargo (war
+            // convoys called out) vs a trader's spread run vs the state
+            // hauling its own — now the SAME derivation the atlas map and
+            // ShipmentPanel read (Core.Atlas.FreightPurposeQuery).
+            string purpose = Core.Atlas.FreightPurposeQuery.Of(sim, s).Purpose
+                switch
+            {
+                Core.Atlas.FreightPurpose.WarConvoy => "war convoy",
+                Core.Atlas.FreightPurpose.Courier => "courier",
+                Core.Atlas.FreightPurpose.SpreadRun => "spread run",
+                _ => "state haul",
+            };
             Console.WriteLine(FormattableString.Invariant(
                 $"  #{s.Id,-6} {purpose,-11} {route,-21} {string.Join(", ", cargo),-32} ")
                 + FormattableString.Invariant(

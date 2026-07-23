@@ -35,9 +35,17 @@ namespace StarGen.AtlasView
                     AtlasGlyph.WorkSite));
             }
             foreach (var f in freight)
+            {
+                // AC2.6: purpose tints the color (WorksLens.FreightColorOf);
+                // size carries the same story on top — a war convoy reads
+                // biggest whether it's under way or STALLED, matching the
+                // 13f the expedition-convoy glyph already claims below.
+                bool war = f.Purpose == FreightPurpose.WarConvoy;
+                float size = f.Stalled ? (war ? 15f : 14f) : (war ? 13f : 11f);
                 instances.Add(new GlyphInstance(At(f.Hex),
-                    0.65f * AtlasGeometry.HexStep, f.Stalled ? 14f : 11f,
+                    0.65f * AtlasGeometry.HexStep, size,
                     f.Color, AtlasGlyph.WorkFreight));
+            }
             foreach (var c in convoys)
                 instances.Add(new GlyphInstance(At(c.Hex),
                     0.8f * AtlasGeometry.HexStep, 13f, c.Color,
