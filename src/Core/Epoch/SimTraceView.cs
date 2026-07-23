@@ -322,9 +322,19 @@ public static class SimTraceView
             ProjectAbandonedPayload p =>
                 Invariant($"works at project #{p.ProjectId} are abandoned ")
                 + "half-built — the supply line never came",
+            // AC4.3: this ONE copy line renders BOTH war interdiction (an
+            // on-lane leg contested by an enemy squadron) and off-lane
+            // smuggling detection (a covering hostile Patrol at the drop
+            // point) — CargoSeizedPayload(ShipmentId, InterdictorActorId,
+            // Units) carries nothing that tells the two apart (no schema
+            // change here; filed as a sim-side gap in the AC4.2-3 report),
+            // so the copy must not claim a specific mechanism ("on a
+            // contested lane" was always false for the off-lane half).
+            // Units also renders 2dp now — a real 0.04-unit prize used to
+            // round to a misleading "0 units taken as prize".
             CargoSeizedPayload p =>
-                Invariant($"a convoy is seized on a contested lane — ")
-                + Invariant($"{p.Units:0} units taken as prize"),
+                Invariant($"a convoy is seized — ")
+                + Invariant($"{p.Units:0.00} units taken as prize"),
             _ => e.Type.ToString(),
         };
         string family = e.Family.ToString().ToLowerInvariant();
