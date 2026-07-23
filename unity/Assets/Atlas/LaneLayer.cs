@@ -25,10 +25,6 @@ namespace StarGen.AtlasView
         private const float Z = -0.05f;
         private const float WidthPx = 1.4f;
         private const float FovDegrees = 50f;
-        // Dead-lane trade idle read — matches TrafficLens.IdleAlpha and
-        // TradeLens's own flat-spread floor (both 45): posted, nothing
-        // to arbitrage.
-        private const byte IdleTradeAlpha = 45;
 
         private readonly struct Stroke
         {
@@ -173,9 +169,14 @@ namespace StarGen.AtlasView
                     }
                     else
                     {
+                        // Dead-lane trade idle read — matches TrafficLens.
+                        // IdleAlpha and TradeLens's own flat-spread floor
+                        // (both 45): posted, nothing to arbitrage. Reads the
+                        // shared public source rather than a local copy
+                        // (AC4.4).
                         var idle = new Rgba(TradeLens.MarginGold.R,
                             TradeLens.MarginGold.G, TradeLens.MarginGold.B,
-                            IdleTradeAlpha);
+                            TradeLens.FlatAlpha);
                         _strokes.Add(new Stroke(
                             AtlasGeometry.HexToWorld(a, Z),
                             AtlasGeometry.HexToWorld(b, Z),

@@ -28,7 +28,12 @@ public static class TradeLens
     // Margin reads in the money family — WorksLens.SiteAmber's gold, so
     // economic surfaces share one hue and loudness is the only variable.
     public static readonly Rgba MarginGold = new(240, 195, 95);
-    private const byte FlatAlpha = 45;
+    /// <summary>The flat-spread alpha floor — public because it is the
+    /// shared source value for the dead-lane idle read: TrafficLens.IdleAlpha
+    /// mirrors it (both 45, one economic-surface idle treatment), and
+    /// LaneLayer's Trade-mode dead-lane stroke reads it directly rather than
+    /// keeping its own copy (AC4.4).</summary>
+    public const byte FlatAlpha = 45;
     private const byte FullAlpha = 220;
     /// <summary>Spread where the weight saturates — the '#' band's floor;
     /// a doubled price (or steeper) reads as a full margin run.</summary>

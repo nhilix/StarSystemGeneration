@@ -70,6 +70,12 @@ namespace StarGen.AtlasView.EditorTools
                 if (exitOnFailure) EditorApplication.Exit(1);
                 return;
             }
+            // AC4.4: step once before capture so CurrentFlows is non-empty
+            // for the works shot (headless load never plays a step) — the
+            // golden artifact on disk is untouched, only the in-memory
+            // TimeMachine advances; every shot below now renders the y+25
+            // world, which is expected.
+            host.StepEpochs(1);
             var eye = host.Eye;
             var model = host.Model;
             stars.Show(model);
