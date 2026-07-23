@@ -56,6 +56,64 @@ public class ShipmentObserverTests
         Assert.Equal(pb.Id, launch.DestPortId);
         Assert.Equal(-1, launch.RiderContractId);   // no courier rides it
         Assert.Equal(25.0, launch.Qty[g], 6);
+        // one lane: the sailed route is its two port hexes
+        Assert.Equal(new[] { pa.Hex, pb.Hex }, launch.RouteHexes);
+    }
+
+    [Fact]
+    public void ALaneRoutedLaunch_CapturesTheLegEndpointHexes()
+    {
+        // eyeball fix (AC2.F2): the trail must render the SAILED route
+        // (A→B→C along the lane network), never the straight A→C result —
+        // the launch carries the ordered chain of port hexes, captured as
+        // hexes so a scrubbed keyframe never depends on the later lane
+        // registry
+        var (state, pa, pb) = Fixture();
+        var a0 = state.Actors[0];
+        var pc = new Port(2, a0.Id,
+            new HexCoordinate(a0.Seat.Q + 20, a0.Seat.R), tier: 2,
+            foundedYear: 0);
+        state.Ports.Add(pc);
+        state.Markets.Add(new Market(2, state.Config.Economy));
+        EpochTestKit.AddLane(state, 1, 2);          // chain: 0—1—2
+        state.Config.Sim.YearsPerEpoch = 1;
+        state.Config.Economy.FreightHexesPerYearBase = 1.0;
+        int g = (int)GoodId.Alloys;
+        var seen = new List<ShipmentLaunch>();
+        state.ShipmentObserver = l => seen.Add(l);
+
+        var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
+            ShipmentChannel.Requisition, pa.Id, pc.Id,
+            new[] { (g, 25.0, 0.7) });
+
+        Assert.NotNull(s);
+        Assert.Equal(2, s!.RouteLaneIds.Count);
+        var launch = Assert.Single(seen);
+        Assert.Equal(new[] { pa.Hex, pb.Hex, pc.Hex }, launch.RouteHexes);
+    }
+
+    [Fact]
+    public void AnOffLaneLaunch_KeepsTheDirectEndpointPair()
+    {
+        // no lane path: the honest special case — the crawl really does
+        // sail the straight line, so the route is just origin→dest
+        var (state, pa, pb) = Fixture();
+        state.Config.Sim.YearsPerEpoch = 1;
+        state.Config.Economy.OffLaneFreightHexesPerYear = 2.0;
+        // wreck a gate: the lane dies, the route falls back to open space
+        state.Facilities[state.Lanes[0].GateAId].Condition = 0;
+        int g = (int)GoodId.Alloys;
+        var seen = new List<ShipmentLaunch>();
+        state.ShipmentObserver = l => seen.Add(l);
+
+        var s = ShipmentOps.Dispatch(state, pa.OwnerActorId,
+            ShipmentChannel.Requisition, pa.Id, pb.Id,
+            new[] { (g, 10.0, 0.5) });
+
+        Assert.NotNull(s);
+        Assert.Empty(s!.RouteLaneIds);
+        var launch = Assert.Single(seen);
+        Assert.Equal(new[] { pa.Hex, pb.Hex }, launch.RouteHexes);
     }
 
     [Fact]

@@ -84,7 +84,7 @@ namespace StarGen.AtlasView.EditorTools
             works.Show(model, eye);
             // AC2.F2: the loaded base frame has no captured flows (no step
             // preceded it in-session) — an honest empty, same as the REPL
-            flowTrails.Show(model, host.Machine.CurrentFlows);
+            flowTrails.Show(host.Machine.CurrentFlows);
             plague.Show(model, eye);
             war.Show(model, eye);
             news.Show(model, eye);

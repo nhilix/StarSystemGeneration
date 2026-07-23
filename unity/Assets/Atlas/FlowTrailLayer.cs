@@ -57,11 +57,13 @@ namespace StarGen.AtlasView
         }
 
         /// <summary>Rebuilds the trails from the current keyframe's
-        /// captured flows (Core aggregates corridors and filters to the
-        /// two rendering purposes — this only draws).</summary>
-        public void Show(AtlasReadModel model, IReadOnlyList<RecentFlow> flows)
+        /// captured flows (Core renders per sailed leg, aggregates
+        /// corridors, and filters to the two rendering purposes — this
+        /// only draws; the flows carry their own route hexes, so no state
+        /// lookup is needed here at all).</summary>
+        public void Show(IReadOnlyList<RecentFlow> flows)
         {
-            _trails = RecentFlowQuery.Trails(model.State, flows);
+            _trails = RecentFlowQuery.Trails(flows);
             Rebuild();
         }
 

@@ -1005,8 +1005,14 @@ public sealed class Repl
                         $"{f.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
             string purpose = f.Purpose == Core.Atlas.FreightPurpose.WarConvoy
                 ? "war convoy" : "courier";
+            // legs = RouteHexes.Count−1 — the SAILED route (the map's
+            // per-leg trails), 1 leg being either one lane or the off-lane
+            // direct crawl
+            string route = FormattableString.Invariant(
+                $"#{f.OriginPortId}->#{f.DestPortId} ({f.RouteHexes.Count - 1} leg")
+                + (f.RouteHexes.Count - 1 == 1 ? ")" : "s)");
             Console.WriteLine(FormattableString.Invariant(
-                $"  #{f.ShipmentId,-6} {purpose,-11} #{f.OriginPortId}->#{f.DestPortId,-6} ")
+                $"  #{f.ShipmentId,-6} {purpose,-11} {route,-16} ")
                 + $"{string.Join(", ", cargo),-32} ({owner})");
         }
         if (!any)

@@ -132,7 +132,7 @@ namespace StarGen.AtlasView
             // null-guarded so an older serialized scene stays alive until
             // the setup regenerates it
             if (flowTrailLayer != null)
-                flowTrailLayer.Show(model, simHost.Machine != null
+                flowTrailLayer.Show(simHost.Machine != null
                     ? simHost.Machine.CurrentFlows
                     : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>());
             plagueLayer.Show(model, eye);

@@ -76,15 +76,33 @@ public static class ShipmentOps
     }
 
     /// <summary>The AC2.F2 passive tap: every launch reported exactly
-    /// once, whether it survives the step or resolves inside it. A null
-    /// observer costs nothing — not even the cargo snapshot allocation.</summary>
+    /// once, whether it survives the step or resolves inside it. The
+    /// SAILED route goes along as the ordered chain of port hexes (walked
+    /// off the route's lanes NOW, so a scrubbed keyframe never depends on
+    /// the later lane registry); an off-lane crawl is the endpoint pair.
+    /// A null observer costs nothing — not even the snapshots.</summary>
     private static void NotifyLaunch(SimState state, Shipment s,
                                      CourierContract? rider)
     {
         var observe = state.ShipmentObserver;
         if (observe == null) return;
+        var hexes = new Model.HexCoordinate[
+            s.RouteLaneIds.Count == 0 ? 2 : s.RouteLaneIds.Count + 1];
+        hexes[0] = state.Ports[s.OriginPortId].Hex;
+        if (s.RouteLaneIds.Count == 0)
+            hexes[1] = state.Ports[s.DestPortId].Hex;
+        else
+        {
+            int at = s.OriginPortId;
+            for (int i = 0; i < s.RouteLaneIds.Count; i++)
+            {
+                var lane = state.Lanes[s.RouteLaneIds[i]];
+                at = lane.PortAId == at ? lane.PortBId : lane.PortAId;
+                hexes[i + 1] = state.Ports[at].Hex;
+            }
+        }
         observe(new ShipmentLaunch(s.Id, s.OwnerActorId, s.Channel,
-            s.OriginPortId, s.DestPortId, rider?.Id ?? -1,
+            s.OriginPortId, s.DestPortId, hexes, rider?.Id ?? -1,
             rider?.Priority ?? CourierPriority.Normal,
             (double[])s.Qty.Clone()));
     }

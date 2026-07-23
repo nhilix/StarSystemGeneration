@@ -34,9 +34,11 @@ public class RecentFlowTests
     [Fact]
     public void Capture_DerivesThePurposeFromTheLaunch()
     {
+        var route = new[] { new HexCoordinate(0, 0), new HexCoordinate(5, 0) };
         var launch = new ShipmentLaunch(7, 0, ShipmentChannel.Requisition,
-            OriginPortId: 1, DestPortId: 2, RiderContractId: 12,
-            RiderPriority: CourierPriority.War, Qty: new double[] { 0, 5 });
+            OriginPortId: 1, DestPortId: 2, RouteHexes: route,
+            RiderContractId: 12, RiderPriority: CourierPriority.War,
+            Qty: new double[] { 0, 5 });
 
         var flow = RecentFlowQuery.Capture(launch);
 
@@ -44,6 +46,7 @@ public class RecentFlowTests
         Assert.Equal(FreightPurpose.WarConvoy, flow.Purpose);
         Assert.Equal(1, flow.OriginPortId);
         Assert.Equal(2, flow.DestPortId);
+        Assert.Same(route, flow.RouteHexes);
         Assert.Equal(5.0, flow.Qty[1], 6);
     }
 
@@ -56,67 +59,129 @@ public class RecentFlowTests
         Assert.False(RecentFlowQuery.Renders(FreightPurpose.StateHaul));
     }
 
-    /// <summary>Two ports on a seeded world — enough for hex lookups.</summary>
-    private static SimState PortedState()
-    {
-        var state = EpochTestKit.Seeded().State;
-        var a0 = state.Actors[0];
-        state.Ports.Add(new Port(0, a0.Id, a0.Seat, tier: 2, foundedYear: 0));
-        state.Ports.Add(new Port(1, a0.Id,
-            new HexCoordinate(a0.Seat.Q + 10, a0.Seat.R), tier: 2,
-            foundedYear: 0));
-        return state;
-    }
+    private static readonly HexCoordinate H0 = new(0, 0);
+    private static readonly HexCoordinate H1 = new(10, 0);
+    private static readonly HexCoordinate H2 = new(20, 0);
+    private static readonly HexCoordinate H3 = new(0, 10);
 
     private static RecentFlow Flow(int id, FreightPurpose purpose,
-        int origin = 0, int dest = 1) =>
-        new(id, 0, purpose, origin, dest, new double[] { 3 });
+        params HexCoordinate[] route) =>
+        new(id, 0, purpose, 0, 1, route, new double[] { 3 });
 
     [Fact]
-    public void Trails_FilterToTheRenderingPurposes_AndResolvePortHexes()
+    public void Trails_FilterToTheRenderingPurposes()
     {
-        var state = PortedState();
         var flows = new[]
         {
-            Flow(1, FreightPurpose.Courier),
-            Flow(2, FreightPurpose.StateHaul),      // captured, never drawn
-            Flow(3, FreightPurpose.SpreadRun),
+            Flow(1, FreightPurpose.Courier, H0, H1),
+            Flow(2, FreightPurpose.StateHaul, H0, H1), // captured, not drawn
+            Flow(3, FreightPurpose.SpreadRun, H0, H1),
         };
 
-        var trails = RecentFlowQuery.Trails(state, flows);
+        var trails = RecentFlowQuery.Trails(flows);
 
         var mark = Assert.Single(trails);
         Assert.Equal(FreightPurpose.Courier, mark.Purpose);
-        Assert.Equal(state.Ports[0].Hex, mark.From);
-        Assert.Equal(state.Ports[1].Hex, mark.To);
+        Assert.Equal(H0, mark.From);
+        Assert.Equal(H1, mark.To);
         Assert.Equal(1, mark.Flows);
         Assert.Equal(RecentFlowQuery.TrailAlphaFloor, mark.Color.A);
     }
 
     [Fact]
-    public void Trails_AggregatePerCorridor_AlphaRisesToTheCap()
+    public void Trails_LaneRoutedFlow_RendersPerLeg_NeverTheStraightResult()
     {
-        var state = PortedState();
+        // eyeball fix: a lane-routed flow draws the SAILED route — one
+        // stroke per leg (A→B, B→C), never a direct A→C line across hexes
+        // no lane connects
+        var flows = new[] { Flow(1, FreightPurpose.Courier, H0, H1, H2) };
+
+        var trails = RecentFlowQuery.Trails(flows);
+
+        Assert.Equal(2, trails.Count);
+        Assert.Equal(H0, trails[0].From);
+        Assert.Equal(H1, trails[0].To);
+        Assert.Equal(H1, trails[1].From);
+        Assert.Equal(H2, trails[1].To);
+    }
+
+    [Fact]
+    public void Trails_OffLaneFlow_KeepsTheDirectLine()
+    {
+        // the honest special case: an off-lane crawl really sails the
+        // straight line, so its captured route is the endpoint pair
+        var flows = new[] { Flow(1, FreightPurpose.WarConvoy, H0, H2) };
+
+        var trails = RecentFlowQuery.Trails(flows);
+
+        var mark = Assert.Single(trails);
+        Assert.Equal(H0, mark.From);
+        Assert.Equal(H2, mark.To);
+        Assert.Equal(WorksLens.FreightWarConvoy.R, mark.Color.R);
+    }
+
+    [Fact]
+    public void Trails_ASharedLeg_StacksIntensityAcrossFlows()
+    {
+        // two flows converge onto the same middle leg (H1→H2): the shared
+        // leg aggregates both — network utilization, per leg, not per
+        // origin/dest pair
         var flows = new[]
         {
-            Flow(1, FreightPurpose.Courier),
-            Flow(2, FreightPurpose.Courier),
-            Flow(3, FreightPurpose.Courier),
-            Flow(4, FreightPurpose.Courier),
-            Flow(5, FreightPurpose.Courier),        // 5 → floor + 4·per > cap
-            Flow(6, FreightPurpose.WarConvoy),      // own corridor mark
+            Flow(1, FreightPurpose.Courier, H0, H1, H2),
+            Flow(2, FreightPurpose.Courier, H3, H1, H2),
         };
 
-        var trails = RecentFlowQuery.Trails(state, flows);
+        var trails = RecentFlowQuery.Trails(flows);
 
-        Assert.Equal(2, trails.Count);              // first-seen order
-        Assert.Equal(FreightPurpose.Courier, trails[0].Purpose);
+        Assert.Equal(3, trails.Count);              // first-seen leg order
+        Assert.Equal((H0, H1, 1), (trails[0].From, trails[0].To, trails[0].Flows));
+        Assert.Equal((H1, H2, 2), (trails[1].From, trails[1].To, trails[1].Flows));
+        Assert.Equal((H3, H1, 1), (trails[2].From, trails[2].To, trails[2].Flows));
+        Assert.Equal(RecentFlowQuery.TrailAlphaFloor
+            + RecentFlowQuery.TrailAlphaPerExtraFlow, trails[1].Color.A);
+    }
+
+    [Fact]
+    public void Trails_OpposedDirections_ShareOneCorridorLeg()
+    {
+        // the same lane sailed both ways is one corridor on the map —
+        // intensity counts every flow crossing it, drawn at first-seen
+        // orientation
+        var flows = new[]
+        {
+            Flow(1, FreightPurpose.Courier, H0, H1),
+            Flow(2, FreightPurpose.Courier, H1, H0),
+        };
+
+        var trails = RecentFlowQuery.Trails(flows);
+
+        var mark = Assert.Single(trails);
+        Assert.Equal(H0, mark.From);
+        Assert.Equal(H1, mark.To);
+        Assert.Equal(2, mark.Flows);
+    }
+
+    [Fact]
+    public void Trails_AlphaRisesToTheCap()
+    {
+        var flows = new[]
+        {
+            Flow(1, FreightPurpose.Courier, H0, H1),
+            Flow(2, FreightPurpose.Courier, H0, H1),
+            Flow(3, FreightPurpose.Courier, H0, H1),
+            Flow(4, FreightPurpose.Courier, H0, H1),
+            Flow(5, FreightPurpose.Courier, H0, H1), // floor + 4·per > cap
+            Flow(6, FreightPurpose.WarConvoy, H0, H1), // own purpose mark
+        };
+
+        var trails = RecentFlowQuery.Trails(flows);
+
+        Assert.Equal(2, trails.Count);
         Assert.Equal(5, trails[0].Flows);
         Assert.Equal(RecentFlowQuery.TrailAlphaCap, trails[0].Color.A);
         Assert.Equal(FreightPurpose.WarConvoy, trails[1].Purpose);
         Assert.Equal(1, trails[1].Flows);
-        // war convoy keeps the war-red identity, at trail alpha
-        Assert.Equal(WorksLens.FreightWarConvoy.R, trails[1].Color.R);
     }
 
     // ---- TimeMachine: flows live in-memory beside each keyframe ----

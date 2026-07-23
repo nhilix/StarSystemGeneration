@@ -107,8 +107,11 @@ reads as a port with history.
     at step time by a passive observer (`SimState.ShipmentObserver`,
     threaded per step by `EpochEngine`), held in-memory beside each
     TimeMachine keyframe (never serialized), drawn on the works lens as
-    attenuated origin→dest strokes subordinate to live marks and lane
-    strokes. REPL twin: `eflows`.
+    attenuated strokes **per sailed leg** along the captured route's port
+    hexes (never the straight origin→dest result; an off-lane crawl's
+    single direct leg is the honest special case), shared legs stacking
+    intensity — subordinate to live marks and lane strokes. REPL twin:
+    `eflows` (route + leg count).
 - **War-supply readout**: War/Fleet panel names a deployed fleet's forward
   depot (`FleetOps.NearestOwnedPortId`); contested-lane shading on the war
   lens ONLY if the interdiction presence read exposes as a cheap read-only
