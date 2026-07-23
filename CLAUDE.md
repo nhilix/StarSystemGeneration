@@ -120,6 +120,15 @@ slice sessions delegate downward via subagents, not sideways via psmux.
   phone via Remote Control. Announce the spawn to the user so they know a
   worker is waiting on them.
 
+- **Wait for the shell prompt before sending ANY keys to a new window**
+  (root-caused 2026-07-22): keys sent while pwsh is still initializing
+  permanently desync the pane's rendering — the window looks dead (raw
+  command text, no `PS >` prefix, no repaint ever) while input still
+  executes invisibly (claude genuinely launches and runs blind). There is
+  no recovery (resize/repaint don't help): kill the window and respawn
+  with a fresh name. Prevention: after `new-window`, poll `capture-pane`
+  until a `PS …>` prompt appears (pwsh cold start can exceed 5s; a
+  `list-windows` round trip is NOT enough of a wait), only then send-keys.
 - An untrusted working dir shows a folder-trust prompt ~5–10s after launch; a
   plain `Enter` via send-keys accepts it (one-time per folder).
 - Launch workers with `--permission-mode auto` (the user's standing preference:
