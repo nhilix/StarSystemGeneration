@@ -65,6 +65,18 @@ public static class LegendQuery
                     new LegendEntry(LegendSwatch.Fill,
                         TensionLens.HeatColor(1.0), "ember — at the brink"),
                 };
+            case "currency":
+                return new[]
+                {
+                    new LegendEntry(LegendSwatch.Fill,
+                        AtlasPalette.OwnerColor(0),
+                        "currency zone — one hue per currency id "
+                        + "(golden-ratio; a union sharing a currency shares "
+                        + "the hue)"),
+                    new LegendEntry(LegendSwatch.Fill, AtlasPalette.Floor,
+                        "retired currency (or no currency yet) — the zone "
+                        + "fades out"),
+                };
             case "lanes":
                 return new[]
                 {

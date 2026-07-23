@@ -12,9 +12,9 @@ namespace StarGen.AtlasView.Tests
     {
         private static readonly string[] RailKeys =
         {
-            "domains", "war", "tension", "lanes", "traffic", "trade",
-            "fleets", "works", "price", "tech", "plague", "news", "pois",
-            "ports", "nature",
+            "domains", "war", "tension", "currency", "lanes", "traffic",
+            "trade", "fleets", "works", "price", "tech", "plague", "news",
+            "pois", "ports", "nature",
         };
 
         [Test]

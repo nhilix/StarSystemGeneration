@@ -30,7 +30,7 @@ namespace StarGen.AtlasView
         [SerializeField] private AtlasRoot root;
 
         // The lens selection — what the user has toggled on.
-        private bool _domains = true, _war, _tension, _tech;
+        private bool _domains = true, _war, _tension, _tech, _currency;
         private bool _lanes = true, _traffic, _trade, _fleets, _works, _price;
         private bool _plague, _news, _pois;
         private GoodId _priceGood = GoodId.Provisions;
@@ -47,6 +47,7 @@ namespace StarGen.AtlasView
             _war ? "war"
             : _tension ? "tension"
             : _tech ? "tech"
+            : _currency ? "currency"
             : _plague ? "plague"
             : _price ? "price"
             : _trade ? "trade"
@@ -102,9 +103,17 @@ namespace StarGen.AtlasView
             Chip(rail, "domains", new Color32(0x46, 0xB5, 0xA4, 255),
                  () => _domains, v => _domains = v);
             Chip(rail, "war", new Color32(0xE0, 0x55, 0x55, 255),
-                 () => _war, v => { _war = v; if (v) _tension = _tech = false; });
+                 () => _war,
+                 v => { _war = v; if (v) _tension = _tech = _currency = false; });
             Chip(rail, "tension", new Color32(0xE0, 0x8A, 0x4A, 255),
-                 () => _tension, v => { _tension = v; if (v) _war = _tech = false; });
+                 () => _tension,
+                 v => { _tension = v; if (v) _war = _tech = _currency = false; });
+            // AC3.1: the fifth domain accent — CU-3 consolidation made
+            // visible; radio-exclusive with the other three the same way
+            // (one fill mode at a time).
+            Chip(rail, "currency", new Color32(0xB0, 0x8A, 0xE0, 255),
+                 () => _currency,
+                 v => { _currency = v; if (v) _war = _tension = _tech = false; });
 
             Group(rail, "LOGISTICS");
             Chip(rail, "lanes", new Color32(0x56, 0xC4, 0xDC, 255),
@@ -137,7 +146,8 @@ namespace StarGen.AtlasView
 
             Group(rail, "KNOWLEDGE");
             Chip(rail, "tech", new Color32(0x7F, 0xA6, 0xE8, 255),
-                 () => _tech, v => { _tech = v; if (v) _war = _tension = false; });
+                 () => _tech,
+                 v => { _tech = v; if (v) _war = _tension = _currency = false; });
             Chip(rail, "plague", new Color32(0xB9, 0xE8, 0x6F, 255),
                  () => _plague, v => _plague = v);
             Chip(rail, "news", new Color32(0xE8, 0xD6, 0x6F, 255),
@@ -217,13 +227,14 @@ namespace StarGen.AtlasView
             _war ? DomainAccent.War
             : _tension ? DomainAccent.Tension
             : _tech ? DomainAccent.Tech
+            : _currency ? DomainAccent.Currency
             : DomainAccent.Owner;
 
         private void Apply()
         {
             if (root == null || root.SimHost?.Model == null) return;
 
-            bool domainsVisible = _domains || _war || _tension || _tech;
+            bool domainsVisible = _domains || _war || _tension || _tech || _currency;
             root.DomainField.SetVisible(domainsVisible);
             root.DomainField.SetAccent(Accent);
             // AC1.3: the worked skeleton is interior structure ON the domains

@@ -4,12 +4,14 @@ using UnityEngine;
 
 namespace StarGen.AtlasView
 {
-    /// <summary>What the domain field's fills say (K2): Owner is the K1
-    /// political read; War keeps belligerents lit and fades the peaceful
-    /// to grey; Tension shades each domain by its owner's hottest live
-    /// relation; Tech by the owner's Astrogation tier. Borders, unions
-    /// and overlap shades are unchanged — only the fill tint speaks.</summary>
-    public enum DomainAccent { Owner, War, Tension, Tech }
+    /// <summary>What the domain field's fills say (K2, +AC3.1): Owner is
+    /// the K1 political read; War keeps belligerents lit and fades the
+    /// peaceful to grey; Tension shades each domain by its owner's hottest
+    /// live relation; Tech by the owner's Astrogation tier; Currency by the
+    /// owner's currency zone (CU-3 consolidation made visible — a shared
+    /// currency reads as a shared hue, a retired one fades out). Borders,
+    /// unions and overlap shades are unchanged — only the fill tint speaks.</summary>
+    public enum DomainAccent { Owner, War, Tension, Tech, Currency }
 
     /// <summary>The domains lens as a field: one plane-quad over the disc,
     /// shaded per pixel by the port registry (StarGen/DomainField). Ports
@@ -102,6 +104,8 @@ namespace StarGen.AtlasView
                 ? TensionLens.SlotHeat(_model, _eye, _slots) : null;
             var tiers = _accent == DomainAccent.Tech
                 ? TechLens.SlotTiers(_model, _eye, _slots) : null;
+            var currencies = _accent == DomainAccent.Currency
+                ? CurrencyLens.SlotCurrency(_model, _eye, _slots) : null;
             for (int i = 0; i < slotCount; i++)
             {
                 var c = _accent switch
@@ -113,6 +117,12 @@ namespace StarGen.AtlasView
                         : new StarGen.Core.Atlas.Rgba(58, 62, 72),
                     DomainAccent.Tension => TensionLens.HeatColor(heat[i]),
                     DomainAccent.Tech => TechLens.TierColor(tiers[i]),
+                    // AC3.1: a retired/absent currency (null) falls back to
+                    // Floor — "a lens has nothing to say here" — so the
+                    // zone visibly disappears from the mode.
+                    DomainAccent.Currency =>
+                        CurrencyLens.CurrencyColor(_model, currencies[i])
+                            ?? AtlasPalette.Floor,
                     _ => AtlasPalette.OwnerColor(_slots[i]),
                 };
                 _slotColors[i] = new Vector4(c.R / 255f, c.G / 255f,

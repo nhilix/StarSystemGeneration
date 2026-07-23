@@ -162,6 +162,9 @@ namespace StarGen.AtlasView.EditorTools
 
             domains.SetAccent(DomainAccent.Tech);
             Capture(cam, "atlas-smoke-tech.png");
+
+            domains.SetAccent(DomainAccent.Currency);
+            Capture(cam, "atlas-smoke-currency.png");
             domains.SetAccent(DomainAccent.Owner);
 
             plague.SetVisible(true);
