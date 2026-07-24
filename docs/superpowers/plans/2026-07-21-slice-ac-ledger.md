@@ -263,10 +263,17 @@ actually wants; panel wording `rate X numeraire` inherited from the REPL.
 - [x] Golden re-frozen once at slice end IF any intended change → **NOT
       re-frozen: asserted byte-untouched** (zero sim behavior; last golden
       touch `93a4ea1`, pre-Phase-2).
-- [ ] Merge to main locally → push (push-on-merge default) → update
-      `docs/HANDOFF.md` → republish living diagram
-      (`docs/diagrams/unity-atlas-design.html` §8/§9) → write next kickoff →
-      sync Trello (Slice AC → Merged; retire superseded K6 framing).
+- [x] Merge to main locally → push → HANDOFF → diagram → kickoff → Trello.
+      **DONE 2026-07-23:** merged `--no-ff` to main `701d01f`, **pushed**
+      (1301/1301 on the merged tip) · `docs/HANDOFF.md` prepended with the
+      AC-merged section + Slice UP next-up · living diagram §8/§9 updated
+      (`973a1ba`) and **republished** to the stable artifact URL
+      (`b8ce4102`, verified the live version was a strict subset first) ·
+      next kickoff already existed (Slice UP, `2026-07-22-slice-up-kickoff-
+      prompt.md`, gated post-AC — no new one needed) · Trello: AC card →
+      **Merged** with full status, Slice UP unblocked, two Backlog cards
+      filed ("Sim gaps surfaced by Slice AC" + "Atlas panel/visual polish
+      pass"). **SLICE AC COMPLETE.**
 
 ## Sim-side observations surfaced at Eyeball 1 (NOT AC scope — file to sim roadmap)
 
