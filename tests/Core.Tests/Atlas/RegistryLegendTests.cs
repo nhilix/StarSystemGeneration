@@ -102,9 +102,9 @@ public class RegistryLegendTests
     [Fact]
     public void EveryRailLensHasALegend()
     {
-        foreach (var key in new[] { "domains", "war", "tension", "lanes",
-            "traffic", "trade", "fleets", "works", "price", "tech", "plague",
-            "news", "pois", "ports", "nature" })
+        foreach (var key in new[] { "domains", "war", "tension", "currency",
+            "lanes", "traffic", "trade", "fleets", "works", "price", "tech",
+            "plague", "news", "pois", "ports", "nature" })
         {
             var entries = LegendQuery.For(key, GoodId.Provisions);
             Assert.True(entries.Count > 0, $"no legend for '{key}'");

@@ -123,8 +123,11 @@ namespace StarGen.AtlasView
             var model = simHost.Model;
             starfield.Show(model);
             domainField.Show(model, eye);
-            domainInterior.Show(model, eye);
-            outpostLayer.Show(model, eye);
+            // AC-fixwave: null-guarded like the trail/crawl layers below —
+            // a stale/hand-authored scene predating these Phase-1 layers
+            // degrades gracefully instead of NREing.
+            if (domainInterior != null) domainInterior.Show(model, eye);
+            if (outpostLayer != null) outpostLayer.Show(model, eye);
             natureField.Show(model, eye);
             lattice.Prepare(model);
             laneLayer.Show(model, eye);
@@ -178,8 +181,8 @@ namespace StarGen.AtlasView
             // dissolves as the stage fades up (starfield stays — space
             // is still space under the orbit view)
             portLayer.OnZoom(distance, extent);
-            outpostLayer.OnZoom(distance, extent);
-            domainInterior.OnZoom(distance, extent);
+            if (outpostLayer != null) outpostLayer.OnZoom(distance, extent);
+            if (domainInterior != null) domainInterior.OnZoom(distance, extent);
             newsLayer.OnZoom(distance, extent);
             domainField.OnZoom(distance, extent);
             natureField.OnZoom(distance, extent);

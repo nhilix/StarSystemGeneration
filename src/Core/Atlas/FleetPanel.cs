@@ -26,9 +26,12 @@ public sealed record HullLine(int Count, int DesignId, string DesignName,
 /// ForwardDepotPortId/-DistanceHexes name where a deployed (Blockade or
 /// Expedition) fleet draws supply (AC2.7, FleetOps.SupplyFleets' own
 /// forward-depot criterion) — -1/-1 for any other posture, or a deployed
-/// fleet whose owner holds no port. PatrolCoverageByHexHop (AC4.2) names a
-/// Patrol fleet's own enforcement reach — PatrolCoverage.At's falloff
-/// sampled at dock and 1/2/3 hexes out; empty for any other posture.</summary>
+/// fleet whose owner holds no port. PatrolCoverageByHexHop (AC4.2) names
+/// the strongest hostile patrol exposure near this fleet's dock — the max,
+/// over candidate victims, of PatrolCoverage.At's own max-across-fleets
+/// falloff; NOT necessarily this fleet's own projection (a sibling or
+/// allied patrol fleet can dominate the reading), sampled at dock and
+/// 1/2/3 hexes out; empty for any other posture.</summary>
 public sealed record FleetCard(FleetRow Row, int HomePortId,
     int CommanderId, string? CommanderName,
     IReadOnlyList<HullLine> Composition, FleetVectors Vectors,
@@ -91,16 +94,19 @@ public static class FleetPanel
                 ? PatrolCoverageSummary(state, f) : Array.Empty<double>());
     }
 
-    /// <summary>AC4.2: a Patrol fleet's own enforcement reach at its dock
-    /// and 1/2/3 hexes out — PatrolCoverage.At's falloff (never re-derived
-    /// here), sampled against every registered actor as a candidate victim
-    /// and maxed (mirrors PatrolCoverage.At's own "strongest across
-    /// fleets" idiom, applied here across possible victims instead — the
-    /// magnitude at a given hex-hop distance never depends on WHICH victim
-    /// triggers the hostile gate, only on whether one does). All zero when
-    /// the fleet's owner is at active war with nobody — a patrol projecting
-    /// onto no one is a true, informative reading (PatrolCoverage.At's own
-    /// hostile-only gate), not an omission.</summary>
+    /// <summary>AC4.2: the strongest hostile patrol exposure at this
+    /// fleet's dock and 1/2/3 hexes out — PatrolCoverage.At's falloff
+    /// (never re-derived here), sampled against every registered actor as
+    /// a candidate victim and maxed (mirrors PatrolCoverage.At's own
+    /// "strongest across fleets" idiom, applied here across possible
+    /// victims too). Because PatrolCoverage.At itself maxes across every
+    /// hostile Patrol fleet — not only this one — the reading can be a
+    /// sibling or allied fleet's projection rather than this fleet's own;
+    /// it answers "how exposed is this hex" more than "how far does THIS
+    /// fleet reach". All zero when the fleet's owner is at active war with
+    /// nobody — a patrol projecting onto no one is a true, informative
+    /// reading (PatrolCoverage.At's own hostile-only gate), not an
+    /// omission.</summary>
     private static IReadOnlyList<double> PatrolCoverageSummary(
         SimState state, FleetRecord f)
     {

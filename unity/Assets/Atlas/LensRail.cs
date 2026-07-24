@@ -240,7 +240,11 @@ namespace StarGen.AtlasView
             // AC1.3: the worked skeleton is interior structure ON the domains
             // lens — it rides the existing chip, no new rail key. (Outpost
             // marks are always-on, the subordinate sibling of the port dots.)
-            root.DomainInterior.SetVisible(domainsVisible);
+            // AC-fixwave: null-guarded like FlowTrailLayer/CrawlPathLayer
+            // below — a stale/hand-authored scene predating this Phase-1
+            // layer degrades gracefully instead of NREing.
+            if (root.DomainInterior != null)
+                root.DomainInterior.SetVisible(domainsVisible);
             root.WarLayer.SetVisible(_war);
 
             // AC2.7: the war lens's own stroke mode — contested lanes only,

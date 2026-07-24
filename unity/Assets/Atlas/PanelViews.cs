@@ -93,8 +93,18 @@ namespace StarGen.AtlasView
                                                           VisualElement body)
         {
             var rows = ContractsPanel.Rows(ctx.Model, ctx.Eye);
-            Line(body, Inv($"the courier board — {rows.Count} open ")
-                + (rows.Count == 1 ? "contract" : "contracts"), dim: true);
+            // Rows mixes Open and InTransit (ContractsPanel.Rows' own doc:
+            // "SimState.Couriers holds ONLY Open/InTransit ... every row
+            // here is live by construction") — count each status
+            // separately so the header never calls an in-transit courier
+            // "open".
+            int openCount = 0, inTransitCount = 0;
+            foreach (var c in rows)
+                if (c.Status == Core.Epoch.CourierStatus.Open) openCount++;
+                else inTransitCount++;
+            Line(body, Inv(
+                $"the courier board — {openCount} open, {inTransitCount} in transit"),
+                dim: true);
             if (rows.Count == 0)
             {
                 Line(body, "(a quiet board — nothing posted)", dim: true);
@@ -797,13 +807,17 @@ namespace StarGen.AtlasView
             Kv(body, "endurance floor",
                Inv($"{v.EnduranceFloor:0.0} (~{(int)card.EnduranceHexesOffLane} hexes off-lane)"));
             Kv(body, "upkeep", Inv($"{v.Upkeep:0.0}"));
-            // patrol coverage (AC4.2) — PatrolCoverage.At's own falloff at
-            // dock and 1/2/3 hexes out; FleetPanel.Card already gates the
-            // list to Patrol posture (empty otherwise), same idiom as the
-            // forward-depot -1 gate above
+            // hostile patrol exposure (AC4.2) — PatrolCoverage.At's own
+            // falloff at dock and 1/2/3 hexes out; FleetPanel.Card already
+            // gates the list to Patrol posture (empty otherwise), same
+            // idiom as the forward-depot -1 gate above. This is the
+            // strongest hostile coverage AT this hex, maxed across every
+            // patrol fleet at war with a candidate victim — not
+            // necessarily this fleet's own reach (a sibling or allied
+            // fleet can dominate the reading).
             if (card.PatrolCoverageByHexHop.Count > 0)
             {
-                Sect(body, "patrol coverage");
+                Sect(body, "hostile patrol exposure");
                 var covTable = Table(body);
                 var covHead = TableRow(covTable, head: true);
                 Cell(covHead, "DOCK", "w64", num: true);
@@ -813,7 +827,7 @@ namespace StarGen.AtlasView
                 var covRow = TableRow(covTable);
                 foreach (var c in card.PatrolCoverageByHexHop)
                     Cell(covRow, Inv($"{c:0.00}"), "w64", num: true);
-                Line(body, "strongest reach against any hostile — 0 while at peace",
+                Line(body, "strongest hostile coverage near this dock (may be a sibling fleet) — 0 while at peace",
                     dim: true);
             }
             Link(body, "DESIGNS", () => ctx.Open(new PanelRequest(
