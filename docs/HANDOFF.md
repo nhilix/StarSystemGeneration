@@ -1,3 +1,80 @@
+# Session Handoff — 2026-07-23 (Slice AC MERGED + PUSHED · the atlas catches up to the sim)
+
+**Slice AC — the atlas catch-up — MERGED & PUSHED** to `main` at `701d01f`
+(`--no-ff`, pushed). **1301/1301** `dotnet test` on the merged tip · seed-42
+golden **byte-untouched** (asserted every phase — zero sim behavior, never
+re-frozen) · determinism green · Unity compile clean · EditMode **16/16** ·
+AtlasSmoke **18/18** lenses · one fable whole-branch review
+(**FIX-THEN-MERGE**, 0 Critical / 1 Important / 4 Minor — all resolved).
+Design `docs/superpowers/specs/2026-07-21-ac-atlas-catchup-design.md`; ledger
+`docs/superpowers/plans/2026-07-21-slice-ac-ledger.md` (full seam map, decided
+choices, per-task log, all four eyeballs).
+
+**What AC shipped — the atlas read-model surfaces caught up to sim systems
+already built, across four phases, ALL eyeball-accepted, zero sim behavior:**
+- **Phase 1 — Domain interior:** `DomainInteriorQuery` (worked hexes, outposts,
+  candidacy, graduation); subordinate billboard marks layer; `SelectionKind.
+  Outpost` + parent-port panel routing via `PanelRequest.SubId`.
+- **Phase 2 — Economy/trade:** `TradeLens` (saturation filter verbatim) on the
+  rail; order-book + contracts panels as **structured tables**; freight
+  purposes **derived** (`FreightPurposeQuery`) tinting map marks; **recent-flow
+  trails** (passive `ShipmentObserver` tap — null ⇒ bit-identical, never
+  serialized — captured per-keyframe in `TimeMachine`, rendered per-leg along
+  the lane network, `eflows` REPL twin); war-supply forward depot + contested
+  lanes.
+- **Phase 3 — Currency/banking:** currency-zone `DomainAccent` (unions share a
+  tint, retired zones vanish); `PolityCard` monetary block (reserve/backing/
+  rate); markets state their currency; relations name BackedShare credibility.
+- **Phase 4 — Off-lane/events/debt:** off-lane crawls as dashed direct paths +
+  `ShipmentCard` detection-risk; FleetPanel patrol exposure; CargoSeized copy
+  fixes; debt sweep (11 stray Epoch metas tracked, alpha-45 dedup, smoke steps
+  once so trails render headless).
+
+**K3 parity held throughout:** every atlas surface + its REPL twin (`emap
+trade`, `ebook`, `econtracts`, `efreight`, `eflows`) read ONE shared Core.Atlas
+query. Rail-key three-place contract (LegendQuery + LensRail +
+LegendDriftTests) kept in sync for `trade` + the currency accent.
+
+**Scene rebuilt at slice-end** (`3a38b3f`): `unity/Assets/Scenes/Atlas.unity`
+regenerated via `AtlasViewSceneSetup.RunFromCli` (editor closed) with all
+Phase 1-4 layers wired + defensive null guards on `AtlasRoot`/`LensRail`.
+
+**Filed to the SIM roadmap (NOT atlas scope — the catch-up EXPOSED these, user
+accepted each as future sim work; see the ledger's "Sim-side observations"):**
+- **Obs-A:** non-extraction facilities (arsenal/fabricator) built in
+  `HasSystem=False` empty-reach hexes — DX per-hex siting gates only extraction.
+- **Obs-B:** generation `Body.Settlement` (genesis-flavor) decoupled from epoch
+  settlement — a genesis "Colony" the sim never populated rings amber.
+- **Obs-C (Eyeball 4):** off-lane routing is **all-or-nothing and unpriced** —
+  `ShipmentOps.PlanRoute` elects a single direct crawl only when NO live lane
+  path exists, so one missing link turns a mostly-laned journey into a 30-40+
+  hex multi-decade crawl; contract posting nowhere weighs transit years; the
+  weighted route election is explicitly deferred. Fix themes: mixed lane+off-
+  lane planning · transit-time discount in courier posting · the deferred
+  election. Connects to the market-locality off-lane gap.
+- **Two payload gaps:** `CargoSeizedPayload` can't distinguish on-lane vs
+  off-lane seizure; graduation riding `PortEstablished` is indistinguishable
+  from a fresh port. (No payload fields added — zero sim behavior.)
+- **FX drift:** numeraire-rate "recent drift" needs stored rate history (none
+  exists) — panel shows the current rate alone.
+
+**Polish-pass backlog (atlas-side, deferred — a future full-panel design
+pass):** panel table column tuning; crawl dash constants (`WorksLens.CrawlDash*`);
+recent-flow trail alpha (70/130); Relations panel showing the implied
+CROSS-rate (`A.Rate/B.Rate`) instead of the raw numeraire number; FleetPanel
+patrol readout could narrow to "actual current enemies" (one-loop change).
+
+**NEXT UP — Slice UP (already specced + queued on main):** a small time-boxed
+**spike** — install the experimental Unity CLI + `com.unity.pipeline` locally,
+map the warm-editor command surface (aims to kill batchmode cold-start/lock
+traps), end with an **eyeball grid** (atlas smoke across many seeds, not just
+42). Kickoff: `docs/superpowers/plans/2026-07-22-slice-up-kickoff-prompt.md`
+(LOCAL ONLY, no cloud; serial atlas editing — runs only now that AC is merged
+and this worker retires; zero sim behavior). Branch `slice-up-unity-pipeline`
+from main. Research: memory `unity-cli-pipeline-research-artifact`.
+
+---
+
 # Session Handoff — 2026-07-22 (Slice AC · PHASE 1 CLOSED — domain interior · Phase 2 next, fresh session)
 
 **Slice AC (the atlas catch-up) is IN PROGRESS on branch `claude/slice-ac-0e02d9`,
