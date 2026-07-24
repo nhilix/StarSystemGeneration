@@ -134,4 +134,109 @@ public class MarketPanelTests
         Assert.Null(MarketPanel.Card(model,
             EyeContext.God(state.WorldYear), 99));
     }
+
+    // ---- AC2.4: the order book ('ebook' parity) rides the same good row.
+
+    [Fact]
+    public void ABareGoodHasNoAsksOrBids()
+    {
+        var (model, state) = WithMarket();
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        var row = card.Goods[(int)GoodId.Alloys];
+        Assert.Empty(row.Asks);
+        Assert.Empty(row.Bids);
+    }
+
+    [Fact]
+    public void AsksSortCheapestFirstWithOwnerNameAndRefDelta()
+    {
+        var (model, state) = WithMarket();
+        var market = state.Markets[0];
+        market.Price[(int)GoodId.Alloys] = 5.0;
+        // two resting sells from two different owners — dearer posted first,
+        // so a naive id-order read would get the order wrong
+        var dear = OrderOps.PostSell(state, state.Actors[1].Id, 0,
+            (int)GoodId.Alloys, 8, 0.6, ask: 6.5, expiryYear: 1000);
+        var cheap = OrderOps.PostSell(state, state.Actors[0].Id, 0,
+            (int)GoodId.Alloys, 12, 0.9, ask: 4.5, expiryYear: 1000);
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        var row = card.Goods[(int)GoodId.Alloys];
+        Assert.Equal(2, row.Asks.Count);
+        Assert.Equal(cheap.Id, row.Asks[0].OrderId);
+        Assert.Equal(state.Actors[0].Id, row.Asks[0].OwnerActorId);
+        Assert.Equal(state.Actors[0].Name, row.Asks[0].OwnerName);
+        Assert.Equal(12.0, row.Asks[0].Qty);
+        Assert.Equal(0.9, row.Asks[0].Grade);
+        Assert.Equal(4.5, row.Asks[0].LimitPrice);
+        Assert.Equal(4.5 - 5.0, row.Asks[0].RefDelta, 9);
+        Assert.Equal(dear.Id, row.Asks[1].OrderId);
+        Assert.Equal(state.Actors[1].Name, row.Asks[1].OwnerName);
+        Assert.Equal(6.5 - 5.0, row.Asks[1].RefDelta, 9);
+        Assert.Empty(row.Bids);
+    }
+
+    [Fact]
+    public void BidsSortDearestFirstWithEscrow()
+    {
+        var (model, state) = WithMarket();
+        var market = state.Markets[0];
+        market.Price[(int)GoodId.Provisions] = 3.0;
+        var low = OrderOps.PostBuy(state, state.Actors[0].Id, 0,
+            (int)GoodId.Provisions, 5, bid: 2.0, expiryYear: 1000);
+        var high = OrderOps.PostBuy(state, state.Actors[1].Id, 0,
+            (int)GoodId.Provisions, 3, bid: 3.75, expiryYear: 1000);
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        var row = card.Goods[(int)GoodId.Provisions];
+        Assert.Empty(row.Asks);
+        Assert.Equal(2, row.Bids.Count);
+        Assert.Equal(high.Id, row.Bids[0].OrderId);
+        Assert.Equal(state.Actors[1].Name, row.Bids[0].OwnerName);
+        Assert.Equal(3.0, row.Bids[0].Qty);
+        Assert.Equal(3.75, row.Bids[0].LimitPrice);
+        Assert.Equal(3.75 - 3.0, row.Bids[0].RefDelta, 9);
+        Assert.Equal(3 * 3.75, row.Bids[0].EscrowCredits, 9);
+        Assert.Equal(low.Id, row.Bids[1].OrderId);
+        Assert.Equal(5 * 2.0, row.Bids[1].EscrowCredits, 9);
+    }
+
+    [Fact]
+    public void AZeroQtyOrderDoesNotSurfaceInTheBook()
+    {
+        var (model, state) = WithMarket();
+        var dead = OrderOps.PostSell(state, state.Actors[0].Id, 0,
+            (int)GoodId.Alloys, 4, 0.5, ask: 5.0, expiryYear: 1000);
+        dead.QtyRemaining = 0;
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        Assert.Empty(card.Goods[(int)GoodId.Alloys].Asks);
+    }
+
+    // ---- AC3.3: the market states its currency, headline (not per-row).
+
+    [Fact]
+    public void TheCardNamesTheOwningPolitysCurrency()
+    {
+        var (model, state) = WithMarket();
+        // seeded polities start pre-genesis; mint one for port 0's owner
+        var currency = state.FoundCurrency(state.Actors[0].Id);
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        Assert.Equal(currency.Id, card.CurrencyId);
+        Assert.Equal(currency.Name, card.CurrencyName);
+        // the SAME hop state.LocalCurrencyOf(portId) makes — zero drift
+        Assert.Equal(state.LocalCurrencyOf(0), card.CurrencyId);
+    }
+
+    [Fact]
+    public void ACurrencylessPortCarriesTheAbsentSentinel()
+    {
+        var (model, state) = WithMarket();
+        Assert.True(state.LocalCurrencyOf(0) < 0);   // pre-genesis, never founded
+
+        var card = MarketPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        Assert.Equal(-1, card.CurrencyId);
+        Assert.Null(card.CurrencyName);
+    }
 }

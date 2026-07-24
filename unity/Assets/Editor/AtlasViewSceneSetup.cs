@@ -46,6 +46,8 @@ namespace StarGen.AtlasView.EditorTools
 
             var stars = new GameObject("Starfield").AddComponent<StarfieldLayer>();
             var domains = new GameObject("DomainField").AddComponent<DomainFieldLayer>();
+            var interior = new GameObject("DomainInterior").AddComponent<DomainInteriorLayer>();
+            var outposts = new GameObject("OutpostLayer").AddComponent<OutpostLayer>();
             var nature = new GameObject("NatureField").AddComponent<NatureFieldLayer>();
             var price = new GameObject("PriceField").AddComponent<PriceFieldLayer>();
             var lattice = new GameObject("Lattice").AddComponent<LatticeLayer>();
@@ -54,6 +56,10 @@ namespace StarGen.AtlasView.EditorTools
             var fleets = new GameObject("FleetLayer").AddComponent<FleetLayer>();
             var pois = new GameObject("PoiLayer").AddComponent<PoiLayer>();
             var works = new GameObject("WorksLayer").AddComponent<WorksLayer>();
+            var flowTrails = new GameObject("FlowTrailLayer")
+                .AddComponent<FlowTrailLayer>();
+            var crawlPaths = new GameObject("CrawlPathLayer")
+                .AddComponent<CrawlPathLayer>();
             var plague = new GameObject("PlagueLayer").AddComponent<PlagueLayer>();
             var war = new GameObject("WarLayer").AddComponent<WarLayer>();
             var news = new GameObject("NewsLayer").AddComponent<NewsLayer>();
@@ -61,8 +67,9 @@ namespace StarGen.AtlasView.EditorTools
             var atlasGo = new GameObject("Atlas");
             var host = atlasGo.AddComponent<SimHost>();
             var root = atlasGo.AddComponent<AtlasRoot>();
-            root.Wire(host, stars, domains, nature, lattice, lanes, ports,
-                      rig, fleets, pois, works, plague, war, news, price);
+            root.Wire(host, stars, domains, interior, outposts, nature, lattice,
+                      lanes, ports, rig, fleets, pois, works, plague, war, news,
+                      price, flowTrails, crawlPaths);
 
             var selection = atlasGo.AddComponent<SelectionModel>();
             selection.Wire(root);

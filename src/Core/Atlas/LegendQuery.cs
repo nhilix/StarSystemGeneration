@@ -51,6 +51,9 @@ public static class LegendQuery
                     new LegendEntry(LegendSwatch.Glyph, WarLens.StationBurn,
                         "war fleet on station (blockade/expedition)",
                         "FleetBlockade"),
+                    new LegendEntry(LegendSwatch.Stroke,
+                        WarLens.ContestedLaneColor,
+                        "contested lane — a hostile squadron in reach"),
                 };
             case "tension":
                 return new[]
@@ -61,6 +64,18 @@ public static class LegendQuery
                         TensionLens.HeatColor(0.5), "warming"),
                     new LegendEntry(LegendSwatch.Fill,
                         TensionLens.HeatColor(1.0), "ember — at the brink"),
+                };
+            case "currency":
+                return new[]
+                {
+                    new LegendEntry(LegendSwatch.Fill,
+                        AtlasPalette.OwnerColor(0),
+                        "currency zone — one hue per currency id "
+                        + "(golden-ratio; a union sharing a currency shares "
+                        + "the hue)"),
+                    new LegendEntry(LegendSwatch.Fill, AtlasPalette.Floor,
+                        "retired currency (or no currency yet) — the zone "
+                        + "fades out"),
                 };
             case "lanes":
                 return new[]
@@ -86,6 +101,20 @@ public static class LegendQuery
                     new LegendEntry(LegendSwatch.Stroke, TrafficLens.LaneHue,
                         "heavy — five or more trips a year"),
                 };
+            case "trade":
+                return new[]
+                {
+                    new LegendEntry(LegendSwatch.Stroke,
+                        new Rgba(TradeLens.MarginGold.R, TradeLens.MarginGold.G,
+                                 TradeLens.MarginGold.B, 60),
+                        "thin margin — barely worth the run"),
+                    new LegendEntry(LegendSwatch.Stroke,
+                        new Rgba(TradeLens.MarginGold.R, TradeLens.MarginGold.G,
+                                 TradeLens.MarginGold.B, 150),
+                        "firm margin — a worthwhile trip"),
+                    new LegendEntry(LegendSwatch.Stroke, TradeLens.MarginGold,
+                        "steep margin — arbitrage territory, price doubled or more"),
+                };
             case "fleets":
                 return new[]
                 {
@@ -109,10 +138,23 @@ public static class LegendQuery
                         "construction site — cools amber→ember as it starves",
                         "WorkSite"),
                     new LegendEntry(LegendSwatch.Glyph,
-                        WorksLens.FreightMoving, "freight under way",
+                        WorksLens.FreightStateHaul,
+                        "freight — state haul (the state's own goods)",
                         "WorkFreight"),
                     new LegendEntry(LegendSwatch.Glyph,
-                        WorksLens.FreightStalled, "freight STALLED — leg closed",
+                        WorksLens.FreightSpreadRun,
+                        "freight — spread run (a trader's own margin)",
+                        "WorkFreight"),
+                    new LegendEntry(LegendSwatch.Glyph,
+                        WorksLens.FreightCourier,
+                        "freight — courier contract", "WorkFreight"),
+                    new LegendEntry(LegendSwatch.Glyph,
+                        WorksLens.FreightWarConvoy,
+                        "freight — WAR CONVOY (a war-priority courier)",
+                        "WorkFreight"),
+                    new LegendEntry(LegendSwatch.Glyph,
+                        WorksLens.FreightStalled,
+                        "freight STALLED — leg closed (any purpose)",
                         "WorkFreight"),
                     new LegendEntry(LegendSwatch.Glyph, WorksLens.ConvoyWhite,
                         "expedition convoy", "WorkConvoy"),

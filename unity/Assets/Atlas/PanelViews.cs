@@ -37,6 +37,7 @@ namespace StarGen.AtlasView
                 case PanelType.ChroniclePlace: return ChroniclePlace(request, ctx, body);
                 case PanelType.Eras: return Eras(ctx, body);
                 case PanelType.Threads: return Threads(ctx, body);
+                case PanelType.Contracts: return Contracts(ctx, body);
                 case PanelType.Find: return Find(request, ctx, body);
                 case PanelType.Goods: return Goods(ctx, body);
                 case PanelType.Knobs: return Knobs(request, ctx, body);
@@ -79,6 +80,75 @@ namespace StarGen.AtlasView
                 text.style.flexShrink = 1f;
             }
             return ("OPEN THREADS", body);
+        }
+
+        /// <summary>The courier job board (AC2.5, `econtracts` parity):
+        /// open + in-transit contracts — route (by owner name, ports have
+        /// none of their own), cargo, fee, and fulfiller once accepted.
+        /// WAR priority gets the same red tag STALLED wears elsewhere — a
+        /// war convoy jumping the queue is exactly that kind of fact.
+        /// A row opens the DESTINATION port's Market (the ShipmentPanel
+        /// row-click idiom) — where the delivery lands.</summary>
+        private static (string, VisualElement) Contracts(PanelContext ctx,
+                                                          VisualElement body)
+        {
+            var rows = ContractsPanel.Rows(ctx.Model, ctx.Eye);
+            // Rows mixes Open and InTransit (ContractsPanel.Rows' own doc:
+            // "SimState.Couriers holds ONLY Open/InTransit ... every row
+            // here is live by construction") — count each status
+            // separately so the header never calls an in-transit courier
+            // "open".
+            int openCount = 0, inTransitCount = 0;
+            foreach (var c in rows)
+                if (c.Status == Core.Epoch.CourierStatus.Open) openCount++;
+                else inTransitCount++;
+            Line(body, Inv(
+                $"the courier board — {openCount} open, {inTransitCount} in transit"),
+                dim: true);
+            if (rows.Count == 0)
+            {
+                Line(body, "(a quiet board — nothing posted)", dim: true);
+                return ("CONTRACTS", body);
+            }
+            var table = Table(body);
+            var head = TableRow(table, head: true);
+            Cell(head, "ROUTE", "flex");
+            Cell(head, "CARGO", "flex");
+            Cell(head, "FEE", "w48", num: true);
+            Cell(head, "PRI", "w40");
+            Cell(head, "FULFILLER", "flex");
+            foreach (var c in rows)
+            {
+                var captured = c;
+                var row = TableRowLink(table, () => ctx.Open(new PanelRequest(
+                    PanelType.Market, captured.DestPortId)));
+
+                var routeCell = CellStack(row, "flex");
+                CellLine(routeCell, Inv($"#{c.Id}  {c.OriginPortOwnerName} → {c.DestPortOwnerName}"));
+                CellLine(routeCell, Inv($"posted by {c.PosterName}"), dim: true);
+
+                var cargo = new List<string>();
+                foreach (var line in c.Cargo)
+                {
+                    if (cargo.Count >= 3) break;
+                    cargo.Add(Inv($"{line.Qty:0.#} {line.GoodName}"));
+                }
+                Cell(row, string.Join(", ", cargo), "flex");
+
+                Cell(row, Inv($"{c.FeeEscrow:0.0}"), "w48", num: true);
+
+                var priCell = CellStack(row, "w40");
+                if (c.Priority == Core.Epoch.CourierPriority.War)
+                    Tag(priCell, "WAR", "bad");
+                else
+                    CellLine(priCell, "—", dim: true);
+
+                bool open = c.Status == Core.Epoch.CourierStatus.Open;
+                string status = open
+                    ? "OPEN" : Inv($"in transit ({c.FulfillerName})");
+                Cell(row, status, "flex", mod: open ? "acc" : null);
+            }
+            return ("CONTRACTS", body);
         }
 
         // ---- selection panels ----
@@ -254,6 +324,51 @@ namespace StarGen.AtlasView
                card.Credits < 0 ? "warn" : null);
             Kv(body, "reserve points", Inv($"{card.ReservePoints:0.0}"), "acc");
 
+            // AC3.2 — currency/bank/claims (currency-and-FX, bank-actor,
+            // bank-flow designs), InteriorView.RenderPolity parity. Absent
+            // for a pre-genesis polity (no currency minted yet).
+            if (card.Monetary != null)
+            {
+                var m = card.Monetary;
+                Sect(body, "currency");
+                Kv(body, m.CurrencyName + Inv($" #{m.CurrencyId}"),
+                   Inv($"rate {m.NumeraireRate:0.000} numeraire · supply {m.Supply:0}"));
+                if (m.Retired) Tag(body, "RETIRED", "bad");
+
+                var bankTable = Table(body);
+                var bankHead = TableRow(bankTable, head: true);
+                Cell(bankHead, "BANK", "flex");
+                Cell(bankHead, "RESERVE", "w64", num: true);
+                Cell(bankHead, "SPREAD", "w64", num: true);
+                Cell(bankHead, "RES-FUND", "w64", num: true);
+                Cell(bankHead, "BACKSTOP", "w64", num: true);
+                var bankRow = TableRow(bankTable);
+                Cell(bankRow, m.CurrencyName, "flex");
+                Cell(bankRow, Inv($"{m.BankReserve:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeSpreadIntake:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeReserveFunded:0}"), "w64", num: true);
+                Cell(bankRow, Inv($"{m.CumulativeFiatIssued:0}"), "w64", num: true);
+                Line(body, "reserve · spread/res-fund/backstop are cumulative levels", dim: true);
+
+                var claimTable = Table(body);
+                var claimHead = TableRow(claimTable, head: true);
+                Cell(claimHead, "CLAIMS", "flex");
+                Cell(claimHead, "BOOK", "w64", num: true);
+                Cell(claimHead, "BACKING", "w64", num: true);
+                Cell(claimHead, "LENT", "w64", num: true);
+                Cell(claimHead, "RETIRED", "w64", num: true);
+                var claimRow = TableRow(claimTable);
+                Cell(claimRow, m.CurrencyName, "flex");
+                Cell(claimRow, Inv($"{m.ClaimOnState:0}"), "w64", num: true);
+                // -1 sentinel (InteriorView guard): an empty claim book has
+                // no backing ratio to show, not a real zero
+                Cell(claimRow, m.BackingRatio >= 0
+                    ? Inv($"{m.BackingRatio:0.00}") : "-", "w64", num: true);
+                Cell(claimRow, Inv($"{m.CumulativeLentToState:0}"), "w64", num: true);
+                Cell(claimRow, Inv($"{m.CumulativeRetired:0}"), "w64", num: true);
+                Line(body, "book · lent/retired are cumulative levels", dim: true);
+            }
+
             Sect(body, "tech");
             foreach (var t in card.Tech)
                 Kv(body, t.DomainName,
@@ -312,6 +427,13 @@ namespace StarGen.AtlasView
                 PanelType.Polity, card.OwnerActorId)));
             Line(ownerRow, Inv($"{card.OwnerName}'s domain — founded y{card.FoundedYear}"));
 
+            // AC1.4: a selected outpost rides its parent port's economic panel
+            // as a leading section — it trades through this market, it is not a
+            // market of its own. Keyed by SubId; a plain port click (SubId −1)
+            // renders nothing here.
+            if (request.SubId >= 0)
+                OutpostSection(body, ctx, request.Id, request.SubId);
+
             Sect(body, "the larder");
             Kv(body, "stock capacity / good",
                Inv($"{card.StockCapacity:0.#}"), "acc");
@@ -326,9 +448,20 @@ namespace StarGen.AtlasView
             }
             if (!anyStock) Line(body, "(nothing banked)", dim: true);
 
+            // AC3.3: the price table states its currency once, at the
+            // header — no reader should wonder which unit a row's price is
+            // in, and a per-row repeat would be noise (units genuinely
+            // differ per zone now that CU-1/CU-4 wired currency-per-polity).
             Sect(body, "market");
-            Line(body, "good · price · inv · grade · cleared · black book",
-                 dim: true);
+            var goodsTable = Table(body);
+            var goodsHead = TableRow(goodsTable, head: true);
+            Cell(goodsHead, "GOOD", "flex");
+            Cell(goodsHead, Inv($"PRICE ({card.CurrencyName ?? "—"})"),
+                "w48", num: true);
+            Cell(goodsHead, "INV", "w44", num: true);
+            Cell(goodsHead, "GRADE", "w64");
+            Cell(goodsHead, "CLEARED", "w48", num: true);
+            Cell(goodsHead, "BLACK BOOK", "w84", num: true);
             foreach (var g in card.Goods)
             {
                 string grade = g.Inventory > 0
@@ -337,8 +470,21 @@ namespace StarGen.AtlasView
                 string black = g.BlackBookDemand > 0
                     ? Inv($"{g.BlackBookDemand:0.#} @ {g.BlackBookPrice:0.00}")
                     : "-";
-                Line(body, Inv($"{g.GoodName,-14} {g.Price,6:0.00} {g.Inventory,7:0.#} {grade,-11} {g.LastCleared,6:0.#}  {black}"));
+                var goodRow = TableRow(goodsTable);
+                Cell(goodRow, g.GoodName, "flex");
+                Cell(goodRow, Inv($"{g.Price:0.00}"), "w48", num: true);
+                Cell(goodRow, Inv($"{g.Inventory:0.#}"), "w44", num: true);
+                Cell(goodRow, grade, "w64");
+                Cell(goodRow, Inv($"{g.LastCleared:0.#}"), "w48", num: true);
+                Cell(goodRow, black, "w84", num: true);
             }
+
+            // AC2.4: the resting book, `ebook` parity — reads the SAME
+            // per-good Asks/Bids the "market" summary above rolls up (its
+            // Inventory/Grade columns ARE this book's ask side), now at
+            // order granularity: owner, qty, grade, limit vs reference.
+            Sect(body, "order book");
+            BookSection(body, card.Goods);
 
             Sect(body, "segments");
             if (card.Segments.Count == 0) Line(body, "(unpeopled)", dim: true);
@@ -363,6 +509,116 @@ namespace StarGen.AtlasView
                 Line(row, Inv($"port #{lane.OtherPortId} (lane #{lane.LaneId})"));
             }
             return (Inv($"MARKET #{card.PortId}"), body);
+        }
+
+        /// <summary>AC2.4 — the resting order book, per good: reference price,
+        /// then every live ask (cheapest first) and bid (dearest first) with
+        /// owner, qty, grade, and the limit's delta against the reference
+        /// (above reference in "warn" red for an ask — pricier than the
+        /// market; below reference in "warn" for a bid — lowballing it). A
+        /// good with no resting orders is skipped, matching `ebook`'s
+        /// default (unfiltered) view.</summary>
+        private static void BookSection(VisualElement body,
+            IReadOnlyList<MarketGoodRow> goods)
+        {
+            bool any = false;
+            foreach (var g in goods)
+            {
+                if (g.Asks.Count == 0 && g.Bids.Count == 0) continue;
+                any = true;
+                Line(body, Inv($"{g.GoodName} — ref {g.Price:0.00}"));
+                var table = Table(body);
+                var head = TableRow(table, head: true);
+                Cell(head, "SIDE", "w36");
+                Cell(head, "OWNER", "flex");
+                Cell(head, "QTY", "w44", num: true);
+                Cell(head, "GRADE / ESCROW", "w64");
+                Cell(head, "LIMIT", "w48", num: true);
+                Cell(head, "VS REF", "w52", num: true);
+                foreach (var o in g.Asks)
+                    BookOrderCells(table, "ask", o.OwnerName, o.Qty,
+                        Inv($"grade {o.Grade:0.00}"), o.LimitPrice,
+                        o.RefDelta, o.RefDelta > 0);
+                foreach (var o in g.Bids)
+                    BookOrderCells(table, "bid", o.OwnerName, o.Qty,
+                        Inv($"escrow {o.EscrowCredits:0.0}"), o.LimitPrice,
+                        o.RefDelta, o.RefDelta < 0);
+            }
+            if (!any) Line(body, "(bare book — no resting orders)", dim: true);
+        }
+
+        /// <summary>One resting-order table row: side, owner, qty, then the
+        /// grade (ask) or escrow (bid) detail, the limit, and its delta
+        /// against the reference. <paramref name="warn"/> mirrors the
+        /// original Kv coloring — an ask priced above reference, or a bid
+        /// priced below it — now painted on the limit/delta cells
+        /// themselves rather than the owner name.</summary>
+        private static void BookOrderCells(VisualElement table, string side,
+            string owner, double qty, string detail, double limit,
+            double refDelta, bool warn)
+        {
+            var row = TableRow(table);
+            Cell(row, side, "w36");
+            Cell(row, owner, "flex");
+            Cell(row, Inv($"{qty:0.#}"), "w44", num: true);
+            Cell(row, detail, "w64");
+            Cell(row, Inv($"{limit:0.00}"), "w48", num: true,
+                mod: warn ? "warn" : null);
+            Cell(row, Inv($"{refDelta:+0.00;-0.00;0.00}"), "w52", num: true,
+                mod: warn ? "warn" : null);
+        }
+
+        /// <summary>AC1.4 — the selected outpost's own detail, rendered inside
+        /// its parent port's Market panel (the outpost has no market of its
+        /// own). Reads the SAME DomainInteriorQuery card the atlas marks read,
+        /// so the panel and the map never drift.</summary>
+        private static void OutpostSection(VisualElement body, PanelContext ctx,
+                                           int portId, int outpostId)
+        {
+            var card = DomainInteriorQuery.Card(ctx.Model, ctx.Eye, portId);
+            DomainOutpostCard outpost = null;
+            if (card != null)
+                foreach (var o in card.Outposts)
+                    if (o.Id == outpostId) { outpost = o; break; }
+            Sect(body, "selected outpost");
+            if (outpost == null)
+            {
+                Line(body, "(outpost no longer in this domain)", dim: true);
+                return;
+            }
+            var head = new VisualElement
+            { style = { flexDirection = FlexDirection.Row } };
+            if (outpost.Graduated) Tag(head, "GRADUATED", "good");
+            Line(head, outpost.Name);
+            body.Add(head);
+            Kv(body, "at", Inv($"({outpost.Hex.Q},{outpost.Hex.R})"));
+            Kv(body, "founded", Inv($"y{outpost.FoundingYear}"));
+            bool frontier =
+                outpost.Candidacy.Kind == DomainCandidacyKind.Frontier
+                || outpost.Candidacy.Kind == DomainCandidacyKind.FrontierNoPort;
+            Kv(body, "candidacy",
+               DomainInteriorMarks.CandidacyText(outpost.Candidacy.Kind),
+               frontier ? "acc" : null);
+            if (outpost.Candidacy.Kind == DomainCandidacyKind.Graduated
+                && outpost.Candidacy.GraduatedPortId >= 0)
+            {
+                int gpid = outpost.Candidacy.GraduatedPortId;
+                var row = Row(body, () => ctx.Open(
+                    new PanelRequest(PanelType.Market, gpid)));
+                Line(row, Inv($"became port #{gpid}"));
+            }
+            if (outpost.Residents.Count == 0)
+                Line(body, "(unpeopled — a claim, not yet a home)", dim: true);
+            foreach (var r in outpost.Residents)
+                Kv(body, SpeciesName(ctx, r.SpeciesId),
+                   Inv($"size {r.Size:0.00}, SoL {r.SoL:0.00}"));
+        }
+
+        private static string SpeciesName(PanelContext ctx, int speciesId)
+        {
+            var species = ctx.Model.State.Skeleton.Species;
+            return speciesId >= 0 && speciesId < species.Count
+                ? species[speciesId].Name : Inv($"species #{speciesId}");
         }
 
         private static (string, VisualElement) Project(PanelRequest request,
@@ -441,6 +697,11 @@ namespace StarGen.AtlasView
             var card = ShipmentPanel.Card(ctx.Model, ctx.Eye, request.Id);
             if (card == null)
                 return ("SHIPMENT", Missing(body, "no such shipment"));
+            var purposeRow = new VisualElement();
+            purposeRow.style.flexDirection = FlexDirection.Row;
+            Tag(purposeRow, PurposeLabel(card.Purpose),
+                card.Purpose == FreightPurpose.WarConvoy ? "bad" : null);
+            body.Add(purposeRow);
             Kv(body, "channel", card.Channel.ToString().ToLowerInvariant());
             Kv(body, "owner", card.OwnerName);
             var route = Row(body, () => ctx.Open(new PanelRequest(
@@ -449,6 +710,22 @@ namespace StarGen.AtlasView
                 + (card.LaneCount == 0 ? "off-lane"
                    : Inv($"via {card.LaneCount} lane")
                      + (card.LaneCount == 1 ? "" : "s")));
+            // AC4.1: off-lane detection-risk CONTEXT, not a probability —
+            // a bool read of Core.Atlas.ShipmentPanel's PatrolCoverage
+            // sample along the direct path (active-war/hostile-only).
+            if (card.OffLane)
+            {
+                var offLaneRow = new VisualElement();
+                offLaneRow.style.flexDirection = FlexDirection.Row;
+                Tag(offLaneRow, card.CrossesPatrolledSpace ? "PATROLLED" : "OFF-LANE",
+                    card.CrossesPatrolledSpace ? "warn" : null);
+                double remaining = System.Math.Max(0.0,
+                    card.TotalYears - card.SailedYears);
+                Line(offLaneRow, Inv($"off-lane crawl · {remaining:0} years remaining")
+                    + (card.CrossesPatrolledSpace
+                        ? " · crossing patrolled space" : ""), dim: true);
+                body.Add(offLaneRow);
+            }
             Meter(body, "sailed",
                   card.TotalYears > 0 ? card.SailedYears / card.TotalYears : 0,
                   Inv($"{card.SailedYears:0.0}/{card.TotalYears:0.0}"));
@@ -466,8 +743,29 @@ namespace StarGen.AtlasView
             foreach (var line in card.Cargo)
                 Kv(body, line.GoodName,
                    Inv($"{line.Qty:0.#} @ {line.Grade:0.00}"));
+            if (card.Rider != null)
+            {
+                Sect(body, "rider contract");
+                Kv(body, "route",
+                   card.Rider.OriginPortOwnerName + " → "
+                   + card.Rider.DestPortOwnerName);
+                Kv(body, "fee", Inv($"{card.Rider.FeeEscrow:0.0}"));
+                Kv(body, "poster", card.Rider.PosterName);
+                Link(body, Inv($"OPEN CONTRACTS BOARD (#{card.Rider.Id})"),
+                    () => ctx.Open(new PanelRequest(PanelType.Contracts)));
+            }
             return (Inv($"SHIPMENT #{card.Id}"), body);
         }
+
+        /// <summary>The 4-way freight-purpose label (AC2.6) — same words
+        /// `efreight` prints, Core.Atlas.FreightPurpose the shared type.</summary>
+        private static string PurposeLabel(FreightPurpose purpose) => purpose switch
+        {
+            FreightPurpose.WarConvoy => "WAR CONVOY",
+            FreightPurpose.Courier => "courier",
+            FreightPurpose.SpreadRun => "spread run",
+            _ => "state haul",
+        };
 
         private static (string, VisualElement) Fleet(PanelRequest request,
             PanelContext ctx, VisualElement body)
@@ -481,6 +779,11 @@ namespace StarGen.AtlasView
             Kv(body, "readiness", Inv($"{row.Readiness:0.00}"));
             Kv(body, "home port", card.HomePortId >= 0
                 ? Inv($"#{card.HomePortId}") : "none");
+            // forward depot (AC2.7) — only a deployed (Blockade/Expedition)
+            // fleet has one; FleetPanel.Card already gates it to -1 otherwise
+            if (card.ForwardDepotPortId >= 0)
+                Kv(body, "forward depot",
+                   Inv($"port #{card.ForwardDepotPortId} ({card.ForwardDepotDistanceHexes} hexes)"));
             if (card.CommanderName != null)
             {
                 var cmd = Row(body, () => ctx.Open(new PanelRequest(
@@ -504,6 +807,29 @@ namespace StarGen.AtlasView
             Kv(body, "endurance floor",
                Inv($"{v.EnduranceFloor:0.0} (~{(int)card.EnduranceHexesOffLane} hexes off-lane)"));
             Kv(body, "upkeep", Inv($"{v.Upkeep:0.0}"));
+            // hostile patrol exposure (AC4.2) — PatrolCoverage.At's own
+            // falloff at dock and 1/2/3 hexes out; FleetPanel.Card already
+            // gates the list to Patrol posture (empty otherwise), same
+            // idiom as the forward-depot -1 gate above. This is the
+            // strongest hostile coverage AT this hex, maxed across every
+            // patrol fleet at war with a candidate victim — not
+            // necessarily this fleet's own reach (a sibling or allied
+            // fleet can dominate the reading).
+            if (card.PatrolCoverageByHexHop.Count > 0)
+            {
+                Sect(body, "hostile patrol exposure");
+                var covTable = Table(body);
+                var covHead = TableRow(covTable, head: true);
+                Cell(covHead, "DOCK", "w64", num: true);
+                Cell(covHead, "1 HEX", "w64", num: true);
+                Cell(covHead, "2 HEX", "w64", num: true);
+                Cell(covHead, "3 HEX", "w64", num: true);
+                var covRow = TableRow(covTable);
+                foreach (var c in card.PatrolCoverageByHexHop)
+                    Cell(covRow, Inv($"{c:0.00}"), "w64", num: true);
+                Line(body, "strongest hostile coverage near this dock (may be a sibling fleet) — 0 while at peace",
+                    dim: true);
+            }
             Link(body, "DESIGNS", () => ctx.Open(new PanelRequest(
                 PanelType.Designs, row.OwnerActorId)));
             return (Inv($"FLEET #{row.Id}"), body);
@@ -580,7 +906,13 @@ namespace StarGen.AtlasView
                 var row = Row(body, () => ctx.Open(new PanelRequest(
                     PanelType.Fleet, captured.FleetId)));
                 Line(row, Inv($"fleet #{f.FleetId}: {f.Hulls} hulls at ({f.Hex.Q},{f.Hex.R})")
-                    + (f.CommanderName != null ? " under " + f.CommanderName : ""));
+                    + (f.CommanderName != null ? " under " + f.CommanderName : "")
+                    // forward depot (AC2.7) — every station fleet here is
+                    // already deployed, so DepotPortId is -1 only when the
+                    // attacker holds no port at all
+                    + (f.DepotPortId >= 0
+                        ? Inv($" · depot #{f.DepotPortId} ({f.DepotDistanceHexes}h)")
+                        : " · depot none"));
             }
             Sect(body, "chronicle");
             if (card.Chronicle.Count == 0) Line(body, "(quiet so far)", dim: true);
@@ -630,6 +962,22 @@ namespace StarGen.AtlasView
                 if (r.OfferedRung != Core.Epoch.TreatyRung.None)
                     Kv(body, "on the table",
                        Inv($"{r.OfferedRung} offered by #{r.OfferedById}"), "acc");
+                // AC3.4: monetary credibility (CU-4's BackedShare, the SAME
+                // min-of-both-sides term FederationOps' fusion gate reads) —
+                // absent entirely when neither side has a currency yet.
+                if (r.CredibilityA != null || r.CredibilityB != null)
+                {
+                    var credTable = Table(body);
+                    var credRow = TableRow(credTable);
+                    Cell(credRow, r.PolityAName, "flex");
+                    Cell(credRow, r.CredibilityA != null
+                        ? Inv($"credibility {r.CredibilityA:0%}") : "—",
+                        "w84", num: true);
+                    Cell(credRow, r.PolityBName, "flex");
+                    Cell(credRow, r.CredibilityB != null
+                        ? Inv($"credibility {r.CredibilityB:0%}") : "—",
+                        "w84", num: true);
+                }
                 foreach (var claim in r.Claims)
                     Line(body, Inv($"claim: {claim.HolderName} holds {claim.Type.ToString().ToLowerInvariant()} (raised y{claim.RaisedYear})"), dim: true);
             }

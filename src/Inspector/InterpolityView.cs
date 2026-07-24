@@ -1,5 +1,6 @@
 using System.Text;
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using static System.FormattableString;
 
 namespace StarGen.Inspector;
@@ -150,9 +151,17 @@ public static class InterpolityView
                     or FleetPosture.Expedition)) continue;
             string commander = fleet.CommanderId >= 0
                 ? " under " + state.Characters[fleet.CommanderId].Name : "";
+            // forward depot (AC2.7) — same query FleetView's `fleet <id>`
+            // and FleetOps.SupplyFleets read, not re-derived
+            int depot = FleetOps.NearestOwnedPortId(state,
+                fleet.OwnerActorId, fleet.Hex);
+            string depotText = depot >= 0
+                ? Invariant($" · depot #{depot} ")
+                  + Invariant($"({HexGrid.Distance(state.Ports[depot].Hex, fleet.Hex)}h)")
+                : " · depot none";
             sb.AppendLine(Invariant($"  fleet #{fleet.Id}: {fleet.TotalHulls} hulls at ")
                 + Invariant($"({fleet.Hex.Q},{fleet.Hex.R})") + commander
-                + Invariant($" (readiness {fleet.Readiness:0.00})"));
+                + Invariant($" (readiness {fleet.Readiness:0.00})") + depotText);
         }
         // the war's chronicle so far
         foreach (var e in state.Log.Events)

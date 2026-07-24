@@ -122,7 +122,7 @@ public static class CourierOps
             if (c.Qty[g] > 0) basket.Add((g, c.Qty[g], c.Grade[g]));
         var s = ShipmentOps.Dispatch(state, c.PosterActorId,
             ShipmentChannel.Requisition, c.OriginPortId, c.DestPortId,
-            basket, null, out var outcome);
+            basket, null, out var outcome, rider: c);
         if (s != null)
         {
             c.Status = CourierStatus.InTransit;

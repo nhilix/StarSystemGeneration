@@ -80,6 +80,36 @@ public class WarRelationsPanelTests
     }
 
     [Fact]
+    public void TheOnStationFleetNamesItsForwardDepot()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        HexCoordinate? a = null, b = null;
+        foreach (var cell in state.Skeleton.Cells)
+        {
+            if (cell.IsVoid) continue;
+            if (a == null) { a = HexGrid.CellCenter(cell.Coord); continue; }
+            b = HexGrid.CellCenter(cell.Coord);
+            break;
+        }
+        // port 0: the defender's — the blockade target. port 1: the
+        // attacker's own — its forward depot (AC2.7).
+        state.Ports.Add(new Port(0, state.Actors[1].Id, a!.Value, 2, 0));
+        state.Ports.Add(new Port(1, state.Actors[0].Id, b!.Value, 2, 0));
+        var war = new War(0, "the Test War", state.Actors[0].Id,
+            state.Actors[1].Id, CasusBelli.ResourceSeizure, -1,
+            WarDemand.CedeObjectives, state.WorldYear);
+        state.Wars.Add(war);
+        var model = new AtlasReadModel(state);
+        var fleet = EpochTestKit.BlockadePort(state, war.AttackerId,
+                                              portId: 0);
+        var card = WarPanel.Card(model, EyeContext.God(state.WorldYear), 0)!;
+        var row = Assert.Single(card.FleetsOnStation);
+        Assert.Equal(1, row.DepotPortId);
+        Assert.Equal(HexGrid.Distance(state.Ports[1].Hex, fleet.Hex),
+                     row.DepotDistanceHexes);
+    }
+
+    [Fact]
     public void RelationsReadTheSourceTermsAndClaims()
     {
         var (_, state) = EpochTestKit.Seeded();
@@ -138,6 +168,59 @@ public class WarRelationsPanelTests
             EyeContext.God(state.WorldYear), entered[0]);
         var row = Assert.Single(mine);
         Assert.True(row.PolityAId == entered[0] || row.PolityBId == entered[0]);
+    }
+
+    // ---- AC3.4: relations name the CU-4 monetary-credibility term
+    // (BackedShare-derived) that the federation gate reads.
+
+    [Fact]
+    public void RelationsReadEachSidesBackedShareCredibility()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var entered = new System.Collections.Generic.List<int>();
+        foreach (var actor in state.Actors)
+        {
+            if (actor.Kind != ActorKind.Polity || entered.Count == 2) continue;
+            actor.Entered = true;
+            entered.Add(actor.Id);
+        }
+        var currencyA = state.FoundCurrency(entered[0]);
+        state.BankOf(currencyA.Id).Reserve = 30;              // BackedShare 1.0
+        var currencyB = state.FoundCurrency(entered[1]);
+        var bankB = state.BankOf(currencyB.Id);
+        bankB.Reserve = 10;
+        bankB.LendToState(30);                          // BackedShare 0.25
+        state.Relations.Add(new PolityRelation(entered[0], entered[1], 0));
+
+        var model = new AtlasReadModel(state);
+        var row = Assert.Single(RelationsPanel.Rows(model,
+            EyeContext.God(state.WorldYear)));
+        // the SAME derivation the federation gate reads (FederationOps.Credibility)
+        Assert.Equal(state.BackedShareOf(currencyA.Id), row.CredibilityA);
+        Assert.Equal(state.BackedShareOf(currencyB.Id), row.CredibilityB);
+        Assert.Equal(1.0, row.CredibilityA);
+        Assert.Equal(0.25, row.CredibilityB);
+    }
+
+    [Fact]
+    public void CredibilityIsAbsentNotZeroWithoutACurrency()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var entered = new System.Collections.Generic.List<int>();
+        foreach (var actor in state.Actors)
+        {
+            if (actor.Kind != ActorKind.Polity || entered.Count == 2) continue;
+            actor.Entered = true;
+            entered.Add(actor.Id);
+        }
+        // neither side has been minted a currency (pre-genesis sentinel)
+        state.Relations.Add(new PolityRelation(entered[0], entered[1], 0));
+
+        var model = new AtlasReadModel(state);
+        var row = Assert.Single(RelationsPanel.Rows(model,
+            EyeContext.God(state.WorldYear)));
+        Assert.Null(row.CredibilityA);
+        Assert.Null(row.CredibilityB);
     }
 
     private static int FindUnentered(SimState state)

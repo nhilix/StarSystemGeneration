@@ -36,6 +36,22 @@ public sealed record PlanRow(int Index, PlanEntryKind Kind,
     ProjectPriority Priority, int StartYear, string TypeDesign,
     int PortId, bool InFlight);
 
+/// <summary>The monetary block — InteriorView.RenderPolity's currency/bank/
+/// claims lines (currency-and-FX, bank-actor, bank-flow designs) lifted
+/// verbatim into the panel query (AC3.2). <see cref="BackingRatio"/> is −1
+/// (absent sentinel) when <see cref="ClaimOnState"/> is zero — the exact
+/// guard InteriorView applies (an empty claim book divides by zero).
+/// <see cref="NumeraireRate"/> has no derivable recent-drift figure: no
+/// prior-rate history is stored anywhere in state (FxOps recomputes the
+/// rate from the current epoch's density only), so only the rate itself is
+/// exposed — see the AC3.2 report for the gap.</summary>
+public sealed record MonetaryLine(
+    int CurrencyId, string CurrencyName, double NumeraireRate, double Supply,
+    bool Retired, double BankReserve, double CumulativeSpreadIntake,
+    double CumulativeReserveFunded, double CumulativeFiatIssued,
+    double ClaimOnState, double BackingRatio, double CumulativeLentToState,
+    double CumulativeRetired);
+
 /// <summary>The Polity panel's card — `polity`/`tech` typed, plus the T1
 /// additions: ReservePoints (the reserve treasury actors v7 draws project
 /// baskets from) and the standing plan.</summary>
@@ -46,7 +62,8 @@ public sealed record PolityCard(
     RulerLine? Ruler, IReadOnlyList<CourtLine> Court,
     IReadOnlyList<TechLine> Tech, IReadOnlyList<FactionRow> Factions,
     IReadOnlyList<CharterRow> Charters, double Credits,
-    double ReservePoints, IReadOnlyList<PlanRow> Plan);
+    double ReservePoints, IReadOnlyList<PlanRow> Plan,
+    MonetaryLine? Monetary);
 
 /// <summary>K3: the domain click / topbar-search target —
 /// InteriorView.RenderPolity + RenderTech parity, `eplan` in-flight
@@ -126,7 +143,25 @@ public static class PolityPanel
             interior?.Legitimacy ?? 0, interior?.Cohesion ?? 0,
             interior?.Enforcement ?? 0, officialLine, rulerLine, court,
             tech, factions, charters, pr.Credits, pr.ReservePoints,
-            PlanRows(state, actorId));
+            PlanRows(state, actorId), Monetary(state, pr.CurrencyId));
+    }
+
+    /// <summary>The currency/bank/claims block (InteriorView.RenderPolity
+    /// parity) — null when the polity has no currency (pre-genesis
+    /// sentinel, <c>currencyId &lt; 0</c>).</summary>
+    private static MonetaryLine? Monetary(SimState state, int currencyId)
+    {
+        if (currencyId < 0) return null;
+        var currency = state.CurrencyOf(currencyId);
+        var bank = state.BankOf(currencyId);
+        double backing = bank.ClaimOnState > 0
+            ? bank.Reserve / bank.ClaimOnState : -1;
+        return new MonetaryLine(currency.Id, currency.Name,
+            currency.NumeraireRate, currency.Supply, currency.Retired,
+            bank.Reserve, bank.CumulativeSpreadIntake,
+            bank.CumulativeReserveFunded, currency.CumulativeFiatIssued,
+            bank.ClaimOnState, backing, bank.CumulativeLentToState,
+            bank.CumulativeRetired);
     }
 
     /// <summary>The standing plan with `eplan`'s in-flight star — an entry

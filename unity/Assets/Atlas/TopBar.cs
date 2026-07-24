@@ -73,6 +73,7 @@ namespace StarGen.AtlasView
             bar.Add(spacer);
 
             DrawerButton(bar, "THREADS", PanelType.Threads);
+            DrawerButton(bar, "CONTRACTS", PanelType.Contracts);
             DrawerButton(bar, "STATS", PanelType.Stats);
             DrawerButton(bar, "GOODS", PanelType.Goods);
             DrawerButton(bar, "KNOBS", PanelType.Knobs);

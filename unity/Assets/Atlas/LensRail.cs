@@ -30,8 +30,8 @@ namespace StarGen.AtlasView
         [SerializeField] private AtlasRoot root;
 
         // The lens selection — what the user has toggled on.
-        private bool _domains = true, _war, _tension, _tech;
-        private bool _lanes = true, _traffic, _fleets, _works, _price;
+        private bool _domains = true, _war, _tension, _tech, _currency;
+        private bool _lanes = true, _traffic, _trade, _fleets, _works, _price;
         private bool _plague, _news, _pois;
         private GoodId _priceGood = GoodId.Provisions;
         private NatureLayer? _nature;
@@ -47,8 +47,10 @@ namespace StarGen.AtlasView
             _war ? "war"
             : _tension ? "tension"
             : _tech ? "tech"
+            : _currency ? "currency"
             : _plague ? "plague"
             : _price ? "price"
+            : _trade ? "trade"
             : _traffic ? "traffic"
             : _works ? "works"
             : _fleets ? "fleets"
@@ -101,15 +103,29 @@ namespace StarGen.AtlasView
             Chip(rail, "domains", new Color32(0x46, 0xB5, 0xA4, 255),
                  () => _domains, v => _domains = v);
             Chip(rail, "war", new Color32(0xE0, 0x55, 0x55, 255),
-                 () => _war, v => { _war = v; if (v) _tension = _tech = false; });
+                 () => _war,
+                 v => { _war = v; if (v) _tension = _tech = _currency = false; });
             Chip(rail, "tension", new Color32(0xE0, 0x8A, 0x4A, 255),
-                 () => _tension, v => { _tension = v; if (v) _war = _tech = false; });
+                 () => _tension,
+                 v => { _tension = v; if (v) _war = _tech = _currency = false; });
+            // AC3.1: the fifth domain accent — CU-3 consolidation made
+            // visible; radio-exclusive with the other three the same way
+            // (one fill mode at a time).
+            Chip(rail, "currency", new Color32(0xB0, 0x8A, 0xE0, 255),
+                 () => _currency,
+                 v => { _currency = v; if (v) _war = _tension = _tech = false; });
 
             Group(rail, "LOGISTICS");
             Chip(rail, "lanes", new Color32(0x56, 0xC4, 0xDC, 255),
-                 () => _lanes, v => { _lanes = v; if (v) _traffic = false; });
+                 () => _lanes,
+                 v => { _lanes = v; if (v) _traffic = _trade = false; });
             Chip(rail, "traffic", new Color32(0x2E, 0x7E, 0x96, 255),
-                 () => _traffic, v => { _traffic = v; if (v) _lanes = false; });
+                 () => _traffic,
+                 v => { _traffic = v; if (v) _lanes = _trade = false; });
+            Chip(rail, "trade", new Color32(TradeLens.MarginGold.R,
+                     TradeLens.MarginGold.G, TradeLens.MarginGold.B, 255),
+                 () => _trade,
+                 v => { _trade = v; if (v) _lanes = _traffic = false; });
             Chip(rail, "fleets", new Color32(0xC7, 0xD3, 0xEA, 255),
                  () => _fleets, v => _fleets = v);
             Chip(rail, "works", new Color32(0xF0, 0xC3, 0x5F, 255),
@@ -130,7 +146,8 @@ namespace StarGen.AtlasView
 
             Group(rail, "KNOWLEDGE");
             Chip(rail, "tech", new Color32(0x7F, 0xA6, 0xE8, 255),
-                 () => _tech, v => { _tech = v; if (v) _war = _tension = false; });
+                 () => _tech,
+                 v => { _tech = v; if (v) _war = _tension = _currency = false; });
             Chip(rail, "plague", new Color32(0xB9, 0xE8, 0x6F, 255),
                  () => _plague, v => _plague = v);
             Chip(rail, "news", new Color32(0xE8, 0xD6, 0x6F, 255),
@@ -210,26 +227,48 @@ namespace StarGen.AtlasView
             _war ? DomainAccent.War
             : _tension ? DomainAccent.Tension
             : _tech ? DomainAccent.Tech
+            : _currency ? DomainAccent.Currency
             : DomainAccent.Owner;
 
         private void Apply()
         {
             if (root == null || root.SimHost?.Model == null) return;
 
-            bool domainsVisible = _domains || _war || _tension || _tech;
+            bool domainsVisible = _domains || _war || _tension || _tech || _currency;
             root.DomainField.SetVisible(domainsVisible);
             root.DomainField.SetAccent(Accent);
+            // AC1.3: the worked skeleton is interior structure ON the domains
+            // lens — it rides the existing chip, no new rail key. (Outpost
+            // marks are always-on, the subordinate sibling of the port dots.)
+            // AC-fixwave: null-guarded like FlowTrailLayer/CrawlPathLayer
+            // below — a stale/hand-authored scene predating this Phase-1
+            // layer degrades gracefully instead of NREing.
+            if (root.DomainInterior != null)
+                root.DomainInterior.SetVisible(domainsVisible);
             root.WarLayer.SetVisible(_war);
 
-            bool lanesVisible = _lanes || _traffic || _plague;
+            // AC2.7: the war lens's own stroke mode — contested lanes only,
+            // rides the same chip as the domain accent/station glyphs, no
+            // new rail key
+            bool lanesVisible = _lanes || _traffic || _trade || _plague || _war;
             root.LaneLayer.SetVisible(lanesVisible);
             root.LaneLayer.SetMode(
-                _traffic ? LaneMode.Traffic
+                _war ? LaneMode.War
+                : _traffic ? LaneMode.Traffic
+                : _trade ? LaneMode.Trade
                 : _lanes ? LaneMode.Status
                 : LaneMode.QuarantineOnly);
 
             root.FleetLayer.SetVisible(_fleets);
             root.WorksLayer.SetVisible(_works);
+            // AC2.F2: recent-flow trails ride the works chip — a sibling
+            // layer, not a new rail key (null-guarded for an older scene)
+            if (root.FlowTrailLayer != null)
+                root.FlowTrailLayer.SetVisible(_works);
+            // AC4.1: live off-lane crawl paths ride the works chip too —
+            // same sibling-layer, null-guarded pattern as the trails
+            if (root.CrawlPathLayer != null)
+                root.CrawlPathLayer.SetVisible(_works);
             root.PriceField.SetGood(_priceGood);
             root.PriceField.SetVisible(_price);
             root.PlagueLayer.SetVisible(_plague);

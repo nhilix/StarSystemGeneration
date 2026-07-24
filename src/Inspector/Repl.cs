@@ -13,6 +13,12 @@ public sealed class Repl
     private int _spiralIndex;
     private GalaxyContext? _galaxy;
     private Core.Epoch.SimState? _sim;
+    /// <summary>AC2.F2: flows captured during the LAST estep — the atlas
+    /// keyframe-flows' REPL twin. In-memory only; cleared per step and
+    /// whenever a new sim loads (a fresh world starts with none, exactly
+    /// as a freshly loaded atlas artifact does).</summary>
+    private readonly System.Collections.Generic.List<Core.Atlas.RecentFlow>
+        _recentFlows = new();
 
     public void Run()
     {
@@ -49,6 +55,7 @@ public sealed class Repl
                     Console.WriteLine("eprojects [actorId] — in-flight projects (one funder, or all); `eprojects all` adds completed/cancelled");
                     Console.WriteLine("eplan <actorId> — the actor's standing plan; `*` marks entries already in flight");
                     Console.WriteLine("efreight — shipments in transit: route, cargo, sailed years, live ETA (STALLED = closed leg)");
+                    Console.WriteLine("eflows — courier/war-convoy flows captured during the last estep (the atlas trails' twin)");
                     Console.WriteLine("ebook <portId> [good] — the port's order book: resting asks/bids with owners + reference prices");
                     Console.WriteLine("econtracts [actorId] — open/in-transit courier contracts: route, cargo, fee, fulfiller");
                     Console.WriteLine("ehealth [metric|save <base>] — macro health: latest snapshot + debt roster, one metric's trend, or CSV export");
@@ -131,6 +138,7 @@ public sealed class Repl
                     new Core.Epoch.EpochEngine().Run(estate);
                     sw.Stop();
                     _sim = estate;
+                    _recentFlows.Clear();
                     _seed = eseed;
                     _galaxy = new GalaxyContext(eskeleton.Config) { Skeleton = eskeleton };
                     Console.WriteLine(Core.Epoch.SimTraceView.Render(estate));
@@ -288,6 +296,12 @@ public sealed class Repl
                 case "efreight":
                     Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
                     break;
+                case "eflows" when _sim != null:
+                    RenderFlows(_sim);
+                    break;
+                case "eflows":
+                    Console.WriteLine("run a sim first (epoch <seed>) or eload an artifact");
+                    break;
                 case "econtracts" when _sim != null:
                 {
                     int poster = -1;
@@ -404,8 +418,16 @@ public sealed class Repl
                             $" (generation stays {_sim.Config.Sim.GenerationYears})"));
                     }
                     var engine = new Core.Epoch.EpochEngine();
+                    // AC2.F2: tap launches so `eflows` can show what moved
+                    // during the LAST step — the atlas keyframe capture's twin
+                    engine.ShipmentObserver = l =>
+                        _recentFlows.Add(Core.Atlas.RecentFlowQuery.Capture(l));
                     int traceFrom = _sim!.Trace.Count;
-                    for (int i = 0; i < n; i++) engine.Step(_sim);
+                    for (int i = 0; i < n; i++)
+                    {
+                        _recentFlows.Clear();
+                        engine.Step(_sim);
+                    }
                     for (int i = traceFrom; i < _sim.Trace.Count; i++)
                     {
                         var t = _sim.Trace[i];
@@ -539,6 +561,7 @@ public sealed class Repl
                         }
                         animator.Done();
                         _sim = westate;
+                        _recentFlows.Clear();
                         _seed = wseed;
                         _galaxy = new GalaxyContext(wconfig) { Skeleton = skeleton };
                         Console.WriteLine($"watch complete — sim loaded at epoch {westate.EpochIndex} "
@@ -706,6 +729,7 @@ public sealed class Repl
                         {
                             var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
                             _sim = loaded;
+                            _recentFlows.Clear();
                             _seed = loaded.Skeleton.Config.MasterSeed;
                             _galaxy = new GalaxyContext(loaded.Skeleton.Config)
                             { Skeleton = loaded.Skeleton };
@@ -728,6 +752,7 @@ public sealed class Repl
                         {
                             var loaded = Core.Epoch.ArtifactSerializer.Load(reader);
                             _sim = loaded;
+                            _recentFlows.Clear();
                             _seed = loaded.Skeleton.Config.MasterSeed;
                             _galaxy = new GalaxyContext(loaded.Skeleton.Config)
                             { Skeleton = loaded.Skeleton };
@@ -934,18 +959,18 @@ public sealed class Repl
             string eta = stalled ? "STALLED"
                 : FormattableString.Invariant(
                     $"y{sim.WorldYear + (int)Math.Ceiling(s.TotalYears - s.YearsInTransit)}");
-            // purpose (slice CE): courier cargo (war convoys called out)
-            // vs a trader's spread run vs the state hauling its own
-            Core.Epoch.CourierContract? rider = null;
-            foreach (var c in sim.Couriers)
-                if (c.Status == Core.Epoch.CourierStatus.InTransit
-                    && c.ShipmentId == s.Id)
-                { rider = c; break; }
-            string purpose = rider != null
-                ? rider.Priority == Core.Epoch.CourierPriority.War
-                    ? "war convoy" : "courier"
-                : s.Channel == Core.Epoch.ShipmentChannel.Freight
-                    ? "spread run" : "state haul";
+            // purpose (slice CE; AC2.6 re-point): courier cargo (war
+            // convoys called out) vs a trader's spread run vs the state
+            // hauling its own — now the SAME derivation the atlas map and
+            // ShipmentPanel read (Core.Atlas.FreightPurposeQuery).
+            string purpose = Core.Atlas.FreightPurposeQuery.Of(sim, s).Purpose
+                switch
+            {
+                Core.Atlas.FreightPurpose.WarConvoy => "war convoy",
+                Core.Atlas.FreightPurpose.Courier => "courier",
+                Core.Atlas.FreightPurpose.SpreadRun => "spread run",
+                _ => "state haul",
+            };
             Console.WriteLine(FormattableString.Invariant(
                 $"  #{s.Id,-6} {purpose,-11} {route,-21} {string.Join(", ", cargo),-32} ")
                 + FormattableString.Invariant(
@@ -954,73 +979,124 @@ public sealed class Repl
         }
     }
 
-    /// <summary>`econtracts` (slice CE): the courier job board — open and
-    /// in-transit contracts with route, cargo, fee, and fulfiller.</summary>
+    /// <summary>`eflows` (AC2.F2): the recent-flow trails' REPL twin —
+    /// courier and war-convoy launches captured during the LAST estep (the
+    /// step that produced the current moment). Most lane-borne shipments
+    /// launch and arrive inside one step, so `efreight` cannot show them;
+    /// this is their record. Empty until a step runs in-session — the same
+    /// "none yet" a freshly loaded atlas artifact shows. Derivation is
+    /// Core.Atlas.RecentFlowQuery's (capture + Renders filter); this
+    /// formats. Eyeball 4 follow-up: the atlas TRAIL suppresses a flow
+    /// still in flight (the crawl draws it instead), but `eflows` lists
+    /// what launched — every row still prints, tagged "(in transit)" for a
+    /// shipment still in the live registry, so the list is never lighter
+    /// than what actually happened this step.</summary>
+    private void RenderFlows(Core.Epoch.SimState sim)
+    {
+        var inFlight = new System.Collections.Generic.HashSet<int>();
+        foreach (var s in sim.Shipments) inFlight.Add(s.Id);
+        bool any = false;
+        foreach (var f in _recentFlows)
+        {
+            if (!Core.Atlas.RecentFlowQuery.Renders(f.Purpose)) continue;
+            if (!any)
+                Console.WriteLine("recent flows (moved during the last step):");
+            any = true;
+            string owner = f.OwnerActorId >= 0 && f.OwnerActorId < sim.Actors.Count
+                ? sim.Actors[f.OwnerActorId].Name : "—";
+            var cargo = new System.Collections.Generic.List<string>();
+            for (int g = 0; g < f.Qty.Count && cargo.Count < 3; g++)
+                if (f.Qty[g] > 0)
+                    cargo.Add(FormattableString.Invariant(
+                        $"{f.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            string purpose = f.Purpose == Core.Atlas.FreightPurpose.WarConvoy
+                ? "war convoy" : "courier";
+            // legs = RouteHexes.Count−1 — the SAILED route (the map's
+            // per-leg trails), 1 leg being either one lane or the off-lane
+            // direct crawl
+            string route = FormattableString.Invariant(
+                $"#{f.OriginPortId}->#{f.DestPortId} ({f.RouteHexes.Count - 1} leg")
+                + (f.RouteHexes.Count - 1 == 1 ? ")" : "s)");
+            string transit = inFlight.Contains(f.ShipmentId) ? " (in transit)" : "";
+            Console.WriteLine(FormattableString.Invariant(
+                $"  #{f.ShipmentId,-6} {purpose,-11} {route,-16} ")
+                + $"{string.Join(", ", cargo),-32} ({owner}){transit}");
+        }
+        if (!any)
+            Console.WriteLine("no recent courier/war-convoy flows — estep to "
+                + "sail a step (a freshly loaded world starts with none)");
+    }
+
+    /// <summary>`econtracts` (slice CE; AC2.5 re-point): the courier job
+    /// board — open and in-transit contracts with route, cargo, fee, and
+    /// fulfiller. A pure formatter over <see
+    /// cref="Core.Atlas.ContractsPanel"/> — the derivation (registry walk,
+    /// poster filter, fulfiller resolution) lives in Core now, the SAME
+    /// query a future Unity job-board panel reads.</summary>
     private static void RenderContracts(Core.Epoch.SimState sim, int poster)
     {
+        var rows = Core.Atlas.ContractsPanel.Rows(
+            new Core.Atlas.AtlasReadModel(sim),
+            Core.Atlas.EyeContext.God(sim.WorldYear), poster);
         bool any = false;
         Console.WriteLine("  id     prio    route          cargo                        fee      status");
-        foreach (var c in sim.Couriers)
+        foreach (var c in rows)
         {
-            if (poster >= 0 && c.PosterActorId != poster) continue;
             any = true;
             var cargo = new System.Collections.Generic.List<string>();
-            for (int g = 0; g < c.Qty.Length && cargo.Count < 3; g++)
-                if (c.Qty[g] > 0)
-                    cargo.Add(FormattableString.Invariant(
-                        $"{c.Qty[g]:0.#} {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name}"));
+            foreach (var line in c.Cargo)
+            {
+                if (cargo.Count >= 3) break;
+                cargo.Add(FormattableString.Invariant(
+                    $"{line.Qty:0.#} {line.GoodName}"));
+            }
             string status = c.Status == Core.Epoch.CourierStatus.Open
                 ? "OPEN"
-                : $"in transit ({OwnerName(sim, c.FulfillerActorId)})";
+                : $"in transit ({c.FulfillerName})";
             Console.WriteLine(FormattableString.Invariant(
                 $"  #{c.Id,-6} {c.Priority,-7} #{c.OriginPortId}->#{c.DestPortId,-8} ")
                 + FormattableString.Invariant(
                 $"{string.Join(", ", cargo),-28} {c.FeeEscrow,7:0.0}  ")
-                + status + $"  ({OwnerName(sim, c.PosterActorId)})");
+                + status + $"  ({c.PosterName})");
         }
         if (!any) Console.WriteLine("  (no open contracts)");
     }
 
-    /// <summary>`ebook` (slice CE): one port's order book — resting asks
-    /// and bids per good with owners, plus the reference price the
-    /// downstream valuations read. The market IS the book now.</summary>
+    /// <summary>`ebook` (slice CE; AC2.4 re-point): one port's order book —
+    /// resting asks and bids per good with owners, plus the reference price
+    /// the downstream valuations read. The market IS the book now. A pure
+    /// formatter over <see cref="Core.Atlas.MarketPanel"/>'s per-good
+    /// Asks/Bids rows (the DomainView pattern: derivation lives in
+    /// Core.Atlas, the REPL and a future Unity book view read the SAME
+    /// query) — output stays byte-identical with the pre-AC2.4 direct
+    /// SimState scan.</summary>
     private static void RenderBook(Core.Epoch.SimState sim, int portId,
                                    Core.Substrate.GoodId? only)
     {
         if (portId < 0 || portId >= sim.Ports.Count)
         { Console.WriteLine($"no port #{portId} (0..{sim.Ports.Count - 1})"); return; }
-        var market = sim.Markets[portId];
+        var card = Core.Atlas.MarketPanel.Card(new Core.Atlas.AtlasReadModel(sim),
+            Core.Atlas.EyeContext.God(sim.WorldYear), portId)!;
         Console.WriteLine(FormattableString.Invariant(
-            $"book at port #{portId} — {sim.Actors[sim.Ports[portId].OwnerActorId].Name}'s domain"));
+            $"book at port #{portId} — {card.OwnerName}'s domain"));
         bool any = false;
-        for (int g = 0; g < Core.Substrate.Goods.All.Count; g++)
+        foreach (var row in card.Goods)
         {
-            if (only.HasValue && g != (int)only.Value) continue;
-            var asks = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
-            var bids = new System.Collections.Generic.List<Core.Epoch.MarketOrder>();
-            foreach (var o in sim.Orders)
-            {
-                if (o.PortId != portId || o.Good != g || o.QtyRemaining <= 0)
-                    continue;
-                (o.Side == Core.Epoch.OrderSide.Sell ? asks : bids).Add(o);
-            }
-            if (asks.Count == 0 && bids.Count == 0 && !only.HasValue) continue;
+            if (only.HasValue && row.Good != only.Value) continue;
+            if (row.Asks.Count == 0 && row.Bids.Count == 0 && !only.HasValue)
+                continue;
             any = true;
-            asks.Sort((x, y) => x.LimitPrice != y.LimitPrice
-                ? x.LimitPrice.CompareTo(y.LimitPrice) : x.Id.CompareTo(y.Id));
-            bids.Sort((x, y) => x.LimitPrice != y.LimitPrice
-                ? y.LimitPrice.CompareTo(x.LimitPrice) : x.Id.CompareTo(y.Id));
             Console.WriteLine(FormattableString.Invariant(
-                $"  {Core.Substrate.Goods.Get((Core.Substrate.GoodId)g).Name,-16} ref {market.Price[g]:0.00}"));
-            foreach (var o in asks)
+                $"  {row.GoodName,-16} ref {row.Price:0.00}"));
+            foreach (var o in row.Asks)
                 Console.WriteLine(FormattableString.Invariant(
-                    $"    ask {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
-                    + $"grade {o.Grade:0.00}  ({OwnerName(sim, o.OwnerActorId)})");
-            foreach (var o in bids)
+                    $"    ask {o.Qty,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    + $"grade {o.Grade:0.00}  ({o.OwnerName})");
+            foreach (var o in row.Bids)
                 Console.WriteLine(FormattableString.Invariant(
-                    $"    bid {o.QtyRemaining,8:0.#} @ {o.LimitPrice,7:0.00}  ")
+                    $"    bid {o.Qty,8:0.#} @ {o.LimitPrice,7:0.00}  ")
                     + FormattableString.Invariant(
-                    $"escrow {o.EscrowCredits:0.0}  ({OwnerName(sim, o.OwnerActorId)})"));
+                    $"escrow {o.EscrowCredits:0.0}  ({o.OwnerName})"));
         }
         if (!any) Console.WriteLine("  (bare book — no resting orders)");
     }

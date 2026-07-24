@@ -10,6 +10,8 @@ namespace StarGen.AtlasView
         [SerializeField] private SimHost simHost;
         [SerializeField] private StarfieldLayer starfield;
         [SerializeField] private DomainFieldLayer domainField;
+        [SerializeField] private DomainInteriorLayer domainInterior;
+        [SerializeField] private OutpostLayer outpostLayer;
         [SerializeField] private NatureFieldLayer natureField;
         [SerializeField] private LatticeLayer lattice;
         [SerializeField] private LaneLayer laneLayer;
@@ -18,6 +20,8 @@ namespace StarGen.AtlasView
         [SerializeField] private FleetLayer fleetLayer;
         [SerializeField] private PoiLayer poiLayer;
         [SerializeField] private WorksLayer worksLayer;
+        [SerializeField] private FlowTrailLayer flowTrailLayer;
+        [SerializeField] private CrawlPathLayer crawlPathLayer;
         [SerializeField] private PlagueLayer plagueLayer;
         [SerializeField] private WarLayer warLayer;
         [SerializeField] private NewsLayer newsLayer;
@@ -26,6 +30,8 @@ namespace StarGen.AtlasView
         public SimHost SimHost => simHost;
         public StarfieldLayer Starfield => starfield;
         public DomainFieldLayer DomainField => domainField;
+        public DomainInteriorLayer DomainInterior => domainInterior;
+        public OutpostLayer OutpostLayer => outpostLayer;
         public NatureFieldLayer NatureField => natureField;
         public LatticeLayer Lattice => lattice;
         public LaneLayer LaneLayer => laneLayer;
@@ -34,21 +40,27 @@ namespace StarGen.AtlasView
         public FleetLayer FleetLayer => fleetLayer;
         public PoiLayer PoiLayer => poiLayer;
         public WorksLayer WorksLayer => worksLayer;
+        public FlowTrailLayer FlowTrailLayer => flowTrailLayer;
+        public CrawlPathLayer CrawlPathLayer => crawlPathLayer;
         public PlagueLayer PlagueLayer => plagueLayer;
         public WarLayer WarLayer => warLayer;
         public NewsLayer NewsLayer => newsLayer;
         public PriceFieldLayer PriceField => priceField;
 
         public void Wire(SimHost host, StarfieldLayer stars,
-                         DomainFieldLayer domains, NatureFieldLayer nature,
+                         DomainFieldLayer domains, DomainInteriorLayer interior,
+                         OutpostLayer outposts, NatureFieldLayer nature,
                          LatticeLayer grid, LaneLayer lanes, PortLayer ports,
                          CameraRig rig, FleetLayer fleets, PoiLayer pois,
                          WorksLayer works, PlagueLayer plague, WarLayer war,
-                         NewsLayer news, PriceFieldLayer price)
+                         NewsLayer news, PriceFieldLayer price,
+                         FlowTrailLayer flowTrails, CrawlPathLayer crawlPaths)
         {
             simHost = host;
             starfield = stars;
             domainField = domains;
+            domainInterior = interior;
+            outpostLayer = outposts;
             natureField = nature;
             lattice = grid;
             laneLayer = lanes;
@@ -57,6 +69,8 @@ namespace StarGen.AtlasView
             fleetLayer = fleets;
             poiLayer = pois;
             worksLayer = works;
+            flowTrailLayer = flowTrails;
+            crawlPathLayer = crawlPaths;
             plagueLayer = plague;
             warLayer = war;
             newsLayer = news;
@@ -88,6 +102,10 @@ namespace StarGen.AtlasView
             ShowAll();
             cameraRig.FitTo(AtlasGeometry.DiscBounds(simHost.Model));
             laneLayer.SetExtent(cameraRig.GalaxyExtent);
+            if (flowTrailLayer != null)
+                flowTrailLayer.SetExtent(cameraRig.GalaxyExtent);
+            if (crawlPathLayer != null)
+                crawlPathLayer.SetExtent(cameraRig.GalaxyExtent);
             OnZoomChanged(cameraRig.Distance);
         }
 
@@ -105,6 +123,11 @@ namespace StarGen.AtlasView
             var model = simHost.Model;
             starfield.Show(model);
             domainField.Show(model, eye);
+            // AC-fixwave: null-guarded like the trail/crawl layers below —
+            // a stale/hand-authored scene predating these Phase-1 layers
+            // degrades gracefully instead of NREing.
+            if (domainInterior != null) domainInterior.Show(model, eye);
+            if (outpostLayer != null) outpostLayer.Show(model, eye);
             natureField.Show(model, eye);
             lattice.Prepare(model);
             laneLayer.Show(model, eye);
@@ -112,6 +135,21 @@ namespace StarGen.AtlasView
             fleetLayer.Show(model, eye);
             poiLayer.Show(model, eye);
             worksLayer.Show(model, eye);
+            // AC2.F2: the trails read the TimeMachine's per-keyframe flow
+            // capture (in-memory beside the keyframe, never on the state) —
+            // null-guarded so an older serialized scene stays alive until
+            // the setup regenerates it. Eyeball 4 fix: pass the live
+            // registry so Core can suppress the trail of any shipment
+            // still in flight — that's the crawl's job, not the trail's.
+            if (flowTrailLayer != null)
+                flowTrailLayer.Show(simHost.Machine != null
+                    ? simHost.Machine.CurrentFlows
+                    : System.Array.Empty<StarGen.Core.Atlas.RecentFlow>(),
+                    simHost.State?.Shipments);
+            // AC4.1: live off-lane crawl paths — null-guarded for the same
+            // reason as the trails (an older serialized scene predating
+            // this layer stays alive until the setup regenerates it)
+            if (crawlPathLayer != null) crawlPathLayer.Show(model, eye);
             plagueLayer.Show(model, eye);
             warLayer.Show(model, eye);
             newsLayer.Show(model, eye);
@@ -122,6 +160,16 @@ namespace StarGen.AtlasView
         {
             laneLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
             laneLayer.OnZoom(distance);
+            if (flowTrailLayer != null)
+            {
+                flowTrailLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
+                flowTrailLayer.OnZoom(distance);
+            }
+            if (crawlPathLayer != null)
+            {
+                crawlPathLayer.ViewportPx = Mathf.Max(1, cameraRig.Cam.pixelHeight);
+                crawlPathLayer.OnZoom(distance);
+            }
             lattice.OnZoom(distance, cameraRig.GalaxyExtent);
             float extent = cameraRig.GalaxyExtent;
             fleetLayer.OnZoom(distance, extent);
@@ -133,6 +181,8 @@ namespace StarGen.AtlasView
             // dissolves as the stage fades up (starfield stays — space
             // is still space under the orbit view)
             portLayer.OnZoom(distance, extent);
+            if (outpostLayer != null) outpostLayer.OnZoom(distance, extent);
+            if (domainInterior != null) domainInterior.OnZoom(distance, extent);
             newsLayer.OnZoom(distance, extent);
             domainField.OnZoom(distance, extent);
             natureField.OnZoom(distance, extent);

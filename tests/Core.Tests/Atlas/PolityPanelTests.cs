@@ -168,4 +168,90 @@ public class PolityPanelTests
         Assert.Null(PolityPanel.Card(model,
             EyeContext.God(state.WorldYear), 9999));
     }
+
+    // ---- monetary block (AC3.2) — InteriorView.RenderPolity's
+    // currency/bank/claims lines (currency-and-FX, bank-actor, bank-flow
+    // designs), lifted into the panel query. Parity is enforced by reading
+    // the SAME source fields (state.CurrencyOf/BankOf) the REPL derivation
+    // reads, including its exact backing-ratio guard expression.
+
+    [Fact]
+    public void TheMonetaryBlockMirrorsCurrencyBankAndClaimFields()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var pr = state.Polities[0];
+        state.Actors[pr.ActorId].Entered = true;
+        var currency = state.FoundCurrency(pr.ActorId);
+        currency.Supply = 500;
+        currency.NumeraireRate = 0.85;
+        currency.CumulativeFiatIssued = 40;
+        var bank = state.BankOf(pr.CurrencyId);
+        bank.Reserve = 120;
+        bank.CumulativeSpreadIntake = 30;
+        bank.CumulativeReserveFunded = 10;
+        bank.LendToState(200);          // ClaimOnState = CumulativeLentToState = 200
+        bank.CumulativeRetired = 5;
+
+        var card = PolityPanel.Card(new AtlasReadModel(state),
+            EyeContext.God(state.WorldYear), pr.ActorId)!;
+        Assert.NotNull(card.Monetary);
+        var m = card.Monetary!;
+        Assert.Equal(pr.CurrencyId, m.CurrencyId);
+        Assert.Equal(currency.Name, m.CurrencyName);
+        Assert.Equal(currency.NumeraireRate, m.NumeraireRate);
+        Assert.Equal(currency.Supply, m.Supply);
+        Assert.False(m.Retired);
+        Assert.Equal(bank.Reserve, m.BankReserve);
+        Assert.Equal(bank.CumulativeSpreadIntake, m.CumulativeSpreadIntake);
+        Assert.Equal(bank.CumulativeReserveFunded, m.CumulativeReserveFunded);
+        Assert.Equal(currency.CumulativeFiatIssued, m.CumulativeFiatIssued);
+        Assert.Equal(bank.ClaimOnState, m.ClaimOnState);
+        // the exact InteriorView guard: bank.ClaimOnState > 0 ? Reserve/ClaimOnState : -1
+        Assert.Equal(bank.ClaimOnState > 0 ? bank.Reserve / bank.ClaimOnState : -1,
+            m.BackingRatio);
+        Assert.Equal(bank.CumulativeLentToState, m.CumulativeLentToState);
+        Assert.Equal(bank.CumulativeRetired, m.CumulativeRetired);
+    }
+
+    [Fact]
+    public void NoCurrencyMeansNoMonetaryBlock()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var pr = state.Polities[0];
+        state.Actors[pr.ActorId].Entered = true;
+        Assert.True(pr.CurrencyId < 0);   // pre-genesis sentinel, never founded
+
+        var card = PolityPanel.Card(new AtlasReadModel(state),
+            EyeContext.God(state.WorldYear), pr.ActorId)!;
+        Assert.Null(card.Monetary);
+    }
+
+    [Fact]
+    public void BackingRatioGuardsAnEmptyClaimBook()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var pr = state.Polities[0];
+        state.Actors[pr.ActorId].Entered = true;
+        state.FoundCurrency(pr.ActorId);
+        // bank.ClaimOnState stays 0 — the bank never lent to its own state
+
+        var card = PolityPanel.Card(new AtlasReadModel(state),
+            EyeContext.God(state.WorldYear), pr.ActorId)!;
+        Assert.NotNull(card.Monetary);
+        Assert.Equal(-1, card.Monetary!.BackingRatio);
+    }
+
+    [Fact]
+    public void ARetiredCurrencyFlagsOnTheBlock()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        var pr = state.Polities[0];
+        state.Actors[pr.ActorId].Entered = true;
+        var currency = state.FoundCurrency(pr.ActorId);
+        currency.Retired = true;
+
+        var card = PolityPanel.Card(new AtlasReadModel(state),
+            EyeContext.God(state.WorldYear), pr.ActorId)!;
+        Assert.True(card.Monetary!.Retired);
+    }
 }

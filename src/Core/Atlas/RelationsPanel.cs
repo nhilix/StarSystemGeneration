@@ -11,14 +11,22 @@ public sealed record ClaimRow(ClaimType Type, int HolderPolityId,
 /// <summary>One live pair (`relations` parity): warmth/tension with their
 /// six source terms each (base−strangeness · trade · treaty · dynastic ·
 /// ideology · reputation / overlap · claims · interdiction · ideology×zeal
-/// · agitation · militancy), the bond, and standing claims.</summary>
+/// · agitation · militancy), the bond, and standing claims.
+/// <see cref="CredibilityA"/>/<see cref="CredibilityB"/> (AC3.4) name the
+/// monetary credibility term <see cref="Interpolity.FederationOps"/>'s
+/// federation gate reads (min of both sides discounts the bar) — the SAME
+/// <see cref="Epoch.SimState.BackedShareOf"/> derivation, read here rather
+/// than re-derived. Null (not 0.0) when a side has no currency yet
+/// (CurrencyId &lt; 0, pre-genesis) — 0.0 is a genuine all-debtor bank, a
+/// distinct fact from "no bank exists".</summary>
 public sealed record RelationRow(int PolityAId, string PolityAName,
     int PolityBId, string PolityBName, int? WarId, string? WarName,
     double Warmth, double Tension, IReadOnlyList<double> WarmthTerms,
     IReadOnlyList<double> TensionTerms, TreatyRung Rung, long RungYear,
     int VassalPolityId, long VassalSinceYear, TreatyRung OfferedRung,
     int OfferedById, int DynasticTies, long LastIncidentYear,
-    IReadOnlyList<ClaimRow> Claims);
+    IReadOnlyList<ClaimRow> Claims, double? CredibilityA,
+    double? CredibilityB);
 
 /// <summary>K3: the Relations tab — InterpolityView.RenderRelations
 /// parity: BothLive pairs only, creation order (P6).</summary>
@@ -43,6 +51,8 @@ public static class RelationsPanel
                     state.Actors[claim.HolderPolityId].Name,
                     claim.SubjectId, claim.RaisedYear));
             }
+            int currencyA = state.PolityOf(rel.PolityAId).CurrencyId;
+            int currencyB = state.PolityOf(rel.PolityBId).CurrencyId;
             rows.Add(new RelationRow(rel.PolityAId,
                 state.Actors[rel.PolityAId].Name, rel.PolityBId,
                 state.Actors[rel.PolityBId].Name, war?.Id, war?.Name,
@@ -51,7 +61,9 @@ public static class RelationsPanel
                 (double[])rel.LastTensionTerms.Clone(), rel.Rung,
                 rel.RungYear, rel.VassalPolityId, rel.VassalSinceYear,
                 rel.OfferedRung, rel.OfferedById, rel.DynasticTies,
-                rel.LastIncidentYear, claims));
+                rel.LastIncidentYear, claims,
+                currencyA >= 0 ? state.BackedShareOf(currencyA) : null,
+                currencyB >= 0 ? state.BackedShareOf(currencyB) : null));
         }
         return rows;
     }

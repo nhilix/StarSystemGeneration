@@ -8,8 +8,12 @@ namespace StarGen.AtlasView
     /// <summary>What the lane strokes say (K2): Status is the K1 read
     /// (open/quarantined/severed colors), Traffic weights width and
     /// brightness by posted trips/year, QuarantineOnly is the plague
-    /// lens's approaches-closed read with the rest of the network dark.</summary>
-    public enum LaneMode { Status, Traffic, QuarantineOnly }
+    /// lens's approaches-closed read with the rest of the network dark,
+    /// Trade (AC2.3) weights width and brightness by the steepest
+    /// actionable price gradient on the lane (margin gold). War (AC2.7)
+    /// draws only the lanes a hostile squadron can reach — sparse, like
+    /// the war lens's stations, not the full network.</summary>
+    public enum LaneMode { Status, Traffic, QuarantineOnly, Trade, War }
 
     /// <summary>Lanes as thin, screen-constant highways on the plane.
     /// Base width tracks camera altitude continuously; each stroke can
@@ -118,6 +122,17 @@ namespace StarGen.AtlasView
         private void BuildStrokes()
         {
             _strokes = new List<Stroke>();
+            if (_mode == LaneMode.War)
+            {
+                // sparse overlay, war stations' sibling: only lanes a
+                // hostile squadron can reach, never the full network
+                foreach (var lane in WarLens.ContestedLanes(_model, _eye))
+                    _strokes.Add(new Stroke(
+                        AtlasGeometry.HexToWorld(lane.A, Z),
+                        AtlasGeometry.HexToWorld(lane.B, Z),
+                        AtlasGeometry.ToColor32(lane.Color), 1.6f));
+                return;
+            }
             if (_mode == LaneMode.Traffic)
             {
                 foreach (var seg in TrafficLens.Segments(_model, _eye))
@@ -128,6 +143,45 @@ namespace StarGen.AtlasView
                         AtlasGeometry.HexToWorld(seg.A, Z),
                         AtlasGeometry.HexToWorld(seg.B, Z),
                         AtlasGeometry.ToColor32(seg.Color), factor));
+                }
+                return;
+            }
+            if (_mode == LaneMode.Trade)
+            {
+                // Segments emits LIVE lanes only — match by LaneId, never by
+                // index. A lane with no reading (dead, or the lane lens's
+                // wound) draws the same idle treatment traffic gives a
+                // posted-but-quiet lane: ghost-thin margin gold.
+                var byLane = new Dictionary<int, TradeSegment>();
+                foreach (var seg in TradeLens.Segments(_model, _eye))
+                    byLane[seg.LaneId] = seg;
+                foreach (var lane in _model.State.Lanes)
+                {
+                    var a = _model.State.Ports[lane.PortAId].Hex;
+                    var b = _model.State.Ports[lane.PortBId].Hex;
+                    if (byLane.TryGetValue(lane.Id, out var seg))
+                    {
+                        float factor = 0.45f + 2.55f * (float)seg.Weight;
+                        _strokes.Add(new Stroke(
+                            AtlasGeometry.HexToWorld(seg.A, Z),
+                            AtlasGeometry.HexToWorld(seg.B, Z),
+                            AtlasGeometry.ToColor32(seg.Color), factor));
+                    }
+                    else
+                    {
+                        // Dead-lane trade idle read — matches TrafficLens.
+                        // IdleAlpha and TradeLens's own flat-spread floor
+                        // (both 45): posted, nothing to arbitrage. Reads the
+                        // shared public source rather than a local copy
+                        // (AC4.4).
+                        var idle = new Rgba(TradeLens.MarginGold.R,
+                            TradeLens.MarginGold.G, TradeLens.MarginGold.B,
+                            TradeLens.FlatAlpha);
+                        _strokes.Add(new Stroke(
+                            AtlasGeometry.HexToWorld(a, Z),
+                            AtlasGeometry.HexToWorld(b, Z),
+                            AtlasGeometry.ToColor32(idle), 0.45f));
+                    }
                 }
                 return;
             }

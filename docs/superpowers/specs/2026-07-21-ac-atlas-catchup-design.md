@@ -99,6 +99,19 @@ reads as a port with history.
   **war convoy** / spread run / state haul (tint or glyph, grammar-consistent);
   `ShipmentPanel` gains the purpose + rider-contract link
   (`CourierOps.OfShipment`).
+  - **AMENDED (AC2.F2, user decision 2026-07-22):** in-flight marks only
+    ever show boundary-surviving off-lane crawls — lane-borne shipments
+    launch and arrive inside one 25-year step, so `state.Shipments` is
+    empty at most keyframes. The moving-economy read is carried by
+    **recent-flow trails** instead: courier/war-convoy launches captured
+    at step time by a passive observer (`SimState.ShipmentObserver`,
+    threaded per step by `EpochEngine`), held in-memory beside each
+    TimeMachine keyframe (never serialized), drawn on the works lens as
+    attenuated strokes **per sailed leg** along the captured route's port
+    hexes (never the straight origin→dest result; an off-lane crawl's
+    single direct leg is the honest special case), shared legs stacking
+    intensity — subordinate to live marks and lane strokes. REPL twin:
+    `eflows` (route + leg count).
 - **War-supply readout**: War/Fleet panel names a deployed fleet's forward
   depot (`FleetOps.NearestOwnedPortId`); contested-lane shading on the war
   lens ONLY if the interdiction presence read exposes as a cheap read-only

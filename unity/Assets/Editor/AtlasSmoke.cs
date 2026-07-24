@@ -27,6 +27,8 @@ namespace StarGen.AtlasView.EditorTools
             var host = Object.FindAnyObjectByType<SimHost>();
             var stars = Object.FindAnyObjectByType<StarfieldLayer>();
             var domains = Object.FindAnyObjectByType<DomainFieldLayer>();
+            var interior = Object.FindAnyObjectByType<DomainInteriorLayer>();
+            var outposts = Object.FindAnyObjectByType<OutpostLayer>();
             var nature = Object.FindAnyObjectByType<NatureFieldLayer>();
             var price = Object.FindAnyObjectByType<PriceFieldLayer>();
             var lattice = Object.FindAnyObjectByType<LatticeLayer>();
@@ -35,6 +37,8 @@ namespace StarGen.AtlasView.EditorTools
             var fleets = Object.FindAnyObjectByType<FleetLayer>();
             var pois = Object.FindAnyObjectByType<PoiLayer>();
             var works = Object.FindAnyObjectByType<WorksLayer>();
+            var flowTrails = Object.FindAnyObjectByType<FlowTrailLayer>();
+            var crawlPaths = Object.FindAnyObjectByType<CrawlPathLayer>();
             var plague = Object.FindAnyObjectByType<PlagueLayer>();
             var war = Object.FindAnyObjectByType<WarLayer>();
             var news = Object.FindAnyObjectByType<NewsLayer>();
@@ -44,6 +48,8 @@ namespace StarGen.AtlasView.EditorTools
             // Edit mode: Awake never ran; each layer builds its own material.
             stars.EnsureMaterial();
             domains.EnsureMaterial();
+            interior.EnsureMaterial();
+            outposts.EnsureMaterial();
             nature.EnsureMaterial();
             price.EnsureMaterial();
             lattice.EnsureMaterial();
@@ -52,6 +58,8 @@ namespace StarGen.AtlasView.EditorTools
             fleets.EnsureMaterial();
             pois.EnsureMaterial();
             works.EnsureMaterial();
+            flowTrails.EnsureMaterial();
+            crawlPaths.EnsureMaterial();
             plague.EnsureMaterial();
             war.EnsureMaterial();
             news.EnsureMaterial();
@@ -62,10 +70,18 @@ namespace StarGen.AtlasView.EditorTools
                 if (exitOnFailure) EditorApplication.Exit(1);
                 return;
             }
+            // AC4.4: step once before capture so CurrentFlows is non-empty
+            // for the works shot (headless load never plays a step) — the
+            // golden artifact on disk is untouched, only the in-memory
+            // TimeMachine advances; every shot below now renders the y+25
+            // world, which is expected.
+            host.StepEpochs(1);
             var eye = host.Eye;
             var model = host.Model;
             stars.Show(model);
             domains.Show(model, eye);
+            interior.Show(model, eye);
+            outposts.Show(model, eye);
             nature.Show(model, eye);
             price.Show(model, eye);
             lattice.Prepare(model);
@@ -74,6 +90,14 @@ namespace StarGen.AtlasView.EditorTools
             fleets.Show(model, eye);
             pois.Show(model, eye);
             works.Show(model, eye);
+            // AC2.F2: the loaded base frame has no captured flows (no step
+            // preceded it in-session) — an honest empty, same as the REPL.
+            // Eyeball 4 fix: pass the live registry so a still-in-flight
+            // shipment's trail is suppressed (the crawl draws it instead).
+            flowTrails.Show(host.Machine.CurrentFlows, host.State.Shipments);
+            // AC4.1: off-lane crawl paths — the loaded base frame's own
+            // off-lane shipments (if any survived to this artifact year)
+            crawlPaths.Show(model, eye);
             plague.Show(model, eye);
             war.Show(model, eye);
             news.Show(model, eye);
@@ -82,6 +106,8 @@ namespace StarGen.AtlasView.EditorTools
             fleets.SetVisible(false);
             pois.SetVisible(false);
             works.SetVisible(false);
+            flowTrails.SetVisible(false);
+            crawlPaths.SetVisible(false);
             plague.SetVisible(false);
             war.SetVisible(false);
             news.SetVisible(false);
@@ -128,6 +154,10 @@ namespace StarGen.AtlasView.EditorTools
             Capture(cam, "atlas-smoke-traffic.png");
             lanes.SetMode(LaneMode.Status);
 
+            lanes.SetMode(LaneMode.Trade);
+            Capture(cam, "atlas-smoke-trade.png");
+            lanes.SetMode(LaneMode.Status);
+
             fleets.SetVisible(true);
             Capture(cam, "atlas-smoke-fleets.png");
             fleets.SetVisible(false);
@@ -146,6 +176,9 @@ namespace StarGen.AtlasView.EditorTools
 
             domains.SetAccent(DomainAccent.Tech);
             Capture(cam, "atlas-smoke-tech.png");
+
+            domains.SetAccent(DomainAccent.Currency);
+            Capture(cam, "atlas-smoke-currency.png");
             domains.SetAccent(DomainAccent.Owner);
 
             plague.SetVisible(true);
@@ -163,8 +196,12 @@ namespace StarGen.AtlasView.EditorTools
             pois.SetVisible(false);
 
             works.SetVisible(true);
+            flowTrails.SetVisible(true);
+            crawlPaths.SetVisible(true);
             Capture(cam, "atlas-smoke-works.png");
             works.SetVisible(false);
+            flowTrails.SetVisible(false);
+            crawlPaths.SetVisible(false);
 
             // ---- K5: the orbit stage — the map's curves die at this
             // distance (MapFade 0) and the system view stands alone ----
@@ -208,6 +245,14 @@ namespace StarGen.AtlasView.EditorTools
             lanes.SetExtent(rig.GalaxyExtent);
             lanes.ViewportPx = Height;
             lanes.OnZoom(rig.Distance);
+            var flowTrails = Object.FindAnyObjectByType<FlowTrailLayer>();
+            flowTrails.SetExtent(rig.GalaxyExtent);
+            flowTrails.ViewportPx = Height;
+            flowTrails.OnZoom(rig.Distance);
+            var crawlPaths = Object.FindAnyObjectByType<CrawlPathLayer>();
+            crawlPaths.SetExtent(rig.GalaxyExtent);
+            crawlPaths.ViewportPx = Height;
+            crawlPaths.OnZoom(rig.Distance);
             lattice.OnZoom(rig.Distance, rig.GalaxyExtent);
             float extent = rig.GalaxyExtent;
             fleets.OnZoom(rig.Distance, extent);
@@ -216,6 +261,8 @@ namespace StarGen.AtlasView.EditorTools
             plague.OnZoom(rig.Distance, extent);
             war.OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<PortLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<OutpostLayer>().OnZoom(rig.Distance, extent);
+            Object.FindAnyObjectByType<DomainInteriorLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<NewsLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<DomainFieldLayer>().OnZoom(rig.Distance, extent);
             Object.FindAnyObjectByType<NatureFieldLayer>().OnZoom(rig.Distance, extent);

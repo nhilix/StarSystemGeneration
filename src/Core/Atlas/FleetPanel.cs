@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using StarGen.Core.Epoch;
+using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
 
 namespace StarGen.Core.Atlas;
@@ -20,11 +22,22 @@ public sealed record HullLine(int Count, int DesignId, string DesignName,
     int Mark, ShipRole Role, ShipSize Size, double Grade);
 
 /// <summary>One fleet's full sheet (`fleet &lt;id&gt;` parity): posture,
-/// station, composition, and the computed-never-stored vectors.</summary>
+/// station, composition, and the computed-never-stored vectors.
+/// ForwardDepotPortId/-DistanceHexes name where a deployed (Blockade or
+/// Expedition) fleet draws supply (AC2.7, FleetOps.SupplyFleets' own
+/// forward-depot criterion) — -1/-1 for any other posture, or a deployed
+/// fleet whose owner holds no port. PatrolCoverageByHexHop (AC4.2) names
+/// the strongest hostile patrol exposure near this fleet's dock — the max,
+/// over candidate victims, of PatrolCoverage.At's own max-across-fleets
+/// falloff; NOT necessarily this fleet's own projection (a sibling or
+/// allied patrol fleet can dominate the reading), sampled at dock and
+/// 1/2/3 hexes out; empty for any other posture.</summary>
 public sealed record FleetCard(FleetRow Row, int HomePortId,
     int CommanderId, string? CommanderName,
     IReadOnlyList<HullLine> Composition, FleetVectors Vectors,
-    double EnduranceHexesOffLane);
+    double EnduranceHexesOffLane, int ForwardDepotPortId,
+    int ForwardDepotDistanceHexes,
+    IReadOnlyList<double> PatrolCoverageByHexHop);
 
 /// <summary>One design lineage row (`designs` parity).</summary>
 public sealed record DesignRow(int Id, int OwnerActorId, string OwnerName,
@@ -62,11 +75,58 @@ public static class FleetPanel
                                          d.Role, d.Size, g.Grade));
         }
         var vectors = FleetOps.Vectors(state, f);
+        // forward depot (AC2.7): only a deployed fleet victuals at the
+        // nearest owned port instead of home — FleetOps.SupplyFleets'
+        // own criterion, read here rather than re-derived
+        bool deployed = f.Posture is FleetPosture.Blockade
+            or FleetPosture.Expedition;
+        int depotPortId = deployed
+            ? FleetOps.NearestOwnedPortId(state, f.OwnerActorId, f.Hex) : -1;
+        int depotDistance = depotPortId >= 0
+            ? HexGrid.Distance(state.Ports[depotPortId].Hex, f.Hex) : -1;
         return new FleetCard(RowOf(state, f), f.HomePortId, f.CommanderId,
             f.CommanderId >= 0 ? state.Characters[f.CommanderId].Name : null,
             composition, vectors,
             vectors.EnduranceFloor
-                * state.Config.Fleet.EnduranceHexesPerPoint);
+                * state.Config.Fleet.EnduranceHexesPerPoint,
+            depotPortId, depotDistance,
+            f.Posture == FleetPosture.Patrol
+                ? PatrolCoverageSummary(state, f) : Array.Empty<double>());
+    }
+
+    /// <summary>AC4.2: the strongest hostile patrol exposure at this
+    /// fleet's dock and 1/2/3 hexes out — PatrolCoverage.At's falloff
+    /// (never re-derived here), sampled against every registered actor as
+    /// a candidate victim and maxed (mirrors PatrolCoverage.At's own
+    /// "strongest across fleets" idiom, applied here across possible
+    /// victims too). Because PatrolCoverage.At itself maxes across every
+    /// hostile Patrol fleet — not only this one — the reading can be a
+    /// sibling or allied fleet's projection rather than this fleet's own;
+    /// it answers "how exposed is this hex" more than "how far does THIS
+    /// fleet reach". All zero when the fleet's owner is at active war with
+    /// nobody — a patrol projecting onto no one is a true, informative
+    /// reading (PatrolCoverage.At's own hostile-only gate), not an
+    /// omission.</summary>
+    private static IReadOnlyList<double> PatrolCoverageSummary(
+        SimState state, FleetRecord f)
+    {
+        var result = new double[4];
+        for (int hop = 0; hop <= 3; hop++)
+        {
+            var hex = f.Hex;
+            if (hop > 0)
+                foreach (var h in HexGrid.Ring(f.Hex, hop)) { hex = h; break; }
+            double best = 0.0;
+            foreach (var actor in state.Actors)            // id order (P6)
+            {
+                if (actor.Id == f.OwnerActorId) continue;
+                double cover = PatrolCoverage.At(state, hex, BodyRef.None,
+                    actor.Id);
+                if (cover > best) best = cover;
+            }
+            result[hop] = best;
+        }
+        return result;
     }
 
     /// <summary>Design lineages, optionally one actor's (`designs`).</summary>

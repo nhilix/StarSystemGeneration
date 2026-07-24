@@ -27,11 +27,16 @@ public static class ShipmentOps
                     basket, scratch, out _);
 
     /// <summary>Dispatch reporting what became of a sub-step resolution —
-    /// couriers need delivered vs pirated (slice CE).</summary>
+    /// couriers need delivered vs pirated (slice CE). The courier passes
+    /// itself as <paramref name="rider"/> so the launch tap can carry the
+    /// contract linkage (AC2.F2) — at this moment the contract is still
+    /// Open, and a sub-step transit resolves it before any registry lookup
+    /// (CourierOps.OfShipment) could ever find it.</summary>
     internal static Shipment? Dispatch(SimState state, int ownerActorId,
         ShipmentChannel channel, int fromPortId, int toPortId,
         IReadOnlyList<(int Good, double Qty, double Grade)> basket,
-        MarketStepScratch? scratch, out SailOutcome outcome)
+        MarketStepScratch? scratch, out SailOutcome outcome,
+        CourierContract? rider = null)
     {
         var (laneIds, legYears) = PlanRoute(state, fromPortId, toPortId);
         var s = new Shipment(state.NextShipmentId++, ownerActorId, channel,
@@ -41,6 +46,7 @@ public static class ShipmentOps
         outcome = Sail(state, scratch, severed, HunterMap(state),
                        WarPresenceMap(state), s,
                        state.Config.Sim.YearsPerEpoch);
+        NotifyLaunch(state, s, rider);
         if (outcome != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
         state.Shipments.Add(s);
@@ -59,12 +65,46 @@ public static class ShipmentOps
             fromPortId, toPortId, state.WorldYear, laneIds, legYears);
         Fill(s, basket);
         var severed = scratch?.Severed ?? FleetOps.SeveredLaneIds(state);
-        if (Sail(state, scratch, severed, HunterMap(state),
-                WarPresenceMap(state), s,
-                state.Config.Sim.YearsPerEpoch) != SailOutcome.InTransit)
+        var outcome = Sail(state, scratch, severed, HunterMap(state),
+                           WarPresenceMap(state), s,
+                           state.Config.Sim.YearsPerEpoch);
+        NotifyLaunch(state, s, rider: null);
+        if (outcome != SailOutcome.InTransit)
             return null;                     // delivered or taken this step
         state.Shipments.Add(s);
         return s;
+    }
+
+    /// <summary>The AC2.F2 passive tap: every launch reported exactly
+    /// once, whether it survives the step or resolves inside it. The
+    /// SAILED route goes along as the ordered chain of port hexes (walked
+    /// off the route's lanes NOW, so a scrubbed keyframe never depends on
+    /// the later lane registry); an off-lane crawl is the endpoint pair.
+    /// A null observer costs nothing — not even the snapshots.</summary>
+    private static void NotifyLaunch(SimState state, Shipment s,
+                                     CourierContract? rider)
+    {
+        var observe = state.ShipmentObserver;
+        if (observe == null) return;
+        var hexes = new Model.HexCoordinate[
+            s.RouteLaneIds.Count == 0 ? 2 : s.RouteLaneIds.Count + 1];
+        hexes[0] = state.Ports[s.OriginPortId].Hex;
+        if (s.RouteLaneIds.Count == 0)
+            hexes[1] = state.Ports[s.DestPortId].Hex;
+        else
+        {
+            int at = s.OriginPortId;
+            for (int i = 0; i < s.RouteLaneIds.Count; i++)
+            {
+                var lane = state.Lanes[s.RouteLaneIds[i]];
+                at = lane.PortAId == at ? lane.PortBId : lane.PortAId;
+                hexes[i + 1] = state.Ports[at].Hex;
+            }
+        }
+        observe(new ShipmentLaunch(s.Id, s.OwnerActorId, s.Channel,
+            s.OriginPortId, s.DestPortId, hexes, rider?.Id ?? -1,
+            rider?.Priority ?? CourierPriority.Normal,
+            (double[])s.Qty.Clone()));
     }
 
     private static void Fill(Shipment s,
@@ -198,8 +238,11 @@ public static class ShipmentOps
     /// (Blockade, Expedition) within InterdictionReachHexes of either
     /// endpoint, plus Escort fleets riding the lane itself — the presence
     /// that contests an enemy's legs and screens a friend's (contract-
-    /// economy spec §4). Fleet-id order per lane (P6). Lookup-only.</summary>
-    private static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
+    /// economy spec §4). Fleet-id order per lane (P6). Lookup-only.
+    /// Internal (not private): the war lens (AC2.7, WarLens.ContestedLanes)
+    /// calls this same read for its contested-lane shading rather than
+    /// re-deriving the reach/posture rule — CALLED, not copied.</summary>
+    internal static Dictionary<int, List<(FleetRecord Fleet, int Warships)>>?
         WarPresenceMap(SimState state)
     {
         // no active war, no contested legs and no screens worth pricing —

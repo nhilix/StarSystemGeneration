@@ -8,7 +8,15 @@ namespace StarGen.Core.Atlas;
 /// plus the delta save that reconstructs it over the base artifact
 /// (empty for the base keyframe itself).</summary>
 public sealed record Keyframe(int EpochIndex, long WorldYear,
-    int YearsPerEpoch, string Delta);
+    int YearsPerEpoch, string Delta)
+{
+    /// <summary>Flows captured by the step that PRODUCED this keyframe
+    /// (AC2.F2 recent flows) — held in-memory beside the frame, never
+    /// serialized. The base frame has none: no step preceded it
+    /// in-session, and a re-loaded artifact starts the same way.</summary>
+    public IReadOnlyList<RecentFlow> RecentFlows { get; init; }
+        = System.Array.Empty<RecentFlow>();
+}
 
 /// <summary>One timeline: a keyframe list stepped at one resolution.
 /// A fork carries the shared past up to its anchor keyframe and nothing
@@ -89,6 +97,11 @@ public sealed class TimeMachine
     public void Step(int epochs = 1)
     {
         var engine = new EpochEngine();
+        // AC2.F2: tap the step's shipment launches so each keyframe keeps
+        // the flows its own step produced (in-memory only). Walking
+        // recorded frames below recalls, never re-captures.
+        var captured = new List<RecentFlow>();
+        engine.ShipmentObserver = l => captured.Add(RecentFlowQuery.Capture(l));
         for (int i = 0; i < epochs; i++)
         {
             if (Position < Active.Frames.Count - 1)
@@ -96,13 +109,24 @@ public sealed class TimeMachine
                 ScrubTo(Position + 1);
                 continue;
             }
+            captured.Clear();
             engine.Step(Current);
             Active.Frames.Add(new Keyframe(Current.EpochIndex,
                 Current.WorldYear, Current.Config.Sim.YearsPerEpoch,
-                DeltaSerializer.Diff(BaseText, ArtifactSerializer.ToText(Current))));
+                DeltaSerializer.Diff(BaseText, ArtifactSerializer.ToText(Current)))
+            {
+                RecentFlows = captured.Count == 0
+                    ? System.Array.Empty<RecentFlow>() : captured.ToArray(),
+            });
             Position = Active.Frames.Count - 1;
         }
     }
+
+    /// <summary>The current keyframe's recent flows (AC2.F2): what moved
+    /// during the step that produced this moment — empty at the base
+    /// frame, recalled per keyframe across scrubs and forks.</summary>
+    public IReadOnlyList<RecentFlow> CurrentFlows =>
+        Active.Frames[Position].RecentFlows;
 
     /// <summary>Snaps to a keyframe on the active timeline: rebuilds the
     /// live state from the base plus the keyframe's delta, byte-identically

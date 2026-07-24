@@ -1,3 +1,4 @@
+using System.Text;
 using StarGen.Core.Epoch;
 using StarGen.Core.Galaxy;
 using StarGen.Core.Model;
@@ -108,6 +109,52 @@ public class DomainViewTests
         Assert.Contains("graduated → port #1", rendered);
         Assert.Contains("outpost takes root (#0)", rendered);   // the settle event
         Assert.Contains("establishes a port (#1)", rendered);   // the graduation event
+    }
+
+    /// <summary>Slice AC parity guard: after the derivation moved into
+    /// <c>DomainInteriorQuery</c>, <c>DomainView.Render</c> must still produce
+    /// BYTE-IDENTICAL output. This pins the whole format (header, satellite
+    /// block, outpost + candidacy + resident lines, events footer) against a
+    /// deterministic hand-built domain, so any format drift on either side of
+    /// the query boundary fails here.</summary>
+    [Fact]
+    public void RenderIsByteIdenticalToTheAuthoredFormat()
+    {
+        var (_, state) = EpochTestKit.Seeded();
+        state.Actors[0].Entered = true;
+        var portHex = HexGrid.CellCenter(state.Skeleton.Cells[0].Coord);
+        var port = new Port(0, state.Actors[0].Id, portHex, 2, (int)state.WorldYear);
+        state.Ports.Add(port);
+        state.Markets.Add(new Market(0, state.Config.Economy));
+
+        var satHex = HexGrid.Neighbor(portHex, 0);
+        state.Facilities.Add(new Facility(0, (int)InfraTypeId.Mine, 1, satHex,
+            port.OwnerActorId, (int)state.WorldYear));
+        state.Outposts.Add(new Outpost(0, "Testhaven", satHex, 0, state.WorldYear));
+        state.Segments.Add(new PopulationSegment(0, 0, speciesId: 0, cultureId: 0,
+            size: 5.0) { Hex = satHex, SoL = 0.5 });
+
+        int g = 1 + state.Config.Expansion.GraduationMarginHexes;
+        string owner = state.Actors[0].Name;
+        string mine = Infrastructure.Get(InfraTypeId.Mine).Name;
+        string species = state.Skeleton.Species[0].Name;
+
+        var e = new StringBuilder();
+        e.AppendLine($"domain #0 — tier 2 port at ({portHex.Q},{portHex.R}), "
+            + $"{owner}'s domain, founded y{(int)state.WorldYear}");
+        e.AppendLine("satellite hexes:");
+        e.AppendLine($"  ({satHex.Q},{satHex.R}):");
+        e.AppendLine($"    #0 {mine} t1 — condition 1.00, body —");
+        e.AppendLine("outposts:");
+        e.AppendLine($"  #0 Testhaven at ({satHex.Q},{satHex.R}) — "
+            + $"founded y{state.WorldYear}");
+        e.AppendLine($"    candidacy: interior — subordinate (dist 1 < G {g}, "
+            + $"slack {1 - g})");
+        e.AppendLine($"    #0 {species} — size 5.00, SoL 0.50");
+        e.AppendLine("events:");
+        e.AppendLine("  (no settle or graduation events yet)");
+
+        Assert.Equal(e.ToString(), DomainView.Render(state, 0));
     }
 
     [Fact]

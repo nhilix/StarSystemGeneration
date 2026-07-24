@@ -132,6 +132,11 @@ public sealed class SimState
     /// not history); NextShipmentId keeps identity stable across it.</summary>
     public List<Shipment> Shipments { get; } = new List<Shipment>();
     public int NextShipmentId { get; set; }
+    /// <summary>Transient launch tap (AC2.F2 recent flows): set by
+    /// EpochEngine for the duration of a step and reset in its finally;
+    /// NEVER serialized — a loaded world starts null, and null means
+    /// dispatch behaves bit-identically (the golden path).</summary>
+    public ShipmentObserver? ShipmentObserver;
     /// <summary>The open order book (contract-economy spec §1) — id order
     /// (P6). Live orders only: fills and cancels leave the registry (the
     /// book is ambient, not history); NextOrderId keeps identity stable.</summary>

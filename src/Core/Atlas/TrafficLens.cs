@@ -27,6 +27,9 @@ public static class TrafficLens
     // The lane cyan carries traffic too — same hue as LaneLens so the
     // two lenses read as one system, loudness the only variable.
     public static readonly Rgba LaneHue = new(86, 196, 220);
+    // Mirrors TradeLens.FlatAlpha (the shared source value, public there) —
+    // both 45: posted, nothing to arbitrage / nothing moving reads the
+    // same idle loudness across the two economic-surface lenses.
     private const byte IdleAlpha = 45;
     private const byte FullAlpha = 220;
     /// <summary>Trips/year where the weight saturates — the '#' band's
