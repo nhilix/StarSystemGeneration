@@ -245,9 +245,24 @@ actually wants; panel wording `rate X numeraire` inherited from the REPL.
 
 ## Slice-end wrap-up (per CLAUDE.md)
 
-- [ ] One fable whole-branch review (`model: fable`) + one fix wave.
-- [ ] Golden re-frozen once at slice end IF any intended change (else assert
-      untouched — zero sim behavior means the golden should NOT move).
+- [x] One fable whole-branch review (`model: fable`) + one fix wave.
+      **Review (2026-07-23): FIX-THEN-MERGE, 0 Critical / 1 Important / 4
+      Minor** (`.superpowers/sdd/ac-fable-review.md`) — independently
+      re-verified 1301/1301, golden untouched, `ShipmentObserver` null path
+      side-effect-free + never serialized, K3 parity + rail-key three-place
+      contract + derived-not-stored + `WarPresenceMap` visibility-only
+      widening all hold. **Fix wave (`1b25981` fix + `3a38b3f` scene
+      rebuild):** Important — Atlas.unity regenerated with all Phase 1-4
+      layers via `AtlasViewSceneSetup.RunFromCli` + defensive null guards on
+      `AtlasRoot`/`LensRail` for domainInterior/outpost; Minors —
+      `RegistryLegendTests` now guards `"currency"`, FleetPanel caption
+      reworded to "hostile patrol exposure" (not own reach), contracts
+      header open/in-transit count fixed. Re-gate: dotnet **1301/1301** ·
+      golden untouched · compile clean · EditMode 16/16 · AtlasSmoke 18/18
+      against the rebuilt scene.
+- [x] Golden re-frozen once at slice end IF any intended change → **NOT
+      re-frozen: asserted byte-untouched** (zero sim behavior; last golden
+      touch `93a4ea1`, pre-Phase-2).
 - [ ] Merge to main locally → push (push-on-merge default) → update
       `docs/HANDOFF.md` → republish living diagram
       (`docs/diagrams/unity-atlas-design.html` §8/§9) → write next kickoff →
