@@ -95,6 +95,15 @@ returning `success:false` still yields a `success:true` envelope; return
 anonymous objects, not typed DTOs — Newtonsoft isn't reachable; `TypeCache`
 discovery needs a `recompile`) are in the ledger and reference doc §6.
 
+**`.claude/skills/driving-the-unity-editor/SKILL.md`** — the operational skill
+(user-requested at the merge gate). Distils the *stable* core: the launch
+incantation, the five silent traps, the four gate commands, how to register a new
+`[CliCommand]`, the batchmode fallback, and the scene-churn/gitignore
+housekeeping. Deliberately does **not** carry the 141-command surface — that
+stays in the reference doc, which the skill points at with a re-verify warning,
+because pre-1.0 command lists rot. A skill (not CLAUDE.md) because Unity work is
+a minority of sessions and skills load only on trigger.
+
 ## Follow-ups filed, NOT fixed here
 
 1. **TOP: `AtlasGrid`/`AtlasSmoke` dirty `unity/Assets/Scenes/Atlas.unity` every

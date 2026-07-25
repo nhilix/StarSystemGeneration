@@ -425,6 +425,28 @@ the user PATH, and one gitignored line in `unity/Packages/manifest.json`.
    surface before trusting it in a future session; it is a dated snapshot of a
    pre-1.0 tool that moved twice in two days.
 
+### UP7 — the operational skill ✅ (user-requested at the merge gate)
+
+`.claude/skills/driving-the-unity-editor/SKILL.md`. The user asked whether a
+skill made sense to streamline future use; it does, **specifically because these
+failure modes are silent** — a fresh session hitting trap 1 (`key=value` ignored
+while reporting `success:true`) draws the wrong conclusion rather than seeing an
+error.
+
+**A skill, not CLAUDE.md**: Unity work is a minority of sessions, and a skill
+loads only on trigger, so it costs nothing the rest of the time.
+
+**Scoped to the stable core** — launch incantation, the five traps, the four gate
+commands, registering a new `[CliCommand]`, the batchmode fallback, and the
+scene-churn/gitignore housekeeping. It deliberately does **not** duplicate the
+141-command surface: that stays in the reference doc, which the skill links with
+a "dated snapshot, re-verify" warning. Encoding a large pre-1.0 command surface
+in a skill would rot, and stale instructions are worse than none.
+
+One claim was cut rather than shipped unverified (whether `unity command <name>`
+alone prints per-command help) — the editor was already closed, so the skill
+states only the `unity list` route, which was tested.
+
 ---
 
 ## Pre-merge gates (all green)
