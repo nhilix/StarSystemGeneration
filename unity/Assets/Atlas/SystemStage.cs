@@ -629,9 +629,15 @@ namespace StarGen.AtlasView
             return m;
         }
 
+        /// <summary>Scaffold children are runtime-only, same as the meshes and
+        /// materials above — DontSave so they can never be serialized into
+        /// Assets/Scenes/Atlas.unity. Load-bearing since Slice WG: captures now
+        /// run inside the COMMITTED scene (EnsureScene opens it rather than
+        /// building a throwaway), so a plain GameObject here would be junk a
+        /// human's next Ctrl+S commits.</summary>
         private GameObject Child(string name, Material material)
         {
-            var go = new GameObject(name);
+            var go = new GameObject(name) { hideFlags = HideFlags.DontSave };
             go.transform.SetParent(transform, worldPositionStays: false);
             go.AddComponent<MeshFilter>();
             var renderer = go.AddComponent<MeshRenderer>();

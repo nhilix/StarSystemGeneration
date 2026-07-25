@@ -1,3 +1,98 @@
+# Session Handoff — 2026-07-25 (Slice WG · the warm path becomes how the project works)
+
+**Slice WG — wire the warm gates + kill the scene churn — COMPLETE**, branch
+`slice-wg-warm-gates` from main `ca6d6f7`. The adopt-path follow-up UP's verdict
+earned. Small and mechanical, as scoped. Ledger
+`docs/superpowers/plans/2026-07-25-slice-wg-ledger.md`.
+
+**Zero sim behavior:** nothing under `src/` or `tests/`; golden byte-untouched;
+`dotnet test` **1301/1301** unchanged.
+
+## WG1 — capture runs no longer rewrite the scene asset
+
+`AtlasViewSceneSetup.Build()` always did `NewScene` → construct → **`SaveScene`**
+→ `AddSceneToBuildSettings`, and both capture tools called it — so every run
+rewrote `Atlas.unity` with ~650 lines of fresh fileIDs. Its docstring called that
+*"idempotent"*: true semantically, false byte-wise, and **that conflation is what
+hid it**.
+
+The fix was not stabilizing fileIDs (that fights the serializer) — **a capture
+never needed the scene saved, only open and complete**. Split into `BuildGraph()`
+(no I/O) · `Rebuild()` (the old saving path, unchanged, behind
+`StarGen/Setup Atlas Scene`) · **`EnsureScene()`** (complete? return · else open
+the committed scene and re-check · else build in memory and **log that the
+committed scene is stale**) — which never writes. Completeness is one static
+`Type[]` covering all 20 types the callers resolve, so a stale scene rebuilds
+instead of null-referencing.
+
+**Proven:** two `atlas_grid` runs from a clean tree left `Atlas.unity` md5
+identical and absent from `git status`; smoke still yields 18/18 PNGs; the
+deliberate rebuild still saves.
+
+## WG2/WG3 — the gates are wired, the eyeball has a default
+
+CLAUDE.md gains a **Unity gates** section pointing at the
+`driving-the-unity-editor` skill as the **single source of truth** (command lines
+in exactly one place), plus "start the editor once at slice start" in the
+slice-session gates step. The skill carries the standard eyeball recipe (six
+seeds + the regeneration one-liner), explicitly **a starting point, not a frozen
+gate**.
+
+**Corrected a badly stale claim:** CLAUDE.md described `unity/` as a *"superseded
+PoC atlas"* in both the header and a **Hard rule** — but that replacement landed
+in K1–K5 and was caught up by AC. A fresh worker reading it would reasonably skip
+Unity gates entirely. Reworded so the greenfield rule still names the prototype
+*sim* and the *original hex-board* as reference-only (intent preserved) while
+stating `unity/` is product.
+
+**WG4 (a one-command gate runner) was skipped deliberately** — WG2 makes the
+gates a copy-paste; wrapping three commands would be a framework for nothing.
+
+## The review's real catch — and the residual it exposed
+
+Fable whole-branch review: **FIX-THEN-MERGE**, 0 Critical, 3 Important. It
+verified WG1's core independently, then found a **second-order consequence WG1
+itself created**: by moving captures from a throwaway scene into the *committed*
+one, anything a capture creates now persists there. `SystemStage.Child()` made
+plain saveable GameObjects — K5's `HideAndDontSave` sweep had covered meshes and
+materials but not these, *because before WG it could not matter*. Fixed with
+`HideFlags.DontSave`.
+
+Also caught two factual defects in WG3's own recipe: it failed on a fresh
+checkout (`runs/` is gitignored, and `esave` swallows the missing-directory error
+while still exiting 0 — six silent failures then "no artifact directory"), and it
+falsely claimed seed 42 matched the golden's parameters (**the golden is radius
+12; the recipe generates radius 21** — same seed, different galaxy, and someone
+comparing a grid row to a smoke shot would have chased it as a rendering bug).
+
+**⚠ RESIDUAL, documented not fixed — component-state drift.** The scene is
+**never dirty-flagged** (programmatic `new GameObject()` in edit mode without
+`Undo.RegisterCreatedObjectUndo` doesn't set the flag), so nothing ever prompts
+and closing is safe. But after a capture the in-memory scene diverges from the
+asset by **15 lines**: 10 × lens `MeshRenderer.m_Enabled → 0`, the camera
+transform at capture framing, 3 × `ViewportPx 1080 → 1000`. **A manual Ctrl+S
+would commit that.** Skill + CLAUDE.md say so explicitly. Closing it needs a
+save/restore around the capture — more than this slice's scope.
+
+## Follow-ups filed
+
+1. **Component-state drift** above — save/restore layer visibility, camera and
+   `ViewportPx` around a capture.
+2. **`esave` swallows `DirectoryNotFoundException`** (`src/Inspector/Repl.cs` —
+   an `IOException` catch) and the REPL still exits 0. Out of scope here (zero
+   sim behavior); a one-line `Directory.CreateDirectory` would fix it.
+3. UP's still-open items: the two MCP surfaces + `unity shell`
+   (https://trello.com/c/tMS3hnag).
+
+**NEXT UP — the atlas UI design pass**, specced at
+`docs/superpowers/specs/2026-07-24-ui-design-pass-design.md` (3-tier element
+review: inventory → 5 group deep-dives → synthesis, nothing-is-sacred). It was
+queued before UP and is now materially easier: cheap multi-seed captures, no
+scene churn to revert, and `atlas_grid --lenses/--seeds` to evidence any claim
+across worlds.
+
+---
+
 # Session Handoff — 2026-07-24 (Slice UP · the editor goes warm, and the eyeball goes wide)
 
 **Slice UP — the local Unity Pipeline spike — COMPLETE.** Branch
