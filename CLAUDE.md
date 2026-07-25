@@ -181,10 +181,13 @@ is **ignored while still reporting `success: true`**.
   lacks `com.unity.pipeline`. The editor assembly still compiles without it
   (`#if HAS_UNITY_PIPELINE`); you just lose `unity command`. The skill has the
   one-line restore.
-- **Captures no longer dirty the scene** (Slice WG). `AtlasSmoke`/`AtlasGrid`
-  call `AtlasViewSceneSetup.EnsureScene()`, which loads-and-verifies without
-  writing. Only the deliberate **`StarGen/Setup Atlas Scene`** rebuild saves the
-  asset — that one is intended and commits as a `chore: atlas scene rebuilt`.
+- **Captures no longer rewrite the scene asset** (Slice WG). `AtlasSmoke`/
+  `AtlasGrid` call `AtlasViewSceneSetup.EnsureScene()`, which loads-and-verifies
+  without writing. Only the deliberate **`StarGen/Setup Atlas Scene`** rebuild
+  saves — that one is intended and commits as `chore: atlas scene rebuilt`.
+  Captures do run *inside* the committed scene, so the in-memory scene diverges
+  (toggled lens visibility, camera framing); Unity doesn't mark it dirty, so
+  nothing prompts — but **don't manually save it after a capture**.
 - **The multi-seed eyeball**: `unity command atlas_grid` renders seeds × lenses
   to a self-contained contact sheet. Lens set, seed count and viewpoint are
   **decided per investigation** — the defaults are a starting point, not a fixed

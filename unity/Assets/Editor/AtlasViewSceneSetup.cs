@@ -74,19 +74,23 @@ namespace StarGen.AtlasView.EditorTools
             var missing = MissingComponents();
             if (missing.Count == 0) return;
 
+            // BOTH remaining paths replace the open scene (OpenScene below,
+            // NewScene at the bottom), so honour unsaved work the same way the
+            // destructive path does — the in-memory fallback discarded it
+            // silently while this guard lived inside the open branch.
+            // Reachable only when the open scene is BOTH incomplete AND dirty
+            // (a complete scene returned above), so an automated capture loop
+            // never sees the dialog — and a human mid-edit is never silently
+            // overwritten.
+            if (SceneManager.GetActiveScene().isDirty
+                && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                throw new InvalidOperationException(
+                    "AtlasViewSceneSetup: need the atlas scene open, but the "
+                    + "current scene has unsaved changes and the save was "
+                    + "cancelled. Save or discard, then re-run.");
+
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null)
             {
-                // Opening replaces the open scene, so honour unsaved work the
-                // same way the destructive path does. Reachable only when the
-                // open scene is BOTH incomplete AND dirty (a complete scene
-                // returned above), so an automated capture loop never sees the
-                // dialog — and a human mid-edit is never silently overwritten.
-                if (SceneManager.GetActiveScene().isDirty
-                    && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-                    throw new InvalidOperationException(
-                        "AtlasViewSceneSetup: need the atlas scene open, but the "
-                        + "current scene has unsaved changes and the save was "
-                        + "cancelled. Save or discard, then re-run.");
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
                 missing = MissingComponents();
                 if (missing.Count == 0) return;

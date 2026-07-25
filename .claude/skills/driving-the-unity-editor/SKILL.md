@@ -113,12 +113,19 @@ A **starting point, not a fixed gate** — lens set, seed count and viewpoint ar
 chosen per investigation (user's steer, Slice UP eyeball). Scan **down a column**:
 one lens across six worlds tells you whether a look is the design or the seed.
 
-Artifacts are gitignored (`runs/`), so a fresh checkout must regenerate them.
-The standard six (40 epochs, radius 21; **seed 42 matches the golden's
-parameters**, so it is the familiar reference row):
+Artifacts are gitignored (`runs/`), so a fresh checkout must regenerate them —
+including the directory itself, hence the `mkdir -p` (the REPL's `esave`
+swallows the missing-directory error, prints "cannot save: …", and still exits
+0, so without it `atlas_grid` fails later with "no artifact directory").
+The standard six (40 epochs, radius 21). Seed 42 is a **familiar seed, not the
+same world**: same seed and epoch count as the golden
+(`tests/Core.Tests/Goldens/slice-b-artifact-seed42.txt`, what `SimHost` loads by
+default), but that golden is **radius 12** (`GCONFIG|42|12|…`) against this
+recipe's 21 — don't expect grid row 42 and an atlas-smoke shot to show the same
+galaxy.
 
 ```bash
-printf 'epoch 42 40 21\nesave runs/atlas-grid/seed-42.txt\nepoch 7 40 21\nesave runs/atlas-grid/seed-7.txt\nepoch 1234 40 21\nesave runs/atlas-grid/seed-1234.txt\nepoch 9091 40 21\nesave runs/atlas-grid/seed-9091.txt\nepoch 31337 40 21\nesave runs/atlas-grid/seed-31337.txt\nepoch 2718 40 21\nesave runs/atlas-grid/seed-2718.txt\nquit\n' | dotnet run --project src/Inspector
+mkdir -p runs/atlas-grid && printf 'epoch 42 40 21\nesave runs/atlas-grid/seed-42.txt\nepoch 7 40 21\nesave runs/atlas-grid/seed-7.txt\nepoch 1234 40 21\nesave runs/atlas-grid/seed-1234.txt\nepoch 9091 40 21\nesave runs/atlas-grid/seed-9091.txt\nepoch 31337 40 21\nesave runs/atlas-grid/seed-31337.txt\nepoch 2718 40 21\nesave runs/atlas-grid/seed-2718.txt\nquit\n' | dotnet run --project src/Inspector
 ```
 
 (bash `printf`, not PowerShell — PowerShell mangles the first stdin line.)
@@ -188,6 +195,14 @@ Rules learned the hard way:
   and commit it as `chore: atlas scene rebuilt`.
   If `EnsureScene` logs that it rebuilt **in memory**, the committed scene is
   stale (missing a layer the capture path needs) — regenerate it deliberately.
+- ⚠ **Do NOT Ctrl+S the atlas scene after a capture run.** Captures now execute
+  *inside* the committed scene, so the in-memory scene diverges from the asset —
+  measured: ~10 lens `MeshRenderer.m_Enabled → 0` (whichever lens shot ran last),
+  the camera transform at the capture framing, and `ViewportPx 1080 → 1000`.
+  Unity does **not** mark this dirty, so nothing prompts and a close is safe;
+  only a manual save writes it. `SystemStage`'s generated children are
+  `HideFlags.DontSave` and never serialize. If you do save by accident:
+  `git checkout -- unity/Assets/Scenes/Atlas.unity`.
 - **`unity/ProjectSettings` churn stays uncommitted, always** (standing rule).
   A `-automated` editor flips `runInBackground`.
 - Grid/smoke output is gitignored (`atlas-grid*/`, `atlas-smoke*.png`). A custom
