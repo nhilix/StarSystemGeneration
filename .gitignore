@@ -515,6 +515,8 @@ unity/test-results.xml
 
 # atlas smoke/batch outputs (generated at repo root)
 atlas-smoke*.png
+# slice UP: the multi-seed eyeball grid (PNGs + its contact sheet)
+atlas-grid/
 unity-*-log.txt
 unity-*-results.xml
 unity/test-results-*.xml

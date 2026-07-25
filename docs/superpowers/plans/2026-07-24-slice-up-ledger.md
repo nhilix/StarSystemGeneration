@@ -36,7 +36,7 @@ merge gate for all slices unless UP6's verdict says otherwise.
 | UP2 | Map the command surface → committed reference doc | reference doc committed | ☐ |
 | UP3 | `unity auth login` + `unity pipeline install`; append pipeline command inventory | `unity pipeline list` shows Installed | ◐ |
 | UP4 | Prove warm-editor gates (`run_tests` ×3 vs batchmode baseline, `recompile`, `menu`) | deterministic across repeats (flakiness documented = finding) | ☐ |
-| UP5 | Eyeball grid prototype (multi-seed atlas contact sheet) | user opens one HTML file, sees every seed | ☐ |
+| UP5 | Eyeball grid prototype (multi-seed atlas contact sheet) | user opens one HTML file, sees every seed | ◐ awaiting eyeball |
 | UP6 | Verdict + wrap (HANDOFF, fable review, merge, push) | three-checkpoint protocol | ☐ |
 
 ## User checkpoints
@@ -226,3 +226,57 @@ previously cost a full cold editor launch per capture run.
    `unity/Assets/Scenes/Atlas.unity` (647±647 lines of GUID churn). Reverted;
    the seed-42 golden was asserted untouched throughout. Use a harmless menu path
    when probing.
+6. **`--timeout` is ignored by `menu`; the client hard-caps at 30s.** A run
+   longer than 30s returns `COMMAND_FAILED … timed out after 30000ms` **while the
+   editor keeps going and finishes normally**. This is a client-side *reporting*
+   bug, not a run failure — the 35.5s grid run reported failure and produced all
+   36 PNGs. Any wiring must confirm completion by **polling for the artifacts**,
+   never by trusting the menu call's exit code.
+
+### UP5 — the eyeball grid ◐ (built, working; awaiting the user's eyeball)
+
+**`unity/Assets/Editor/AtlasGrid.cs`** (~390 lines) — `[MenuItem("StarGen/Atlas
+Grid")]` + a `RunFromCli()` twin, following the AtlasSmoke pattern exactly
+(EnsureMaterial per layer, `StepEpochs(1)` before capture, the hand-rolled
+`SetAndStyle` because `AtlasRoot.OnEnable` never runs in Edit mode).
+
+**The seam that made it cheap:** `SimHost.ArtifactPath` is a public settable
+property and `LoadArtifact()` reads it — so the grid is just *set path → load →
+shoot → repeat*. No SimHost change was needed. **Zero sim behavior**, zero
+`src/Core` edits, golden untouched.
+
+- **Input:** `runs/atlas-grid/*.txt`, ordinal-sorted (row order must be identical
+  on any machine). Six artifacts generated via the Inspector REPL
+  (`epoch <seed> 40 21` + `esave`) for seeds 42, 7, 1234, 9091, 31337, 2718.
+- **Output:** `atlas-grid/<seed>-<lens>.png` at 1200×750 (deliberately below
+  AtlasSmoke's 1600×1000 — 36 thumbnails is a lot of bytes) + a self-contained
+  `atlas-grid/index.html`. Both gitignored via a new `atlas-grid/` rule.
+- **Six lenses:** galaxy · domains · trade · price · war · works. Each restores
+  its visibility/mode/accent afterwards so lenses never bleed between cells.
+- **A bad artifact does not abort the grid** — the row renders a LOAD FAILED cell
+  and the run continues.
+- **36 PNGs, 13.1 MB, 35.5s** for the whole six-seed sweep on the warm editor.
+  Smallest 105 KB (nothing near the ~2 KB empty-frame signature).
+
+**One design correction made after the first build.** The lens views initially
+anchored on `Ports[0]`, copying AtlasSmoke. That is fine for a single known seed
+but wrong for a grid: `Ports[0]` is an arbitrary port per world, and on seed 9091
+it sits at the tip of a tendril, shoving that row's galaxy into a corner. Since
+**the entire purpose of a grid is reading DOWN a column**, the anchor was changed
+to the **centroid of all ports** — each world framed on the heart of its own
+settled reach, so a column compares like with like. Verified by regenerating and
+re-inspecting the previously-degenerate seed-9091 `domains` shot.
+
+Per-seed vitals captured into the sheet (all year 1025, 40 epochs):
+
+| seed | ports | lanes | fleets |
+|---|---|---|---|
+| 7 | 198 | 179 | 551 |
+| 42 | 218 | 211 | 586 |
+| 1234 | 215 | 209 | 582 |
+| 2718 | 178 | 166 | 453 |
+| 9091 | 219 | 207 | 620 |
+| 31337 | 186 | 180 | 501 |
+
+**Driven end-to-end through the warm-editor `menu` command** — the UP5 gate as
+written. `unity command menu --path 'StarGen/Atlas Grid'`.
