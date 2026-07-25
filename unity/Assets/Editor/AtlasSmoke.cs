@@ -22,7 +22,10 @@ namespace StarGen.AtlasView.EditorTools
 
         private static void Run(bool exitOnFailure)
         {
-            AtlasViewSceneSetup.SetupScene();
+            // EnsureScene, not SetupScene: a capture needs the scene OPEN, not
+            // written. SetupScene would re-save Atlas.unity with fresh fileIDs
+            // and dirty the working tree on every shot run.
+            AtlasViewSceneSetup.EnsureScene();
 
             var host = Object.FindAnyObjectByType<SimHost>();
             var stars = Object.FindAnyObjectByType<StarfieldLayer>();

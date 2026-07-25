@@ -2,8 +2,9 @@
 
 Deterministic procedural galaxy generator + epoch history simulation. C# —
 `src/Core` (netstandard2.1, no Unity deps), `src/Inspector` (REPL, net8.0),
-`tests/Core.Tests` (xUnit), `unity/` (superseded PoC atlas). Build/test:
-`dotnet test StarSystemGeneration.sln`.
+`tests/Core.Tests` (xUnit), `unity/` (**the atlas** — a read-only viewer over
+sim artifacts; built by slices K1–K5, caught up to the sim by AC). Build/test:
+`dotnet test StarSystemGeneration.sln`. Unity gates: see **Unity gates** below.
 
 ## Documentation planes (never mix them)
 
@@ -49,7 +50,9 @@ psmux windows of their own. Each slice session:
 5. **Gates** (all mechanical, all mandatory): `dotnet test` green — the hex-tier
    (Phase-1 generation) suite **never** breaks; determinism byte-identity for
    same config; new goldens frozen once at slice end (red-window inside the
-   slice); the slice's REPL surface works.
+   slice); the slice's REPL surface works. **If the slice touches `unity/`**:
+   compile clean + EditMode green — start the editor once at slice start and run
+   them warm (see **Unity gates** below), with a batchmode pass at the merge gate.
 6. **User checkpoints — exactly three**: scope nod (start), **REPL eyeball
    acceptance** (the taste gate: does it *look right* — user runs/views it),
    merge decision. Don't add approval gates between tasks.
@@ -158,15 +161,46 @@ slice sessions delegate downward via subagents, not sideways via psmux.
   name (e.g. `dx-worker` after `slice-dx` died) — the `--remote-control` name
   can still be the canonical slice name; only the psmux window name must differ.
 
+## Unity gates (warm editor preferred, batchmode fallback)
+
+**Read the `driving-the-unity-editor` skill before your first Unity command.**
+It is the single source of truth for the command lines — do not duplicate them
+here or in kickoff prompts. Its failure modes are *silent*: the worst is that
+`unity command` takes **flag-style** args (`--path X`), while a `key=value` form
+is **ignored while still reporting `success: true`**.
+
+- **Start the editor once at slice start**, with `-automated` (mandatory — else
+  modal popups can block a run). Then the whole session's Unity gates run warm:
+  EditMode in **~1.5s** instead of ~50s, atlas captures in ~3s instead of a full
+  editor launch. Proven equivalent to batchmode in Slice UP (identical sorted
+  result *sets*, not just counts).
+- **Batchmode stays the canonical merge gate**, and is the only path when the
+  editor is closed or on a clean clone. Verdict revisit is due once the tooling
+  passes 1.0 — it is pre-1.0 and moved a full version in two days.
+- **`unity/Packages/manifest.json` is gitignored**, so a fresh clone/worktree
+  lacks `com.unity.pipeline`. The editor assembly still compiles without it
+  (`#if HAS_UNITY_PIPELINE`); you just lose `unity command`. The skill has the
+  one-line restore.
+- **Captures no longer dirty the scene** (Slice WG). `AtlasSmoke`/`AtlasGrid`
+  call `AtlasViewSceneSetup.EnsureScene()`, which loads-and-verifies without
+  writing. Only the deliberate **`StarGen/Setup Atlas Scene`** rebuild saves the
+  asset — that one is intended and commits as a `chore: atlas scene rebuilt`.
+- **The multi-seed eyeball**: `unity command atlas_grid` renders seeds × lenses
+  to a self-contained contact sheet. Lens set, seed count and viewpoint are
+  **decided per investigation** — the defaults are a starting point, not a fixed
+  gate.
+
 ## Hard rules
 
 - **The design is the spec.** Do not re-open design questions during
   implementation; a genuine deviation requires amending the affected
   `docs/design/` doc in the same branch, flagged to the user.
 - **Greenfield**: the prototype sim (`EpochSim`, `Sim/*`, per-cell political
-  state, v5 serializer) and Unity atlas are reference-only PoC — replaced
-  outright, deleted as superseded, no compatibility adapters, no old-golden
-  preservation. Git history is the archive.
+  state, v5 serializer) and the *original PoC hex-board* atlas are reference-only
+  — replaced outright, deleted as superseded, no compatibility adapters, no
+  old-golden preservation. Git history is the archive. **The replacement already
+  landed**: `unity/` now holds the real 2.5D atlas (K1–K5, caught up by AC), and
+  is product, not PoC.
 - **Determinism discipline**: stateless hash rolls keyed (step, actor id,
   channel); fixed iteration order; config artifact-stamped; hex tier never
   persisted.

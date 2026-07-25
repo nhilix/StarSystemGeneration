@@ -105,8 +105,26 @@ unity command atlas_grid --seeds 42,9091 --lenses trade,war --project-path $P --
 `atlas_grid` args, all optional: `input` (default `runs/atlas-grid`) · `output`
 (default `atlas-grid`) · `lenses` (of `galaxy,domains,trade,price,war,works` —
 also sets column order) · `seeds` (accepts `42` or `seed-42`) · `width` · `height`
-· `zoom` · `pitch` · `anchor` (`centroid|bounds|port:<n>`). Artifacts come from
-the Inspector REPL: `epoch <seed> 40 21` then `esave runs/atlas-grid/seed-<n>.txt`.
+· `zoom` · `pitch` · `anchor` (`centroid|bounds|port:<n>`).
+
+### The standard eyeball recipe
+
+A **starting point, not a fixed gate** — lens set, seed count and viewpoint are
+chosen per investigation (user's steer, Slice UP eyeball). Scan **down a column**:
+one lens across six worlds tells you whether a look is the design or the seed.
+
+Artifacts are gitignored (`runs/`), so a fresh checkout must regenerate them.
+The standard six (40 epochs, radius 21; **seed 42 matches the golden's
+parameters**, so it is the familiar reference row):
+
+```bash
+printf 'epoch 42 40 21\nesave runs/atlas-grid/seed-42.txt\nepoch 7 40 21\nesave runs/atlas-grid/seed-7.txt\nepoch 1234 40 21\nesave runs/atlas-grid/seed-1234.txt\nepoch 9091 40 21\nesave runs/atlas-grid/seed-9091.txt\nepoch 31337 40 21\nesave runs/atlas-grid/seed-31337.txt\nepoch 2718 40 21\nesave runs/atlas-grid/seed-2718.txt\nquit\n' | dotnet run --project src/Inspector
+```
+
+(bash `printf`, not PowerShell — PowerShell mangles the first stdin line.)
+~3 min for all six, then `unity command atlas_grid --project-path $P` gives
+36 shots + the sheet in ~35s. Narrow with `--seeds`/`--lenses` when a specific
+question is being asked — that is the normal case, not the exception.
 
 **Discovery:** `unity list --project-path $P` shows every registered command with
 its parameters, types and defaults (141 today) — `--format json` puts them under
@@ -162,10 +180,14 @@ Rules learned the hard way:
 
 ## Housekeeping
 
-- **`AtlasSmoke`/`AtlasGrid` runs dirty `unity/Assets/Scenes/Atlas.unity`**
-  (~650 lines of pure fileID renumbering from `AtlasViewSceneSetup.SetupScene()`).
-  Semantically identical — `git checkout -- unity/Assets/Scenes/Atlas.unity`
-  after capture runs unless you deliberately intend a scene rebuild.
+- **Capture runs no longer touch the scene asset** (Slice WG).
+  `AtlasSmoke`/`AtlasGrid` call `AtlasViewSceneSetup.EnsureScene()`, which opens
+  and *verifies* the committed scene without writing. Only
+  **`StarGen/Setup Atlas Scene`** (`SetupScene`/`RunFromCli`) saves — and it
+  legitimately rewrites ~650 lines of fileIDs, so treat that as a deliberate act
+  and commit it as `chore: atlas scene rebuilt`.
+  If `EnsureScene` logs that it rebuilt **in memory**, the committed scene is
+  stale (missing a layer the capture path needs) — regenerate it deliberately.
 - **`unity/ProjectSettings` churn stays uncommitted, always** (standing rule).
   A `-automated` editor flips `runInBackground`.
 - Grid/smoke output is gitignored (`atlas-grid*/`, `atlas-smoke*.png`). A custom

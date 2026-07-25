@@ -185,7 +185,10 @@ namespace StarGen.AtlasView.EditorTools
             string outputDir = RepoPath(options.OutputDir);
             Directory.CreateDirectory(outputDir);
 
-            AtlasViewSceneSetup.SetupScene();
+            // EnsureScene, not SetupScene: a capture needs the scene OPEN, not
+            // written. SetupScene would re-save Atlas.unity with fresh fileIDs
+            // and dirty the working tree on every grid run.
+            AtlasViewSceneSetup.EnsureScene();
 
             var host = Object.FindAnyObjectByType<SimHost>();
             var stars = Object.FindAnyObjectByType<StarfieldLayer>();
