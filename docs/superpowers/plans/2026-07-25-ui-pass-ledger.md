@@ -110,20 +110,47 @@ region — plus both SystemStage views. Grid + smoke together are the census.
 
 ### 0.6 — two gaps in the evidence apparatus itself
 
-Both are recorded in the inventory's "evidence base" section and both are
-**Tier-1 prerequisites, not Tier-0 blockers**.
+1. **No capture path renders the chrome** — `cam.Render()` bypasses the UI
+   Toolkit overlay, and in EditMode the chrome's `OnEnable` builders never fire,
+   so there is nothing to capture either. **SOLVED in 0.11** (user-directed
+   detour); inventory §11.
+2. **The acceptance suite's framing under-samples the world.** Corrected
+   mid-session — an earlier draft called the golden "a near-empty world" on the
+   strength of the zoomed smoke shots. Measured directly, the radius-12 golden
+   at y1000 has **72 ports, 69 lanes, 15 open threads and two live wars**. The
+   sparseness is `AtlasSmoke`'s framing: every lens shoots at `extent × 0.30`
+   anchored on port 0 (`AtlasSmoke.cs:151-154`). The suite reads as an empty
+   galaxy while photographing a busy one.
 
-1. **No capture path renders the chrome.** `AtlasSmoke` and `AtlasGrid` both
-   capture via `cam.Render()` into a RenderTexture
-   (`unity/Assets/Editor/AtlasSmoke.cs:283`), which bypasses the UI Toolkit
-   overlay. Chrome and panels appear in **zero of the 54+18 shots**, so their
-   inventory entries are code-cited. Tier 1's chrome and panels groups need a
-   chrome-inclusive capture before they can audit how those elements *read*.
-2. **The committed acceptance suite photographs a near-empty world.**
-   `AtlasSmoke` loads the radius-12 seed-42 golden — 2 domains, ~6 ports — and
-   shoots 18 lenses over it. Fleets shows one fleet, plague shows no plague,
-   traffic shows one lane. Most of the suite is photographing empty states
-   without labelling them as such.
+### 0.11 — chrome capture, solved (user-directed, 2026-07-25)
+
+The user redirected after the Tier-0 gate: the chrome gap blocks the group where
+most of the game's information lives (relations, chronicle, markets, polity
+summaries), so it had to be addressed before Tier 1 planning.
+
+**Proven working**, end-to-end, at `cbb892d` / editor `6000.5.2f1` / pipeline
+`0.4.0-exp.1`: `set_autotick` → `editor_play` → assign
+`PanelSettings.targetTexture` → camera render to a second RT → alpha-composite.
+Full recipe, measurements and cautions in `docs/design/ui/inventory.md` §11.
+
+- The spike ran entirely through **`unity command eval`** (Roslyn) — no files
+  added, no assets dirtied. `eval` was previously unused in this repo and is the
+  right tool for this class of question.
+- **Play mode is the unlock.** Every chrome `OnEnable` fires for real, so the
+  captured chrome is genuine rather than hand-mirrored — it does not inherit the
+  `AtlasSmoke.SetAndStyle` drift risk.
+- **Panels are drivable**: `InspectorDock.Show` and `PanelRequest` are public,
+  so any of the 27 panels can be opened and shot on demand. Proven with
+  Market #3 + Polity + Relations in one frame.
+- **Asset-safety caution**: `PanelSettings` is committed; `targetTexture` must be
+  nulled before leaving play mode. Verified clean afterwards
+  (`m_TargetTexture: {fileID: 0}`).
+
+**Not implemented as a tool** — that is `unity/Assets` work, outside a design
+pass's boundary. It wants its own small slice, landing before Tier 1 reaches
+groups 5 and 6. Recommended name: `AtlasChromeShots`, following the
+`[MenuItem]` + `RunFromCli()` + `[CliCommand]` pattern in the
+`driving-the-unity-editor` skill.
 
 ---
 

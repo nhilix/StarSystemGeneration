@@ -65,22 +65,26 @@ unity command menu --path 'StarGen/Atlas Smoke Shots' --project-path $P --format
 (`unity/Assets/Atlas/SimHost.cs:23`, `GCONFIG|42|12|…`), which is what every
 `atlas-smoke` shot renders. Never cite one as evidence for the other.
 
-### Two gaps in the apparatus itself
+### Two gaps in the apparatus — one solved, one open
 
-**1. No capture path renders the chrome.** Both `AtlasSmoke` and `AtlasGrid`
-capture with `cam.Render()` into a RenderTexture
-(`unity/Assets/Editor/AtlasSmoke.cs:283`), which bypasses the UI Toolkit
-overlay panel entirely. TopBar, LensRail, LegendPanel, TimelineStrip, HexTooltip
-and every InspectorDock panel appear in **zero of the 54 shots**. Their entries
-below are code-cited. *Tier 1's chrome and panels groups need a chrome-inclusive
-capture before they can audit how those elements read.*
+**1. The existing capture paths render no chrome — SOLVED, see §11.** Both
+`AtlasSmoke` and `AtlasGrid` capture with `cam.Render()` into a RenderTexture
+(`unity/Assets/Editor/AtlasSmoke.cs:283`), which bypasses the UI Toolkit overlay
+panel entirely. TopBar, LensRail, LegendPanel, TimelineStrip, HexTooltip and
+every InspectorDock panel appear in **zero of the 72 map shots**, so all their
+entries below are code-cited. A working chrome-inclusive capture path was found
+and proven during Tier 0 — §11 has the recipe and the proof shot.
 
-**2. The committed acceptance suite photographs a near-empty world.** The
-radius-12 golden carries 2 domains and ~6 ports; `AtlasSmoke` steps it once and
-shoots 18 lenses over it. The result: `atlas-smoke-fleets` shows one fleet,
-`atlas-smoke-plague` shows no plague at all, `atlas-smoke-traffic` shows a
-single lane. Most of the suite is photographing empty states without labelling
-them as such. The grid (radius 21, 40 epochs) is the only dense evidence.
+**2. The acceptance suite's framing under-samples the world.** *(Restating a
+Tier-0 error: an earlier draft called the golden "a near-empty world". It is
+not.)* The radius-12 golden at y1000 carries **72 ports, 69 lanes and 15 open
+threads**, including two live wars — measured directly, not inferred. What is
+sparse is the **framing**: `AtlasSmoke` shoots every lens at `extent × 0.30`
+anchored on port 0 (`AtlasSmoke.cs:151-154`), a tight neighbourhood of a
+72-port galaxy. So `atlas-smoke-fleets` showing one fleet and
+`atlas-smoke-plague` showing none are facts about that neighbourhood, not about
+the world. The suite reads as an empty galaxy while photographing a busy one —
+which is its own finding, and a sharper one than the error it replaces.
 
 ---
 
@@ -755,5 +759,68 @@ questions twice. *If the user prefers it standalone, it works as a seventh group
 scheduled after 1–3 rather than in parallel.*
 
 **Ordering constraint:** group 1 before all others. Groups 2–4 are mutually
-independent. Group 5 is blocked on the chrome-capture gap. Group 6 is
-independent but benefits from following 5.
+independent. Groups 5 and 6 need the §11 capture path built as a committed tool
+first. Group 6 is independent of 5 but benefits from following it.
+
+---
+
+## 11. Capturing the chrome
+
+**The problem.** Every existing capture path renders through `cam.Render()`,
+which draws the scene and nothing else. A UI Toolkit **overlay** panel
+(`m_RenderMode: 0` in `unity/Assets/Atlas/PanelSettings.asset:18`) is composited
+by the runtime UI system, not by any camera, so it can never appear in a camera
+render. `screenshot --view game` does not help either — tested, it also returns
+a camera render with no chrome.
+
+There is a second, deeper problem behind it. The chrome modules build themselves
+in `OnEnable` (`AtlasChrome.cs:33`, `LensRail.cs:69`, `TopBar.cs:29`,
+`LegendPanel.cs:23`, `TimelineStrip.cs:33`, `HexTooltip.cs:30`) and none of them
+is `[ExecuteAlways]`. In EditMode — where `AtlasSmoke` and `AtlasGrid` run —
+those never fire, so **there is no chrome to capture in the first place**. This
+is the same edit-mode gap that forces `AtlasSmoke.SetAndStyle` to hand-mirror
+`AtlasRoot.OnZoomChanged` (`AtlasSmoke.cs:240-273`).
+
+**The solution: capture from play mode, via the panel's target texture.**
+Proven end-to-end during Tier 0 against `cbb892d`, editor `6000.5.2f1`, pipeline
+`0.4.0-exp.1`. Five steps:
+
+1. **`unity command set_autotick --enable true --interval_ms 16`** — a
+   background editor does not tick, so play mode would never advance a frame.
+2. **`unity command editor_play`** — every `OnEnable` fires for real. `SimHost`
+   loads its artifact, the rail builds its chips, the dock opens Open Threads.
+   Verified: `rootChildren=6`, `topbarKids=14`, `model=True`. This is the
+   genuine chrome, not a hand-mirrored reconstruction — which also makes it
+   immune to the `SetAndStyle` drift risk.
+3. **Assign a RenderTexture to `PanelSettings.targetTexture`.** The panel then
+   renders into that RT instead of the screen overlay, independent of any Game
+   view window. Measured: 611,412 of 1,600,000 pixels with non-zero alpha at
+   1600×1000 — a correct, alpha-carrying UI layer.
+4. **Render the camera into a second RT** (the existing `AtlasSmoke` framing
+   code applies unchanged, `_AtlasFocalY` / `_AtlasViewportPx` globals included).
+5. **Alpha-composite UI over map** and encode. One frame, everything in it.
+
+**Driving it is the point.** `InspectorDock.Show(PanelRequest, clearUnpinned)`
+is public, as is `PanelRequest`, so any of the 27 panels can be opened on demand
+and shot — proven by opening Market #3 + its owner's Polity + Relations together
+and capturing the result. Selection, lens state (`LensRail`), epoch
+(`SimHost.StepEpochs` / `ScrubTo`) and camera (`CameraRig.SetView`) are all
+drivable the same way. That is what makes a panels design pass possible at all:
+the panel family is 27 builders over live Core queries, and every one of them
+can now be photographed with real data.
+
+**Two cautions.**
+- `PanelSettings` is a **committed asset**. Assigning `targetTexture` mutates it,
+  and asset edits made during play mode persist in the editor session. **Null it
+  before leaving play mode** and verify `m_TargetTexture: {fileID: 0}` on disk.
+  Tier 0 did; the asset is clean.
+- Autotick at 16 ms pegs a core. Disable it when the capture run ends.
+
+**What this needs to become.** The spike ran through `unity command eval`
+(Roslyn, no files touched), which was right for proving it and wrong for
+repeated use. Turning it into a committed `AtlasChromeShots` editor tool —
+`[MenuItem]` + `RunFromCli()` + `[CliCommand]` twin, per the pattern in
+`.claude/skills/driving-the-unity-editor/SKILL.md` — is **atlas tooling work
+outside this pass's boundary** (`unity/Assets` is out of scope for a design
+pass). It wants its own small slice, and it should land before Tier 1 reaches
+groups 5 and 6.
