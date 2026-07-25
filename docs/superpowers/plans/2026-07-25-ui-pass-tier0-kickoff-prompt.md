@@ -65,16 +65,55 @@ resumability record across all three tiers, not just this one. Start it now.
    interactions and states · current visual encoding · LOD behavior · known
    debts. **Evidence over recall** — cite a grid shot, a smoke shot, or code for
    every claim. Never describe an element from memory.
+
+   **Evidence citations must be reproducible.** Grid/smoke output is
+   gitignored and disposable — cite by *regeneration recipe* (the exact
+   `atlas_grid` args: seeds, lenses, zoom, pitch, anchor) alongside the
+   filename, never by filename alone. A future tier must be able to re-render
+   any shot the inventory leans on.
+
+   **Completeness floor — the inventory covers at least this census.** Seed it
+   from `AtlasViewSceneSetup.BuildGraph()` (the scene builder enumerates every
+   layer it constructs — that list is authoritative, read it rather than
+   trusting this one): starfield · the field family (domain / nature / price /
+   war / tension / tech / plague) · currency-zone tint · trade lens · lattice /
+   region outlines · lanes + off-lane crawls · port marks/glows · fleets ·
+   POIs · works · outpost marks + worked-dust · news/event surfaces ·
+   TopBar · LensRail · LegendPanel (and the glyph vocabulary behind it) ·
+   TimelineStrip · HexTooltip · the InspectorDock/DockKit panel family
+   (polity · market incl. the outpost section · war · contracts · order book) ·
+   SelectionModel states end-to-end · SystemStage (orbits, bodies, works,
+   settlement rings). Anything the sweep finds beyond this floor gets an entry
+   too — the floor is a miss-detector, not the ceiling.
+
+   **Camera & navigation is a first-class inventory entry**, not ambient
+   context: the zoom continuum and LOD bands (`LodBands`), focus/pitch/anchor
+   behavior, and what each band promotes or hides. It has no obvious home in
+   the spec's five groups — that's a known partition gap for task 4 to
+   resolve, not an omission to repeat.
 4. **Fix the group partition.** The spec's expected five groups (map fields &
    lenses · marks & billboards · chrome · panels & selection · SystemStage) are
    *adjustable on evidence*. If the inventory says the partition is wrong,
-   propose a better one and say why.
+   propose a better one and say why — and place camera & navigation
+   explicitly (its own group, or a named part of one).
 
 ## Gate
 
 **One user checkpoint:** the user skims the inventory for completeness and nods
 the group partition. That's it for Tier 0 — deep dives are Tier 1, one session
 per group, each with its own eyeball.
+
+## Wrap-up (after the partition nod)
+
+- Commit the inventory + ledger; update `docs/HANDOFF.md` (Tier 0 done, the
+  nodded partition, pointers to evidence recipes); push.
+- Sync Trello if reachable (Tier 0 card → Merged/done; file anything new the
+  sweep surfaced).
+- **Do NOT write the Tier 1 kickoff.** Tier kickoffs for this pass are
+  authored by the orchestrator after each gate (user decision, 2026-07-25) —
+  the Tier 1 kickoffs depend on the partition the user just nodded, and the
+  orchestrator holds the pass's gates per the spec. Hand back: inventory path,
+  partition, and anything Tier 1 should know that the inventory doesn't carry.
 
 ## Hold the line on principle 1
 
@@ -88,6 +127,11 @@ Equally: **standing decisions are inputs, not walls.** Cassette×Ice, the 2.5D
 space/glows/billboards grammar, and "fields computed / glyphs authored /
 placement always data" are current bests, not settled law. Tier 0 doesn't
 challenge them, but note where the evidence strains them so Tier 1 can.
+
+Where those decisions live, for the "strains" notes: the UI Language Lab
+artifact (Cassette×Ice tokens; `ssg-ui-language-lab.html`), the atlas design
+diagram (`docs/diagrams/unity-atlas-design.html`, whose draw code is the
+de-facto visual spec), and the K1 ledger's camera/grammar amendments.
 
 ## Boundary
 
