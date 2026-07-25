@@ -3,7 +3,8 @@
     "rootNamespace": "StarGen.AtlasView.EditorTools",
     "references": [
         "StarGen.AtlasView",
-        "StarGen.Core"
+        "StarGen.Core",
+        "Unity.Pipeline"
     ],
     "includePlatforms": [
         "Editor"
@@ -11,5 +12,13 @@
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.pipeline",
+            "expression": "",
+            "define": "HAS_UNITY_PIPELINE"
+        }
+    ],
     "noEngineReferences": false
 }

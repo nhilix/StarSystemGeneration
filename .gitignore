@@ -515,6 +515,11 @@ unity/test-results.xml
 
 # atlas smoke/batch outputs (generated at repo root)
 atlas-smoke*.png
+# slice UP: the multi-seed eyeball grid (PNGs + its contact sheet).
+# Covers the default `atlas-grid/` and any `atlas-grid<suffix>/` an
+# investigation picks. `atlas_grid --output` accepts ANY name, so keep the
+# atlas-grid prefix or add the directory here yourself.
+atlas-grid*/
 unity-*-log.txt
 unity-*-results.xml
 unity/test-results-*.xml

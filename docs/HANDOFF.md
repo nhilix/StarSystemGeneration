@@ -1,3 +1,134 @@
+# Session Handoff — 2026-07-24 (Slice UP · the editor goes warm, and the eyeball goes wide)
+
+**Slice UP — the local Unity Pipeline spike — COMPLETE.** Branch
+`slice-up-unity-pipeline` from main `9d51673`. A time-boxed **spike**: success
+was knowledge + a working prototype, and both landed. Ledger (the full record —
+every version, trap and measurement):
+`docs/superpowers/plans/2026-07-24-slice-up-ledger.md`. Command reference:
+`docs/superpowers/specs/2026-07-24-unity-cli-pipeline-command-reference.md`
+(~6,100 lines: annotated tables + the full raw `--help` appendix + the 141-command
+pipeline inventory).
+
+**Zero sim behavior, as scoped:** no `src/Core` / `src/Inspector` / `tests/`
+edits. Seed-42 golden **byte-untouched**. `dotnet test` untouched. Everything new
+is editor-side tooling.
+
+**Zero cloud touchpoints.** The one permitted `unity auth login` went **unspent**
+— `unity auth status` showed the CLI already inherits the existing Hub session.
+Nothing enrolled, linked, or signed up for. The only machine-level changes: the
+`unity` binary at `%LOCALAPPDATA%\Unity\bin` on the **user** PATH, and one
+gitignored line in `unity/Packages/manifest.json`.
+
+## Pinned versions (both AHEAD of the 2026-07-22 research — pre-1.0 drifts fast)
+
+| | Research said (07-22) | Actual (07-24) |
+|---|---|---|
+| `unity` CLI | 0.1.0-beta.7 | **1.0.0-beta.3** |
+| `com.unity.pipeline` | 0.3.1-exp.1 | **0.4.0-exp.1** |
+
+`beta` is the **only** CLI channel (`latest.json`/`latest-alpha.json` both 404).
+docs.unity.com lags badly: 26 of 37 top-level commands are absent from its
+reference page, and `eval`/`report-bug`/`implode` appear in release notes but
+**do not exist** in the binary. **Trust `--help`, re-verify before relying on the
+reference doc in a future session.**
+
+**Manifest delta (gitignored, so recorded here):** add
+`"com.unity.pipeline": "0.4.0-exp.1"` as the last `dependencies` entry of
+`unity/Packages/manifest.json`. That is the entire install — the CLI is a
+convenience, not a requirement, for that step.
+
+## VERDICT — ADOPT the warm-editor path (batchmode stays the fallback)
+
+| Gate | Batchmode (editor closed) | Warm editor |
+|---|---|---|
+| Compile check | 91.2s | 42.3s (`recompile`) |
+| EditMode tests | 49.9s | **1.4–1.7s** |
+| Atlas smoke (18 PNGs) | full editor launch | **2.2–3.1s** |
+
+Determinism proven properly: the sorted `(test name, status)` set across three
+warm runs is **identical to each other and to batchmode's `test-results.xml`**.
+Three `menu` fires each produced 18/18 PNGs, editor surviving.
+
+**Batchmode remains the canonical merge gate** until this pre-1.0 tooling settles
+— the warm path is the *working* path during a slice. Wiring the gates is
+deliberately the NEXT slice, not this one.
+
+**⚠ Five non-negotiables for anyone wiring this up:**
+1. Launch the editor with **`-automated`** or modal popups break the run.
+2. **Flag-style args** (`--path X`). The `key=value` form is **silently ignored
+   while reporting `success:true`** — the nastiest trap found.
+3. Always pass **`--project-path`**; auto-detect fails with a misleading
+   "no reachable Pipeline servers".
+4. **Poll for artifacts to confirm completion, never trust the exit code** —
+   `menu` ignores `--timeout`, hard-caps at 30s, and reports a false failure
+   while the editor finishes fine.
+5. Never cache the server port; it drifts across domain reloads.
+Also: `unity open` does not work detached — launch `Unity.exe` directly.
+
+## What shipped
+
+**`unity/Assets/Editor/AtlasGrid.cs`** — the eyeball gate widened from one seed
+to a grid. Loops artifacts through `SimHost.ArtifactPath` → `LoadArtifact()`,
+shoots chosen lenses per seed, writes PNGs + a **self-contained
+`atlas-grid/index.html` contact sheet** (dark, click-to-lightbox, no external
+refs). Default run: 6 seeds × 6 lenses = **36 PNGs in 35.5s**. Output gitignored
+(`atlas-grid*/`).
+
+**Eyeball ACCEPTED** 2026-07-24 — with the user's ask that the lens set, seed
+count and viewpoint be decided *per investigation*. Hence:
+
+**The spike's most valuable finding — we can register our own CLI commands.**
+`atlas_grid` is now a first-class pipeline command sitting beside the 140
+built-ins:
+
+```powershell
+unity command atlas_grid --seeds 42,9091 --lenses trade,war --zoom 0.5 `
+  --project-path <repo>\unity --format json
+```
+
+Nine optional args (`input output lenses seeds width height zoom pitch anchor`),
+all defaulting to the accepted behavior. This is the difference between "Unity
+automation we script around" and "Unity automation we extend" — any future atlas
+instrument is a ~30-line editor method plus an attribute. Mechanism notes
+(assembly `Unity.Pipeline` must be on the asmdef; **validation must THROW** since
+returning `success:false` still yields a `success:true` envelope; return
+anonymous objects, not typed DTOs — Newtonsoft isn't reachable; `TypeCache`
+discovery needs a `recompile`) are in the ledger and reference doc §6.
+
+**`.claude/skills/driving-the-unity-editor/SKILL.md`** — the operational skill
+(user-requested at the merge gate). Distils the *stable* core: the launch
+incantation, the five silent traps, the four gate commands, how to register a new
+`[CliCommand]`, the batchmode fallback, and the scene-churn/gitignore
+housekeeping. Deliberately does **not** carry the 141-command surface — that
+stays in the reference doc, which the skill points at with a re-verify warning,
+because pre-1.0 command lists rot. A skill (not CLAUDE.md) because Unity work is
+a minority of sessions and skills load only on trigger.
+
+## Follow-ups filed, NOT fixed here
+
+1. **TOP: `AtlasGrid`/`AtlasSmoke` dirty `unity/Assets/Scenes/Atlas.unity` every
+   run** — ~650± lines of pure fileID renumbering from
+   `AtlasViewSceneSetup.SetupScene()` rebuilding the object graph. Semantically
+   identical; hand-reverted repeatedly in this slice. **Pre-existing AtlasSmoke
+   behavior**, but now that captures are cheap and will run often, `SetupScene()`
+   should become idempotent (skip the rebuild when the scene is current).
+2. **Wiring the slice-session Unity gates** to prefer the warm path (CLAUDE.md
+   command lines + worker instructions) — the adopt-path slice.
+3. **`unity mcp`** is a *second*, official MCP surface onto the same editor,
+   parallel to the `unity-mcp` bridge already configured. Untouched per the
+   boundary; decide later which to standardize on.
+4. **`unity shell`** (warm CLI REPL, `--protocol ndjson`) mapped but never
+   exercised — a further latency win for batched calls.
+5. **Version churn is a standing risk** — the reference doc is a dated snapshot.
+
+**NEXT UP:** no forced chain. The natural successors are (a) the scene-churn fix
++ wiring the gates to the warm path, or (b) **the atlas UI design pass**, already
+specced at `docs/superpowers/specs/2026-07-24-ui-design-pass-design.md` (3-tier
+element review), which was always queued to run after Slice UP — and which the
+new `atlas_grid` instrument now makes far easier to evidence across seeds.
+
+---
+
 # Session Handoff — 2026-07-23 (Slice AC MERGED + PUSHED · the atlas catches up to the sim)
 
 **Slice AC — the atlas catch-up — MERGED & PUSHED** to `main` at `701d01f`
