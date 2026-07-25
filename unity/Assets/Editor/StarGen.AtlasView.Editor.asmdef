@@ -12,5 +12,13 @@
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.pipeline",
+            "expression": "",
+            "define": "HAS_UNITY_PIPELINE"
+        }
+    ],
     "noEngineReferences": false
 }

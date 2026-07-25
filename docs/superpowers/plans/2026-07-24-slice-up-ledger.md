@@ -351,10 +351,15 @@ Deterministic on the evidence, and the speed difference is not marginal:
 
 | Gate | Batchmode (editor closed) | Warm editor | Speedup |
 |---|---|---|---|
-| Compile check | 91.2s | 42.3s (`recompile`) | ~2× |
-| EditMode tests | 49.9s | 1.4–1.7s | **~30×** |
-| Atlas smoke (18 PNGs) | full editor launch | 2.2–3.1s | large |
-| Compile + EditMode together | ~141s | ~44s | ~3× |
+| Compile check ⚠ | 91.2s (cold, **full**) | 42.3s (**incremental**, n=1) | not like-for-like |
+| EditMode tests | 49.9s | 1.4–1.7s (3 runs) | **~30×** |
+| Atlas smoke (18 PNGs) | full editor launch | 2.2–3.1s (3 runs) | large |
+
+⚠ **Do not quote the compile row as a gate SLA.** It compares a *cold full*
+batchmode compile against a single *warm incremental* recompile of a one-comment
+change — different work, measured once. The EditMode and smoke rows are the
+solid ones (3 repeats each, and the test rows compared as sorted result *sets*,
+not counts).
 
 Determinism was checked properly, not by counts: the sorted `(test name, status)`
 set across three warm runs is **identical to each other and to batchmode's
@@ -419,3 +424,82 @@ the user PATH, and one gitignored line in `unity/Packages/manifest.json`.
 5. **Version churn is a standing risk.** Re-verify the reference doc's command
    surface before trusting it in a future session; it is a dated snapshot of a
    pre-1.0 tool that moved twice in two days.
+
+---
+
+## Pre-merge gates (all green)
+
+| Gate | Result |
+|---|---|
+| `dotnet test` | **1301/1301** — identical to the AC baseline |
+| Seed-42 golden | **byte-untouched** (branch touches zero files under `src/` or `tests/`) |
+| Determinism | structural — no sim code changed at all |
+| Unity compile (batchmode) | 0 `error CS` |
+| EditMode (batchmode, canonical gate) | **16/16 Passed** |
+| Whole-branch fresh-eyes review (fable) | FIX-THEN-MERGE → fix wave applied → clean |
+
+The branch changes exactly 7 files: `.gitignore`, 3 docs, `AtlasGrid.cs`(+meta),
+and the editor asmdef. Nothing under `src/`, `src/Inspector`, or `tests/`.
+
+## The fix wave (one wave, from the fable whole-branch review)
+
+The reviewer returned **FIX-THEN-MERGE** with 1 Critical, 2 Important, 5 Minor.
+All actioned:
+
+**C1 (Critical) — the editor assembly would not compile on a clean clone.**
+The real defect, and the reviewer earned its keep here. `unity/Packages/
+manifest.json` is **gitignored and untracked**, so a fresh clone (or a worktree
+seeded from an older manifest copy — which is exactly what the AC-era setup
+instructions tell a worker to do) has no `com.unity.pipeline`. `AtlasGrid.cs`
+referenced `Unity.Pipeline.Commands` unconditionally, and that assembly also
+holds **`AtlasSmoke` and `AtlasViewSceneSetup`** — so the whole editor assembly
+would fail to compile, taking out the batchmode compile gate, the smoke capture
+AND the EditMode run. This slice's own verdict keeps batchmode as the canonical
+merge gate, so the change would have broken every future slice's Unity gates.
+
+Fixed with a `versionDefines` entry (`com.unity.pipeline` → `HAS_UNITY_PIPELINE`)
+in the asmdef plus `#if HAS_UNITY_PIPELINE` around the `using` and the
+`[CliCommand]` method only. The grid degrades gracefully to its menu/batchmode
+faces when the package is absent.
+
+**Proven empirically, not by construction** — the review's own residual caveat.
+The editor was closed, the pipeline line removed from the manifest, and a full
+batchmode compile run:
+
+| check | result |
+|---|---|
+| batchmode compile exit / `error CS` | **0 / 0** |
+| `StarGen.AtlasView.Editor.dll` contains `AtlasGrid` | **True** (tool still builds) |
+| …contains `Unity.Pipeline` | **False** |
+| …contains `CliCommand` | **False** |
+| …contains `RunFromPipeline` | **False** |
+
+The define was correctly off, the pipeline face compiled out, the rest of the
+assembly built clean. Manifest restored afterwards; EditMode re-run 16/16.
+
+**I1** — batchmode `RunFromCli` exited 0 even when every seed failed to load
+(AtlasSmoke exits 1). Now exits `failures.Count == 0 ? 0 : 1`, sheet still
+written first.
+
+**I2** — the missing-input-dir / no-artifacts cases *returned* a soft
+`{success:false}`, which the CLI wraps in a `success:true` envelope with exit 0 —
+i.e. the slice was committing its own worst-named footgun. Both now **throw**,
+matching the doctrine; `unity command atlas_grid --input runs/bogus-dir` returns
+400 / exit 6 with a clear message.
+
+**M1** — `Validate` now bounds-checks `AnchorPort >= 0` (previously a direct
+`Run(...)` with a negative index threw mid-run, *after* PNGs were written).
+**M5** — duplicate lenses rejected (`--lenses trade,trade` was shooting the same
+PNG twice and inflating `pngCount`). Lens judging consolidated into `Validate` so
+a hand-built options object faces the same rules as the CLI.
+**M3** — the `.gitignore` comment overstated the glob; reworded.
+**M4** — the verdict's compile-speed row was not like-for-like and was n=1; now
+explicitly flagged as not-an-SLA (see the table above).
+
+**What the reviewer explicitly cleared** (verified against source, not the
+ledger's description of it): HTML escaping — every interpolated value routes
+through `Esc`, no injection path; per-seed/per-lens state restoration is
+symmetric, no bleed; capture resources (`RenderTexture`/`Texture2D`/
+`RenderTexture.active`/`cam.targetTexture`) all released and restored;
+`EnsureMaterial`/`SetAndStyle` coverage matches AtlasSmoke's 17 layers exactly;
+failure rows render a visible LOAD FAILED cell and never abort the grid.

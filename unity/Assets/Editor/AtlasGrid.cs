@@ -3,7 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using StarGen.AtlasView;
+// unity/Packages/manifest.json is gitignored, so a clean checkout can
+// legitimately have no com.unity.pipeline. This assembly also carries
+// AtlasSmoke, the scene setup and the EditMode tests — every Unity gate —
+// so it has to compile without the package: only the pipeline face
+// disappears, the menu and batchmode faces stay. The symbol comes from
+// versionDefines in StarGen.AtlasView.Editor.asmdef.
+#if HAS_UNITY_PIPELINE
 using Unity.Pipeline.Commands;
+#endif
 using UnityEditor;
 using UnityEngine;
 // `using System` makes a bare Object ambiguous; AtlasSmoke never needed it.
@@ -81,10 +89,29 @@ namespace StarGen.AtlasView.EditorTools
         }
 
         [MenuItem("StarGen/Atlas Grid")]
-        public static void RunFromMenu() => Run(new AtlasGridOptions(), exitOnFailure: false);
+        public static void RunFromMenu() => RunGuarded(new AtlasGridOptions(), exitOnFailure: false);
 
-        public static void RunFromCli() => Run(new AtlasGridOptions(), exitOnFailure: true);
+        public static void RunFromCli() => RunGuarded(new AtlasGridOptions(), exitOnFailure: true);
 
+        /// <summary>The menu/batchmode face of Run. Those two callers have no
+        /// envelope to carry an exception, so a caller error becomes a logged
+        /// message plus exit 1. The pipeline face deliberately does NOT catch:
+        /// there, a thrown exception is the only thing that turns the CLI
+        /// envelope red.</summary>
+        private static void RunGuarded(AtlasGridOptions options, bool exitOnFailure)
+        {
+            try
+            {
+                Run(options, exitOnFailure);
+            }
+            catch (ArgumentException e)
+            {
+                Debug.LogError(e.Message);
+                if (exitOnFailure) EditorApplication.Exit(1);
+            }
+        }
+
+#if HAS_UNITY_PIPELINE
         /// <summary>The pipeline face. Everything is optional and defaults to the
         /// menu item's sheet, so `unity command atlas_grid` with no flags is the
         /// full grid. Args are FLAG-style (`--lenses trade,war`); a key=value form
@@ -128,6 +155,7 @@ namespace StarGen.AtlasView.EditorTools
             // can trust (`menu` proves logs and exit codes both lie).
             return Run(options, exitOnFailure: false);
         }
+#endif
 
         /// <summary>Shoots the grid and returns the run's report. Throws
         /// ArgumentException on anything the caller got wrong — always before the
@@ -138,8 +166,11 @@ namespace StarGen.AtlasView.EditorTools
             Validate(options);
 
             string inputDir = RepoPath(options.InputDir);
+            // Throw, don't return {success:false}: a returned failure still
+            // leaves the CLI envelope success:true / exit 0, so a typo'd
+            // --input would report a clean run that shot nothing.
             if (!Directory.Exists(inputDir))
-                return Fail(exitOnFailure, $"AtlasGrid: no artifact directory at {inputDir} "
+                throw new ArgumentException($"AtlasGrid: no artifact directory at {inputDir} "
                     + "— generate one with the Inspector REPL (`epoch <seed> 40 21` + `esave`).");
 
             var found = Directory.GetFiles(inputDir, "*.txt");
@@ -147,7 +178,7 @@ namespace StarGen.AtlasView.EditorTools
             // every machine that regenerates the sheet.
             Array.Sort(found, StringComparer.Ordinal);
             if (found.Length == 0)
-                return Fail(exitOnFailure, $"AtlasGrid: {inputDir} holds no *.txt artifacts.");
+                throw new ArgumentException($"AtlasGrid: {inputDir} holds no *.txt artifacts.");
 
             var artifacts = SelectSeeds(found, options.Seeds);
 
@@ -348,7 +379,10 @@ namespace StarGen.AtlasView.EditorTools
             Debug.Log($"AtlasGrid: contact sheet at {indexPath} — "
                 + $"{rows.Count} seeds x {options.Lenses.Length} lenses");
 
-            if (exitOnFailure) EditorApplication.Exit(0);
+            // The sheet is written either way — a partial sheet names which
+            // world died, which is the finding. Only the exit code changes, so
+            // batchmode doesn't call a page of LOAD FAILED cells a green run.
+            if (exitOnFailure) EditorApplication.Exit(failures.Count == 0 ? 0 : 1);
 
             var shot = new List<string>();
             foreach (var r in rows) if (r.Error == null) shot.Add(r.Label);
@@ -386,18 +420,10 @@ namespace StarGen.AtlasView.EditorTools
             return kept.Count == 0 ? null : kept.ToArray();
         }
 
-        private static string[] ParseLenses(string csv)
-        {
-            var names = SplitList(csv);
-            if (names == null) return AllLenses;
-            foreach (var n in names)
-                if (Array.IndexOf(AllLenses, n) < 0)
-                    // Silently dropping an unknown lens would ship a sheet that
-                    // is missing exactly the column the investigation wanted.
-                    throw new ArgumentException($"AtlasGrid: unknown lens '{n}'. "
-                        + $"Valid lenses: {string.Join(", ", AllLenses)}.");
-            return names;
-        }
+        /// <summary>Splits the lens flag; blank means all six. Pure parsing —
+        /// Validate() judges the names, so a hand-built AtlasGridOptions faces
+        /// exactly the same rules as the CLI.</summary>
+        private static string[] ParseLenses(string csv) => SplitList(csv) ?? AllLenses;
 
         private static void ParseAnchor(string anchor, AtlasGridOptions options)
         {
@@ -427,15 +453,30 @@ namespace StarGen.AtlasView.EditorTools
             if (o.Lenses == null || o.Lenses.Length == 0)
                 throw new ArgumentException("AtlasGrid: no lenses selected. "
                     + $"Valid lenses: {string.Join(", ", AllLenses)}.");
-            foreach (var n in o.Lenses)
+            for (int i = 0; i < o.Lenses.Length; i++)
+            {
+                string n = o.Lenses[i];
                 if (Array.IndexOf(AllLenses, n) < 0)
+                    // Silently dropping an unknown lens would ship a sheet that
+                    // is missing exactly the column the investigation wanted.
                     throw new ArgumentException($"AtlasGrid: unknown lens '{n}'. "
                         + $"Valid lenses: {string.Join(", ", AllLenses)}.");
+                if (Array.IndexOf(o.Lenses, n) < i)
+                    // A repeat shoots the same PNG twice and columns it twice —
+                    // always a typo, never an investigation.
+                    throw new ArgumentException($"AtlasGrid: lens '{n}' listed twice. "
+                        + "Each lens is one column; name it once.");
+            }
             if (o.Width <= 0 || o.Height <= 0)
                 throw new ArgumentException(
                     $"AtlasGrid: width and height must be positive (got {o.Width}x{o.Height}).");
             if (o.Zoom <= 0f)
                 throw new ArgumentException($"AtlasGrid: zoom must be positive (got {o.Zoom}).");
+            if (o.Anchor == AtlasAnchor.Port && o.AnchorPort < 0)
+                // ParseAnchor guards the CLI; a hand-built options object
+                // otherwise indexes ports[-1] AFTER the first PNG is written.
+                throw new ArgumentException(
+                    $"AtlasGrid: anchor port index must be >= 0 (got {o.AnchorPort}).");
         }
 
         /// <summary>Filter artifacts by label. `seed-42` and a bare `42` both hit
@@ -502,13 +543,6 @@ namespace StarGen.AtlasView.EditorTools
                     foreach (var p in ports) sum += AtlasGeometry.HexToWorld(p.Hex);
                     return sum / ports.Count;
             }
-        }
-
-        private static object Fail(bool exitOnFailure, string message)
-        {
-            Debug.LogError(message);
-            if (exitOnFailure) EditorApplication.Exit(1);
-            return new { success = false, message };
         }
 
         private static string RepoPath(string relative) => Path.GetFullPath(
