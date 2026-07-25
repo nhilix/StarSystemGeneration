@@ -32,9 +32,9 @@ merge gate for all slices unless UP6's verdict says otherwise.
 
 | # | Task | Gate | Status |
 |---|---|---|---|
-| UP1 | Install & pin the CLI (Windows route) | `unity editors -i --format json` finds 6000.5.2f1 | ☐ |
+| UP1 | Install & pin the CLI (Windows route) | `unity editors -i --format json` finds 6000.5.2f1 | ✅ |
 | UP2 | Map the command surface → committed reference doc | reference doc committed | ☐ |
-| UP3 | `unity auth login` + `unity pipeline install`; append pipeline command inventory | `unity pipeline list` shows Installed | ☐ |
+| UP3 | `unity auth login` + `unity pipeline install`; append pipeline command inventory | `unity pipeline list` shows Installed | ◐ |
 | UP4 | Prove warm-editor gates (`run_tests` ×3 vs batchmode baseline, `recompile`, `menu`) | deterministic across repeats (flakiness documented = finding) | ☐ |
 | UP5 | Eyeball grid prototype (multi-seed atlas contact sheet) | user opens one HTML file, sees every seed | ☐ |
 | UP6 | Verdict + wrap (HANDOFF, fable review, merge, push) | three-checkpoint protocol | ☐ |
@@ -52,3 +52,87 @@ merge gate for all slices unless UP6's verdict says otherwise.
 Branch cut from main `9d51673` (clean). Scope nodded. Two known user-in-the-loop
 pauses flagged at the nod: `unity auth login` (UP3, interactive browser) and
 launching the editor for UP4's warm-editor gates.
+
+### UP1 — CLI installed & pinned ✅
+
+**Pinned version: `unity` CLI `1.0.0-beta.3`.** Note the version-scheme jump:
+the 2026-07-22 research recorded **0.1.0-beta.7**, and the docs release-notes
+page still tops out there (June 16 2026). The CDN beta channel now serves a
+**1.0.0** beta line. *Two days of drift.* Confirms the kickoff's "trust `--help`,
+pin everything" rule harder than expected.
+
+**Channel: `beta` is the ONLY channel.** `latest.json` (stable) and
+`latest-alpha.json` both return **404** on the CDN. There is no stable channel
+to pin to.
+
+**The Windows install route — the docs bug is real and confirmed.**
+`https://docs.unity.com/en-us/unity-cli/use-unity-cli` shows, under a heading
+literally titled **"Windows (PowerShell)"**, a *bash* one-liner:
+
+```
+curl -fsSL https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh | UNITY_CLI_CHANNEL=beta bash
+```
+
+which cannot work in PowerShell. The working route is the PowerShell script the
+release notes reference:
+
+```powershell
+$env:UNITY_CLI_CHANNEL='beta'; irm https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.ps1 | iex
+```
+
+**What we actually did** (reproducible, and better than the one-liner): downloaded
+`install.ps1`, read it, then ran the local copy with an explicit version pin —
+
+```powershell
+.\install.ps1 -Target "1.0.0-beta.3" -Channel beta
+```
+
+`install.ps1` behavior, read from source: resolves a per-version manifest at
+`<cdn>/<version>/latest.json`, downloads the binary, **SHA-256 verifies** it
+(`ff9ef81ade1063041d25e2c549cc7ed14e96d446f4204400bf101b389f7b8502` for
+`win32-x64` @ 1.0.0-beta.3), installs to **`%LOCALAPPDATA%\Unity\bin\unity.exe`**,
+appends that dir to the **user** PATH only, broadcasts `WM_SETTINGCHANGE`.
+**No admin rights, no elevation, no cloud call beyond the CDN.**
+
+⚠ **PATH gotcha for any tooling in this repo:** already-open shells do NOT pick up
+the PATH change. Every invocation in this slice prefixes
+`$env:PATH = "$env:LOCALAPPDATA\Unity\bin;$env:PATH"`.
+
+**Gate GREEN** — `unity editors -i --format json` returns 6000.5.2f1 (plus a
+6000.3.10f1), both discovered from the existing Hub install; the CLI did not need
+to install an editor.
+
+### UP3 — pipeline package installed ◐ (editor-compile step pending)
+
+**No login was required — the one permitted account touchpoint went UNSPENT.**
+`unity auth status` reported *already signed in* (`Jason Cohen
+<jaacohn@hotmail.com>`); the CLI inherits the existing Unity Hub session. The
+kickoff and the research both assumed `unity auth login` would be a hard
+requirement with an interactive browser round-trip. It was not. **Zero cloud
+touchpoints consumed by this slice.**
+
+**Pinned package version: `com.unity.pipeline` `0.4.0-exp.1`.** Again ahead of
+research (which recorded 0.3.1-exp.1). `unity pipeline list-versions` offers
+0.4.0-exp.1 (latest), 0.3.1-exp.1, 0.3.0-exp.1, 0.2.0-exp.2.
+
+```powershell
+unity pipeline install --project-path <repo>\unity --package-version 0.4.0-exp.1
+```
+
+**Manifest delta — verbatim, and it is exactly one line.** `unity/Packages/
+manifest.json` is gitignored, so this is the record needed to reproduce the
+install on a fresh checkout/worktree:
+
+```diff
+     "com.unity.modules.xr": "1.0.0"
++    ,"com.unity.pipeline": "0.4.0-exp.1"
+```
+
+i.e. add `"com.unity.pipeline": "0.4.0-exp.1"` as the last entry of
+`dependencies`. Nothing else in the manifest changed; `packages-lock.json` was
+absent before the install. **Equivalent to editing the manifest by hand** — the
+CLI is a convenience, not a requirement, for this step.
+
+Remaining for UP3: open the editor once so the package resolves and compiles,
+then enumerate the registered pipeline commands (`unity command` / `unity list`)
+and append the inventory to the UP2 reference doc.
