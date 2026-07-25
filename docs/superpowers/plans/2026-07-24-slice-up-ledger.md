@@ -133,6 +133,96 @@ i.e. add `"com.unity.pipeline": "0.4.0-exp.1"` as the last entry of
 absent before the install. **Equivalent to editing the manifest by hand** — the
 CLI is a convenience, not a requirement, for this step.
 
-Remaining for UP3: open the editor once so the package resolves and compiles,
-then enumerate the registered pipeline commands (`unity command` / `unity list`)
-and append the inventory to the UP2 reference doc.
+**Package resolved + compiled** via a batchmode pass (91.2s cold, 0 `error CS`);
+`com.unity.pipeline@0.4.0-exp.1` landed in `Library/PackageCache`.
+
+**Gate GREEN** — with the editor open, `unity pipeline list` reports
+`Pipeline=true · Version=0.4.0-exp.1 · Server Reachable=true`, and
+`unity status` shows `state=ready`.
+
+**140 registered commands**, all in the `built-in` group (research estimated
+"100+"). Full inventory captured to the UP2 reference doc §6. All three UP4 gate
+commands present: `run_tests`, `recompile` (+`recompile_status`), `menu`.
+
+### UP4 — warm-editor gates ✅ ALL THREE GREEN, deterministic
+
+**⚠ The editor MUST be launched with `-automated`.** Without it the pipeline
+server logs on startup: *"Editor is not in automated mode. Modal Pop up might
+break continuous command workflow. Start the editor with -automated"*
+(`EditorPipelineServer.cs:32`). The first launch omitted it; the editor was
+relaunched with the flag before any gate ran, so no result below is polluted by
+self-inflicted modal risk. **This flag belongs in any future wiring.**
+
+Launch used (`unity open` did NOT work — see traps):
+```powershell
+Start-Process 'C:\Program Files\Unity\Hub\Editor\6000.5.2f1\Editor\Unity.exe' `
+  -ArgumentList '-projectPath','<repo>\unity','-automated'
+```
+Editor reached `state=ready` ~30s after launch (warm Library).
+
+#### Gate 1 — `run_tests` (EditMode) ×3 vs batchmode baseline
+
+| Path | Result | Wall clock |
+|---|---|---|
+| **Batchmode** `-runTests -testPlatform EditMode` (editor closed) | 16/16 passed | **49.9s** |
+| **Warm** `unity command run_tests --mode editor` run 1 | 16/16 | **1.7s** |
+| Warm run 2 | 16/16 | 1.5s |
+| Warm run 3 | 16/16 | 1.4s |
+
+**~30–38× faster.** And not just matching counts: the sorted
+`(FullName, Status)` set of all 16 results was diffed and is **IDENTICAL** across
+the three warm runs *and* against the batchmode `test-results.xml`. (An earlier
+triple — 1.4/1.2/1.3s — ran before the arg-syntax trap below was found, so it
+silently used the default `mode=all`; it also returned the same 16, because the
+project has no PlayMode tests. Both triples agree.)
+
+Add ~91s for the cold compile pass batchmode needs first, and the honest
+comparison for a full "compile + EditMode" gate is **~141s cold vs ~1.5s warm**.
+
+#### Gate 2 — `recompile` after touching a comment
+
+Appended a comment line to `unity/Assets/Editor/AtlasSmoke.cs`, then
+`unity command recompile` → polled `recompile_status`:
+**`{"status":"completed","failed":false,"errors":[]}` in 42.3s.** Console
+readable, clean result. Probe comment reverted immediately.
+
+#### Gate 3 — `menu`-fire "StarGen/Atlas Smoke Shots" ×3
+
+| Fire | Result | Wall clock |
+|---|---|---|
+| 1 | success, **18/18 PNGs** | 3.1s |
+| 2 | success, 18/18 PNGs | 2.3s |
+| 3 | success, 18/18 PNGs | 2.2s |
+
+Editor survived all three (`unity status` still `ready` afterwards). This
+previously cost a full cold editor launch per capture run.
+
+#### Traps found (the durable half of this task)
+
+1. **`unity command` argument syntax is FLAG-STYLE and undocumented.**
+   `unity command --help` says only "args — Arguments for the command". Probed
+   four forms against `menu`:
+   | Form | Outcome |
+   |---|---|
+   | `unity command menu path=X` | **silently ignored** — `path: null`, listed all 668 items |
+   | `unity command menu -- path=X` | ignored |
+   | `unity command menu '{"path":"X"}'` | ignored |
+   | **`unity command menu --path X`** | ✅ **executes** |
+   The dangerous one is form 1: it **fails silently and successfully**
+   (`success: true`), running the command with defaults. Any script using
+   `key=value` will look like it worked. This is the single biggest footgun found.
+2. **`unity open` does not work when launched detached.** It hung as a live
+   `unity.exe` CLI process (58MB, 0.2s CPU) and never spawned an Editor. Launch
+   `Unity.exe` directly.
+3. **`--project-path` is effectively mandatory** for `unity command`. Auto-detection
+   failed from a non-project CWD with `COMMAND_FAILED: No Unity Editor instances
+   found with reachable Pipeline servers` — a misleading error, since the editor
+   *was* running and reachable.
+4. **The server port drifts across domain reloads** (observed 7800 → 7801 → 7802
+   → 7800). The CLI re-resolves it per invocation, so this is invisible unless a
+   script caches the port — don't.
+5. **`menu` executes eagerly.** Probing arg syntax against
+   `StarGen/Setup Atlas Scene` *ran* it and regenerated
+   `unity/Assets/Scenes/Atlas.unity` (647±647 lines of GUID churn). Reverted;
+   the seed-42 golden was asserted untouched throughout. Use a harmless menu path
+   when probing.
