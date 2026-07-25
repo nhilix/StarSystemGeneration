@@ -33,17 +33,19 @@ merge gate for all slices unless UP6's verdict says otherwise.
 | # | Task | Gate | Status |
 |---|---|---|---|
 | UP1 | Install & pin the CLI (Windows route) | `unity editors -i --format json` finds 6000.5.2f1 | ✅ |
-| UP2 | Map the command surface → committed reference doc | reference doc committed | ☐ |
-| UP3 | `unity auth login` + `unity pipeline install`; append pipeline command inventory | `unity pipeline list` shows Installed | ◐ |
-| UP4 | Prove warm-editor gates (`run_tests` ×3 vs batchmode baseline, `recompile`, `menu`) | deterministic across repeats (flakiness documented = finding) | ☐ |
-| UP5 | Eyeball grid prototype (multi-seed atlas contact sheet) | user opens one HTML file, sees every seed | ◐ awaiting eyeball |
+| UP2 | Map the command surface → committed reference doc | reference doc committed | ✅ |
+| UP3 | `unity auth login` + `unity pipeline install`; append pipeline command inventory | `unity pipeline list` shows Installed | ✅ |
+| UP4 | Prove warm-editor gates (`run_tests` ×3 vs batchmode baseline, `recompile`, `menu`) | deterministic across repeats (flakiness documented = finding) | ✅ |
+| UP5 | Eyeball grid prototype (multi-seed atlas contact sheet) | user opens one HTML file, sees every seed | ✅ eyeball ACCEPTED |
+| UP5b | Parameterize the grid as a pipeline CLI command | filtered runs work, validation fails loudly | ✅ |
 | UP6 | Verdict + wrap (HANDOFF, fable review, merge, push) | three-checkpoint protocol | ☐ |
 
 ## User checkpoints
 
 1. **Scope nod** — ✅ accepted 2026-07-24.
-2. **Eyeball** — the UP5 grid itself.
-3. **Merge decision.**
+2. **Eyeball** — the UP5 grid itself — ✅ **ACCEPTED** 2026-07-24 ("overall this
+   looks really good"), with the flexibility ask that became UP5b.
+3. **Merge decision** — pending.
 
 ## Log
 
@@ -102,7 +104,7 @@ the PATH change. Every invocation in this slice prefixes
 6000.3.10f1), both discovered from the existing Hub install; the CLI did not need
 to install an editor.
 
-### UP3 — pipeline package installed ◐ (editor-compile step pending)
+### UP3 — pipeline package installed ✅
 
 **No login was required — the one permitted account touchpoint went UNSPENT.**
 `unity auth status` reported *already signed in* (`Jason Cohen
@@ -280,3 +282,140 @@ Per-seed vitals captured into the sheet (all year 1025, 40 epochs):
 
 **Driven end-to-end through the warm-editor `menu` command** — the UP5 gate as
 written. `unity command menu --path 'StarGen/Atlas Grid'`.
+
+**EYEBALL ACCEPTED** (2026-07-24). User verdict: *"overall this looks really
+good."* With the qualification that the individual frame content isn't
+especially useful yet — correct, and expected: the grid is a **capability**, not
+an investigation. Which produced UP5b.
+
+### UP5b — the grid becomes a parameterized instrument ✅
+
+**The user's feedback at the eyeball defined this task:** *"The set of lenses we
+will want to look into, how many seeds, where to get the screen captures from
+etc all should be flexible and can be determined each time we need to do an
+eyeball investigation like this."*
+
+A fixed prototype that must be code-edited per investigation is a demo. The
+answer turned out to be the pipeline package's best feature: **a project can
+register its own CLI commands with typed parameters.**
+
+```powershell
+unity command atlas_grid --seeds 42,9091 --lenses trade,war --zoom 0.5 `
+  --project-path <repo>\unity --format json
+```
+
+Nine optional args, all defaulting to the eyeball-accepted behavior:
+`input · output · lenses · seeds · width · height · zoom · pitch · anchor`.
+`lenses` drives both which shots are taken **and** the contact sheet's column
+order; `anchor` takes `centroid` (default) | `bounds` | `port:<index>`. The HTML
+header records the parameters, so a saved sheet states how it was made. The
+`MenuItem` and `RunFromCli` twins still run the all-defaults grid unchanged.
+
+Verified independently by the slice session, not just by the implementer:
+`atlas_grid` appears in `unity list` beside the 140 built-ins; a 3-seed × 3-lens
+filtered run returned a structured `{success, seeds, lenses, pngCount:9,
+failures:[]}` and wrote exactly those 9 PNGs; `--lenses trade,bogus` failed with
+`400 Parameter Validation Failed … Valid lenses: galaxy, domains, trade, price,
+war, works` and wrote nothing.
+
+**The CliCommand mechanism — what a future session must know** (full detail in
+the reference doc §6):
+- Attributes live in `Unity.Pipeline.Commands`, assembly **`Unity.Pipeline`** —
+  an asmdef-based assembly must list it in `references` explicitly.
+- **Throwing is the failure channel.** `ArgumentException` → HTTP 400,
+  `success:false`, exit 6. Returning `{success:false}` would leave the envelope
+  `success:true` — so validation MUST throw. This is a *trustworthy* failure
+  signal, unlike `menu`'s false timeout.
+- Plain C# parameter defaults surface in `unity list`; no `DefaultValue=` needed.
+- Return an **anonymous object** — it serializes straight into `result`.
+  Newtonsoft reaches a consumer assembly only through `Unity.Pipeline`'s
+  `precompiledReferences` with `overrideReferences: true`, so referencing the
+  assembly does *not* give you Newtonsoft; a typed DTO with `[JsonProperty]`
+  won't compile.
+- Discovery is `TypeCache`-based and cached until domain reload — a new command
+  appears only after `recompile`.
+
+---
+
+## UP6 — VERDICT
+
+### The question the kickoff asked
+
+> Is the warm-editor path deterministic and pleasant enough to (a) wire into
+> slice-session Unity gates as the preferred path with batchmode fallback, and
+> (b) grow the grid into the standard multi-seed taste gate?
+
+### (a) Wire it in as the preferred path — **YES, ADOPT**, with a fallback kept
+
+Deterministic on the evidence, and the speed difference is not marginal:
+
+| Gate | Batchmode (editor closed) | Warm editor | Speedup |
+|---|---|---|---|
+| Compile check | 91.2s | 42.3s (`recompile`) | ~2× |
+| EditMode tests | 49.9s | 1.4–1.7s | **~30×** |
+| Atlas smoke (18 PNGs) | full editor launch | 2.2–3.1s | large |
+| Compile + EditMode together | ~141s | ~44s | ~3× |
+
+Determinism was checked properly, not by counts: the sorted `(test name, status)`
+set across three warm runs is **identical to each other and to batchmode's
+`test-results.xml`**. Three `menu` fires each produced 18/18 PNGs with the editor
+surviving.
+
+**Keep batchmode as the fallback, and keep it as the pre-merge gate for now.**
+Everything here is pre-1.0 and moved *twice in two days* (CLI 0.1.0-beta.7 →
+1.0.0-beta.3; package 0.3.1-exp.1 → 0.4.0-exp.1). The warm path should be the
+*working* path during a slice, with batchmode retained for the merge gate until
+the tooling stabilizes past 1.0.
+
+**Non-negotiables for any wiring** (all learned the hard way here):
+1. Launch the editor with **`-automated`**, or modal popups will break the run.
+2. Use **flag-style args** (`--path X`). `key=value` is silently ignored *while
+   reporting `success:true`* — the worst failure mode found in this spike.
+3. Always pass **`--project-path`**; auto-detection fails with a misleading
+   "no reachable Pipeline servers" error.
+4. **Confirm completion by polling for artifacts**, never by the CLI's exit code
+   — `menu` ignores `--timeout`, hard-caps at 30s, and reports a false failure
+   while the editor finishes fine.
+5. Never cache the server port; it drifts across domain reloads.
+
+### (b) Grow the grid into the standard multi-seed taste gate — **YES**
+
+UP5b already took it past prototype: it is a parameterized instrument, callable
+per investigation without touching code. The eyeball gate can now be "here are
+N seeds × M lenses of the thing you just changed" instead of "here is seed 42."
+
+### The finding that most changes what's possible
+
+**Not the speed — the fact that we can register our own commands.** `atlas_grid`
+proves a project-defined, typed, self-documenting command can be driven from the
+CLI against a warm editor. That is the difference between "Unity automation we
+script around" and "Unity automation we extend." Any future atlas instrument
+(diffing two artifacts, sweeping a knob visually, capturing a specific port's
+domain across seeds) is now a ~30-line editor method plus an attribute.
+
+### Cost, honestly
+
+**Zero cloud touchpoints.** The one permitted `unity auth login` went unspent —
+the CLI inherits the existing Hub session. Nothing was enrolled, linked, or
+signed up for. The only machine-level change is `%LOCALAPPDATA%\Unity\bin` on
+the user PATH, and one gitignored line in `unity/Packages/manifest.json`.
+
+### Filed as follow-ups — NOT fixed in this slice
+
+1. **`AtlasGrid`/`AtlasSmoke` dirty `unity/Assets/Scenes/Atlas.unity` on every
+   run** (~650± lines of pure fileID renumbering from
+   `AtlasViewSceneSetup.SetupScene()` rebuilding the object graph). Semantically
+   identical, reverted by hand each time in this slice. Pre-existing AtlasSmoke
+   behavior, not introduced here — but now that captures are cheap and will run
+   *often*, it should be made idempotent (skip the rebuild when the scene is
+   already current). **This is the top follow-up.**
+2. **Wiring the gates** (CLAUDE.md command lines, worker instructions) is
+   deliberately out of scope per the kickoff — it's the adopt-path slice.
+3. **`unity mcp`** is a second, official MCP surface onto the same editor,
+   parallel to the `unity-mcp` bridge already configured. Untouched here per the
+   boundary. Worth a deliberate decision later about which to standardize on.
+4. **`unity shell`** (a warm CLI REPL process, `--protocol ndjson`) was mapped
+   but never exercised — a possible further latency win for batched calls.
+5. **Version churn is a standing risk.** Re-verify the reference doc's command
+   surface before trusting it in a future session; it is a dated snapshot of a
+   pre-1.0 tool that moved twice in two days.

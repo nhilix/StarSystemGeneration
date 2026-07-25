@@ -266,12 +266,335 @@ So of the five specifically flagged for verification, three (`eval`,
 
 ## 6. Pipeline package command inventory (UP3)
 
-*(Placeholder — to be filled in by the Slice UP session's UP3 task. This section
-should inventory the actual commands the Unity Pipeline package registers on a
-warm editor instance — i.e., what `unity list` / `unity command` (no args) show
-once the package from §3's `pipeline install` is present in `unity/` — and how
-those map onto our existing `AtlasSmoke.RunFromCli` / `AtlasViewSceneSetup.RunFromCli`
-menu items.)*
+**Package**: `com.unity.pipeline` **0.4.0-exp.1** (pinned in `unity/Packages/manifest.json`).
+**Method**: `unity list --project-path unity --format json` (cross-checked against
+the plain-text `unity list` table) against the warm editor already running this
+project — never `--help` text, since these are runtime-registered Editor
+commands, not CLI subcommands.
+**Count**: **141** commands total — 140 shipped by the package itself plus one
+this slice registered (`atlas_grid`, §6's own worked example, see below). Every
+single entry, ours included, reports **`group: built-in`** — the package's
+`list` output doesn't distinguish package-native from project-registered
+commands by group; only knowing the source tells them apart.
+
+The 141 fall into thirteen functional buckets. Columns: parameter **names**
+only (see the Appendix-adjacent raw JSON capture for types/defaults/required
+flags, not reproduced here to keep this scannable); one-line purpose.
+
+### 6.1 Tests, compilation & scripting (12)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `run_tests` | mode, filter, filter_type, include_explicit, async_tests, timeout | Execute EditMode/PlayMode tests with filtering — our 16-test gate runs through this. |
+| `test_status` | — | Poll status of an async `run_tests` call. |
+| `cancel_tests` | — | Cancel a running test execution. |
+| `list_tests` | mode | List available tests without running them. |
+| `recompile` | focus | Force a script recompile (works while unfocused/minimized). |
+| `recompile_status` | — | Poll status of the last recompile: idle / triggered / compiling / completed / up_to_date. |
+| `reload_file` | filename, timeout, assemblyDir, pdb | Compile and apply in-place `[HotReload]` edits from a source file. |
+| `reload_file_override` | filename, timeout, assemblyDir | Compile and apply hot-reload file changes immediately (override variant). |
+| `eval` | code, timeout | Evaluate C# code dynamically via the Roslyn compiler. |
+| `eval_file` | file, timeout | Evaluate C# code read from a `.cs` file on disk. |
+| `create_script` | name, path, namespace, base_class, overwrite | Create a new C# script from a template; the type doesn't exist until the next recompile. |
+| `attach_script` | target, type, script | Add a MonoBehaviour by compiled type name or script asset path; retry after `recompile` if not yet compiled. |
+
+### 6.2 Editor lifecycle & menus (7)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `menu` | path | Execute an Editor menu item by path, or list every available item when no path is given. |
+| `editor_play` | — | Enter Play mode. |
+| `editor_pause` | — | Pause Play mode. |
+| `editor_stop` | — | Exit Play mode. |
+| `editor_focus` | — | Bring the Editor window to the foreground. |
+| `editor_status` | — | Detailed Editor status/state snapshot. |
+| `set_autotick` | enable, interval_ms | Keep the editor ticking while unfocused (forces `EditorApplication.SignalTick` at a throttled rate). |
+
+### 6.3 Scenes & hierarchy (7)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `create_scene` | path, additive, template | Create a new scene, saved under the authoring root. |
+| `open_scene` | path, additive | Open an existing scene. |
+| `save_scene` | path | Save an open scene (active scene if no path given). |
+| `save_all` | — | Save every open scene with unsaved changes. |
+| `list_open_scenes` | — | List open scenes with load/active/dirty state. |
+| `set_active_scene` | path | Set which open scene new objects get created in. |
+| `get_scene_hierarchy` | path | Return an open scene's GameObject tree (instanceId + hierarchyPath per node). |
+
+### 6.4 GameObjects & components (20)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `create_gameobject` | name, primitive, parent | Create an empty GameObject or a built-in primitive. |
+| `create_gameobjects` | name, primitive, parent, count, positions, rotations, scales | Batch-create N GameObjects/primitives in one call. |
+| `delete_gameobject` | target | Delete a GameObject (Undo-reversible). |
+| `rename_gameobject` | target, name | Rename a GameObject. |
+| `find_gameobjects` | name, tag, type, hierarchy_path, include_inactive | Find GameObjects by name/tag/component type/hierarchy path (filters combine). |
+| `set_active` | target, active | Set a GameObject's `activeSelf`. |
+| `set_parent` | target, parent, world_position_stays | Reparent under a new parent, or detach to scene root. |
+| `set_transform` | target, position, rotation, scale | Set local position/rotation/scale; omitted channels are left unchanged. |
+| `set_tag` | target, tag | Set a GameObject's tag (must already exist in the project). |
+| `set_layer` | target, layer | Set a GameObject's layer by name or index (0-31). |
+| `get_tags_layers` | — | Read the project's tags and named layers. |
+| `set_tags_layers` | settings, confirm, dry_run | Add/remove tags, assign layer names (index 8-31). |
+| `add_component` | target, type | Add a component by type name. |
+| `remove_component` | target, type | Remove a component (by component handle, or GameObject handle + type). |
+| `get_component_properties` | target, type | Get a component's serialized properties as a JSON map. |
+| `set_component_properties` | target, properties, type | Set serialized properties on a component (one Undo step). |
+| `get_serialized_fields` | target, field, component | Read serialized fields of a component/asset (object refs come back as reusable handles). |
+| `set_serialized_field` | target, field, value, component | Set a serialized field, incl. array elements via `name.Array.data[i]`. |
+| `get_selection` | — | Read the current Editor selection. |
+| `set_selection` | instance_ids, paths | Set the Editor selection to given assets/scene objects. |
+
+### 6.5 Prefabs (7)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `instantiate_prefab` | prefab, scene_path, name | Instantiate a prefab asset into a loaded scene. |
+| `create_prefab` | source, path | Save a GameObject as a prefab asset; the source becomes a connected instance. |
+| `create_prefab_variant` | base, path | Create a prefab variant that inherits from a base prefab. |
+| `apply_prefab_overrides` | instance | Apply an instance's overrides back to its source prefab asset. |
+| `revert_prefab_overrides` | instance | Revert an instance's overrides so it matches its source prefab. |
+| `unpack_prefab` | instance, completely | Unpack a prefab instance into plain GameObjects (outermost level or completely). |
+| `save_prefab_contents` | prefab, rename_child, new_name, set_active_child, active | Edit a prefab in an isolated prefab stage and save back (nested-prefab safe). |
+
+### 6.6 Assets & import (15)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `create_asset` | path, type, shader, confirm, dry_run | Create a ScriptableObject (or other UnityEngine.Object) asset. |
+| `delete_asset` | asset, confirm, dry_run | Delete an asset. Destructive. |
+| `copy_asset` | asset, destination, confirm, dry_run | Copy an asset to a new path (fresh GUID). |
+| `move_asset` | asset, destination, dry_run | Move (or rename via a new path) an asset. Preserves GUID. |
+| `rename_asset` | asset, new_name, dry_run | Rename an asset in place (same folder, same GUID). |
+| `import_asset` | source, path, confirm, dry_run | Import an external file into the project under the authoring root. |
+| `find_assets` | type, name, label, search_in, limit | Find assets by type and/or name and/or label. |
+| `get_import_settings` | asset, platform | Read an asset's import settings, structured by importer type. |
+| `set_import_settings` | asset, settings, platform, dry_run | Set import settings on an asset and re-import it. |
+| `create_folder` | path | Create a folder under the authoring root (creates intermediates). |
+| `read_text_file` | path, max_bytes | Read a UTF-8 text file under the authoring root. |
+| `write_text_file` | path, contents, confirm, dry_run | Write UTF-8 text to a file then import it; overwrite requires confirm. |
+| `set_authoring_root` | root | Set the base folder bare authoring paths resolve/confine to. |
+| `get_authoring_root` | — | Get the current authoring root. |
+| `search` | query, limit | Run a Unity Search query (`t:Material`, `p: my asset`, `h: Main Camera`, ...). |
+
+### 6.7 Build & platform (10)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `build` | target, outputPath, profileName, options, scenes, confirm, dry_run | Trigger an async Player build; poll `build_status`. Destructive/long-running. |
+| `build_status` | — | Status of the current/most recent build, with the full BuildReport once completed. |
+| `switch_build_target` | target, confirm | Switch the active build target — full reimport + domain reload; poll `switch_build_target_status`. |
+| `switch_build_target_status` | — | Status of the last target switch. |
+| `list_build_targets` | — | List known BuildTarget values, their group, and whether support is installed. |
+| `list_build_profiles` | — | List Build Profile assets (Unity 6 only). |
+| `get_build_settings` | — | Read the current build configuration. |
+| `set_build_settings` | settings, confirm, dry_run | Set mutable build settings fields (not the scene list, not the target). |
+| `add_scene_to_build` | path, enabled | Add a scene to the Build Settings scene list (idempotent). |
+| `remove_scene_from_build` | path | Remove a scene from the Build Settings scene list (idempotent). |
+
+### 6.8 Packages (6)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `package_add` | identifier, confirm, dry_run, wait | Add a UPM package by name@version / git URL / `file:` path; async, poll `package_status`. |
+| `package_remove` | name, confirm, dry_run, wait | Remove a UPM package; async, poll `package_status`. |
+| `package_resolve` | — | Resolve/refresh packages from the manifest; may trigger a recompile. |
+| `package_status` | — | Status of the last async package op (add/remove/resolve). |
+| `package_list` | scope, include_indirect, offline | List packages: installed (default) / available (registry) / all. |
+| `package_search` | query, offline | Search packages available in the registry. |
+
+### 6.9 Rendering, lighting & baking (23)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `get_material_properties` | material | Read a material's shader, render queue, keywords, and property values. |
+| `set_material_properties` | material, shader, properties, renderQueue, enableKeywords, disableKeywords, confirm, dry_run | Set shader properties/queue/keywords on a material, optionally reassign the shader. |
+| `get_shader_properties` | shader, material | Introspect a shader's declared property list (by shader name or off a material). |
+| `list_shaders` | filter, includeBuiltin, limit | Discover available shaders (for picking a valid name). |
+| `get_lighting_settings` | — | Read active LightingSettings (lightmapper, bounces, resolution, AO, ...). |
+| `set_lighting_settings` | settings, dry_run | Apply a subset of lighting settings. |
+| `bake_lighting` | confirm, dry_run | Async lightmap bake via `Lightmapping.BakeAsync()`; poll `lighting_bake_status`. |
+| `lighting_bake_status` | — | Status of the last lighting bake. |
+| `cancel_lighting_bake` | — | Cancel an in-progress lighting bake. |
+| `clear_baked_lighting` | confirm, include_disk_cache, dry_run | Clear baked lightmap data. Destructive. |
+| `bake_occlusion_culling` | smallest_occluder, smallest_hole, backface_threshold, confirm, dry_run | Async occlusion-culling bake; poll `occlusion_bake_status`. |
+| `occlusion_bake_status` | — | Status of the last occlusion bake. |
+| `cancel_occlusion_bake` | — | Cancel an in-progress occlusion bake. |
+| `clear_occlusion_culling` | confirm, dry_run | Clear baked occlusion-culling data. Destructive. |
+| `bake_navmesh` | confirm, dry_run | Async legacy NavMesh bake; poll `navmesh_bake_status`. |
+| `navmesh_bake_status` | — | Status of the last NavMesh bake. |
+| `cancel_navmesh_bake` | — | Cancel an in-progress NavMesh bake. |
+| `clear_navmesh` | confirm, dry_run | Clear the baked NavMesh. Destructive. |
+| `bake_navmesh_surfaces` | — | Bake NavMeshSurface components (AI Navigation package); v1 stub — `package_not_found` if the package is absent. |
+| `get_navmesh_settings` | — | Read the default agent's legacy NavMesh bake settings. |
+| `set_navmesh_settings` | settings, dry_run | Apply a subset of legacy NavMesh bake settings. |
+| `get_graphics_settings` | — | Read GraphicsSettings (default render pipeline). |
+| `set_graphics_settings` | settings, confirm, dry_run | Set the default render pipeline asset. |
+
+### 6.10 Capture / screenshots (3)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `capture_scene_view` | width, height, save_path, include_inline_image, max_resolution | Render the active Scene View to a PNG (inline base64 or to a file). |
+| `capture_game_view` | width, height, camera, save_path, include_inline_image, max_resolution | Render a camera to a PNG (inline base64 or to a file). |
+| `screenshot` | view, output, width, height | Capture the Scene or Game view as a PNG, returning its file path. |
+
+### 6.11 Animation & timeline (14)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `get_animation_clip` | clip, includeKeys | Read an AnimationClip's metadata and float curve bindings. |
+| `create_animation_clip` | path, frameRate, loop, confirm, dry_run | Create an empty `.anim` AnimationClip. |
+| `set_animation_curve` | clip, path, type, property, keys, dry_run | Add or replace a float curve binding on a clip (overwrites, doesn't duplicate). |
+| `remove_animation_curve` | clip, path, type, property, confirm, dry_run | Remove a float curve binding. Destructive. |
+| `get_animator_controller` | controller | Read an AnimatorController's parameters/layers/states/transitions. |
+| `create_animator_controller` | path, confirm, dry_run | Create a `.controller` asset with a default Base Layer. |
+| `add_animator_layer` | controller, name, weight, blendingMode, dry_run | Add a layer to an AnimatorController. |
+| `add_animator_parameter` | controller, name, type, defaultValue, dry_run | Add a Float / Int / Bool / Trigger parameter. |
+| `add_animator_state` | controller, layer, name, motion, isDefault, position, dry_run | Add a state to a layer, optionally as its default. |
+| `add_animator_transition` | controller, layer, fromState, toState, conditions, hasExitTime, exitTime, duration, hasFixedDuration, dry_run | Add a transition between states/AnyState/Entry/Exit, with conditions. |
+| `get_timeline` | timeline | Read a TimelineAsset's frame rate, duration, tracks and clips. |
+| `create_timeline` | path, frameRate, confirm, dry_run | Create a `.playable` TimelineAsset. |
+| `add_timeline_track` | timeline, trackType, name, parentTrack, dry_run | Add a track (Animation/Audio/Activation/Control/Playable/Signal/Marker). |
+| `add_timeline_clip` | timeline, track, start, duration, asset, dry_run | Add a clip to a named track. |
+
+### 6.12 Settings & diagnostics (16)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `get_quality_settings` | — | Read QualitySettings (level, vSync, anti-aliasing). |
+| `set_quality_settings` | settings, confirm, dry_run | Change QualitySettings. |
+| `get_time_settings` | — | Read Time settings (fixedDeltaTime, maximumDeltaTime, timeScale). |
+| `set_time_settings` | settings, confirm, dry_run | Change Time settings. |
+| `get_physics_settings` | — | Read Physics settings (gravity, solver iterations, bounce threshold). |
+| `set_physics_settings` | settings, confirm, dry_run | Change Physics settings. |
+| `get_audio_settings` | — | Read project Audio settings (volume, rolloff scale, doppler factor). |
+| `set_audio_settings` | settings, confirm, dry_run | Change project Audio settings. |
+| `get_input_settings` | — | Read the legacy Input Manager axes. |
+| `set_input_settings` | settings, confirm, dry_run | Tune a legacy Input Manager axis (sensitivity/gravity/dead). |
+| `get_player_settings` | — | Read PlayerSettings (company/product/version, scripting backend, API level). |
+| `set_player_settings` | settings, confirm, dry_run | Change PlayerSettings; scripting backend/API level changes trigger a domain reload. |
+| `get_performance_stats` | — | Read render/memory/frame-timing stats. |
+| `get_console_logs` | severity, limit | Read recently captured Editor console logs (structured). |
+| `clear_console` | — | Clear the captured log buffer and the Editor console. |
+| `console` | tail, level, since | Get captured console output (Editor or Player); supports tail, level filter, follow via cursor. |
+
+### 6.13 Project-registered (ours) (1)
+
+| Command | Parameters | What it does |
+|---|---|---|
+| `atlas_grid` | input, output, lenses, seeds, width, height, zoom, pitch, anchor | Shoot the atlas contact sheet: every artifact x chosen lenses -> PNGs + a self-contained `index.html`. |
+
+13 tables, 12 + 7 + 7 + 20 + 7 + 15 + 10 + 6 + 23 + 3 + 14 + 16 + 1 = **141** — every
+command the package (plus our one addition) registers, none dropped.
+
+### Safety gates
+
+- **`confirm=true` required (29 commands, all destructive or non-undoable)**:
+  `delete_asset`, `import_asset` (only when overwriting), `copy_asset`,
+  `create_asset`, `create_animation_clip`, `create_animator_controller`,
+  `create_timeline`, `remove_animation_curve`, `write_text_file` (only when
+  overwriting), `package_add`, `package_remove`, `build`, `switch_build_target`,
+  `bake_lighting`, `bake_navmesh`, `bake_occlusion_culling`,
+  `clear_baked_lighting`, `clear_navmesh`, `clear_occlusion_culling`,
+  `set_audio_settings`, `set_build_settings`, `set_graphics_settings`,
+  `set_input_settings`, `set_material_properties`, `set_physics_settings`,
+  `set_player_settings`, `set_quality_settings`, `set_tags_layers`,
+  `set_time_settings`.
+- **`dry_run` supported (40 commands)**: the 29 above minus `switch_build_target`
+  (the one confirm-gated command with **no** dry-run preview — it's destructive
+  *and* long-running with no way to rehearse it first), plus 12 more that offer
+  a preview without being confirm-gated: `add_animator_layer`,
+  `add_animator_parameter`, `add_animator_state`, `add_animator_transition`,
+  `add_timeline_clip`, `add_timeline_track`, `move_asset`, `rename_asset`,
+  `set_animation_curve`, `set_import_settings`, `set_lighting_settings`,
+  `set_navmesh_settings`.
+- **Async, poll-with-`*_status` pattern (8 operation families)**: `recompile` →
+  `recompile_status`; `build` → `build_status`; `switch_build_target` →
+  `switch_build_target_status`; `bake_lighting` → `lighting_bake_status` (+
+  `cancel_lighting_bake`); `bake_navmesh` → `navmesh_bake_status` (+
+  `cancel_navmesh_bake`); `bake_occlusion_culling` → `occlusion_bake_status` (+
+  `cancel_occlusion_bake`); `package_add`/`package_remove`/`package_resolve` →
+  `package_status`; `run_tests` → `test_status` (+ `cancel_tests`). Every one of
+  these returns immediately (`in_progress`/`queued`/`triggered`) and expects the
+  caller to poll rather than block — `wait=true` on the two package commands is
+  the only opt-out into blocking behavior seen anywhere in the surface.
+
+### What we'd actually use
+
+Our project is a deterministic C# galaxy sim where Unity is **only** a
+read-only atlas viewer — no gameplay, no builds, no shipped player. Our actual
+gates are: compile check, the 16 EditMode tests, atlas screenshot capture, and
+scene regen. Against the 141-command surface above, that maps to a five-command
+working set:
+
+- `recompile` + `recompile_status` — the compile-check gate.
+- `run_tests` + `test_status` (+ `cancel_tests` if a run hangs) — the EditMode
+  test gate.
+- `menu` — fires `AtlasSmoke.RunFromCli` / `AtlasViewSceneSetup.RunFromCli` by
+  path against the warm editor, exactly as §5 anticipated.
+- `atlas_grid` — our own registered command; the actual atlas screenshot
+  capture gate, superseding ad hoc use of `capture_scene_view`/`screenshot`
+  for that job (though those two remain useful for one-off ad hoc captures).
+- `unity status` / `unity list` (CLI level, §3) — discovery: find the warm
+  instance, confirm `atlas_grid` is registered after a recompile.
+
+The remaining ~136 commands are real surface but not ours: prefabs (7),
+animation/timeline (14), lighting/occlusion/navmesh baking (23),
+build/platform (10), packages (6), most of GameObjects/components (20) and
+Assets/import (15) are all authoring or shipping-product concerns for a
+project that *has* runtime GameObjects, prefabs, and a player build. We have
+none of that — the sim lives entirely in `src/Core`, and the Unity side exists
+solely to render a fixed set of lenses over already-simulated state for a
+human to look at. `screenshot`/`capture_scene_view`/`capture_game_view` are
+close cousins of `atlas_grid` but ad hoc rather than driving our own
+deterministic contact-sheet path.
+
+### Registering our own commands
+
+`atlas_grid` (`unity/Assets/Editor/AtlasGrid.cs`) is the worked proof that a
+project can add to this surface, not just consume it — the most valuable
+finding of UP3.
+
+- **`[Unity.Pipeline.Commands.CliCommand(name, description)]`** on a **static**
+  method registers it. Optional constructor flags: `MainThreadRequired`
+  (default `true` — set `false` only for genuinely thread-safe work) and
+  `RuntimeOnly` (default `false`).
+- **`[Unity.Pipeline.Commands.CliArg(name, description)]`** on each parameter
+  documents it for `unity list`; it exposes `Required` and `DefaultValue`
+  properties, but **plain C# parameter defaults already surface correctly** —
+  `atlas_grid`'s `width = DefaultWidth` shows up as `default` in `unity list`
+  with no `DefaultValue=` set on the attribute. Don't bother setting it twice.
+- **The assembly is `Unity.Pipeline`** (the package's Runtime asmdef). Any
+  asmdef-based assembly that wants to register commands must reference it
+  explicitly — `unity/Assets/Editor/StarGen.AtlasView.Editor.asmdef` now lists
+  `Unity.Pipeline` in `references` alongside `StarGen.AtlasView` and
+  `StarGen.Core`.
+- **Throwing is the failure channel.** An `ArgumentException` (see
+  `AtlasGrid.Validate`) comes back as HTTP 400 "Parameter Validation Failed",
+  `success:false`, CLI exit code 6. Returning an object with a `success:false`
+  field instead would still leave the outer envelope `success:true` —
+  validation failures **must** throw, never return a soft-fail shape.
+- **Return type is unconstrained.** `RunFromPipeline` returns `object`, and an
+  anonymous object serializes straight into the response's `result`. Prefer
+  anonymous objects over hand-rolled DTOs — reaching for `Newtonsoft.Json`
+  won't help: it only becomes visible to a consumer assembly through
+  `Unity.Pipeline`'s own `precompiledReferences` with `overrideReferences:
+  true`, so merely referencing `Unity.Pipeline` does **not** hand you
+  Newtonsoft.
+- **Type coercion** covers `string`/`int`/`float`/`bool` from CLI text
+  arguments (plus arrays, seen in several package-native commands like
+  `create_gameobjects`'s `positions`/`rotations`/`scales`).
+- **Discovery is `TypeCache`-based and cached until a domain reload** — a
+  newly-added `[CliCommand]` only appears in `unity list` after `recompile`
+  completes. This is why `atlas_grid` wasn't in the pre-registration capture
+  taken earlier in this session and had to be re-captured for this section.
+- **Worked example**:
+  ```
+  unity command atlas_grid --seeds 42,9091 --lenses trade,war --project-path <path>
+  ```
 
 ---
 
