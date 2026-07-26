@@ -23,8 +23,10 @@ Branch: `ui-pass-tier0` off main `cbb892d`.
 | 0.6 | Read the evidence (images, not recall) — 22 shots read | — | ✅ |
 | 0.7 | Write `docs/design/ui/inventory.md` | — | ✅ |
 | 0.8 | Fix the group partition (incl. camera & navigation) | — | ✅ proposed: 6 groups |
-| 0.9 | **User checkpoint** — completeness skim + partition nod | **user** | ⬜ |
-| 0.10 | Wrap-up: commit, HANDOFF, push, Trello | — | ⬜ |
+| 0.9 | **User checkpoint** — completeness skim + partition nod | **user** | ✅ **NODDED** 2026-07-25 ("the partition is good") |
+| 0.10 | Wrap-up: commit, HANDOFF, push, Trello | — | ✅ |
+| 0.11 | Chrome capture investigation (user-directed, post-gate) | — | ✅ solved |
+| 0.12 | Slice CS kickoff (user-requested) | — | ✅ |
 
 **Tier 0 does NOT write the Tier 1 kickoff** — the orchestrator authors tier
 kickoffs after each gate (user decision, 2026-07-25). Tier 0 hands back:

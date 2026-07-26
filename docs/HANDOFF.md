@@ -1,3 +1,110 @@
+# Session Handoff — 2026-07-25 (UI design pass · Tier 0 COMPLETE + chrome capture solved)
+
+**Tier 0 of the atlas UI design pass — COMPLETE, gate passed.** Branch
+`ui-pass-tier0` from main `cbb892d`. Inventory **`docs/design/ui/inventory.md`**
+(the pass's first living design doc — a new `docs/design/ui/` tree); pass ledger
+**`docs/superpowers/plans/2026-07-25-ui-pass-ledger.md`** (spans all three
+tiers, not just Tier 0). Spec:
+`docs/superpowers/specs/2026-07-24-ui-design-pass-design.md`.
+
+**Design pass — zero code.** No `src/`, no `tests/`, no `unity/Assets`.
+`dotnet test` untouched. `docs/design/` edits confined to `docs/design/ui/`.
+
+## The partition — NODDED by the user, six groups not five
+
+1. **Camera, navigation & the LOD spine** — *runs first*; every other group's
+   readability questions are answered in bands and fades.
+2. **Map fields & lenses** · 3. **Marks, billboards & the glyph vocabulary**
+4. **Lanes, flows & motion** — split out of the spec's "map fields": strokes are
+   a different encoding problem from rasters, and the only elements carrying
+   time in their form.
+5. **Chrome** · 6. **Panels & selection** — both blocked on Slice CS below.
+
+**SystemStage folds across 1/2/3/6** rather than siloing. Rationale in
+inventory §10. Ordering: 1 before all; 2–4 independent; 6 benefits from
+following 5.
+
+## The headline: chrome capture is SOLVED (user-directed detour)
+
+After the gate the user redirected — the chrome gap blocks the group where most
+of the game's information lives (relations, chronicle, markets, polity
+summaries), so it was worth solving before Tier 1 planning.
+
+**Two problems, not one.** `cam.Render()` cannot see a UI Toolkit *overlay*
+panel — and in EditMode there was nothing to capture anyway, because every
+chrome module builds in `OnEnable` and none is `[ExecuteAlways]`.
+`screenshot --view game` fails too (tested).
+
+**Both fall away in play mode:** `set_autotick` → `editor_play` → assign
+`PanelSettings.targetTexture` → camera render to a second RT →
+alpha-composite. **Proven end-to-end**: map + full chrome + a driven
+Market #3 / Polity / Relations stack in one 1600×1000 frame. Panels are
+**drivable** — `InspectorDock.Show` and `PanelRequest` are public — so any of
+the 27 builders can be shot with real data. Full recipe, measurements and
+cautions: **inventory §11**.
+
+Spiked entirely through **`unity command eval`** (Roslyn) — no files added, no
+assets dirtied. `eval` was unused in this repo before today and is the right
+tool for this class of question. ⚠ `PanelSettings` is a committed asset and
+play-mode asset edits persist: **null `targetTexture` before leaving play
+mode** (verified clean).
+
+## Evidence base (all recipes in the ledger + inventory)
+
+`atlas-grid/` 6 seeds × 6 lenses · **new** `atlas-grid-degen/` 3 deliberate
+degeneracies (young-at-full-extent, young-and-peaceful, tiny-but-mature) ·
+`atlas-smoke*.png` 18 shots. All gitignored — cited by **regeneration recipe**,
+never filename alone.
+
+## Findings worth carrying
+
+- **Tension and tech render identically**, and it is arithmetic: at
+  `_FillIntensity 0.13` their ramp floors `(95,105,130)` and `(120,95,70)`
+  become ≈`(12,14,17)` and ≈`(16,12,9)` over near-black. The ramps have range;
+  the fill intensity throws it away exactly where young/small galaxies live.
+- **Polities past 32 silently collapse into slot 31** and inherit its colour
+  (`DomainFieldLayer.cs:155-158`) — the map lies about ownership, no warning.
+- **Two empty-state regimes.** Panels have specific voiced placeholders
+  throughout; **the map has none** — no lens ever says "no wars". You cannot
+  tell an empty sim from a broken lens.
+- **Chrome token conformance is excellent**: 120 `var(--…)` against one literal,
+  and that literal is `rgba(0,0,0,0)`. But **the map does not participate in the
+  token system at all** — two halves, two colour authorities, no bridge.
+- No yaw binding exists; pan is unclamped; framing fits the disc, not content.
+- The completeness floor named 5 panels; there are **27 builders**.
+
+**⚠ A Tier-0 error, corrected mid-session — worth the lesson.** A draft called
+the radius-12 golden "a near-empty world, 2 domains and ~6 ports", inferred from
+the zoomed smoke shots. Measured directly it has **72 ports, 69 lanes, 15 open
+threads and two live wars**. The sparseness is `AtlasSmoke`'s framing (every
+lens at `extent × 0.30` anchored on port 0) — the suite reads as an empty galaxy
+while photographing a busy one. Sharper finding than the error it replaced, and
+a standing reminder to measure rather than infer from a framed shot.
+
+## Process notes
+
+- **Seven parallel Explore subagents never started and the session locked up.**
+  The sweep was redone **inline** — `unity/Assets/Atlas` is only ~7,900 lines
+  across 38 files. **Default to inline reading for this codebase.**
+- Passing `name:` to the Agent tool spawns a psmux pane per agent with nothing
+  piped into it — bare `PS>` shells that shred the layout. Spawn unnamed.
+
+## NEXT UP — two tracks, both ready
+
+1. **Slice CS — chrome shots** (kickoff written this session, user-requested):
+   `docs/superpowers/plans/2026-07-25-slice-cs-kickoff-prompt.md`. Turns the
+   proven spike into a committed editor tool. **Unblocks Tier 1 groups 5 and 6.**
+   Its one real design problem is named in the kickoff: a synchronous
+   `[CliCommand]` cannot straddle the play-mode domain reload; three options
+   given, capture-plan-file recommended.
+2. **Tier 1 groups 1–4** are map-side, need no new tooling, and can proceed in
+   parallel on the existing grid/smoke evidence.
+
+**Tier 1 kickoffs are the ORCHESTRATOR's to write** (user decision,
+2026-07-25) — Tier 0 deliberately did not write one.
+
+---
+
 # Session Handoff — 2026-07-25 (Slice WG · the warm path becomes how the project works)
 
 **Slice WG — wire the warm gates + kill the scene churn — COMPLETE**, branch
