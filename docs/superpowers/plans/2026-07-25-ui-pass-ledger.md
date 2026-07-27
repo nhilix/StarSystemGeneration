@@ -352,6 +352,204 @@ re-shoot:
   degenerates `SystemStage.ComputeVisibleHexes` (the top frustum corners stop
   intersecting the plane), so at low pitch the stage builds only the near band.
 
+---
+
+### Group 2 — map fields & lenses
+
+Branch `ui-pass-t1g2` off main `b916081`. Kickoff:
+`docs/superpowers/plans/2026-07-27-ui-pass-t1g2-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/map-fields-lenses.md` + a colour/composite mock
+artifact. **Zero atlas code.**
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| 2.1 | Scope nod | user | ✅ nodded 2026-07-27 |
+| 2.2 | Branch `ui-pass-t1g2`; continue this ledger | — | ✅ |
+| 2.3 | Read the field layers + Core lenses inline | — | ✅ |
+| 2.4 | Measure (`counts.cs`, `fold.cs`) and capture (`fields.cs`, `sweep.cs`) | — | ✅ |
+| 2.5 | Read the evidence — images, not recall | — | ✅ |
+| 2.6 | Write `docs/design/ui/map-fields-lenses.md` | — | ✅ |
+| 2.7 | Build the mock artifact | — | ✅ |
+| 2.8 | **User checkpoint** — the four escalated decisions | **user** | ✅ **ACCEPTED** 2026-07-27 ("this all looks good") |
+| 2.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ✅ |
+
+#### 2.4 — the evidence apparatus (reproducible; output gitignored)
+
+Sim artifacts are Tier 0's recipes **G** and **D** (inventory "The evidence
+base") — unchanged, already on disk at `runs/atlas-grid/` and
+`runs/atlas-degen/`; regenerate from there. Everything below ran against
+branch `ui-pass-t1g2` (= main `b916081` atlas code) with a **warm editor** on
+port 7800, through `unity command eval_file` — no files added to `unity/`, no
+assets dirtied. Four harnesses, all in the session scratchpad (disposable; the
+recipes and the numbers below are the record):
+
+| Harness | What it produces |
+|---|---|
+| `counts.cs` | per-artifact census: polity slots, accent ΔE spreads at the shipped fill, spatially-adjacent owner-hue ΔE, price-band histogram, star count |
+| `fold.cs` | rasterizes the shader's own union field twice (32-slot fold vs unlimited) at 512² over the disc and counts the samples whose identity differs |
+| `fields.cs` | 66 shots: accent sweep, the compositing stack added a layer at a time, the fold flagged in magenta, degenerate lenses |
+| `sweep.cs` | 17 shots: nature/price at Realm framing, and a fill×border sweep over three accents — plus the ΔE-vs-fill curve |
+| `export.cs` | seed-42's field as JSON (ports, slots, stars, gas raster) — the mock's data source |
+
+Output: `atlas-grid-fields/` (83 PNG + `index.html`) — matches the
+`atlas-grid*/` gitignore glob, so it stays untracked.
+
+**ΔE is CIE76 over sRGB→Lab**, computed on the *rendered* 8-bit fill
+(`slotColour × _FillIntensity`), which is where the collapse happens — not on
+the ramp endpoints. Census numbers are at the artifact year (y1000); the
+`sweep.cs` numbers are one epoch later (y+25), because the capture path steps
+once before shooting (`AtlasSmoke`/`AtlasGrid` convention). Cite the two
+separately: seed-42 tension spread is ΔE 9.40 at y1000 and 6.68 at y1025.
+
+#### 2.5 — what the measurements said
+
+The argument is in the design doc; the numbers, so a later session need not
+re-measure:
+
+- **The 32-slot cap is crossed on every mature world.** Distinct port-owner
+  polities: 63 · 46 · 45 · 50 · 56 · 56 across the six radius-21 seeds against
+  `MaxSlots = 32`. The code comment claiming "seed-scale galaxies stay well
+  under 32" (`DomainFieldLayer.cs:156`) is false for every seed in the grid.
+- **21.8–39.9% of all drawn territory is misattributed** — rasterized, not
+  inferred: 5,973 of 27,339 covered samples on seed-42, 10,858 of 27,233 on
+  seed-1234. 44–80 of 175–215 ports fold. Territory covers only 8.6–10.5% of
+  the disc, so the fold is ~2–4% of the *frame* but ~1/3 of everything the
+  lens draws.
+- **Tech is dead at any intensity.** Real Astrogation tiers span **2–3** on
+  every mature seed against `TechLens.RampCap = 6`, so the lens renders **two**
+  distinct fills: ΔE **1.56** at the shipped fill 0.13, and still only ΔE
+  **10.24** at fill 1.0. Intensity cannot fix a ramp the data doesn't span.
+- **Tension is rescued by intensity alone.** Spread ΔE 6.68 → 21.41 → 30.23 →
+  38.63 at fills 0.13 / 0.30 / 0.45 / 0.60. Tension-vs-tech mean separation
+  goes 2.74 → 8.18 → 11.52 → 14.43 over the same range: at the shipped fill the
+  two lenses genuinely *are* one image.
+- **Owner hue is collision-resistant, not separated.** Across 50–63 slots the
+  closest pair is ΔE 0.28–0.40 at the rendered fill. Restricted to
+  **spatially adjacent** polities (service circles that overlap), the worst
+  pair is ΔE 4.0–10.1 at full colour, with 0–5 pairs under ΔE 10 and 3–9 under
+  ΔE 20 per seed.
+- **The adjacency graph is sparse, which is what makes an allocated palette
+  work.** Seed-42: 50 polities, **58** adjacent pairs, maximum degree **7**,
+  two-hop neighbourhood **13**. Greedy over adjacency alone needs three colours;
+  greedy with the two-hop set as a soft constraint uses all 16 with zero
+  collisions at either distance. Both numbers computed twice — in the mock and
+  independently offline — and they agree.
+- **The price field's data lands in its loudest bands.** Provisions band
+  histogram over serviced cells, seed-42: famine 86 · glut 63 · par 39 ·
+  cheap 25 · dear 18 · spike 17 · scarce 10. **Famine is the largest band on
+  all six mature seeds** (73–139 cells) and par is 4–15%. Famine draws at
+  alpha 240 hot pink, glut at 190 deep blue; par — the quiet one — is where
+  almost nothing lands.
+- **Price is not a raster, it is a Voronoi.** `PriceLens.RatioAt` returns the
+  *nearest servicing port's* market price, so every hex in one port's service
+  area carries one identical value, quantized to raster cells on the way out.
+  At `f = 0.10` the field is a single flat blue plane across 70% of the frame.
+- **Only 13–17% of cells are serviced** (209–268 of 1615) and 40% are void.
+- **The starfield is 31,000 additive billboards on every radius-21 world**,
+  independent of content: on `epoch 42 2 21` that is 15,483 stars per port.
+- **`LensStack.Composite` — the Core-side "compositing rule the tests pin" —
+  has no caller in the atlas.** Grepped: only its own xUnit test. All real
+  compositing is GPU z-order plus per-material blend mode, stated nowhere.
+- **Draw order is not what the kickoff assumed.** Camera sits at −z
+  (`CameraRig.Apply`: `position = focus − forward × distance` with
+  `rotation = Euler(pitch−90,0,0)`), so **larger +z is farther**. Back to
+  front: nature `+0.10` → domain field `+0.05` → price `+0.02` → **starfield
+  `0.00`** → lattice `−0.02` → crawls/trails/lanes → marks. The starfield draws
+  *over* all three field rasters, additively; the nature field — the best
+  image the atlas makes — is behind everything.
+- **The war legend drifts from the war layer, unguarded.** `LegendQuery`
+  advertises `DomainLens.WarShade` (225,70,60) for a belligerent domain and
+  `AtlasPalette.Floor` (24,26,32) for a peaceful one; `DomainFieldLayer`
+  draws `AtlasPalette.OwnerColor(slot)` and `(58,62,72)`. `LegendDriftTests`
+  checks glyph-key names and non-emptiness only — never colour parity.
+- **Nature reads at Realm, not at Reach.** `sweep-nature-fit-gas.png` is a
+  full nebular spiral; the same layer at `extent × 0.30`
+  (`seed-42-stack-1-nature.png`) is a flat blue-grey wash. This contradicts
+  `camera-nav-lod.md` §2 ("price / nature rasters: off · off · on · on") and
+  is the one amendment this group asks for.
+- **Currency is the owner lens with different hues.** Distinct currencies
+  equals distinct port-owner polities on all nine artifacts (63/63, 46/46,
+  45/45, 50/50, 56/56, 56/56, 2/2, 2/2, 5/5) — zero consolidations, so the
+  lens's whole subject is absent and nothing says so.
+
+#### 2.7 — the mock
+
+**https://claude.ai/code/artifact/1f18c59c-e86f-4445-8d18-c8dfd4a47221** (🎨)
+
+Not a token block: seed-42's **real field** — 214 ports, their service radii,
+the 50 slots' tension heats, tech tiers, currency ids and belligerence, 2,581
+of 30,966 stars and the gas nature raster as a PNG — exported from the warm
+editor (`export.cs`) and re-rendered in the browser, so every "shipped vs
+proposed" pair is the same world under two encodings rather than an
+illustration. Built on the project's Cassette × Ice tokens, single-theme dark
+for the same reason Group 1's simulator is.
+
+The **greedy allocator runs in the page**, and its readout matches an
+independent Python computation over the same export: 50 polities, 58 adjacent
+pairs, busiest domain touching 7 and seeing 13 within two hops → **16 hues used,
+zero collisions at one hop and zero at two**. Adjacency alone finishes in
+**three** colours, which is why the two-hop soft constraint exists.
+
+**Fidelity notes** (the technique, and where it stops being the shader):
+territory unions are per-slot masks with an erosion border — G1's simulator
+technique — so overlaps read as summed light rather than the shader's relation
+shading. The shipped price panel is the real nearest-servicing-port algorithm at
+reduced resolution, which is what reproduces the hex blocks.
+
+**Verification.** Rendering and layout verified in-browser; the allocator
+verified against the offline computation; every canvas configuration verified to
+draw via a compact all-canvases build (published separately, disposable).
+**The interactive controls were not exercised** — this harness cannot deliver
+scroll or click into the artifact's sandboxed iframe. That is the one thing the
+eyeball gate should poke at first.
+
+**Harness lesson worth keeping:** an artifact that does heavy canvas work at
+load reads as a *blank page* — the viewer shows nothing and CDP screenshots time
+out with "the renderer may be frozen". The first build rendered nine canvases
+eagerly and looked broken. Render the visible one on `requestAnimationFrame` and
+the rest behind an `IntersectionObserver`; bbox-sized scratch canvases instead
+of frame-sized masks cut the work by ~50×.
+
+#### 2.8 — the gate
+
+**All four ACCEPTED** as recommended, plus the Group-1 amendment:
+
+- **(a) the accent channel** — fill intensity becomes per-accent (0.30 identity
+  / 0.45 scalar / two-level for war) **and** scalar ramps fit the value's live
+  range. Both, because the two failures are different: tension is starved by the
+  intensity, tech is broken by the ramp.
+- **(b) price** — folded into the territory field as a per-port accent on a
+  single diverging ramp anchored at the galaxy's live median for the good.
+  Price and the domain accents become mutually exclusive; the parity contract
+  moves to "both surfaces read the same query and name their anchor".
+- **(c) past 32 polities** — the cap is deleted rather than raised: 16
+  perceptually-spaced CVD-checked hues allocated by graph colouring over the
+  adjacency graph, with the two-hop neighbourhood as a soft constraint. The
+  pathological case draws border-only with no fill and says so.
+- **(d) the colour bridge** — partial. Neutrals, lens key colours and the
+  identity palette join the token system; value ramps do not. Core declares, the
+  USS theme is generated, a test pins the round trip. Map data stays
+  non-themeable; affordances stay themeable.
+
+**The amendment landed in the same branch**, per the hard rule: the nature row
+of `camera-nav-lod.md` §2 is split from price and inverted, with the reasoning
+recorded there and the detail in `map-fields-lenses.md` §7.1.
+
+#### 2.8b — decided in-session, not escalated (all cheap to reverse)
+
+Listed here rather than in the gate brief, per the checkpoint protocol:
+the starfield's two attenuations (altitude × content) and the cell-level
+mechanism that makes the content term cheap · the lattice becoming a
+focus-centred spotlight rather than a uniform wallpaper · worked dust moving off
+the mark budget and into the field's fill as a density modulation · outposts
+staying marks but needing a *form* distinction (stated to Group 3, not designed)
+· `Features` and `Emergence` leaving the nature group for the marks channel ·
+nature chip swatches carrying their layer's base hue and the legend keying on
+`nature:<layer>` · the war legend's colour drift fixed at the legend, with the
+drift test growing a colour arm · the `ports` legend moving into the legend head
+· `LensStack.Composite` retired in favour of a stated GPU stacking rule ·
+overlap intensity redefined as 1.5× the accent's fill.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·

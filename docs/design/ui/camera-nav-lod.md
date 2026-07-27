@@ -79,7 +79,8 @@ behaves over the continuum.
 |---|---|---|---|---|---|
 | Starfield | attenuated | attenuated | full | full | **persists** |
 | Territory fill (domain field + accents) | **generalized** | per-port | per-port | per-port | fades **first** |
-| Price / nature rasters | off | off | on | on | fades **first** |
+| Price raster | off | off | on | on | fades **first** |
+| Nature raster | **full** | full | falling | near-nothing | fades **first** |
 | Lanes | **trunk only** | full network | full network | full | fades **late** |
 | Flow trails / crawls | off | on | on | on | fades late |
 | Ports | **tier 3+** | tier 2+ | all | all | **hands over** |
@@ -114,6 +115,17 @@ begin appearing and `f = 0.315` to complete — so at galaxy altitude the one
 thing the band exists to show is invisible. War stations and news pulses are the
 exception to the glyph curve. Everything else (fleets, POIs, works, plague) is
 correctly a Reach-band concern.
+
+**Nature runs the other way** *(amended 2026-07-27 by Group 2, on evidence)*.
+This document originally grouped price and nature into one row, off at Realm and
+Domains and on at Reach. That is right for price and backwards for nature: a
+per-cell galactic field has nothing left to vary once one cell is most of the
+frame. The gas layer at disc fit is a full nebular spiral; the same layer at
+`extent × 0.30` is a flat blue-grey wash. So nature is a **Realm and Domains**
+read whose alpha *falls* as the camera descends, reaching near-nothing at
+Ground, where the gas fraction of a cell is context for a system rather than the
+subject. It still leads the crossfade out, because by then it is almost gone.
+Details in `docs/design/ui/map-fields-lenses.md` §7.1.
 
 **The starfield gets a curve.** It is the only layer with no LOD response at
 all, and on a sparse world it buries the content it sits behind: `epoch 42 2 21`
@@ -528,7 +540,10 @@ rescue arrow answer exactly that half.
 - **Group 2 (fields & lenses)** — territory generalizes at Realm (the field's
   smoothing radius is a function of altitude); rasters lead the crossfade; the
   starfield takes an altitude attenuation, full at Reach and below, and never
-  attenuates during the crossfade.
+  attenuates during the crossfade. **Delivered** in
+  `docs/design/ui/map-fields-lenses.md`, which amends §2's nature row (above)
+  and specifies the starfield's two attenuations — altitude, plus a content term
+  that dims stars inside a domain and leaves the wilds sparkling.
 - **Group 3 (marks & glyphs)** — mark *count* must fall with altitude, since
   pixel floors mean mark *size* cannot; war and news resolve at Realm while the
   other glyph families resolve at Reach; ports hand over to the orbit view's

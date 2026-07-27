@@ -1,3 +1,140 @@
+# Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 2 MERGED — map fields & lenses)
+
+**Tier 1 Group 2 — COMPLETE, gate passed, merged & pushed.** Branch
+`ui-pass-t1g2` from main `b916081`. Design
+**`docs/design/ui/map-fields-lenses.md`**; pass ledger
+**`docs/superpowers/plans/2026-07-25-ui-pass-ledger.md`** §"Group 2" (evidence
+recipes, measurements, decisions). Mock:
+**https://claude.ai/code/artifact/1f18c59c-e86f-4445-8d18-c8dfd4a47221** 🎨
+
+**Design pass — zero code, as scoped.** No `src/`, no `tests/`, no
+`unity/Assets`, `Atlas.unity` byte-clean, `dotnet test` untouched.
+`unity/ProjectSettings` churn left uncommitted per the standing rule.
+
+## The accepted design, in one line each
+
+**A lens answers one question about one subject, and draws in one channel.**
+Channels that carry *areas* hold one lens at a time; channels that carry *marks*
+hold as many as you like. That single sentence is the exclusivity rule the
+shipped rail enforces without ever stating — and it makes the rail group by
+**channel**, not by theme.
+
+- **Fill intensity is per-accent**, because it is the accent's dynamic range:
+  0.30 for identity (hue already carries it), 0.45 for scalars, two-level
+  0.45/0.15 for war. Overlap is redefined as **1.5× the fill**, always.
+- **Scalar ramps fit the value's live range**, with the legend printing the
+  endpoints. Intensity cannot rescue a ramp the data does not span.
+- **Identity hues become an allocated palette** — 16 CVD-checked hues over the
+  adjacency graph, two-hop neighbourhood as a soft constraint. This **deletes
+  the 32-slot cap** rather than raising it, makes the union merge safe by
+  construction, and halves the shader's per-pixel register pressure.
+- **Price folds into the territory field** as a per-port accent on one diverging
+  ramp anchored at the galaxy's live median. One geometry idiom, not two.
+- **The compositing rule: base · field · sky · structure, back to front. Exactly
+  one lens in each of the first two; only the base replaces light.** With one
+  alpha layer at the bottom, **no combination is illegal** — the question
+  dissolves rather than needing a table.
+- **The map gets an empty-state vocabulary**: every lens is *speaking*,
+  *silent* (live, and the answer is nothing → floor tone + a voiced legend head)
+  or *blind* (cannot answer → nothing drawn + a head that says why). Groups 3
+  and 4 inherit it unchanged.
+- **Partial token bridge**: neutrals, lens key colours and the identity palette
+  join; value ramps do not. Core declares, the USS is generated, a test pins the
+  round trip. Affordances are themeable; data is not.
+
+## The measurements worth carrying (ledger §2.5 has all of them)
+
+- **The 32-slot cap is crossed on EVERY mature seed** — 63 · 46 · 45 · 50 · 56 ·
+  56 port-owner polities against `MaxSlots = 32`. The code comment claiming
+  "seed-scale galaxies stay well under 32" is false for every seed in the grid.
+- **21.8–39.9% of all drawn territory is attributed to the wrong polity**,
+  rasterized at 512² rather than inferred. 44–80 of 175–215 ports fold.
+- **Tech is dead at any intensity**: real Astrogation tiers span **2–3** against
+  `RampCap = 6`, giving two fills ΔE **1.56** apart at the shipped 0.13 and only
+  **10.24** at the theoretical maximum of 1.0.
+- **Tension is only starved**: ΔE 6.7 → 21.4 → 30.2 → 38.6 at fills 0.13 / 0.30
+  / 0.45 / 0.60. Tension-vs-tech separation is ΔE **2.7** at the shipped fill —
+  the two lenses genuinely are one image.
+- **Price's data lands in its loudest bands**: famine is the largest band on all
+  six mature seeds (73–139 cells) and draws hot pink at alpha 240; par, the
+  quiet one, is 4–15%. The median market sits at **1.95× founding**.
+- **Price is a Voronoi, not a raster** — `RatioAt` returns the nearest servicing
+  port's price, so a whole service area carries one value, quantized to cells on
+  the way out. At `f = 0.10` it is one flat plane across 70% of the frame.
+- **Draw order puts the starfield in FRONT of all three field rasters** (camera
+  at −z, so larger +z is farther): nature +0.10 → domain +0.05 → price +0.02 →
+  **starfield 0.00** → lattice −0.02 → strokes → marks.
+- **`LensStack.Composite` — the Core-side "compositing rule the tests pin" — has
+  no caller in the atlas.** Only its own xUnit test.
+- **The war legend drifts from the war layer, unguarded**: the legend advertises
+  `WarShade`/`Floor`, the layer draws `OwnerColor`/(58,62,72). `LegendDriftTests`
+  checks glyph-key names and non-emptiness only, never colour parity.
+- **Currency is the owner lens in different hues** — distinct currencies equals
+  distinct port-owner polities on all nine artifacts. Zero consolidations
+  anywhere, and nothing says so.
+- **Adjacency is sparse**: 58 adjacent pairs among seed-42's 50 polities, max
+  degree 7, two-hop 13. Greedy on adjacency alone finishes in **three** colours;
+  with the two-hop soft constraint it uses all 16 with zero collisions at either
+  distance.
+
+## ⚠ Amendment landed — `camera-nav-lod.md` §2
+
+**Nature reads at Realm and falls through Reach**, the inverse of the row this
+document shipped with. Price keeps its row exactly. Amended in the same branch
+per the hard rule, with the reasoning in `camera-nav-lod.md` §2 and the detail in
+`map-fields-lenses.md` §7.1. The evidence is one pair of captures: the gas layer
+at disc fit is a full nebular spiral; the same layer at `extent × 0.30` is a flat
+blue-grey wash.
+
+## What Groups 3, 4 and 5 inherit
+
+- **Group 3 (marks)** — worked dust leaves the mark budget entirely (it becomes
+  a density modulation of the field's fill); **an outpost must differ from a
+  port by FORM**, since size and lightness are both spent; `Features` and
+  `Emergence` arrive as two new mark lenses needing a glyph vocabulary; every
+  mark family needs a *silent* and a *blind* line.
+- **Group 4 (strokes)** — strokes are the third exclusive channel and obey the
+  same one-lens rule; every stroke lens needs its empty-state lines; and
+  `QuarantineOnly`, which today hides the network with no explanation, is a
+  **silent state, not a hidden layer**.
+- **Group 5 (chrome)** — the rail groups by **channel**, not theme; the legend
+  renders a **head** carrying lens name, state and voiced sentence; a chip whose
+  lens is silent must not look like a chip that is off; nature chips carry their
+  layer's base hue and the legend keys on `nature:<layer>`; chip swatches come
+  from the shared declaration, not literals.
+
+## Method notes
+
+- **Four `eval_file` harnesses** did the whole dive: `counts.cs` (census + ΔE),
+  `fold.cs` (rasterizes the shader's union field twice and counts the samples
+  that lie), `fields.cs` (66 shots), `sweep.cs` (17 shots + the ΔE-vs-fill
+  curve), plus `export.cs` for the mock's data. Recipes in ledger §2.4; output
+  in `atlas-grid-fields/`, which matches the `atlas-grid*/` gitignore glob.
+- **The mock is the real field, not an illustration** — seed 42's ports, radii,
+  heats, tiers and stars exported to JSON and re-rendered in the browser, so
+  shipped-vs-proposed is one world under two encodings.
+- **⚠ An artifact that renders heavily on load reads as a BLANK PAGE** — the
+  viewer shows nothing and CDP screenshots time out with "the renderer may be
+  frozen". Render the visible canvas on `requestAnimationFrame` and the rest
+  behind an `IntersectionObserver`; use bbox-sized scratch canvases, not
+  frame-sized masks.
+- **This harness cannot deliver clicks or scroll into an artifact's iframe**, so
+  interactive controls could not be exercised before the gate. Rendering, layout
+  and the live allocator were verified; the controls were not.
+- **Editor left OPEN and clean** on port 7800, `SimHost.ArtifactPath` restored
+  to the golden. Close it if the next slice needs batchmode.
+
+## NEXT UP
+
+**Tier 1 Groups 3 and 4** are map-side and mutually independent; Groups 1 and 2
+are now the spec they answer to. Groups 5–6 stay blocked on **Slice CS** (chrome
+shots, `docs/superpowers/plans/2026-07-25-slice-cs-kickoff-prompt.md`).
+
+**Tier/group kickoffs are the ORCHESTRATOR's to write** (user decision,
+2026-07-25) — this session deliberately did not write the Group 3 kickoff.
+
+---
+
 # Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 1 MERGED — camera, navigation & the LOD spine)
 
 **Tier 1 Group 1 — COMPLETE, gate passed, merged & pushed.** Branch
