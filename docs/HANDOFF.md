@@ -1,3 +1,107 @@
+# Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 1 MERGED — camera, navigation & the LOD spine)
+
+**Tier 1 Group 1 — COMPLETE, gate passed, merged & pushed.** Branch
+`ui-pass-t1g1` from main `99ac6c1`. Design **`docs/design/ui/camera-nav-lod.md`**;
+pass ledger **`docs/superpowers/plans/2026-07-25-ui-pass-ledger.md`** §"Group 1"
+(evidence recipes, measurements, decisions). Mock:
+**https://claude.ai/code/artifact/901f11a7-8a19-4ab4-b864-a6efba7f8b82** 🛰️
+
+**Design pass — zero code, as scoped.** No `src/`, no `tests/`, no
+`unity/Assets`, `Atlas.unity` byte-clean, `dotnet test` untouched.
+`unity/ProjectSettings` churn left uncommitted per the standing rule.
+
+> This branch also carries the orchestrator's **`a19648b` "docs: checkpoint
+> protocol"** (CLAUDE.md only), committed onto it by mistake and deliberately
+> carried through rather than reverted.
+
+## The accepted design, in one line each
+
+**Altitude asks a question; it does not scale a picture.** Four bands replace
+five — **Realm** (who holds what, where's the drama) · **Domains** (whose is
+this, how far) · **Reach** (how does this place work — the working altitude) ·
+**Ground** (what is here). **Hex is deleted**: it spanned 10.8 scroll notches
+and resolved nothing.
+
+- **The map hands over to the orbit view in a staged order** rather than
+  dissolving through one `MapFade` multiplier: rasters lead out, strokes trail,
+  the port hands over to the ring around its own body, the lattice is last, the
+  starfield and selection ring never move.
+- **Fit frames content, not the disc.** Pan is **leashed on the target**, so the
+  rubber-band falls out of the damping already there; `Home` is the rescue.
+- **Two easings: glide and cut.** Everything the player does glides; only
+  tooling cuts. Panel links stop teleporting.
+- **No yaw**, decided with four recorded reasons rather than left as a gap.
+- **Pitch opens as the camera descends** (70°/55°/35°/25° floors), and the 25°
+  floor is redefined as `fov / 2` — the horizon-at-frame-top limit.
+
+## The measurements worth carrying (ledger §1.5 has all of them)
+
+- `extent = 48 + 16.5 × radius` **exactly** — the spine's one calibration.
+- **36% of the zoom range moves no curve**: 4.4 notches above `f = 1.10`, 5.4
+  between the lattice completing and the crossfade starting.
+- **`FitTo` frames 36–45% content on mature worlds, 1.4% on `epoch 42 2 21`** —
+  and that content is 0.36 extents off-centre.
+- **`CameraRig.Band` and `BandChanged` have ZERO consumers** project-wide (the
+  only reads are two `AtlasSmoke` debug logs). The bands classify nothing today.
+- **`LodBands.SystemFloor`'s `Math.Min` is a dead branch** — the relative term
+  only wins below extent 59.5, i.e. radius < 0.7, and the smallest real galaxy
+  has extent 64.5. `LodBandsTests.ATinyGalaxyKeepsItsHexBand` pins it at extent
+  30: a galaxy that cannot be generated.
+- **Cost, all three bounds on the design:** `SystemStage` rebuilds every visible
+  system on any visible-set change at **0.12 ms/hex** (~8 ms mid-crossfade, 19 ms
+  at the 160 cap) · the lattice is **881,790 verts built in 30.1 ms in one
+  frame** mid-gesture · stroke meshes rebuild **2.9× per scroll notch**.
+- **`ViewportPx` is written only inside `OnZoomChanged`**, so a window resize
+  leaves every screen-constant stroke width stale until the next scroll.
+
+## ⚠ The open seam the gate surfaced — hand this to Group 4
+
+**The handover has no form for a lane.** A port hands over because it lives
+*in* a hex; a lane lives *between* hexes, and the orbit view has no
+representation of one. So the descent's last beat loses which lanes touch this
+system, where they go, and whether it is a hub or a dead end. **No fade order
+can fix it** — it needs a system-scale terminus mark at the system rim on the
+lane's true bearing. Requirement stated in design §4.1 + §9; the *encoding* is
+deliberately left to Group 4 working with the fuller system rendering.
+
+**Also gated on implementation work:** the crossfade window can only widen
+(3.1 → 5.4 notches) once `SystemStage` builds **incrementally** — a per-hex
+cache instead of a full rebuild. The two land together or not at all. And the
+160-hex cap must truncate **by distance from focus**; today it iterates q-then-r
+and returns on the cap, so a bound set is a wedge on one side of the frame.
+
+## Method notes
+
+- **`atlas_grid` cannot shoot a continuum** (one distance per run, never renders
+  `SystemStage`). Group 1 drove `CameraRig.SetView` across a stepped altitude
+  list through **`unity command eval_file`**, hand-mirroring
+  `AtlasRoot.OnZoomChanged` and emitting PNGs *and* the measured curve values
+  per step. Recipes in ledger §1.4.
+- **⚠ `eval`/`eval_file` inject the script as a METHOD BODY** — `using`
+  directives do not parse (`'System' is a namespace but is used like a type`).
+  Fully qualify every type. Worth adding to the
+  `driving-the-unity-editor` skill.
+- **The live feel pass is a real technique**: an `EditorApplication.update`
+  handler installed from `eval_file` in play mode, writing `CameraRig`'s private
+  targets by reflection. Camera *feel* does not survive a static mock, and
+  leaving play mode removes the whole thing via domain reload — no files, no
+  asset edits.
+- **Editor left OPEN and clean** on port 7800 (play mode exited, autotick
+  disabled, `SimHost.ArtifactPath` restored to the golden). Close it if the next
+  slice needs batchmode.
+
+## NEXT UP
+
+**Tier 1 Groups 2–4** are map-side and mutually independent; Group 1's curves
+and resolve steps are now the spec they answer to. Groups 5–6 stay blocked on
+**Slice CS** (chrome shots,
+`docs/superpowers/plans/2026-07-25-slice-cs-kickoff-prompt.md`).
+
+**Tier/group kickoffs are the ORCHESTRATOR's to write** (user decision,
+2026-07-25) — this session deliberately did not write the Group 2 kickoff.
+
+---
+
 # Session Handoff — 2026-07-25 (UI design pass · Tier 0 COMPLETE + chrome capture solved)
 
 **Tier 0 of the atlas UI design pass — COMPLETE, gate passed.** Branch

@@ -55,7 +55,8 @@ psmux windows of their own. Each slice session:
    them warm (see **Unity gates** below), with a batchmode pass at the merge gate.
 6. **User checkpoints — exactly three**: scope nod (start), **REPL eyeball
    acceptance** (the taste gate: does it *look right* — user runs/views it),
-   merge decision. Don't add approval gates between tasks.
+   merge decision. Don't add approval gates between tasks. How to *write* a
+   checkpoint: **Talking to the user at checkpoints** below — it is binding.
 7. **Wrap-up, in order**: merge to main locally · update `docs/HANDOFF.md` ·
    **write the next slice's kickoff prompt** (see below) · sync the Trello
    board (move the finished card to Merged, file anything new surfaced
@@ -65,7 +66,38 @@ psmux windows of their own. Each slice session:
 **Each session writes the next session's kickoff prompt** — informed by what
 just landed (real file paths, real interfaces, surprises encountered). Pattern:
 `docs/superpowers/plans/YYYY-MM-DD-slice-<x>-kickoff-prompt.md`, modeled on the
-Slice A one. This chain is how context flows between clean sessions.
+Slice A one. This chain is how context flows between clean sessions. A kickoff
+prompt states **what each of its gates asks the user for** — the decision, not
+"present findings" — so the worker knows at the start what the brief must
+contain and can gather the evidence that answers it.
+
+## Talking to the user at checkpoints (adopted 2026-07-27)
+
+The user's judgment steers this project and their reading time is the scarce
+resource. **The ledger, the design doc and HANDOFF carry the dense record; a
+question to the user is not the place to reproduce it.** These apply to the
+orchestrator and every worker.
+
+- **Decision briefs — ≤150 words before the question.** One sentence on what
+  is being decided · the options, one line each · your recommendation with a
+  one-line why · a **pointer** to the evidence (ledger §, doc path, artifact
+  URL), never the evidence itself. If it won't fit, the ask isn't ready: the
+  fix is to decide the parts you can and ask only the residue — not to write
+  more.
+- **`AskUserQuestion` whenever the choice is discrete.** Rendered options beat
+  prose the user must mine for what the options even were. Long content can't
+  ride in the same turn (it gets hidden) — present it, then ask next turn.
+- **Ask before the dive, not after.** A direction question is short when asked
+  early and long when asked late, because a finished investigation has to be
+  re-narrated to be ratified. Surface forks when they appear.
+- **Show first for anything visual.** Eyeball gates lead with the capture, the
+  mock or the artifact; prose is a caption, not a preamble.
+- **Fewer, better asks — and own the tradeoff.** Decide cheap-to-reverse calls
+  yourself, record them in the ledger, list them in wrap-up. Escalate what is
+  expensive to reverse, and *say which it is* in the brief.
+- **Wrap-up reports the same way**: a short headline (what landed · what needs
+  the user · what's next), then the pointer. HANDOFF is the record — the chat
+  message should not duplicate it.
 
 ## Model usage
 
