@@ -370,8 +370,8 @@ artifact. **Zero atlas code.**
 | 2.5 | Read the evidence — images, not recall | — | ✅ |
 | 2.6 | Write `docs/design/ui/map-fields-lenses.md` | — | ✅ |
 | 2.7 | Build the mock artifact | — | ✅ |
-| 2.8 | **User checkpoint** — the four escalated decisions | **user** | ⬜ |
-| 2.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ⬜ |
+| 2.8 | **User checkpoint** — the four escalated decisions | **user** | ✅ **ACCEPTED** 2026-07-27 ("this all looks good") |
+| 2.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ✅ |
 
 #### 2.4 — the evidence apparatus (reproducible; output gitignored)
 
@@ -510,14 +510,45 @@ eagerly and looked broken. Render the visible one on `requestAnimationFrame` and
 the rest behind an `IntersectionObserver`; bbox-sized scratch canvases instead
 of frame-sized masks cut the work by ~50×.
 
-#### 2.8 — decided in-session, not escalated (all cheap to reverse)
+#### 2.8 — the gate
+
+**All four ACCEPTED** as recommended, plus the Group-1 amendment:
+
+- **(a) the accent channel** — fill intensity becomes per-accent (0.30 identity
+  / 0.45 scalar / two-level for war) **and** scalar ramps fit the value's live
+  range. Both, because the two failures are different: tension is starved by the
+  intensity, tech is broken by the ramp.
+- **(b) price** — folded into the territory field as a per-port accent on a
+  single diverging ramp anchored at the galaxy's live median for the good.
+  Price and the domain accents become mutually exclusive; the parity contract
+  moves to "both surfaces read the same query and name their anchor".
+- **(c) past 32 polities** — the cap is deleted rather than raised: 16
+  perceptually-spaced CVD-checked hues allocated by graph colouring over the
+  adjacency graph, with the two-hop neighbourhood as a soft constraint. The
+  pathological case draws border-only with no fill and says so.
+- **(d) the colour bridge** — partial. Neutrals, lens key colours and the
+  identity palette join the token system; value ramps do not. Core declares, the
+  USS theme is generated, a test pins the round trip. Map data stays
+  non-themeable; affordances stay themeable.
+
+**The amendment landed in the same branch**, per the hard rule: the nature row
+of `camera-nav-lod.md` §2 is split from price and inverted, with the reasoning
+recorded there and the detail in `map-fields-lenses.md` §7.1.
+
+#### 2.8b — decided in-session, not escalated (all cheap to reverse)
 
 Listed here rather than in the gate brief, per the checkpoint protocol:
-starfield attenuation shape · nature promoted to a Realm read (the one G1
-amendment, flagged) · the lattice's role and alpha · nature chip swatches
-carrying their layer's base hue · the war legend's colour drift fixed at the
-legend · outposts/worked dust keeping their encoding · `LensStack.Composite`
-retired in favour of a stated GPU stacking rule.
+the starfield's two attenuations (altitude × content) and the cell-level
+mechanism that makes the content term cheap · the lattice becoming a
+focus-centred spotlight rather than a uniform wallpaper · worked dust moving off
+the mark budget and into the field's fill as a density modulation · outposts
+staying marks but needing a *form* distinction (stated to Group 3, not designed)
+· `Features` and `Emergence` leaving the nature group for the marks channel ·
+nature chip swatches carrying their layer's base hue and the legend keying on
+`nature:<layer>` · the war legend's colour drift fixed at the legend, with the
+drift test growing a colour arm · the `ports` legend moving into the legend head
+· `LensStack.Composite` retired in favour of a stated GPU stacking rule ·
+overlap intensity redefined as 1.5× the accent's fill.
 
 ## Tier 2 — Synthesis
 
