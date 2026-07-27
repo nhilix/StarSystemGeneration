@@ -204,10 +204,51 @@ simulator artifact. **Zero atlas code**, as the pass requires.
 | 1.3 | Read the spine inline — `CameraRig`, `LodBands`, `AtlasRoot`, `LatticeLayer`, `SystemStage`, both capture tools, `LodBandsTests` | — | ✅ |
 | 1.4 | Build the continuum harness (`eval_file`) and shoot the zoom + pitch series | — | ✅ |
 | 1.5 | Measure framing, cost and scale-invariance (queries, not shots) | — | ✅ |
-| 1.6 | Write `docs/design/ui/camera-nav-lod.md` | — | ⏳ |
-| 1.7 | Build the interactive simulator artifact | — | ⏳ |
+| 1.6 | Write `docs/design/ui/camera-nav-lod.md` | — | ✅ |
+| 1.7 | Build the interactive simulator artifact | — | ✅ |
 | 1.8 | **User checkpoint** — eyeball mock + doc (+ optional live feel pass) | **user** | ⏳ |
 | 1.9 | Wrap-up: commit, HANDOFF, push, Trello (card xEym8e27), release the editor | — | ⏳ |
+
+#### 1.7 — the mock
+
+**https://claude.ai/code/artifact/901f11a7-8a19-4ab4-b864-a6efba7f8b82** (🛰️)
+
+A simulator rather than a token block, because this group's subject is a
+*continuum* and static frames cannot show one. It runs the two spines' actual
+curves over a deterministic 218-port mock galaxy, on the project's own
+Cassette × Ice tokens. Single-theme dark deliberately — a light variant would
+misrepresent a dark instrument and would break comparability with the UI
+Language Lab mocks.
+
+Verified in-browser (rendered, scrubbed, both spines, all three radii). Two
+fidelity bugs found and fixed by comparing against the real captures: the mock
+initially **summed** overlapping territory where the shader **unions** (a
+per-polity offscreen mask + erosion now gives union fill at `_FillIntensity`
+0.13 and the border at 0.50), and the lattice stopped halfway across the frame
+at a fixed iteration cap.
+
+#### 1.8 — decided in-session, not escalated (all cheap to reverse)
+
+Per the checkpoint protocol, these were called without a gate and are listed
+here rather than in the brief:
+
+- **Glide vs cut as a two-easing grammar**, with panel `JumpTo` moving to
+  glide. Defect-shaped, not taste-shaped.
+- **Focus destinations expressed in `f` or hexes-across-frame**, never world
+  units (the hardcoded 24 lands in different bands on different galaxies).
+- **The pan leash clamps the target, not the position** — the rubber-band then
+  falls out of the existing damping for free.
+- **Hysteresis at ±8%**, sized against the 25% scroll notch so a deadband can
+  never make a notch fail to cross a boundary.
+- **Stroke widths quantize to the zoom lattice** (one rebuild per notch instead
+  of 2.9, ≤±11% width error).
+- **The lattice builds at load** rather than on approach.
+- **The pitch floor is redefined as `fov / 2`** rather than the literal 25.
+- **No yaw**, with four recorded reasons — revisitable, but recorded as a
+  decision rather than an omission.
+
+**Escalated to the gate** (expensive to reverse — Groups 2–6 inherit it): the
+four-band re-derivation and the resolve steps it implies.
 
 #### 1.4 — the evidence apparatus (reproducible; output gitignored)
 
