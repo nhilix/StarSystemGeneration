@@ -105,6 +105,27 @@ use is kicking off a slice: one window per slice session, named `slice-<x>`,
 opened with that slice's kickoff prompt. Only the orchestrator spawns windows;
 slice sessions delegate downward via subagents, not sideways via psmux.
 
+**Checkout discipline (adopted 2026-07-27, after the orchestrator committed
+into a live worker's branch).** Two workers never share a checkout — that rule
+predates this and stands. These cover the orchestrator + one worker case:
+
+- **Where the worker runs.** A **Unity/atlas slice stays in the primary
+  checkout**: a fresh worktree pays a cold Unity `Library` import (~10 min vs
+  warm incremental) and cannot inherit three gitignored files it needs
+  (`unity/Packages/manifest.json`, `packages-lock.json`, `src/Core/csc.rsp`),
+  while atlas editing is serial anyway — one editor, one session — so the
+  isolation buys little. A **sim-only slice takes a worktree**, where none of
+  that applies.
+- **The orchestrator is read-only in a checkout it has handed to a worker.**
+  Once a worker is live, the primary checkout is the worker's: no edits, no
+  commits, no branch operations. A worker branches in place, so an
+  orchestrator commit lands on *the worker's branch* — silently.
+- **If the orchestrator must edit while a worker runs, it takes the
+  worktree** (`git worktree add .claude/worktrees/orch-docs main`) — it is the
+  cheap side to isolate: docs only, no Unity, no build cache. Commit, push,
+  then `git worktree remove` it. Prune finished worktrees; they hold the
+  branch ref alive and accumulate untracked `.superpowers/sdd/` scratch.
+
 - **Never `new-session`** — no headless/detached sessions. Workers are always
   windows (or panes) of the session this orchestrator is running in. Get the
   current session name with `psmux display -p '#S'` and target `<session>:<name>`.
