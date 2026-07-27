@@ -206,8 +206,8 @@ simulator artifact. **Zero atlas code**, as the pass requires.
 | 1.5 | Measure framing, cost and scale-invariance (queries, not shots) | — | ✅ |
 | 1.6 | Write `docs/design/ui/camera-nav-lod.md` | — | ✅ |
 | 1.7 | Build the interactive simulator artifact | — | ✅ |
-| 1.8 | **User checkpoint** — eyeball mock + doc (+ optional live feel pass) | **user** | ⏳ |
-| 1.9 | Wrap-up: commit, HANDOFF, push, Trello (card xEym8e27), release the editor | — | ⏳ |
+| 1.8 | **User checkpoint** — eyeball mock + doc + live feel pass | **user** | ✅ **ACCEPTED** 2026-07-27 |
+| 1.9 | Wrap-up: commit, HANDOFF, push, Trello (card xEym8e27), release the editor | — | ✅ |
 
 #### 1.7 — the mock
 
@@ -249,6 +249,32 @@ here rather than in the brief:
 
 **Escalated to the gate** (expensive to reverse — Groups 2–6 inherit it): the
 four-band re-derivation and the resolve steps it implies.
+
+#### 1.8b — the gate, and what it surfaced
+
+**Four bands ACCEPTED** (Realm / Domains / Reach / Ground; Hex deleted).
+The live feel pass ran: `set_autotick` → `editor_play` → an
+`EditorApplication.update` handler installed by `eval_file` that clamped
+`_targetPitch` by band, leashed `_targetFocus`, bound `H` to a content-fit
+glide, and drove the staged handover over the shipped 5→10 window. Verified
+biting: `_targetPitch` forced to 25° at `f = 1.40` was pushed back to the 70°
+Realm floor, and the camera glided from d 73 to the content fit at 553.
+Nothing was written to `unity/Assets`; leaving play mode removed all of it.
+
+**Feel: accepted.** The user's one reservation is a real design hole, now
+recorded as **design §4.1**: the map→system handover is weakest at the lanes.
+A port hands over because it lives *in* a hex; a lane lives *between* hexes and
+the orbit view has no form for one, so the descent's last beat loses which
+lanes touch this system, where they go, and whether it is a hub or a dead end.
+No fade order can fix that — it needs a **system-scale terminus mark at the
+system rim on the lane's true bearing**, which is Group 4's encoding to design
+together with the fuller system rendering. The requirement is stated in §4.1
+and §9; the encoding deliberately is not.
+
+Harness teardown verified: play mode exited, autotick disabled,
+`SimHost.ArtifactPath` restored to the golden, `Atlas.unity` byte-clean, no
+`unity/Assets` diff, no `src`/`tests` diff across the branch.
+`unity/ProjectSettings` churn left uncommitted per the standing rule.
 
 #### 1.4 — the evidence apparatus (reproducible; output gitignored)
 

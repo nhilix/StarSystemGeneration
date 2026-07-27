@@ -195,7 +195,36 @@ does gets almost none of the camera's range, and arrives with no preparation.
    Both already true; both load-bearing. If you descend with a port selected,
    the ring is on it the whole way down.
 
-### 4.1 The window, and the cost that bounds it
+### 4.1 The hole the handover leaves: lanes have no system-scale form
+
+The port handover in step 3 works because **a port lives *in* a hex** — it has an
+in-system anchor to become. A **lane lives *between* hexes**, and the orbit view
+has no representation of one at all. So at the bottom of the descent the player
+loses, with nothing replacing it:
+
+- which lanes touch this system, and in what directions;
+- whether this is a hub or a dead end — the single clearest thing the map says
+  about a place;
+- lane *state* that was legible one moment earlier: contested, quarantined,
+  carrying trade.
+
+This is the handover's weakest seam, and it is structural rather than a tuning
+problem: no fade order can hand over something that has no destination form.
+
+**The requirement this design places on the system view:** a lane must terminate
+in a **system-scale mark at the system's rim, on the lane's true bearing**,
+carrying the lane's mode colour — so the stroke the player was following
+shortens into a terminus rather than evaporating. That mark is what `LaneFade`
+hands over to, exactly as the port dot hands over to its body's ring.
+
+The encoding itself — what a gate or terminus looks like, whether it also
+carries direction and volume, how several lanes on close bearings resolve —
+belongs to **Group 4** (strokes) working with the fuller system rendering, not
+to this dive. It is recorded here because the handover is specified here and is
+incomplete without it. Until that mark exists, the descent's last beat is a
+known information loss, accepted deliberately rather than overlooked.
+
+### 4.2 The window, and the cost that bounds it
 
 The window wants to be wider than it is. It cannot be, yet, and the reason is
 measured rather than aesthetic.
@@ -506,7 +535,10 @@ rescue arrow answer exactly that half.
   rings rather than fading.
 - **Group 4 (lanes & motion)** — Realm shows a trunk network, not all 205 lanes;
   strokes trail the rasters in the crossfade; stroke widths quantize to the zoom
-  lattice.
+  lattice. **Open, and the handover's weakest seam (§4.1):** a lane needs a
+  system-scale terminus at the system rim, on its true bearing, or the descent
+  loses the network entirely at the bottom. Owned by Group 4 together with the
+  fuller system rendering.
 - **Group 5 (chrome)** — the altitude scale, the rescue arrow and the focus
   reticle need visual design; the rig supplies `Band`, `f`, and the next resolve
   step. Affordances take chrome tokens, not palette values.
