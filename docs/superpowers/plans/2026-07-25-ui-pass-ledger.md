@@ -181,12 +181,109 @@ Ordering: 1 before all. 2–4 mutually independent. 6 benefits from following 5.
 
 ## Tier 1 — Deep dive per group
 
-Not started. One session per group, each ending in a user eyeball.
-Groups fixed by the Tier-0 partition nod (task 0.8/0.9).
+One session per group, each ending in a user eyeball. Groups fixed by the
+Tier-0 partition nod (task 0.8/0.9).
 
 **Carry into Tier 1** (not in the inventory itself):
 - The chrome-capture gap must be closed before group 5 can do a real audit.
 - Prefer inline reading over subagent fan-out in this codebase (see 0.4).
+
+---
+
+### Group 1 — camera, navigation & the LOD spine
+
+Branch `ui-pass-t1g1` off main `99ac6c1`. Kickoff:
+`docs/superpowers/plans/2026-07-25-ui-pass-t1g1-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/camera-nav-lod.md` + an interactive continuum
+simulator artifact. **Zero atlas code**, as the pass requires.
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| 1.1 | Scope nod | user | ✅ nodded 2026-07-27 ("looks good") |
+| 1.2 | Branch `ui-pass-t1g1`; continue this ledger | — | ✅ |
+| 1.3 | Read the spine inline — `CameraRig`, `LodBands`, `AtlasRoot`, `LatticeLayer`, `SystemStage`, both capture tools, `LodBandsTests` | — | ✅ |
+| 1.4 | Build the continuum harness (`eval_file`) and shoot the zoom + pitch series | — | ✅ |
+| 1.5 | Measure framing, cost and scale-invariance (queries, not shots) | — | ✅ |
+| 1.6 | Write `docs/design/ui/camera-nav-lod.md` | — | ⏳ |
+| 1.7 | Build the interactive simulator artifact | — | ⏳ |
+| 1.8 | **User checkpoint** — eyeball mock + doc (+ optional live feel pass) | **user** | ⏳ |
+| 1.9 | Wrap-up: commit, HANDOFF, push, Trello (card xEym8e27), release the editor | — | ⏳ |
+
+#### 1.4 — the evidence apparatus (reproducible; output gitignored)
+
+Everything below ran against branch `ui-pass-t1g1` (= main `99ac6c1` atlas
+code) with a **warm editor** on port 7800, per
+`.claude/skills/driving-the-unity-editor/SKILL.md`. Sim artifacts are Tier 0's
+recipes **G** and **D** (inventory "The evidence base") — unchanged, regenerate
+from there.
+
+`atlas_grid` cannot shoot a continuum: its `--zoom` is one distance per run and
+it never renders `SystemStage`. So Group 1 used **`unity command eval_file`** —
+the Tier-0 spike vehicle — to drive `CameraRig.SetView` across a stepped
+altitude list, hand-mirror `AtlasRoot.OnZoomChanged`, render the stage when
+`StageFade > 0`, and emit both the PNGs and the **measured curve values** for
+each step. Look and number come from the same pass, which is what makes the
+strip citable.
+
+**⚠ `eval`/`eval_file` inject the script as a METHOD BODY** — `using`
+directives do not parse (`'System' is a namespace but is used like a type`).
+Every type must be fully qualified. This cost a round trip; it belongs in the
+skill.
+
+Four harnesses, all in the session scratchpad (disposable; the recipes are the
+record):
+
+| Harness | What it produces |
+|---|---|
+| `series.cs` | a zoom or pitch strip: PNG per step + `index.html` + the five curve values per step |
+| `framing.cs` | disc bounds vs **inhabited** bounds for all nine artifacts — the framing audit |
+| `cost.cs` | the lattice's lazy build (verts, indices, ms) and the stroke-rebuild cadence |
+| `stagecost.cs` | `SystemStage`'s visible-hex set across the crossfade at three pitches, plus rebuild ms by area |
+
+Output directories (all match the `atlas-grid*/` gitignore glob):
+`atlas-grid-zoom-r21/` (18 steps, seed-42 r21) · `atlas-grid-pitch-r21/`
+(8 steps at f=0.30) · `atlas-grid-zoom-degen/` (`epoch 42 2 21`) ·
+`atlas-grid-zoom-r5/` (`epoch 1234 40 5`).
+
+#### 1.5 — what the measurements said
+
+Full argument in the design doc; the numbers, so a later session need not
+re-shoot:
+
+- **`extent = 48 + 16.5 × radius` exactly** (r21 → 394.5, r5 → 130.5). Every
+  band threshold is a fraction of this, so it is the spine's one calibration.
+- **Scroll-notch budget (×1.25 per notch), r21:** Galaxy 4.4 · Domains 4.0 ·
+  Region 5.2 · Hex **10.8** · System 3.1 = 27.5 total.
+- **36% of the zoom range has no LOD response at all**: 4.4 notches above
+  `f = 1.10` (every curve pinned) and 5.4 notches between the lattice
+  completing (`f = 0.084`, d = 33) and the crossfade starting (d = 10).
+- **`FitTo` frames 36–45% content on mature worlds, 10% on `epoch 7 5 21`,
+  and 1.4% on `epoch 42 2 21`** (content extent 51.5 against disc extent
+  394.5 — and 0.36 extents off-centre).
+- **`LodBands.SystemFloor`'s `Math.Min` is a dead branch.** The relative term
+  only wins below extent 59.5, i.e. radius < 0.7. `LodBandsTests.
+  ATinyGalaxyKeepsItsHexBand` pins it at extent 30 — a galaxy that cannot exist.
+- **Lattice**: 1615 cells × 91 hexes = 881,790 verts / 1,763,580 line indices,
+  built in **30.1 ms in one frame** as the camera crosses d = 88.4 (r21).
+  r5: 49,686 verts, 1.8 ms.
+- **Stroke meshes rebuild ~2.9× per scroll notch** (8% width gate against a
+  25% notch), for `LaneLayer` + `FlowTrailLayer` + `CrawlPathLayer`.
+- **`SystemStage` rebuild ≈ 0.12 ms/hex**, whenever the visible hex *set*
+  changes — 66 hexes (~8 ms) mid-crossfade at pitch 62; the `MaxVisibleHexes`
+  160 cap already binds at pitch 62 / d = 13.
+- **`CameraRig.Band` and `BandChanged` have zero consumers.** Grepped the whole
+  of `unity/Assets`: the only reads are two `Debug.Log`s in `AtlasSmoke`
+  (`PanelViews.cs:200` and `SystemStage.cs:363` are `OrbitBand`, a different
+  type). The bands are a vestigial classification; all visible behaviour is the
+  four continuous curves.
+- **`ViewportPx` is written only inside `AtlasRoot.OnZoomChanged`**, so a window
+  resize leaves all three stroke layers' screen-constant widths stale until the
+  next scroll. (Billboards are safe — `CameraRig.Apply` writes
+  `_AtlasViewportPx` every frame.)
+- **The 25° pitch floor is exactly `FovDegrees / 2`** — an undocumented
+  coupling that puts the horizon precisely at the top edge of the frame. It also
+  degenerates `SystemStage.ComputeVisibleHexes` (the top frustum corners stop
+  intersecting the plane), so at low pitch the stage builds only the near band.
 
 ## Tier 2 — Synthesis
 
