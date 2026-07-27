@@ -107,6 +107,41 @@ unity command atlas_grid --seeds 42,9091 --lenses trade,war --project-path $P --
 also sets column order) · `seeds` (accepts `42` or `seed-42`) · `width` · `height`
 · `zoom` · `pitch` · `anchor` (`centroid|bounds|port:<n>`).
 
+### Spikes and one-off instruments: `eval` / `eval_file`
+
+For a question the committed tools do not answer — a zoom continuum, a
+chrome-inclusive capture, a live behaviour override — reach for Roslyn rather
+than adding an editor tool. It touches no files and dirties no assets, which is
+what makes it the right vehicle for anything exploratory.
+
+```powershell
+unity command eval --code 'return StarGen.AtlasView.LodBands.GalaxyFloor;' --project-path $P --format json
+unity command eval_file --file <abs path to .cs> --timeout 900000 --project-path $P --format json
+```
+
+- ⚠ **The script is injected as a METHOD BODY, so `using` directives do not
+  parse.** You get a wall of `'System' is a namespace but is used like a type`
+  and `Identifier expected`. **Fully qualify every type**
+  (`System.IO.Path`, `UnityEngine.Object.FindAnyObjectByType<…>`,
+  `StarGen.AtlasView.CameraRig`). Prefer `eval_file` over `--code` for anything
+  past one line — quoting through PowerShell is its own trap.
+- The default `timeout` is 5000 ms. Pass a real one for anything that renders.
+- `return new { … }` comes back as `data.result.result`; a compile failure comes
+  back as a **`success:false` envelope with exit 6**, so this one does not lie.
+- **In edit mode nothing is wired**: `Awake` and `OnEnable` never ran, so call
+  each layer's `EnsureMaterial()` and hand-mirror `AtlasRoot.OnZoomChanged`
+  (`AtlasSmoke.SetAndStyle` is the worked example). In **play mode** everything
+  wires itself for real — that is what unlocks chrome capture (§inventory 11)
+  and live behaviour overrides.
+- A **live feel pass** installs an `EditorApplication.update` handler from
+  `eval_file` while in play mode and writes private rig fields by reflection.
+  Leaving play mode triggers a domain reload and removes the whole thing, so
+  there is nothing to clean up. Camera feel does not survive a static mock;
+  this is how you test it.
+- Housekeeping after a play-mode spike: **`set_autotick --enable false`** (16 ms
+  pegs a core), and restore any serialized field you changed — a component-state
+  edit in edit mode does not dirty the scene, so nothing will warn you.
+
 ### The standard eyeball recipe
 
 A **starting point, not a fixed gate** — lens set, seed count and viewpoint are
