@@ -503,6 +503,12 @@ draw via a compact all-canvases build (published separately, disposable).
 scroll or click into the artifact's sandboxed iframe. That is the one thing the
 eyeball gate should poke at first.
 
+**Trello write limits (2026-07-27):** `trelloWriteCard` caps `desc` at **2048
+characters** and rejects the short-URL card id with a bare "Unable to validate
+input" — pass the **ARI id** from `trelloReadCard` instead. The Tier-1 card's
+description had to be compressed to fit; the ledger and HANDOFF carry the full
+record, as the standing rule intends.
+
 **Harness lesson worth keeping:** an artifact that does heavy canvas work at
 load reads as a *blank page* — the viewer shows nothing and CDP screenshots time
 out with "the renderer may be frozen". The first build rendered nine canvases
