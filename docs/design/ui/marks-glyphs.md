@@ -2,8 +2,10 @@
 
 **Everything the atlas draws *at a place*.** This document is the spec for the
 mark budget — what competes for a point on the map and what wins — for the
-shape vocabulary those marks are drawn in, for what size means, and for the
-shared billboard machinery underneath all of it.
+badge layout those marks wear, for what size means, and for the shared billboard
+machinery underneath all of it. Its sibling **`docs/design/ui/icon-set.md`**
+owns the authored vocabulary itself: what must be depicted, what each mark means
+in the world, and the rules every drawing obeys.
 
 It rides `docs/design/ui/camera-nav-lod.md` (bands and curves, §9 names what
 this group inherits) and `docs/design/ui/map-fields-lenses.md` (channels, the
@@ -338,6 +340,10 @@ on every seed. It is not a distinction; it is a rounding error.
 
 ## 6. The glyph vocabulary
 
+**The set itself is `docs/design/ui/icon-set.md`** — what must be depicted, what
+each mark means in the world, the hex-cut design language, and the build order.
+This section states only what the mark budget depends on.
+
 ### 6.1 There isn't one yet
 
 `Resources/AtlasGlyphs.png` holds sixteen icons pulled from game-icons.net during
@@ -356,8 +362,8 @@ availability, not drawn for this map, and every measurement says so:
 - **`ancient-ruins` and `castle-ruins` never separate from each other**, at any
   size on the ladder.
 
-So the question is not which of the sixteen survive a cull. **The atlas has no
-icon vocabulary. This section designs one**, and the sixteen are what it
+So the question was never which of the sixteen survive a cull. **The atlas has no
+icon vocabulary**; `icon-set.md` designs one, and the sixteen are what it
 replaces.
 
 ### 6.2 The floor the design has to clear
@@ -377,154 +383,43 @@ The result is a property of *drawings*, not of these drawings:
 > a picture.**
 
 The atlas currently draws its glyphs at **11–20 px**, which is the whole reason
-`seed-42-works.png` is a field of orange smudges. Under §4 that band belongs to
-the pip map, and **the icon tier lives at Ground, in the tooltip, in the legend
-key and in panel rows** — four surfaces that all have 20 px and more.
+`seed-42-works.png` is a field of orange smudges.
 
-One free improvement, unrelated to the art: `AtlasGlyphs.png` is **512 × 640,
-DXT5, `mipmapCount = 1`**, so a 128 px cell sampled to 14 px is a raw bilinear
-read of four texels. Mipmaps cost nothing and remove the shimmer at every size.
-They do not move the floor — the floor is information-theoretic.
-
-### 6.3 The demand: what this map actually has to say in shape
-
-The set is derived from the sim's own distinctions and their measured
-populations, not from what a stock library happens to contain. Ranges are across
-the six mature radius-21 seeds.
-
-| Group | Distinctions the map must carry | Population per world |
-|---|---|---|
-| **Places** | starport · outpost · market · jump gate | 178–219 ports · 12–26 outposts |
-| **Works** | gate laid · port raised · facility built · hull batch · mobilization · outpost graduating | 74–136 · 38–77 · 23–72 · 9–17 · 3–18 · 0–1 |
-| **Fleets** | posted · reserve · patrol · expedition · blockade | 42–61 · 21–28 · 10–19 · 1–4 · 0–2 |
-| **War** | station on blockade · station on expedition | 0–2 · 0–1 |
-| **Plague** | infected · scarred | 0–2 · 0–2 |
-| **Deep time** | precursor site · battlefield · memorial · ruin · sterilization scar · origin | 178–435 · 36–48 · 19–45 · 4–16 · 77–285 · 149–181 |
-| **Nature** | globular cluster · AGN outburst · merger stream · emission nebula · supernova remnant · dark cloud | 4–8 · 6–7 · 1–3 · 0–8 · 6 · **0 on every seed** |
-| **Word** | news origin | 70–96 shown |
-
-Three things fall out of that table that no stock set could have told us.
-
-**The precursor site is the single largest mark population in the atlas** —
-178–435 per world, more than there are ports. It is also the subject this game is
-most distinctive about: deep time, precursors, a galaxy far older than anyone
-living in it. It deserves the best-drawn icon in the set, and today it is a
-generic crystal cluster.
-
-**The works family needs five icons and has one.** Its kinds are both more
-numerous and more populous than the POI kinds that currently own five cells.
-
-**`DarkCloud` never occurs on any seed**, exactly like `RuinedCapital` and
-`FleetEscort`. Whatever rule admits a cell has to include *have a population*, or
-the set accumulates reservations.
-
-### 6.4 Two tiers, and only one of them needs art
+### 6.3 Two tiers, and only one of them needs art
 
 > **The form tier is generated and carries the map. The icon tier is authored
 > and carries the close reads.**
 
 | Tier | Floor | Drawn by | Carries |
 |---|---|---|---|
-| **Form** | 8–10 px (§5.1) | code, no assets | which *kind of place* (disc / diamond / ring / triangle), and which *family* is present (the collar's six slots, §2.2) |
-| **Icon** | 20 px | authored sprites | which *kind within a family* — this ruin rather than that one, a gate rather than a shipyard |
+| **Form** | 8–10 px (§5.1) | code, no assets | which *kind of place* (disc / diamond / ring), and which *family* is present (the collar's six slots, §2.2) |
+| **Icon** | 20 px | authored sprites (`icon-set.md`) | which *kind within a family* — this ruin rather than that one, a gate rather than a shipyard |
+
+Icons therefore never appear on the map above Ground. Their four surfaces are
+**Ground, the hover tooltip, the legend key and panel rows** — all of which have
+20 px and more.
 
 This split is the schedule as well as the design: **the map is complete and
 shippable with zero icon art**, because Realm, Domains and Reach are the form
-tier end to end. The icon tier can then be commissioned and landed
-incrementally, family by family, each family falling back to its form until its
-icons exist. Nothing in the atlas is ever blocked on a drawing.
+tier end to end. The icon tier then lands family by family, each family falling
+back to its collar pip until its icons exist. Nothing in the atlas is ever
+blocked on a drawing.
 
-### 6.5 The house style: hex-cut
+### 6.4 The two rules that gate the set
 
-A set is a set because of its rules, not its subjects. These are the rules, and
-they are chosen so the icons belong to *this* map — which is hexagonal,
-near-black, additive, and read at a glance from a distance.
+Stated here because they are budget constraints, not art direction:
 
-1. **Hexagonal envelope.** Every icon is drawn inside a flat-top hexagon on a
-   24-unit grid, in the orientation the lattice draws. The mark sits at a hex
-   centre; its picture is hex-shaped. Nothing else on screen is.
-2. **The 60° family only.** Edges run at 0°, ±60°, ±120°, plus 90° where an icon
-   has a vertical axis of symmetry. No arbitrary angles; no true curves except
-   full circles and 60°-centred arcs.
-3. **Solid mass, no outline, no line art.** Icons are filled silhouettes. This is
-   the measured requirement from §6.2, not a taste: outlines are the first thing
-   to die between 32 px and 20 px.
-4. **One connected mass**, or one mass plus at most one deliberate satellite of
-   ≥ 4 units — a spark over a site, a moon beside a body. Floating detail is
-   noise at 20 px.
-5. **Minimum feature 2.5 units** — 2 px at the 20 px floor, which is what a
-   feature needs to survive a bilinear downsample. Counter-forms (holes) minimum
-   3 units.
-6. **Even optical weight:** 34–46% of the envelope inked, so no icon shouts over
-   its neighbours in a legend row or a collar.
-7. **Shared optical centre and baseline**, so a row of them aligns without
-   per-icon nudges.
-8. **Orientation is meaning, never decoration.** An icon that points, points
-   outward from its port (expedition, freight) or across a lane (blockade).
-9. **Pure white on transparent, tinted at runtime.** No gradients, no baked
-   colour, no shading — the atlas renders linear with a per-instance tint and
-   every existing layer already assumes exactly this.
-10. **Every icon passes the ladder at 20 px before it enters the set**, against
-    its own family siblings. The test is a regeneration of
-    `glyph-ladder-bare.png`, not an opinion.
+1. **Pass the ladder at 20 px against family siblings.** Mechanical, verified by
+   regenerating the sheet. It has already caught a real collision — in the eleven
+   marks built to the hex-cut rules during this dive, *precursor* (three shards
+   outward) and *plague* (three bites inward) are both three-fold and converge
+   below 16 px.
+2. **Have a population.** A cell for a type that never occurs is a reservation,
+   not a vocabulary item. Three of the shipped sixteen are reservations.
 
-Rules 1, 2 and 8 are what make the set *this project's*. A licence-free library
-can satisfy 3–7 by accident; nothing off the shelf will be hex-cut, and that is
-precisely why the current sixteen read as borrowed.
-
-**The rules were exercised before being written down.** Eleven of the Tier-A
-marks (§6.6) were constructed from 60° polygons on the hex envelope and put
-through the ladder — they are in the group's mock artifact, and they are a
-*demonstration that the system produces a separable family*, not the proposed
-art. The exercise immediately earned rule 10: **precursor** (three shards
-outward) and **plague** (three bites inward) are both three-fold and converge
-below 16 px. The ladder catches it; a taste argument would not have.
-
-### 6.6 The set, and the order to build it
-
-Thirty marks, grouped by what they answer, ordered by population × how much a
-decision depends on them. **Tier A is the shippable core** — with it the icon
-tier is useful; without the rest it is merely incomplete.
-
-**A — build first (11).** precursor site · starport · outpost · gate under
-construction · port raising · facility · fleet posted · blockade · battle ·
-plague · news origin.
-
-**B — the second pass (10).** patrol · reserve · expedition · hull batch ·
-mobilization · memorial · battlefield · ruin · origin · sterilization scar.
-
-**C — completes the vocabulary (9).** market · jump gate (built) · immunity ·
-globular cluster · AGN outburst · merger stream · emission nebula · supernova
-remnant · dark cloud.
-
-Three deliberate absences: **`RuinedCapital`, `FleetEscort` and `DarkCloud` get
-no cell** until a world produces one — their meanings live in panel text, which
-costs nothing and lies about nothing. **`OutpostGraduation`** (0–1 per world) is
-a *variant* of port-raising, not its own cell. And **market** is a Ground-and-
-panel icon only: at map scale, a market is what a port *is*.
-
-### 6.7 Sourcing
-
-**Commission the set.** §6.5 is the brief, and it is specific enough to hand to
-an illustrator or to build as vector geometry directly — a 60°-grid silhouette
-on a hex envelope is closer to parametric construction than to freehand drawing.
-What cannot be bought is rules 1, 2 and 8: a stock set is by definition drawn to
-no envelope and no grid.
-
-The sixteen placeholders stay in the `AtlasGlyph` enum, unused, marked legacy.
-Enum order **is** the atlas layout and appending is the only legal edit, so the
-new set is a **new tail** — cells 17 onward — and the old cells are simply never
-referenced again. That honours the append rule exactly, at the cost of a few dead
-texels in a 512 × 640 sheet, which is the cheapest possible price for it.
-
-### 6.8 What Tier 2 inherits
-
-The icon manifest is built from §6.3 (the demand), §6.5 (the rules) and §6.6
-(the set and its order). Per entry it carries: **name · meaning · the sim query
-that produces it · measured population · atlas cell · tint rule · the surfaces it
-appears on (Ground / tooltip / legend / panel) · its ladder result at 20 px
-against its family siblings.** Two rules gate every entry: **pass at 20 px**, and
-**have a population**.
+Everything else — the envelope, the 60° edge family, the grammar of shared
+sub-forms, the twenty-seven entries and their meanings, the atlas repack, the
+sourcing — is `icon-set.md`.
 
 ## 7. War and news at galaxy altitude
 
@@ -761,11 +656,10 @@ detailed here in §2.3.
   keystone — `PanelRequest.SubId` already carries exactly that shape for
   outposts. Selection outranks the budget: a selected mark draws whatever its
   band would have culled.
-- **Tier 2 (the icon manifest)** — the input is §6 entire: **§6.3** the demand
-  (every distinction the map must carry, with its measured population),
-  **§6.5** the house style (the ten hex-cut rules the art is drawn to and tested
-  against), **§6.6** the thirty-mark set in three build tiers, and **§6.8** the
-  per-entry columns. The manifest is a **commissioning brief**, not an audit of
-  the sixteen placeholders — those retire wholesale, staying in the enum as dead
-  cells so the append-only rule holds. Two gates on every entry: *pass the ladder
-  at 20 px against its family siblings*, and *have a population*.
+- **Tier 2 (synthesis)** — **`docs/design/ui/icon-set.md` is the icon design**,
+  delivered by this group: twenty-seven entries with what each depicts, what it
+  tells the player, its Core query, its measured population and its build tier,
+  plus the hex-cut language and the atlas repack. Tier 2's manifest is the
+  *production checklist* derived from it — each entry's atlas cell and its
+  recorded ladder result, tracked through the three build tiers — not an audit of
+  the sixteen placeholders, which retire wholesale.

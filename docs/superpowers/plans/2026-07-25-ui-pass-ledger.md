@@ -701,6 +701,13 @@ costing 3.8% occlusion, recorded rather than tuned away.
 
 **https://claude.ai/code/artifact/de81e106-e169-46a3-a8d7-0134cca5e60d** (📍)
 
+The Decision-B exhibit builds the ten Tier-A marks **live, from 60° polygon
+lists on the hex envelope**, and runs them through the same ladder as the
+placeholders — which is what makes the house style checkable rather than
+asserted. The gate earned its keep during the build: a `plague` rooted on the
+hexagon converged with `precursor` below 16 px (both three-fold); re-rooting it
+on the disc as `infected` separates them *and* obeys the event/residue rule.
+
 Four exhibits, one per decision. Every photograph is a render through the
 shipped atlas shaders — the all-families-on frame, the base-only frame, the
 news-only frame, the Ground close-up, and both ladders. The two map canvases
@@ -755,6 +762,39 @@ Eleven Tier-A marks were then *built* to the rules in the mock and put through
 the ladder. The exercise immediately earned rule 10: **precursor** and **plague**
 are both three-fold and converge below 16 px. The gate catches it; taste would
 not have.
+
+**Second redirect, same session:** the user asked for the icon work to become
+its own design document. **`docs/design/ui/icon-set.md`** now carries the set —
+what must be depicted, what each mark means in the world, the sim query behind
+it, its measured population, its build tier, the hex-cut design language and its
+grammar of shared sub-forms, the atlas repack, and sourcing. `marks-glyphs.md`
+§6 shrinks to the two things the mark budget depends on (the 20 px floor and the
+two-tier split) and points at it.
+
+Three design moves the split made room for:
+
+- **A grammar, not thirty drawings.** Ten shared sub-forms (disc, diamond, hex
+  ring, chevron, bar, seated block, shards outward, bites inward, crossed axes,
+  radiating carries) compose the set, so a player who knows six shapes can read
+  an icon they have not seen.
+- **A place icon contains its form.** A port's form is a solid disc, so its icon
+  is that disc *elaborated* with berth arms — descending from the pip map to the
+  icon map adds detail to a shape already known instead of swapping it. This
+  revised the demonstration `starport` (was a hex ring).
+- **An event and its residue share a root**, which halves the invention:
+  battlefield is the crossed axes sunk, ruin is the seated block bitten,
+  sterilization scar is the origin diamond hollowed.
+
+**The set is 27 icons, not 30.** War gets no shape (a war station is a fleet icon
+in the burn tint — which is already what the code does); `RuinedCapital`,
+`DarkCloud` and `Escort` have zero population on all nine artifacts;
+`OutpostGraduation` *is* a port being raised; a completed jump gate is a lane and
+its terminus mark belongs to Group 4.
+
+**Atlas repack, precise:** 17 legacy + 27 new = 44 cells, so the sheet goes
+4 columns × 12 rows, 512 × 1536, with 4 spare. Column count stays 4 because
+`AtlasGlyphs.UvRect` derives every rect from `Columns`/`Rows` — the *enum* index
+is the frozen contract, the pixel layout is derived and may be repacked.
 
 *(the four decisions themselves: pending)*
 
