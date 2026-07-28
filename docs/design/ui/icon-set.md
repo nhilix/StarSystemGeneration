@@ -76,7 +76,7 @@ runtime, and read at a glance from a distance — 20 px at the working altitude
    flat-top hexagonal field in the lattice's orientation, inherits its angles
    and its optical size, and may align to or touch its edges. **Icons do not
    fill it.** A mark cut flush to the envelope has surrendered its own
-   silhouette to a shape all twenty-seven share, and silhouette is the channel
+   silhouette to a shape the whole set shares, and silhouette is the channel
    that survives when everything else has gone (rule 7). The field shows up as
    geometry and scale, not as a boundary stamped over the drawing.
 2. **The 60° family.** Edges run at 0°, ±60°, ±120°, plus vertical where an icon
@@ -195,9 +195,9 @@ identical blocks, which tells the player nothing about what the place does.
 The notation answers this the way a notation should — with a ladder, not with
 fourteen inventions:
 
-> **A facility mark is its family's root; a member's mark is that root carrying
-> one distinguishing member mark. The map draws the root. The system view draws
-> root plus member.**
+> **A facility mark is its family's root. The map draws it and the system view
+> reads it. Which member of the family it is gets named in the tooltip and the
+> panel, not drawn.**
 
 The four roots are the sim's own `InfraFamily`, so the vocabulary cannot drift
 from what the sim actually emits:
@@ -209,21 +209,42 @@ from what the sim actually emits:
 | **Heavy** | Foundry · Shipyard · Arsenal · Compute core | *the strategic works — hulls, arms, thought* |
 | **Support** | Depot · Fortress | *the place is held and supplied* |
 
+**The system view has less room than it looks, and that is what fixes the
+ladder's shape.** Measured against the shipped stage: a facility mark is
+**8.1 px** where the orbit stage fades in and **16.3 px** at the closest the
+camera can go, on a 1000-px-tall viewport (11.7 → 23.5 px at 1440). The
+billboard's `_MaxPx = 36` is never reached — the binding constraint is
+`CameraRig._minDistance = 2.5`. **A facility mark never clears the 20 px icon
+floor on a 1080p-class window.**
+
+Four roots at 16 px is precisely the band where *a single closed silhouette*
+reads (§1), so the roots work. Fourteen member variants at 16 px do not, and no
+amount of drawing skill changes that — which is why the member layer is named
+rather than drawn.
+
+**And the marks are not crowded, only identical.** Consecutive facilities on one
+body sit **23.3 px apart centre-to-centre against a 16.3 px mark**: the 0.85 rad
+angular step in the stage's layout dominates its 0.016 radial step, so they never
+touch. The sea of identical icons comes from one shared drawing and nothing else,
+which is exactly why replacing that one drawing with four is the whole fix.
+
 Three properties make this the answer rather than *an* answer:
 
-1. **One vocabulary fixes both surfaces.** Four roots replace one block at map
-   scale — already the end of the identical sea — and the same four roots carry
-   member marks where there is room to read them.
-2. **It obeys rule 8 by construction.** Each root takes its own topology and
-   axis, so the families separate on the channels that survive; members then vary
-   within a family on a channel their family is not using.
+1. **One vocabulary, both surfaces.** Four roots replace one block at map scale
+   *and* in the system view — one set of drawings, no second vocabulary to learn
+   on the way down.
+2. **It obeys rule 8 by construction.** Four roots is under the three-per-
+   combination limit as long as each takes its own topology and axis, which is
+   the whole design job for this family.
 3. **It scales with the sim.** A fifteenth facility type joins a family and
    inherits its root. It never costs a new primitive and never forces a redesign.
 
-**Open, and owed a measurement:** the system view's mark size. The member layer
-is only worth drawing if the system stage gives these marks enough pixels to
-carry it, and that number has not been taken. Until it is, member marks are
-specified but not committed — the four roots stand on their own.
+**If the member layer is ever wanted on the mark**, the measurement says exactly
+what it would cost: raising the stage's facility world size from **0.038 to
+0.047** puts the mark at 20 px at closest zoom on a 1000-tall viewport. That is
+a one-line atlas change, it is not made here, and it should be argued on whether
+a player needs *mine versus skimmer* at a glance — the panel already answers it
+without spending a pixel.
 
 ### 2.6 Tint
 
@@ -246,48 +267,66 @@ its own colour.
 
 ## 3. The set
 
-Every entry states what it depicts, what a player learns from it, the Core query
-that produces it, and its measured population per mature world. **Build tier** is
-A (the shippable core), B (the second pass), or C (completes the vocabulary),
-ordered by population × how much a decision leans on it.
+**Thirty marks.** Every entry states **what it composes from** — the notation of
+§2.4, so each mark can be checked against the library rather than taken on trust
+— what a player learns from it, the Core query behind it, and its measured
+population per mature world. **Build tier** is A (the shippable core), B (the
+second pass), or C (completes the vocabulary), ordered by population × how much
+a decision leans on it.
 
-> ⚠ **This section is owed a revision and does not yet match §2.** It lists
-> twenty-seven entries against the old sub-form grammar, and it carries a single
-> **facility** row where §2.5 requires four family roots on the map and fourteen
-> member marks in the system view. Set membership — what earns a mark, what
-> composes from primitives it already has, and what the sim-maturity exclusions
-> become — is the next thing decided. The design language in §2 governs;
-> where this section disagrees with it, §2 wins.
+Two reading notes. **Primitives combine; operators transform.** `disc + bar` is
+two primitives placed together; `disc struck` is one primitive under one
+operator. And where an entry names an operator, the difference from its sibling
+is a silhouette event by construction (§2.2 rule 9) — that is the whole reason
+the operators exist.
 
 ### 3.1 Places — where people are
 
 Source: `PortLens.Markers`, `DomainInteriorMarks.Build(...).Outposts`.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **starport** | the disc, with berth arms | *trade happens here.* Its tier sets the service radius that draws the territory around it | 178–219 ports (tiers 1–2 only) | **A** |
-| **outpost** | the diamond, on a stake | *someone lives here and there is no market.* A frontier holding inside a domain; it can graduate into a port | 12–26 | **A** |
-| **market** | the disc, with a balance across it | *this is where the price you are reading comes from.* Panel and tooltip only — at map scale, a market is what a port **is** | one per port | C |
+| **starport** | disc + bar (the berth) | *trade happens here.* Its tier sets the service radius that draws the territory around it | 178–219 ports (tiers 1–2 only) | **A** |
+| **outpost** | diamond + bar (the stake) | *someone lives here and there is no market.* A frontier holding inside a domain; it can graduate into a port | 12–26 | **A** |
+| **market** | disc + bar, balanced | *this is where the price you are reading comes from* | one per port | C |
 
-Port **tier is not an icon distinction, and it is not any other mark
-distinction either.** A tier-2 port projects a larger service radius, so **the
-territory around it is already the read** — putting the same fact in the mark as
-well is redundancy competing for pixels. Three tier icons would be three
-near-identical discs, and measured, no world contains a port above tier 2, so the
-whole encoding was carrying one bit.
+**The market is exempt from the map contract.** At map scale a market is what a
+port *is*, so it never draws there — it appears only in the panel, the tooltip
+and the legend, at 16–24 px in a labelled row. It is the one mark allowed a fine
+internal distinction from `starport`, because it is only ever read on a surface
+that has room and a caption (§2.2's split of the two jobs).
+
+Port **tier is not an icon distinction, and it is not any other mark distinction
+either.** A tier-2 port projects a larger service radius, so **the territory
+around it is already the read** — putting the same fact in the mark as well is
+redundancy competing for pixels. Three tier icons would be three near-identical
+discs, and measured, no world contains a port above tier 2, so the whole
+encoding was carrying one bit.
 
 ### 3.2 Works — the in-flight world
 
-Source: `WorksLens.Sites` → `ProjectKind`. These are the largest family the
-shipped placeholders never distinguished: all six kinds currently draw one crane.
+Source: `WorksLens.Sites` → `ProjectKind`. Everything here is *becoming*, so
+everything here carries **raised** — the operator is the family, which is what
+lets a player read a works mark they have never seen as "something is being
+built" before they know what.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **gate laid** | the hex ring, unclosed | *two ports are being connected.* When it completes a lane opens and the network changes shape — the single most consequential thing under construction | 74–136 | **A** |
-| **port raised** | mass under a rising chevron | *a new starport is being founded here.* The map is about to gain a market and a service radius | 38–77 | **A** |
-| **facility** | a seated block | *industry is being added to an existing domain* — the domain deepens rather than spreads | 23–72 | **A** |
-| **hull batch** | a seated block with a chevron leaving it | *ships are being built.* Fleet strength is about to change | 9–17 | B |
-| **mobilization** | crossed axes over a seated block | *this polity is arming.* War is being prepared, not yet fought | 3–18 | B |
+| **gate laid** | hex ring, **raised** | *two ports are being connected.* When it completes a lane opens and the network changes shape — the single most consequential thing under construction | 74–136 | **A** |
+| **port raised** | disc, **raised** | *a new starport is being founded here.* The map is about to gain a market and a service radius | 38–77 | **A** |
+| **facility raised** | block, **raised** | *industry is being added to an existing domain* — the domain deepens rather than spreads | 23–72 | **A** |
+| **hull batch** | block + chevron departing | *ships are being built.* Fleet strength is about to change | 9–17 | B |
+| **mobilization** | chevron, **massed** | *this polity is arming.* War is being prepared, not yet fought | 3–18 | B |
+
+**`mobilization` and `battlefield` are the notation's clearest pair**: a massing
+of vessels, and vessels broken (§3.6). One primitive, two operators, cause and
+consequence — and it replaces the old *crossed axes*, which was a ninth
+primitive earning its keep in exactly two marks.
+
+**Works do not split by facility family.** `ProjectKind` exposes
+`FacilityConstruction` without the `InfraTypeId` beneath it, and at map scale
+*industry is arriving* is the read. If the lens ever surfaces the type, the four
+roots of §3.3 are already there to carry it.
 
 `OutpostGraduation` (0–1 per world) draws **port raised** — it is a port being
 founded, by promotion rather than expedition, and a cell for a once-per-world
@@ -296,100 +335,160 @@ event is a reservation, not a vocabulary item.
 `ColonyExpedition` is not here: it is a convoy in transit, which leaves the mark
 channel entirely for Group 4's strokes (`marks-glyphs.md` §1.1).
 
-### 3.3 Fleets — hulls, and what they are doing
+### 3.3 Facilities — the built system
 
-Source: `FleetLens.Markers` → `FleetPosture`. One family, one chevron, separated
-by orientation and by what holds it (§2.4).
+Source: `SystemQuery` → `InfraTypeId`, grouped by `InfraFamily`. **New in this
+set**, and the answer to the system view's field of identical blocks (§2.5).
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+These are the *built* facility, not the works site that raised it: no **raised**
+operator, and the block is complete.
+
+| Icon | Composes from | What it tells the player | Members | Tier |
 |---|---|---|---|---|
-| **posted** | chevron facing outward from a berth bar | *freight capacity is assigned to a lane here.* This is what makes trade move | 42–61 | **A** |
-| **blockade** | the hex ring, barred across | *this port's approaches are held by someone else.* Its lanes are cut | 0–2 | **A** |
-| **reserve** | chevron facing inward against its bar | *hulls are docked and decaying in readiness.* Strength on paper, not in the field | 21–28 | B |
-| **patrol** | chevron on a 60° circuit | *legality is being enforced in this domain* | 10–19 | B |
-| **expedition** | chevron leaving the envelope | *a war fleet, colony convoy or ruin expedition is out.* Something is being attempted at distance | 1–4 | B |
+| **extraction** | block + shard (driven into a body) | *something is being taken out of this body* | Mine · Skimmer · Agri-complex · Excavation site | **A** |
+| **processing** | block + carry (something leaving, changed) | *something is being turned into something else* | Refinery · Chemworks · Fabricator · Exotics lab | **A** |
+| **heavy** | block, doubled and massive | *the strategic works — hulls, arms, thought* | Foundry · Shipyard · Arsenal · Compute core | B |
+| **support** | block + hex ring (held, supplied) | *the place is held and supplied* | Depot · Fortress | B |
+
+Four marks replace one, and **which member** is named in the tooltip and the
+panel rather than drawn — the system view gives a facility mark 8.1–16.3 px on a
+1000-tall viewport (§2.5), which is a single-closed-silhouette band. Four roots
+fit it; fourteen member variants do not.
+
+⚠ **Rule 8 needs watching here.** All four roots take the block, so they must
+separate on axis and mass distribution, and they are the set's densest cluster on
+one primitive. This is the group the squint test should be run on first.
+
+### 3.4 Fleets — hulls, and what they are doing
+
+Source: `FleetLens.Markers` → `FleetPosture`. One primitive, the chevron —
+**the only primitive allowed to mean something by where it points** (§2.4).
+
+| Icon | Composes from | What it tells the player | Population | Tier |
+|---|---|---|---|---|
+| **posted** | chevron + bar, pointing out | *freight capacity is assigned to a lane here.* This is what makes trade move | 42–61 | **A** |
+| **blockade** | disc, **struck** | *this port's approaches are held by someone else.* Its lanes are cut | 0–2 | **A** |
+| **reserve** | chevron + bar, pointing in | *hulls are docked and decaying in readiness.* Strength on paper, not in the field | 21–28 | B |
+| **patrol** | chevron + arc (the circuit) | *legality is being enforced in this domain* | 10–19 | B |
+| **expedition** | chevron, crossing the field's edge | *a war fleet, colony convoy or ruin expedition is out.* Something is being attempted at distance | 1–4 | B |
+
+**`blockade` moved off the chevron and onto `disc struck`.** It is the one fleet
+posture whose subject is *the port*, not the hulls — what the player needs is
+"this place is cut", and **struck** says exactly that. It also takes a fourth
+mark off the chevron, which rule 8 was about to fail.
+
+⚠ **`posted` and `reserve` are a mirror pair**, separated only by where the
+chevron points. Rule 7 is marked provisional in §2.1 for precisely this: a mirror
+is the one difference a person can fail to read even when it measures wide open.
+**This pair is the second thing the squint test should be run on**, and if it
+fails, `reserve` takes a different holder rather than a different direction.
 
 **War does not get its own shape.** `WarLens.Stations` re-reads the same
-postures; a war station is a **blockade or expedition icon in the burn tint**.
+postures; a war station is a **blockade or expedition mark in the burn tint**.
 That is already how the code works, it is one fewer thing to draw, and it says
 the true thing: what makes a fleet a war station is not what it is doing but who
 it is doing it to.
 
-`Escort` gets no icon: it never appears as a marker posture on any world
+`Escort` gets no mark: it never appears as a marker posture on any world
 measured. Its meaning stays in panel text.
 
-### 3.4 Health — contagion and its memory
+### 3.5 Health — contagion and its memory
 
 Source: `PlagueLens.Marks` → `PortPlagueStatus`.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **infected** | the disc, three bites taken | *a strain is burning at this port right now.* Its lanes may be quarantined | 0–2 | **A** |
-| **immune** | the disc, three bites healing closed | *this port has survived a strain and is protected until the window lapses* | 0–2 | C |
+| **infected** | disc, **bitten** | *a strain is burning at this port right now.* Its lanes may be quarantined | 0–2 | **A** |
+| **immune** | disc + hex ring (enclosed) | *this port has survived a strain and is protected until the window lapses* | 0–2 | C |
 
-The pair is deliberately the same drawing at two stages — the residue rule
-(§2.4) at its most literal, and the only place in the set where two icons differ
-by degree rather than by kind.
+**`immune` is no longer "the bites healing closed".** A half-healed bite is a
+fine internal annotation and a bad silhouette event, which rule 9 forbids.
+Enclosure is what immunity actually *means* — a made boundary around the place —
+and it reads as a different figure rather than as a subtler version of the same
+one.
 
-### 3.5 Deep time — the galaxy before anyone
+### 3.6 Deep time — the galaxy before anyone
 
 Source: `PoiLens.Marks` → `PoiType`; `GalaxySkeleton.Origins`;
 `PrecursorWave.Sites` where `PrecursorSiteType.SterilizationScar`.
 
-**This is the largest icon family by population and the one the game is most
+**This is the largest family by population and the one the game is most
 distinctive about.** The precursor site alone outnumbers ports.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **precursor site** | three shards radiating from a centre | *deep-time archaeology is here* — exotics, hazard and research, and a claim worth reaching for. Lifts brighter when **dormant**: a live remnant, not an inert ruin | **178–435** | **A** |
-| **battlefield** | crossed axes, sunk | *hulls died here.* Salvage, and a grudge with a date on it | 36–48 | B |
-| **memorial** | the diamond, upright on a base | *a famine or an atrocity is remembered here.* It shapes stance and culture, not trade | 19–45 | B |
-| **ruin** | the seated block, bitten | *a dead city.* Settlement is suppressed here and there is salvage in it | 4–16 | B |
-| **sterilization scar** | the origin diamond, hollowed | *life downstream of here was delayed or erased.* The emergence map still carries the shadow | 77–285 | B |
-| **origin** | the diamond, filled, with shards | *sapience started here.* Era tints it: current, precursor, or a pre-spaceflight native | 149–181 | C |
+| **precursor site** | shard, **massed** | *deep-time archaeology is here* — exotics, hazard and research, and a claim worth reaching for. Lifts brighter when **dormant**: a live remnant, not an inert ruin | **178–435** | **A** |
+| **battlefield** | chevron, **broken** | *hulls died here.* Salvage, and a grudge with a date on it | 36–48 | B |
+| **memorial** | diamond + bar (seated) | *a famine or an atrocity is remembered here.* It shapes stance and culture, not trade | 19–45 | B |
+| **ruin** | block, **broken** | *a dead city.* Settlement is suppressed here and there is salvage in it | 4–16 | B |
+| **sterilization scar** | diamond, **hollowed** | *life downstream of here was delayed or erased.* The emergence map still carries the shadow | 77–285 | B |
+| **origin** | diamond + shard | *sapience started here.* Era tints it: current, precursor, or a pre-spaceflight native | 149–181 | C |
 
-`RuinedCapital` gets no icon: it occurs on **none** of the nine artifacts
-measured. If a world ever produces one it draws **ruin** until it earns a cell.
+Three of these are residues, and each is **one primitive under one operator** —
+`ruin` is the works block broken, `battlefield` is the fleet chevron broken,
+`sterilization scar` is the origin diamond hollowed. The pair always shares its
+primitive, and the operator always changes the outline, which is the design
+holding both halves of §2.2 rule 9 at once.
 
-### 3.6 Nature — the galaxy's own history
+⚠ **`memorial` (diamond + bar) and `outpost` (diamond + bar) are the same
+composition** in different families, separated only by proportion and by tint.
+This is a **known collision carried deliberately into the squint test** rather
+than resolved on paper: if it fails, `memorial` takes the **massed** operator
+(names remembered together) and `outpost` keeps the plain stake.
+
+### 3.7 Nature — the galaxy's own history
 
 Source: `GalaxySkeleton.Features` → `GalacticFeatureType`. These are **region**
-marks: one icon at the feature's centroid with a dotted rim at its extent, and
-they are a **Realm and Domains** read (`marks-glyphs.md` §8).
+marks: one mark at the feature's centroid with a dotted rim at its extent, and
+they are a **Realm and Domains** read (`marks-glyphs.md` §8) — so they are read
+at 10–12 px as locators, never as pictures, and they are the least demanding
+entries in the set.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **globular cluster** | a dense hex of packed dots | *ancient, compact, metal-poor.* Its hexes roll on a different star table | 4–8 | C |
-| **AGN outburst** | radiating carries from an off-frame source | *the core fired once.* A sterilization and enrichment wave crossed this ground | 6–7 | C |
-| **merger stream** | a 60° trail of decreasing mass | *another galaxy fell in here.* Foreign metallicity and a datable starburst along the trail | 1–3 | C |
-| **emission nebula** | a soft-edged mass, open | *gas, and stars forming in it now* | 0–8 | C |
-| **supernova remnant** | a broken ring | *massive stars died here recently.* A young graveyard glow | 6 | C |
+| **globular cluster** | disc, **massed** | *ancient, compact, metal-poor.* Its hexes roll on a different star table | 4–8 | C |
+| **AGN outburst** | carry, **massed**, from off-field | *the core fired once.* A sterilization and enrichment wave crossed this ground | 6–7 | C |
+| **merger stream** | diamond, **massed** along a 60° trail | *another galaxy fell in here.* Foreign metallicity and a datable starburst along the trail | 1–3 | C |
+| **emission nebula** | hex ring, **hollowed** (open on one side) | *gas, and stars forming in it now* | 0–8 | C |
+| **supernova remnant** | hex ring, **broken** | *massive stars died here recently.* A young graveyard glow | 6 | C |
 
-`DarkCloud` gets no icon: like `RuinedCapital`, it occurs on none of the nine
-artifacts. A quiet gas region reads as an **emission nebula** with the nature
-field's own colour saying it is cold — the field is already carrying that
-distinction, so an icon would be duplicating it.
+`DarkCloud` gets no mark: it occurs on none of the nine artifacts. A quiet gas
+region reads as an **emission nebula** with the nature field's own colour saying
+it is cold — the field is already carrying that distinction, so a mark would be
+duplicating it.
 
-### 3.7 Word
+### 3.8 Word
 
 Source: `NewsLens.Pulses`.
 
-| Icon | Depicts | What it tells the player | Population | Tier |
+| Icon | Composes from | What it tells the player | Population | Tier |
 |---|---|---|---|---|
-| **news origin** | a source with six carries | *something happened here that people are still talking about.* Age fades it; the 40-year display window is stated in the legend | 70–96 shown of 448–573 live | **A** |
+| **news origin** | carry, **massed**, around a source | *something happened here that people are still talking about.* Age fades it; the 40-year display window is stated in the legend | 70–96 shown of 448–573 live | **A** |
 
-### 3.8 The build order
+⚠ **`news origin` and `AGN outburst` are both `carry, massed`**, separated only
+by whether the carries are centred or arrive from off-field. They never share a
+band — news is a Reach-and-below mark, AGN a Realm-and-Domains region mark — so
+they are never on screen together, which is the reason this is tolerable rather
+than a rule-8 breach. Recorded so it is not mistaken for an oversight.
 
-**A — the shippable core (10).** starport · outpost · precursor site · gate laid
-· port raised · facility · fleet posted · blockade · infected · news origin.
+### 3.9 The build order
 
-**B — the second pass (9).** reserve · patrol · expedition · hull batch ·
-mobilization · battlefield · memorial · ruin · sterilization scar.
+**A — the shippable core (11).** starport · outpost · precursor site · gate laid
+· port raised · facility raised · extraction · processing · fleet posted ·
+blockade · infected · news origin.
+
+**B — the second pass (11).** reserve · patrol · expedition · hull batch ·
+mobilization · heavy · support · battlefield · memorial · ruin · sterilization
+scar.
 
 **C — completes the vocabulary (8).** market · immune · origin · globular
 cluster · AGN outburst · merger stream · emission nebula · supernova remnant.
 
----
+**But the true first delivery is neither.** Because the set is a notation, what
+gets drawn first is the **eight primitives and six operators** (§2.4, §5.3) —
+fourteen parts, drawn once and drawn well. Every mark above is a composition of
+them, and a set whose parts are right is consistent by construction. Tier A is
+the first eleven *compositions*, not the first eleven drawings.
 
 ## 4. What is deliberately absent, and why
 
@@ -400,13 +499,22 @@ cluster · AGN outburst · merger stream · emission nebula · supernova remnant
 | `FleetPosture.Escort` | never appears as a marker posture |
 | `ProjectKind.OutpostGraduation` | 0–1 per world; it *is* a port being raised |
 | Port tier variants | carried by keystone size and service radius; no world exceeds tier 2 |
-| A "war" shape | war is a tint on a fleet icon (§3.3) |
-| A completed jump gate | a built gate **is a lane**; its terminus mark is Group 4's (`camera-nav-lod.md` §9's open seam) — this set supplies the icon if they want one |
+| A "war" shape | war is a tint on a fleet mark (§3.4) |
+| A completed jump gate | a built gate **is a lane**; its terminus mark is Group 4's (`camera-nav-lod.md` §9's open seam) — this set supplies the mark if they want one |
 | Freight, convoys, crawls | transients: they ride strokes, not places (`marks-glyphs.md` §1.1) |
+| **The fourteen facility members** | the system view gives a facility mark 8.1–16.3 px (§2.5) — a single-closed-silhouette band. Four family roots fit it; fourteen variants do not, so the member is **named in the tooltip and the panel** |
+| **A ninth primitive** | the library is a budget, not an inventory (§2.4). *Crossed axes* was the ninth and it earned its keep in two marks; both now compose from the chevron under **massed** and **broken** |
 
-**The rule underneath all of these: an icon must have a population.** A cell for
-a type that never occurs is not vocabulary, it is a reservation, and the shipped
-placeholder sheet has three of them.
+Two rules underneath all of these.
+
+**A mark must have a population.** A cell for a type that never occurs is not
+vocabulary, it is a reservation, and the shipped placeholder sheet has three of
+them.
+
+**A mark must be readable where it is read.** A distinction that cannot survive
+the pixels its surface actually gives it is not a mark — it is a caption, and it
+belongs on a surface that has room for captions. That is the whole argument for
+the facility ladder, and it is measured rather than asserted.
 
 ---
 
@@ -415,12 +523,13 @@ placeholder sheet has three of them.
 ### 5.1 The atlas sheet
 
 `Resources/AtlasGlyphs.png` is 512 × 640 today: 128 px cells, 4 columns × 5
-rows, 17 of 20 used. The set needs **44 cells** — 17 legacy plus 27 new.
+rows, 17 of 20 used. The set needs **47 cells** — 17 legacy plus 30 new.
 
-- **The sheet becomes 4 columns × 12 rows, 512 × 1536** (48 cells; 44 used, 4
+- **The sheet becomes 4 columns × 12 rows, 512 × 1536** (48 cells; 47 used, 1
   spare). Column count stays at 4 deliberately: `AtlasGlyphs.UvRect` derives
   every rect from `Columns`/`Rows`, so both the constants and the PNG change
-  together and the repack is mechanical.
+  together and the repack is mechanical. One spare cell is thin — the next
+  addition takes the sheet to 4 × 13, which is the same mechanical repack.
 - **What is frozen is the enum, not the pixels.** `AtlasGlyph`'s index → meaning
   mapping is the contract that must never be reordered; the sheet geometry is
   derived from it and may be repacked freely.
@@ -487,4 +596,4 @@ as vector geometry directly.
 - **Tier 2 (synthesis)** — this document *is* the icon design. Tier 2's manifest
   is the production checklist derived from it: per entry, the columns of §3 plus
   its atlas cell and its recorded ladder result, tracked through the three build
-  tiers of §3.8.
+  tiers of §3.9.

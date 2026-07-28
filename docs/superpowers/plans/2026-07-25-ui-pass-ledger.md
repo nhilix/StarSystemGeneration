@@ -1256,6 +1256,73 @@ parts first, not the marks**); `marks-glyphs.md` §6.4 and §13 to match. `§3`
 entries against the old sub-form grammar and one `facility` row. **§2 governs
 where they disagree.**
 
+#### IL.7 — the system-view measurement, and §3 rewritten as compositions
+
+**The measurement (warm editor, `eval_file`, two harnesses).** The billboard px
+formula from `AtlasBillboard.shader`, against the shipped `SystemStage`
+constants (facility `world 0.038`, `pxFloor 7`, `_MaxPx 36`) and
+`CameraRig._minDistance = 2.5`:
+
+| camera distance | vh 1000 | vh 1440 | vh 2160 |
+|---|---|---|---|
+| 5.0 (stage fades in) | **8.1 px** | 11.7 | 17.6 |
+| 3.0 | 13.6 | 19.6 | 29.3 |
+| 2.5 (closest possible) | **16.3 px** | 23.5 | 35.2 |
+
+**A facility mark never clears 20 px on a 1080p-class window.** `_MaxPx = 36` is
+never reached — the binding constraint is the camera floor, not the cap. This
+**killed the member rung** of §2.5 as written: four family roots fit a
+single-closed-silhouette band, fourteen member variants do not. The member is now
+*named in the tooltip and the panel*, not drawn. Recorded alongside: raising the
+stage's facility world size 0.038 → 0.047 buys 20 px at closest zoom on a
+1000-tall viewport — a one-line atlas change, **not made here**, and it should be
+argued on whether a player needs *mine vs skimmer* at a glance.
+
+⚠ **An expected finding that did not survive its own check.** I predicted the
+facility marks overlap — the layout's radial step is 0.016 world, only 6.9 px
+against a 16.3 px mark, a 58% overlap. But the layout also rotates 0.85 rad per
+mark, and the angular term dominates: real centre-to-centre spacing is
+**23.3 px against a 16.3 px mark**, so they never touch. **The sea of identical
+icons is caused by one shared drawing and nothing else** — a cleaner diagnosis
+than the one I set out to confirm, and it would have been reported backwards
+without the second harness.
+
+##### §3 rewritten — thirty marks, every one a composition
+
+Each entry now states **what it composes from** in the §2.4 notation, so a mark
+can be checked against the library instead of taken on trust. Substantive
+changes, all driven by the rules rather than by taste:
+
+- **`facility` becomes four family roots** (§3.3, a new family): extraction ·
+  processing · heavy · support, from the sim's own `InfraFamily`. Four marks
+  replace one; membership is named, not drawn.
+- **`mobilization` and `battlefield` become `chevron massed` and `chevron
+  broken`** — one primitive, two operators, cause and consequence. This retires
+  *crossed axes*, a ninth primitive that earned its keep in exactly two marks.
+- **`blockade` moves off the chevron to `disc struck`.** Its subject is the
+  *port*, not the hulls, and it took a fourth mark off the chevron, which rule 8
+  was about to fail.
+- **`immune` becomes `disc + hex ring` (enclosed)**, not "the bites healing
+  closed" — a half-healed bite is exactly the timid internal annotation rule 9
+  forbids, and enclosure is what immunity means.
+- **`market` is exempted from the map contract** — it never draws on the map, so
+  it may carry a fine distinction from `starport` on the labelled surfaces where
+  it is actually read.
+- Sheet repack: **47 cells** (17 legacy + 30 new), 4 × 12 with one spare.
+
+**Three collisions are carried deliberately into the squint test rather than
+resolved on paper**, each with its fallback already written: the four facility
+roots (all take the block); `posted`/`reserve` (a mirror pair — rule 7's
+provisional status is exactly this); and `memorial`/`outpost` (both
+`diamond + bar`, separated only by proportion and tint). A fourth,
+`news origin`/`AGN outburst` (both `carry massed`), is recorded as tolerable
+because the two never share a band.
+
+**The build order gained a rung above tier A:** because the set is a notation,
+the first delivery is the **fourteen parts** — eight primitives, six operators —
+not the first eleven marks. A set whose parts are right is consistent by
+construction.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
