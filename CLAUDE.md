@@ -176,6 +176,14 @@ predates this and stands. These cover the orchestrator + one worker case:
   phone via Remote Control. Announce the spawn to the user so they know a
   worker is waiting on them.
 
+- **A long `send-keys` message TRUNCATES, and silently** (observed 2026-07-27,
+  mid-session note to a running worker). A ~1,150-character message arrived
+  with its **front missing** — the worker received a fragment starting
+  mid-sentence and acted on the half it got; a ~380-character one landed
+  intact. Keep mid-session messages **under ~500 characters**, or write the
+  note to a file and send a short "read `<path>`" instead. **Verify with
+  `capture-pane` before the Enter** — the pane shows what actually arrived,
+  and the tail looking right does not mean the head did.
 - **Wait for the shell prompt before sending ANY keys to a new window**
   (root-caused 2026-07-22): keys sent while pwsh is still initializing
   permanently desync the pane's rendering — the window looks dead (raw
