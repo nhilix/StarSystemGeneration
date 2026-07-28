@@ -1067,6 +1067,45 @@ mass displacement. ⚠ But the metric cannot see that a mirror is perceptually
 confusable ("which way was it pointing?"), so rule 8 is **measured safe and
 perceptually unverified** — the same gestalt blind spot recorded in IL.3.
 
+#### IL.5 — ⚠ RETRACTED. The metric was not measuring legibility
+
+**Withdrawn by the user, 2026-07-27, and the withdrawal is correct.** Everything
+below stands as a record of a wrong turn; none of it is design.
+
+> *"Your measurements make no real world sense, the direction you used to
+> generate these new icons made illegible senseless blobs for most of the
+> resulting icons ... 'how many pixels overlap in each pixel pair' says
+> absolutely nothing about the shape language of the icon nor the actual
+> silhouette read to an actual human eye."*
+
+**What went wrong: Goodhart's law, in full.** Alpha IoU and differing-ink were
+adopted as a stand-in for "does this separate", the redraws were then optimised
+*against the stand-in*, and three of the five — `ruin`, `battlefield`, `patrol`
+— came out as sparse, unreadable scatter that scores better and depicts
+nothing. **A better number was produced by making worse icons.**
+
+**Why the metric cannot work, stated properly.** Pixel overlap has no relation
+to how a human tells shapes apart. A filled disc and a disc struck through by a
+bar overlap *heavily* and are instantly distinguishable, because the bar is a
+salient contour event. Two dissimilar spiky blobs can overlap *little* and be
+hopelessly confusable. Human shape discrimination runs on **silhouette contour,
+dominant axis, topology and metaphor recognition** — none of which IoU can see.
+This is the same blind spot recorded twice already in IL.3 and IL.4 as "cannot
+see a gestalt"; it was named, then acted against anyway.
+
+**The worst consequence** is that `facility`/`ruin` was "fixed" by destroying
+the right idea. A standing building and a broken building **should** share most
+of their mass — that shared mass is exactly what makes the pair read as cause
+and consequence. 0.877 was never the disease.
+
+**What survives:** the *observations* (the hex ring carries four icons; coverage
+runs 30–82%; the catalogue never implemented rule 1) are still facts about the
+set. What does not survive is any conclusion drawn from a pixel-overlap
+threshold, the five redraws, and the "0 collide / 6 tight" claim as evidence of
+anything worth having.
+
+<details><summary>Retracted content, kept for the record</summary>
+
 #### IL.5 — the language designed, and proved against the matrix
 
 **https://claude.ai/code/artifact/aa6162ec-fc0b-41ff-8b60-59d68c867f19** (🔶)
@@ -1137,6 +1176,8 @@ deliberately — the set's only differ-by-degree pair); the rest are cross-famil
 and belong to the vocabulary gate. The redraws are **demonstration geometry,
 not production art** (kickoff boundary) — `patrol` and `ruin` in particular read
 thin at 20 px and would want a drawing pass.
+
+</details>
 
 ## Tier 2 — Synthesis
 
