@@ -1,3 +1,160 @@
+# Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 3 MERGED — marks, billboards & the glyph vocabulary)
+
+**Tier 1 Group 3 — COMPLETE, gate settled, merged & pushed.** Branch
+`ui-pass-t1g3` from main `8fa7f81`. **Two** design docs this time:
+**`docs/design/ui/marks-glyphs.md`** (the mark budget, the collar, size, the
+machinery) and **`docs/design/ui/icon-set.md`** (the 27-icon vocabulary and its
+design language). Pass ledger
+**`docs/superpowers/plans/2026-07-25-ui-pass-ledger.md`** §"Group 3".
+
+Mocks: **https://claude.ai/code/artifact/de81e106-e169-46a3-a8d7-0134cca5e60d** 📍
+(the four decisions) and
+**https://claude.ai/code/artifact/981127f2-9d42-43ff-9edd-2eb73d039738** 🔶
+(the icon set, generated from `icon-set.md` with all 27 marks drawn).
+
+**Design pass — zero code, as scoped.** No `src/`, no `tests/`, no
+`unity/Assets`, `Atlas.unity` byte-clean, `dotnet test` untouched.
+`unity/ProjectSettings` churn left uncommitted per the standing rule.
+
+## The accepted design, in one line each
+
+**A mark is a place, or something happening at a place. The map draws each place
+once, and what is happening there rides that one mark.**
+
+- **One keystone per hex.** Marks merge in the *sim's* coordinate, not in screen
+  space, so nothing is ever moved away from what it describes. There is no
+  force-directed dodge and no top-N.
+- **The collar**: six slots at the vertices of a hex, one per state family,
+  permanently — war always at 12 o'clock. Position identifies, colour confirms;
+  the count of lit vertices is a silhouette, not a tally; nothing can overlap by
+  construction. Six *is* the number of state families, so there is no overflow
+  case.
+- **Weight admits.** Each band sets a floor per family — ports against the
+  world's own top tier, POIs against its own magnitude quantiles — **and a place
+  is admitted whenever anything happening there is**, which is how Realm comes to
+  show the important places *and* the eventful ones.
+- **Size carries nothing.** At any altitude every mark is the same size; the size
+  changes with the band, never with the datum. Kind comes from the icon;
+  quantities live in the tooltip and the panel.
+- **There was no icon vocabulary** — the sixteen are K2 placeholders from
+  game-icons.net. `icon-set.md` designs one: 27 marks in three build tiers, a
+  grammar of ten shared sub-forms, and the **hex-cut** house style (hexagonal
+  envelope, 60° edge family, solid mass, orientation-as-meaning, a ladder gate at
+  20 px).
+- **Transients leave the mark channel** for Group 4's strokes; **news** becomes a
+  point mark with the ring surviving only as the emission animation;
+  **Features/Emergence** become Realm-and-Domains region and point marks.
+
+## The measurements worth carrying (ledger §3.5 has all of them)
+
+- **957–1347 marks at 373–608 hexes** on a mature world, all at the bare hex
+  centre. **42–65% of occupied hexes carry ≥2 marks on the identical point**;
+  the worst hex carries **10–13** from up to **7** families. On-screen occlusion
+  is **69–89% at every band on every mature seed**.
+- **The on-screen distance between *adjacent hexes*: Realm 2.1 px · Domains
+  6.4 · Reach 15.2 · Ground 80.7.** This is the constraint that decides where an
+  icon can be read at all — no drawing survives galaxy altitude, and Reach is the
+  first band where the geometry and the 20 px floor meet.
+- Proposed budget, measured against the shipped one: **92–120 marks at Realm
+  (1.1–5.0% occluded), 174–228 at Domains, 20 px at Reach (5.9–12.6%)**.
+- **`GlyphFade` is exactly 0.000 at Realm and through most of Domains** (window
+  `f` 0.63→0.315; Domains starts at 0.45) — which is why war never resolved at
+  Realm despite Group 1 requiring it.
+- **No artifact contains a port above tier 2** (t1 97–128, t2 75–98) — Group 1's
+  "tier 3+ at Realm" drew *zero* ports at the band whose question is who holds
+  what.
+- **The readable floor for an authored icon is 20 px**; the atlas draws at
+  11–20 px. Below 8 px no *form* separates from any other.
+- **The size channel was inert**: median fleet 1.0–1.5 px above a 7 px floor;
+  POI median 2–3 against a max of 68–120, clamping at 32; works sites a flat
+  15.0 px; `Stalled` false on all nine artifacts; war posture a 2 px distinction
+  across 0–3 stations.
+- **Two authored cells are never drawn on any seed** (`PoiRuinedCapital`,
+  `FleetEscort`), plus `DarkCloud`. **`PoiPrecursor` is 57–87% of all POIs.**
+  **All six works kinds draw the same crane.**
+- **News is inverted**: 28 px at disc fit, 155–320 px at Reach, 25–44 in frame;
+  94–98% of pulses clamp the magnitude term; and on a loaded artifact every live
+  pulse shares one emission year (age p0=p50=p100=**25**), so radius and fade are
+  constants.
+
+## ⚠ Amendment landed — `camera-nav-lod.md` §2
+
+**The mark rows become weight floors, and the port tiers become relative to the
+world's own top tier.** Outposts move up to Domains. Reasoning in
+`camera-nav-lod.md` §2, detail in `marks-glyphs.md` §2.3 and §12.
+
+## The gate, and the two redirects that shaped the design
+
+Four questions went up; **two were accepted as recommended** (the mark budget;
+commission the hex-cut set). The other two changed the design, both for the
+better:
+
+- **The badge layout was underdesigned** — "up to three pips on the rim" is a
+  placement policy, not a layout. Replaced by the collar.
+- **The glyph section asked the wrong question**, triaging the sixteen
+  placeholders when the job was to determine *what icons should be developed*.
+  Rewritten as a design, then split into `icon-set.md` on a second ask.
+- **Size should encode nothing at all** — kinds are differentiated by icons, and
+  per-entity data belongs in tooltips and panels. This is the consequential one:
+  it made the icon load-bearing, which forced the mark to be big enough to carry
+  one, which is what produced the adjacent-hex measurement above.
+- **The outpost's form dissolved** with it — it takes an icon like everything
+  else. The form measurements survive as the *floors*, not as a vocabulary.
+
+## What Groups 4, 5, 6 and Tier 2 inherit
+
+- **Group 4 (strokes)** — **transient marks are yours**: freight and convoys
+  leave the mark channel entirely, keeping their purpose colours. A completed
+  jump gate is a lane, so its terminus mark is yours too; `icon-set.md` §4 offers
+  the gate icon if you want one.
+- **Group 5 (chrome)** — the legend must render **the collar itself**, six
+  labelled vertices, not a list of pip colours; the band's current weight floors
+  are legend content ("showing the top tenth"); pip colours come from the shared
+  declaration.
+- **Group 6 (panels)** — **every per-entity quantity the map used to put in a
+  mark's size now lives with you**: hulls, magnitude, progress, stall, port tier.
+  Above Reach a mark is a locator, so the tooltip is the only thing that can name
+  what it is up there.
+- **Tier 2** — `icon-set.md` **is** the icon design. Tier 2's manifest is the
+  production checklist derived from it (atlas cell + recorded ladder result per
+  entry, tracked through the three build tiers), not an audit of the sixteen.
+
+## Method notes
+
+- **Eight `eval_file` harnesses** did the dive: `census`, `sizes`, `budget`,
+  `extras`, `uniform` (measurement) and `glyphsheet`, `forms`, `reach`
+  (rendering). Recipes in ledger §3.4; output in `atlas-grid-marks/`, which
+  matches the `atlas-grid*/` gitignore glob.
+- ⚠ **`eval_file` is capped at 30 s regardless of `--timeout`**, exactly like
+  `menu`. Five of the eight reported `COMMAND_FAILED … timed out` **while
+  completing normally**. Poll for the output file; never trust the envelope.
+- **Occlusion is measured, not sampled** — real camera projection, the shader's
+  own sizing formula, and a uniform grid at cell = 2·maxRadius so every
+  overlapping pair is found exactly.
+- **All 27 icons are constructed live from 60° polygon lists** in the artifacts,
+  which is what makes the house-style rules checkable rather than asserted. It
+  caught three real collisions (precursor/plague, facility/ruin,
+  outpost/memorial).
+- **An artifact page carries no `<meta charset>` of its own** (the wrapper owns
+  `<head>`) — entity-encode non-ASCII or em-dashes arrive as mojibake.
+- **Editor left OPEN and clean** on port 7800, `SimHost.ArtifactPath` restored to
+  the golden. Close it if the next slice needs batchmode.
+
+## NEXT UP
+
+**Tier 1 Group 4** (lanes, flows & motion) is the last map-side group and is
+unblocked. Groups 5–6 stay blocked on **Slice CS**
+(`docs/superpowers/plans/2026-07-25-slice-cs-kickoff-prompt.md`).
+
+**Tier/group kickoffs are the ORCHESTRATOR's to write** (user decision,
+2026-07-25) — this session deliberately did not write the Group 4 kickoff.
+
+**Small follow-up filed:** `docs/design/README.md`'s subsystem table does not
+list the `ui/` tree (predates this group — Tier 0 created it). Out of Group 3's
+boundary, which forbids `docs/design/` edits outside `ui/`.
+
+---
+
 # Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 2 MERGED — map fields & lenses)
 
 **Tier 1 Group 2 — COMPLETE, gate passed, merged & pushed.** Branch

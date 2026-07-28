@@ -556,7 +556,338 @@ drift test growing a colour arm · the `ports` legend moving into the legend hea
 · `LensStack.Composite` retired in favour of a stated GPU stacking rule ·
 overlap intensity redefined as 1.5× the accent's fill.
 
+### Group 3 — marks, billboards & the glyph vocabulary
+
+Branch `ui-pass-t1g3` off main `8fa7f81`. Kickoff:
+`docs/superpowers/plans/2026-07-27-ui-pass-t1g3-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/marks-glyphs.md` + a mock artifact. **Zero atlas
+code.**
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| 3.1 | Scope nod | user | ✅ nodded 2026-07-27 |
+| 3.2 | Branch `ui-pass-t1g3`; continue this ledger | — | ✅ |
+| 3.3 | Read the mark layers + Core lenses inline | — | ✅ |
+| 3.4 | Measure (`census`, `sizes`, `budget`, `extras`) and render (`glyphsheet`, `forms`, `reach`) | — | ✅ |
+| 3.5 | Read the evidence — images and numbers, not recall | — | ✅ |
+| 3.6 | Write `docs/design/ui/marks-glyphs.md` + the §12 amendment | — | ✅ |
+| 3.7 | Build the mock artifact | — | ✅ |
+| 3.8 | **User checkpoint** — the four escalated decisions | **user** | ✅ **SETTLED** 2026-07-27 (two accepted, one redirected, one dissolved) |
+| 3.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ✅ |
+
+#### 3.4 — the evidence apparatus (reproducible; output gitignored)
+
+Sim artifacts are Tier 0's recipes **G** and **D**, already at
+`runs/atlas-grid/` (six mature radius-21 seeds) and `runs/atlas-degen/` (three
+degeneracies) — unchanged, regenerate from there. Everything below ran against
+branch `ui-pass-t1g3` (= main `8fa7f81` atlas code) with a **warm editor** on
+port 7800, through `unity command eval_file`. Seven harnesses, all in the
+session scratchpad (disposable; the recipes and numbers below are the record):
+
+| Harness | What it produces |
+|---|---|
+| `census.cs` | per-artifact mark census by family; same-hex stacking; per-band on-screen count, pairwise overlaps and occlusions, using the real camera projection and the real `max(world, pxFloor·pxWorld)` sizing |
+| `sizes.cs` | rendered-size min/median/max per family per band; the hull and magnitude distributions the size channel is asked to carry; `GlyphFade`/`MapFade` at each band |
+| `budget.cs` | the **proposed** budget scored against the shipped one, band by band, plus `seed42-marks.json` (the mock's data) |
+| `extras.cs` | which authored glyph cells the data actually reaches; news magnitude/age distributions |
+| `uniform.cs` | the post-gate measurement: on-screen distance between **adjacent hexes** per band, and occlusion swept over eight uniform mark sizes |
+| `glyphsheet.cs` | the 16 icons through the real `StarGen/AtlasGlyph` shader at exact px sizes — `glyph-ladder-bare.png`, `glyph-ladder-chip.png` |
+| `forms.cs` | eight candidate forms, same path, same ladder — `form-ladder.png` |
+| `reach.cs` | 26 captures: all-families-on at four bands × three seeds, news-only, base-only, and two Ground close-ups of the worst stack |
+
+Output: `atlas-grid-marks/` — matches the `atlas-grid*/` gitignore glob, so it
+stays untracked.
+
+**Method notes.**
+- **Occlusion is measured, not sampled.** Marks are projected with
+  `Camera.WorldToViewportPoint`, sized with the shader's own formula
+  (`min(maxPx, max(pxFloor, world/pxWorld))`, `pxWorld = 2·depth/(focalY·VH)`),
+  and paired through a uniform grid at cell = 2·maxRadius — so every overlapping
+  pair is found, exactly.
+- ⚠ **`eval_file` is capped at 30 s regardless of `--timeout`**, exactly like
+  `menu` (skill trap #2). Four of the seven harnesses reported
+  `COMMAND_FAILED … timed out after 30000ms` **while completing normally**.
+  Poll for the output file; never trust the envelope.
+- Ladder sheets are rendered through the shipped shader with `worldSize = 0`, so
+  the pixel floor governs exactly and a column *is* its stated pixel size. The
+  form sheet is offset to `x = 6000` so the galaxy is out of frame.
+- Viewport for every measurement is **1600 × 1000 at fov 50** (`focalY`
+  2.1445), matching `AtlasSmoke`'s acceptance size.
+
+#### 3.5 — what the measurements said
+
+- **The pile, at the working altitude.** 957–1347 marks at 373–608 hexes on the
+  six mature seeds. **42–65% of occupied hexes carry ≥2 marks on the identical
+  centre**; the worst hex per seed carries **10–13** marks from up to **7**
+  families. On-screen occlusion (a mark's centre inside another mark's disc) is
+  **69–89% at every band on every mature seed** — 87.1% at Realm, 69.3% at
+  Reach on seed-42.
+- **Count does not fall with altitude, it rises.** Shipped on-screen: 1200 at
+  Realm, 1077 at Domains, 361 at Reach (seed-42). Altitude only shrinks the
+  count by shrinking the frame.
+- **`GlyphFade` is exactly 0.000 at Realm and through most of Domains.** Window
+  `f` 0.63 → 0.315; Domains starts at 0.45. So fleets, POIs, works, plague *and
+  war* draw at alpha zero above Reach. Group 1 requires war at Realm; the curve
+  forbids it.
+- **No artifact contains a port above tier 2.** t1 = 97–128, t2 = 75–98 on the
+  six mature seeds; t2 = 2–5 on the degenerate ones. Group 1's "tier 3+ at
+  Realm" draws **zero ports** on every world we have.
+- **Rendered sizes are the pixel floor almost everywhere.** Every glyph family
+  sits in **12–22 px** from disc fit down to `f = 0.16`; the world term only
+  takes over at Ground, where it immediately clamps at `_MaxPx = 56`. Ports are
+  **6.8 px (t1) / 9.6 px (t2)**; outposts a flat **5.5 px**; worked dust 4.5 px
+  — three families inside 2.3 px of each other.
+- **The size channel is spent on nothing.** Fleet hulls: median **2**, so the
+  median fleet is 1.0–1.5 px above the floor of a 7 px channel (saturates at 14
+  hulls). POI magnitude: median **2–3** against a max of **68–120**, saturating
+  at 32. Works `Sites` are a flat **15.0 px** everywhere. **`Stalled` is false
+  on all nine artifacts**, so two of freight's four sizes never render. War
+  posture is a 2 px distinction across **0–3** stations per world.
+- **Two authored cells are never drawn on any seed**: `PoiRuinedCapital`
+  (castle-ruins) and `FleetEscort` (checked-shield).
+- **`PoiPrecursor` is 57–87% of every POI population** (178–435 of 276–498) —
+  one icon is most of what the POI lens says.
+- **All six works kinds draw the same crane.** `GatePair` 74–136 per seed,
+  `PortRaise` 38–77, `FacilityConstruction` 23–72, plus `HullBatch`,
+  `Mobilization`, `OutpostGraduation`. The largest real distinction in the mark
+  set has no shape at all.
+- **The readable floor for an authored icon is 20 px**, and 14–16 px only for
+  single closed silhouettes (cancel, crossed-swords, checked-shield, tombstone,
+  anchor). Detailed line art needs 24–32. **`ancient-ruins` and `castle-ruins`
+  never separate from each other at any size on the ladder.** The atlas draws
+  its glyphs at 11–20 px.
+- **`AtlasGlyphs.png` is 512×640 DXT5 with `mipmapCount = 1`** — a 128 px cell
+  sampled to 14 px is a raw bilinear read of four texels. (The `Backing` cell
+  *is* a filled circle, as documented — verified by sampling the source PNG.)
+- **Form floors, measured through the shipped shader:** thick ring separates
+  from a disc at **8 px**, solid square 8–10, solid diamond **10**, triangle 10,
+  square ring 12, hollow diamond 14–16, thin ring 14–16. **Below 8 px nothing
+  separates from anything.**
+- **News is inverted with respect to its own question.** One pulse is **28 px at
+  disc fit and 155–320 px at Reach**, with 25–44 in frame. The 40-year cutoff
+  drops **80–85%** of live pulses (448–573 live → 70–96 shown). Magnitude is
+  unbounded (0.5 … **16,964**) against a `clamp01(0.35 + 0.65·m)` alpha term, so
+  **94–98% of shown pulses clamp to 1.0**. And on a loaded-then-stepped artifact
+  **every live pulse shares one emission year** — age p0 = p50 = p100 = **25** on
+  all nine worlds — so radius and fade are constants and "the story is where
+  rings cluster" was never testable.
+- **`Features` is not a point set.** 22–32 features occupying **337–686 cells**;
+  `FeaturesOverlay` marks every cell, which is why it renders as a field.
+  `Emergence` is a point set but a big one: 11–181 origins plus 7–285
+  sterilization scars.
+- **The contrast chip stacks.** Every mark draws its own; 13 chips at alpha 195
+  composite to effectively opaque, which is the black blob under the marks in
+  `stack-closeup-f005.png`.
+
+#### 3.5b — the proposed budget, scored
+
+One keystone per hex; states become badges; weight admits per band; transients
+leave for Group 4. Same framing, same viewport, same projection as the shipped
+column:
+
+| Band | Shipped on-screen / occluded | Proposed on-screen / occluded |
+|---|---|---|
+| Realm | 957–1347 / 86–89% | **92–120 / 1.1–5.0%** |
+| Domains | 854–1111 / 70–83% | **174–228 / 3.8–9.8%** |
+| Reach | 291–368 / 56–79% | **91–187 / 0.0–1.0%** |
+| Ground | 237–381 / 73–83% | **84–153 / 10.2–24.8%** |
+
+Seed-42's admitted set falls **1014 → 371 → 196** from Reach to Realm (monotone
+in altitude); at Reach 1014 admitted marks collapse to **420 keystones** with 594
+riding as badges. On-screen count peaks at Domains (210 vs Reach's 134) because
+that band's frame grows ~5× while admission tightens 2.7× — a framing effect
+costing 3.8% occlusion, recorded rather than tuned away.
+
+#### 3.7 — the mock
+
+**https://claude.ai/code/artifact/de81e106-e169-46a3-a8d7-0134cca5e60d** (📍)
+
+The Decision-B exhibit builds the ten Tier-A marks **live, from 60° polygon
+lists on the hex envelope**, and runs them through the same ladder as the
+placeholders — which is what makes the house style checkable rather than
+asserted. The gate earned its keep during the build: a `plague` rooted on the
+hexagon converged with `precursor` below 16 px (both three-fold); re-rooting it
+on the disc as `infected` separates them *and* obeys the event/residue rule.
+
+Four exhibits, one per decision. Every photograph is a render through the
+shipped atlas shaders — the all-families-on frame, the base-only frame, the
+news-only frame, the Ground close-up, and both ladders. The two map canvases
+redraw **seed-42's exported mark set** (218 ports, 17 outposts, 322 POIs, 106
+fleets, 259 sites, 96 pulses, 211 lanes) at **Reach's exact pixel scale**
+(`1 px = 0.11044` world units), through the **real authored glyph atlas** — so
+shipped-vs-proposed is one world under two rule sets rather than an
+illustration. Orthographic, not the perspective camera; stated in the caption.
+
+Built on the project's Cassette × Ice tokens, single-theme dark for the same
+reason Groups 1 and 2's mocks are.
+
+**Verification.** Rendering, layout and every canvas verified in-browser over a
+local HTTP server: all four canvases report `done` with 1.6–72% of their pixels
+lit, all six images decode at their natural sizes, no console errors, and the
+element geometry was read back directly. **Screenshots of the lower half of the
+page came back black even though the DOM said content was there** — the capture
+pipeline desynced from a 2560-wide viewport, not a page fault; those sections
+were verified programmatically instead. There is no interactive control on the
+page, deliberately, since this harness cannot deliver clicks or scroll into an
+artifact's iframe.
+
+#### 3.8 — the gate
+
+**First pass REDIRECTED, 2026-07-27.** Two corrections, both taken:
+
+1. **The badge layout was underdesigned.** "Up to three pips on the keystone's
+   rim, then a *more* pip" is not a layout — it is a placement policy, and pips
+   at arbitrary angles are not readable at a glance. Redesigned as **the collar**
+   (design §2.2): six slots at the vertices of a hex, one per state family,
+   permanently. Position identifies and colour confirms; count is a silhouette
+   rather than a tally; nothing can overlap by construction; and the same six
+   vertices carry each family's *icon* at Ground, so the layout is learned once.
+   Six is the number of state families that exist, so there is no overflow case.
+   Footprint 20 px (keystone 10, collar radius 8, pip 4) — smaller than one of
+   today's glyphs plus its contrast chip.
+2. **The glyph section asked the wrong question.** It triaged the sixteen
+   placeholders ("which survive a cull") when the dive's job was to determine
+   **what icons should be developed**. The sixteen are licence-free game-icons.net
+   art pulled during K2 to prove the plumbing; there is no vocabulary to revise.
+   §6 was rewritten as a design: **the demand** (every distinction the map must
+   carry, with its measured population — §6.3), **the two tiers** (form,
+   generated, 8–10 px; icon, authored, 20 px — so the map ships with zero art,
+   §6.4), **the house style** (ten hex-cut rules: hexagonal envelope, 60° edge
+   family, solid mass, one connected form, 2.5-unit minimum feature, even optical
+   weight, orientation-as-meaning, and a ladder gate at 20 px — §6.5), **the set**
+   (thirty marks in three build tiers by population × decision-weight, §6.6), and
+   **sourcing** (commission it; the sixteen retire wholesale to dead enum cells so
+   the append-only rule holds — §6.7).
+
+Eleven Tier-A marks were then *built* to the rules in the mock and put through
+the ladder. The exercise immediately earned rule 10: **precursor** and **plague**
+are both three-fold and converge below 16 px. The gate catches it; taste would
+not have.
+
+**Second redirect, same session:** the user asked for the icon work to become
+its own design document. **`docs/design/ui/icon-set.md`** now carries the set —
+what must be depicted, what each mark means in the world, the sim query behind
+it, its measured population, its build tier, the hex-cut design language and its
+grammar of shared sub-forms, the atlas repack, and sourcing. `marks-glyphs.md`
+§6 shrinks to the two things the mark budget depends on (the 20 px floor and the
+two-tier split) and points at it.
+
+Three design moves the split made room for:
+
+- **A grammar, not thirty drawings.** Ten shared sub-forms (disc, diamond, hex
+  ring, chevron, bar, seated block, shards outward, bites inward, crossed axes,
+  radiating carries) compose the set, so a player who knows six shapes can read
+  an icon they have not seen.
+- **A place icon contains its form.** A port's form is a solid disc, so its icon
+  is that disc *elaborated* with berth arms — descending from the pip map to the
+  icon map adds detail to a shape already known instead of swapping it. This
+  revised the demonstration `starport` (was a hex ring).
+- **An event and its residue share a root**, which halves the invention:
+  battlefield is the crossed axes sunk, ruin is the seated block bitten,
+  sterilization scar is the origin diamond hollowed.
+
+**The set is 27 icons, not 30.** War gets no shape (a war station is a fleet icon
+in the burn tint — which is already what the code does); `RuinedCapital`,
+`DarkCloud` and `Escort` have zero population on all nine artifacts;
+`OutpostGraduation` *is* a port being raised; a completed jump gate is a lane and
+its terminus mark belongs to Group 4.
+
+**Atlas repack, precise:** 17 legacy + 27 new = 44 cells, so the sheet goes
+4 columns × 12 rows, 512 × 1536, with 4 spare. Column count stays 4 because
+`AtlasGlyphs.UvRect` derives every rect from `Columns`/`Rows` — the *enum* index
+is the frozen contract, the pixel layout is derived and may be repacked.
+
+**`icon-set.md` also ships as a catalogue artifact** (user ask):
+**https://claude.ai/code/artifact/981127f2-9d42-43ff-9edd-2eb73d039738** (🔶).
+It is *generated from the markdown file*, so the doc stays the single source of
+truth — a ~100-line converter renders it and injects a drawing beside every
+entry (at 36 px and again at 20 px, so each row shows the floor), plus a grouped
+plate of all twenty-seven at 56 px and the full ladder. **All 27 marks are
+constructed live from 60° polygon lists on the hex envelope**, which is what
+makes §2's rules checkable rather than asserted.
+
+Two build notes worth keeping: an artifact page carries no `<meta charset>` of
+its own (the wrapper owns `<head>`), so **encode every non-ASCII character as a
+numeric entity** or em-dashes arrive as `â€"`; and canvas hole-cutting is
+order-sensitive — `immune` rendered as a bare ring until the healing rim was
+drawn *before* the core rather than over it.
+
+The exercise found two more rule-10 collisions at 12 px — *facility*/*ruin* and
+*outpost*/*memorial* — both of which are event-and-residue pairs that
+**should** share a root, and both of which separate by 20 px. That is the floor
+doing exactly what it is for.
+
+#### The gate itself — all four settled 2026-07-27
+
+- **(a) the mark budget** — **ACCEPTED as recommended.** One keystone per hex;
+  states ride the fixed six-slot hex collar; weight admits per band. The merge
+  happens in the sim's own coordinate, so no mark is ever moved away from what
+  it describes.
+- **(b) the icon vocabulary** — **ACCEPTED as recommended.** Retire the sixteen
+  placeholders; commission a bespoke hex-cut set to the ten rules, in three
+  build tiers by population × decision-weight. The set is `icon-set.md`.
+- **(c) what size encodes** — **REDIRECTED, and it simplified the design.**
+  *"I don't think size or any of this information should be encoded in these
+  manners. Different icons would serve a better purpose to differentiate between
+  rank, and other data points of individual entities can live within panel
+  summaries/tooltips etc."* So **size stops being a channel at all**: at any
+  altitude every mark is the same size, and the size changes with the band,
+  never with the datum. Kind comes from the icon; hulls, magnitude, progress,
+  stall and port tier go to the tooltip and the panel.
+- **(d) the outpost's form** — **DISSOLVED**, by the user: *"this question is
+  mute, it should get an icon from the library."* Correct — the form framing
+  belonged to a map with no icon vocabulary. The form measurements survive as
+  the *floors* (§5.2 of the design), not as a vocabulary.
+
+**(c) is the consequential one, because it made the icon load-bearing and
+therefore forced the mark to be big enough to carry one.** The constraint turned
+out to be geometry rather than taste, and it needed a new measurement
+(`uniform.cs` → `uniform.txt`): the **on-screen distance between *adjacent*
+hexes**, which is a pure function of altitude.
+
+| Band | Adjacent hexes | Mark | Occlusion (mature seeds) |
+|---|---|---|---|
+| Realm | **2.1 px** | 10 px | 1.1–5.0% |
+| Domains | 6.4 px | 12 px | 5.2–12.4% |
+| **Reach** | 15.2 px | **20 px** | 5.9–12.6% |
+| Ground | 80.7 px | 20 px, growing | 25–45% |
+
+**No drawing can be read at galaxy altitude** — the map gives a mark 2.1 px
+before it touches its neighbour. Reach is the first band where the geometry and
+the 20 px icon floor meet, which is what makes Reach the working altitude in a
+second, independent sense. Reaching the floor at Reach costs a few points of
+occlusion over a 16 px mark (1.0–8.1%) and buys the difference between a mark
+you can identify and one you cannot. Ground's 25–45% is **horizon compression**
+at the 25° pitch floor, in a band already crossfading into the orbit stage.
+
+The form/icon *tier* split dies with (c): one drawing per subject at every band,
+only the scale changing. Above Reach it is a locator; at Reach it is read; a
+family whose icon does not exist yet draws a plain disc, so nothing is blocked
+on art.
+
+#### 3.8b — decided in-session, not escalated (all cheap to reverse)
+
+Listed here rather than in the gate brief, per the checkpoint protocol:
+transient marks (freight, convoys) leaving the mark channel for Group 4's
+strokes · the six collar slot assignments and their fixed clock positions · the pip/icon handover being the re-justification of the dual-sizing
+rule rather than a new mechanism · one contrast chip **per place** instead of
+per mark (the alpha-195 stack that goes opaque) · the `War 120` / `Plague 110`
+queue biases being deleted, since one keystone per hex leaves nothing to sort ·
+news pulses becoming point keystones with the expanding ring surviving only as
+the emission animation · `Features` becoming region marks (glyph at centroid +
+dotted rim) and both `Features` and `Emergence` being Realm/Domains lenses ·
+mipmaps on `AtlasGlyphs.png` · the seventeen silent/blind lines for the mark
+families · the motion inventory (emission, resolve, selection — and explicitly
+nothing else).
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
 ranked implementation kickoffs.
+
+**What Tier 2's icon manifest must contain** (from Group 3 §6.3/§13): per entry
+— name, meaning, source, **the silhouette-test result at 20 px**, tint rule, the
+surfaces it appears on (Ground / tooltip / legend / panel), and its atlas cell.
+Two rules the manifest enforces: *pass at 20 px* and *have a population*.
+Retired cells stay in the `AtlasGlyph` enum, unused, with their reason recorded
+— that is how a re-cut set honours the append-only rule.
