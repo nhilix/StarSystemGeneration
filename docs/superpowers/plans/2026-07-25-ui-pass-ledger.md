@@ -556,7 +556,200 @@ drift test growing a colour arm · the `ports` legend moving into the legend hea
 · `LensStack.Composite` retired in favour of a stated GPU stacking rule ·
 overlap intensity redefined as 1.5× the accent's fill.
 
+### Group 3 — marks, billboards & the glyph vocabulary
+
+Branch `ui-pass-t1g3` off main `8fa7f81`. Kickoff:
+`docs/superpowers/plans/2026-07-27-ui-pass-t1g3-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/marks-glyphs.md` + a mock artifact. **Zero atlas
+code.**
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| 3.1 | Scope nod | user | ✅ nodded 2026-07-27 |
+| 3.2 | Branch `ui-pass-t1g3`; continue this ledger | — | ✅ |
+| 3.3 | Read the mark layers + Core lenses inline | — | ✅ |
+| 3.4 | Measure (`census`, `sizes`, `budget`, `extras`) and render (`glyphsheet`, `forms`, `reach`) | — | ✅ |
+| 3.5 | Read the evidence — images and numbers, not recall | — | ✅ |
+| 3.6 | Write `docs/design/ui/marks-glyphs.md` + the §12 amendment | — | ✅ |
+| 3.7 | Build the mock artifact | — | ✅ |
+| 3.8 | **User checkpoint** — the four escalated decisions | **user** | ⏳ |
+| 3.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ⏳ |
+
+#### 3.4 — the evidence apparatus (reproducible; output gitignored)
+
+Sim artifacts are Tier 0's recipes **G** and **D**, already at
+`runs/atlas-grid/` (six mature radius-21 seeds) and `runs/atlas-degen/` (three
+degeneracies) — unchanged, regenerate from there. Everything below ran against
+branch `ui-pass-t1g3` (= main `8fa7f81` atlas code) with a **warm editor** on
+port 7800, through `unity command eval_file`. Seven harnesses, all in the
+session scratchpad (disposable; the recipes and numbers below are the record):
+
+| Harness | What it produces |
+|---|---|
+| `census.cs` | per-artifact mark census by family; same-hex stacking; per-band on-screen count, pairwise overlaps and occlusions, using the real camera projection and the real `max(world, pxFloor·pxWorld)` sizing |
+| `sizes.cs` | rendered-size min/median/max per family per band; the hull and magnitude distributions the size channel is asked to carry; `GlyphFade`/`MapFade` at each band |
+| `budget.cs` | the **proposed** budget scored against the shipped one, band by band, plus `seed42-marks.json` (the mock's data) |
+| `extras.cs` | which authored glyph cells the data actually reaches; news magnitude/age distributions |
+| `glyphsheet.cs` | the 16 icons through the real `StarGen/AtlasGlyph` shader at exact px sizes — `glyph-ladder-bare.png`, `glyph-ladder-chip.png` |
+| `forms.cs` | eight candidate forms, same path, same ladder — `form-ladder.png` |
+| `reach.cs` | 26 captures: all-families-on at four bands × three seeds, news-only, base-only, and two Ground close-ups of the worst stack |
+
+Output: `atlas-grid-marks/` — matches the `atlas-grid*/` gitignore glob, so it
+stays untracked.
+
+**Method notes.**
+- **Occlusion is measured, not sampled.** Marks are projected with
+  `Camera.WorldToViewportPoint`, sized with the shader's own formula
+  (`min(maxPx, max(pxFloor, world/pxWorld))`, `pxWorld = 2·depth/(focalY·VH)`),
+  and paired through a uniform grid at cell = 2·maxRadius — so every overlapping
+  pair is found, exactly.
+- ⚠ **`eval_file` is capped at 30 s regardless of `--timeout`**, exactly like
+  `menu` (skill trap #2). Four of the seven harnesses reported
+  `COMMAND_FAILED … timed out after 30000ms` **while completing normally**.
+  Poll for the output file; never trust the envelope.
+- Ladder sheets are rendered through the shipped shader with `worldSize = 0`, so
+  the pixel floor governs exactly and a column *is* its stated pixel size. The
+  form sheet is offset to `x = 6000` so the galaxy is out of frame.
+- Viewport for every measurement is **1600 × 1000 at fov 50** (`focalY`
+  2.1445), matching `AtlasSmoke`'s acceptance size.
+
+#### 3.5 — what the measurements said
+
+- **The pile, at the working altitude.** 957–1347 marks at 373–608 hexes on the
+  six mature seeds. **42–65% of occupied hexes carry ≥2 marks on the identical
+  centre**; the worst hex per seed carries **10–13** marks from up to **7**
+  families. On-screen occlusion (a mark's centre inside another mark's disc) is
+  **69–89% at every band on every mature seed** — 87.1% at Realm, 69.3% at
+  Reach on seed-42.
+- **Count does not fall with altitude, it rises.** Shipped on-screen: 1200 at
+  Realm, 1077 at Domains, 361 at Reach (seed-42). Altitude only shrinks the
+  count by shrinking the frame.
+- **`GlyphFade` is exactly 0.000 at Realm and through most of Domains.** Window
+  `f` 0.63 → 0.315; Domains starts at 0.45. So fleets, POIs, works, plague *and
+  war* draw at alpha zero above Reach. Group 1 requires war at Realm; the curve
+  forbids it.
+- **No artifact contains a port above tier 2.** t1 = 97–128, t2 = 75–98 on the
+  six mature seeds; t2 = 2–5 on the degenerate ones. Group 1's "tier 3+ at
+  Realm" draws **zero ports** on every world we have.
+- **Rendered sizes are the pixel floor almost everywhere.** Every glyph family
+  sits in **12–22 px** from disc fit down to `f = 0.16`; the world term only
+  takes over at Ground, where it immediately clamps at `_MaxPx = 56`. Ports are
+  **6.8 px (t1) / 9.6 px (t2)**; outposts a flat **5.5 px**; worked dust 4.5 px
+  — three families inside 2.3 px of each other.
+- **The size channel is spent on nothing.** Fleet hulls: median **2**, so the
+  median fleet is 1.0–1.5 px above the floor of a 7 px channel (saturates at 14
+  hulls). POI magnitude: median **2–3** against a max of **68–120**, saturating
+  at 32. Works `Sites` are a flat **15.0 px** everywhere. **`Stalled` is false
+  on all nine artifacts**, so two of freight's four sizes never render. War
+  posture is a 2 px distinction across **0–3** stations per world.
+- **Two authored cells are never drawn on any seed**: `PoiRuinedCapital`
+  (castle-ruins) and `FleetEscort` (checked-shield).
+- **`PoiPrecursor` is 57–87% of every POI population** (178–435 of 276–498) —
+  one icon is most of what the POI lens says.
+- **All six works kinds draw the same crane.** `GatePair` 74–136 per seed,
+  `PortRaise` 38–77, `FacilityConstruction` 23–72, plus `HullBatch`,
+  `Mobilization`, `OutpostGraduation`. The largest real distinction in the mark
+  set has no shape at all.
+- **The readable floor for an authored icon is 20 px**, and 14–16 px only for
+  single closed silhouettes (cancel, crossed-swords, checked-shield, tombstone,
+  anchor). Detailed line art needs 24–32. **`ancient-ruins` and `castle-ruins`
+  never separate from each other at any size on the ladder.** The atlas draws
+  its glyphs at 11–20 px.
+- **`AtlasGlyphs.png` is 512×640 DXT5 with `mipmapCount = 1`** — a 128 px cell
+  sampled to 14 px is a raw bilinear read of four texels. (The `Backing` cell
+  *is* a filled circle, as documented — verified by sampling the source PNG.)
+- **Form floors, measured through the shipped shader:** thick ring separates
+  from a disc at **8 px**, solid square 8–10, solid diamond **10**, triangle 10,
+  square ring 12, hollow diamond 14–16, thin ring 14–16. **Below 8 px nothing
+  separates from anything.**
+- **News is inverted with respect to its own question.** One pulse is **28 px at
+  disc fit and 155–320 px at Reach**, with 25–44 in frame. The 40-year cutoff
+  drops **80–85%** of live pulses (448–573 live → 70–96 shown). Magnitude is
+  unbounded (0.5 … **16,964**) against a `clamp01(0.35 + 0.65·m)` alpha term, so
+  **94–98% of shown pulses clamp to 1.0**. And on a loaded-then-stepped artifact
+  **every live pulse shares one emission year** — age p0 = p50 = p100 = **25** on
+  all nine worlds — so radius and fade are constants and "the story is where
+  rings cluster" was never testable.
+- **`Features` is not a point set.** 22–32 features occupying **337–686 cells**;
+  `FeaturesOverlay` marks every cell, which is why it renders as a field.
+  `Emergence` is a point set but a big one: 11–181 origins plus 7–285
+  sterilization scars.
+- **The contrast chip stacks.** Every mark draws its own; 13 chips at alpha 195
+  composite to effectively opaque, which is the black blob under the marks in
+  `stack-closeup-f005.png`.
+
+#### 3.5b — the proposed budget, scored
+
+One keystone per hex; states become badges; weight admits per band; transients
+leave for Group 4. Same framing, same viewport, same projection as the shipped
+column:
+
+| Band | Shipped on-screen / occluded | Proposed on-screen / occluded |
+|---|---|---|
+| Realm | 957–1347 / 86–89% | **92–120 / 1.1–5.0%** |
+| Domains | 854–1111 / 70–83% | **174–228 / 3.8–9.8%** |
+| Reach | 291–368 / 56–79% | **91–187 / 0.0–1.0%** |
+| Ground | 237–381 / 73–83% | **84–153 / 10.2–24.8%** |
+
+Seed-42's admitted set falls **1014 → 371 → 196** from Reach to Realm (monotone
+in altitude); at Reach 1014 admitted marks collapse to **420 keystones** with 594
+riding as badges. On-screen count peaks at Domains (210 vs Reach's 134) because
+that band's frame grows ~5× while admission tightens 2.7× — a framing effect
+costing 3.8% occlusion, recorded rather than tuned away.
+
+#### 3.7 — the mock
+
+**https://claude.ai/code/artifact/de81e106-e169-46a3-a8d7-0134cca5e60d** (📍)
+
+Four exhibits, one per decision. Every photograph is a render through the
+shipped atlas shaders — the all-families-on frame, the base-only frame, the
+news-only frame, the Ground close-up, and both ladders. The two map canvases
+redraw **seed-42's exported mark set** (218 ports, 17 outposts, 322 POIs, 106
+fleets, 259 sites, 96 pulses, 211 lanes) at **Reach's exact pixel scale**
+(`1 px = 0.11044` world units), through the **real authored glyph atlas** — so
+shipped-vs-proposed is one world under two rule sets rather than an
+illustration. Orthographic, not the perspective camera; stated in the caption.
+
+Built on the project's Cassette × Ice tokens, single-theme dark for the same
+reason Groups 1 and 2's mocks are.
+
+**Verification.** Rendering, layout and every canvas verified in-browser over a
+local HTTP server: all four canvases report `done` with 1.6–72% of their pixels
+lit, all six images decode at their natural sizes, no console errors, and the
+element geometry was read back directly. **Screenshots of the lower half of the
+page came back black even though the DOM said content was there** — the capture
+pipeline desynced from a 2560-wide viewport, not a page fault; those sections
+were verified programmatically instead. There is no interactive control on the
+page, deliberately, since this harness cannot deliver clicks or scroll into an
+artifact's iframe.
+
+#### 3.8 — the gate
+
+*(pending)*
+
+#### 3.8b — decided in-session, not escalated (all cheap to reverse)
+
+Listed here rather than in the gate brief, per the checkpoint protocol:
+transient marks (freight, convoys) leaving the mark channel for Group 4's
+strokes · the pip/icon handover being the re-justification of the dual-sizing
+rule rather than a new mechanism · one contrast chip **per place** instead of
+per mark (the alpha-195 stack that goes opaque) · the `War 120` / `Plague 110`
+queue biases being deleted, since one keystone per hex leaves nothing to sort ·
+news pulses becoming point keystones with the expanding ring surviving only as
+the emission animation · `Features` becoming region marks (glyph at centroid +
+dotted rim) and both `Features` and `Emergence` being Realm/Domains lenses ·
+mipmaps on `AtlasGlyphs.png` · the seventeen silent/blind lines for the mark
+families · the motion inventory (emission, resolve, selection — and explicitly
+nothing else).
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
 ranked implementation kickoffs.
+
+**What Tier 2's icon manifest must contain** (from Group 3 §6.3/§13): per entry
+— name, meaning, source, **the silhouette-test result at 20 px**, tint rule, the
+surfaces it appears on (Ground / tooltip / legend / panel), and its atlas cell.
+Two rules the manifest enforces: *pass at 20 px* and *have a population*.
+Retired cells stay in the `AtlasGlyph` enum, unused, with their reason recorded
+— that is how a re-cut set honours the append-only rule.

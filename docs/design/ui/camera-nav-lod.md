@@ -83,9 +83,11 @@ behaves over the continuum.
 | Nature raster | **full** | full | falling | near-nothing | fades **first** |
 | Lanes | **trunk only** | full network | full network | full | fades **late** |
 | Flow trails / crawls | off | on | on | on | fades late |
-| Ports | **tier 3+** | tier 2+ | all | all | **hands over** |
-| Outposts, worked dust | off | off | on | on | fades late |
-| Fleet / POI / works / plague glyphs | off | off | **resolve** | on | fades late |
+| Ports | **top tier on this world** | ≥ top − 1 | all | all | **hands over** |
+| Outposts | off | **on** | on | on | fades late |
+| Worked dust | *(left the mark channel — Group 2 §2.4)* | | | | |
+| Fleet / works / plague glyphs | off | off | **resolve** | on | fades late |
+| POI glyphs | **top percentile** | top decile | **resolve** | all | fades late |
 | War stations, news pulses | **on** | on | on | on | fades late |
 | Lattice | off | off | resolves | full | **fades last** |
 | Orbit stage | off | off | off | resolves | **fades up** |
@@ -108,6 +110,22 @@ a mark never falls below a few pixels, so at altitude 218 ports occupy 218
 irreducible dots. Culling by tier is the only way altitude reduces mark count.
 Which tiers, and whether the cull is a fade or a merge, is Group 3's; the
 requirement is that mark *count* falls as altitude rises.
+
+**The mark rows are weight floors, and the tiers are relative**
+*(amended 2026-07-27 by Group 3, on evidence)*. This document originally wrote
+the ports row as absolute tiers — "tier 3+ at Realm, tier 2+ at Domains" — and
+the glyph rows as on/off switches. **No artifact contains a port above tier 2**
+(t1 = 97–128, t2 = 75–98 across the six mature seeds), so the absolute rule
+draws *zero* ports at the band whose question is *who holds what*. An absolute
+tier cannot be right for a sim whose tier ceiling is a function of its own
+economy. So a band sets a **weight floor** per family and a mark is admitted
+when its weight clears it — ports against the world's own top tier, POIs against
+the world's own magnitude quantiles — **and a place is admitted whenever
+anything happening there is**, which is how the Realm band comes to show the
+important places *and* the eventful ones. Outposts move up a band with the same
+reasoning: there are only 12–26 per world and the frontier is the literal answer
+to the Domains question. Details in `docs/design/ui/marks-glyphs.md` §2.2 and
+§12.
 
 **War and news resolve at Realm, not at Reach.** "Where is anything happening"
 is the Realm question, and today every glyph family waits until `f = 0.63` to
@@ -547,7 +565,14 @@ rescue arrow answer exactly that half.
 - **Group 3 (marks & glyphs)** — mark *count* must fall with altitude, since
   pixel floors mean mark *size* cannot; war and news resolve at Realm while the
   other glyph families resolve at Reach; ports hand over to the orbit view's
-  rings rather than fading.
+  rings rather than fading. **Delivered** in
+  `docs/design/ui/marks-glyphs.md`, which amends §2's mark rows (above) into
+  weight floors with world-relative tiers, and answers the count requirement
+  with one keystone per hex: 957–1347 marks become 92–120 at Realm and 91–187 at
+  Reach, with occlusion falling from 69–89% to 0–10%. It also records that
+  **`GlyphFade` is exactly 0.000 at Realm and through most of Domains** (its
+  window is `f` 0.63 → 0.315, and Domains starts at 0.45), which is why war
+  never resolved at Realm despite this document requiring it.
 - **Group 4 (lanes & motion)** — Realm shows a trunk network, not all 205 lanes;
   strokes trail the rasters in the crossfade; stroke widths quantize to the zoom
   lattice. **Open, and the handover's weakest seam (§4.1):** a lane needs a
