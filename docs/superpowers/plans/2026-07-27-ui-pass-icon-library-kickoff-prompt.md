@@ -64,6 +64,15 @@ Three working rules for the whole session:
   has **more gates than a normal group dive** (below) — that is the point of
   it. Keep each one to a picture plus a ≤150-word brief, per CLAUDE.md's
   "Talking to the user at checkpoints".
+- **The incumbent is represented by its own best existing rendering, never by a
+  fresh sketch.** Hex-cut enters the bake-off as **the 27-mark catalogue
+  geometry** — the polygon lists already built in artifact `981127f2` — lifted
+  verbatim. A hasty redraw would let the incumbent lose to the redraw rather
+  than to a better direction, which would invalidate the whole comparison. For
+  the same reason the collisions Group 3 measured (*precursor* vs *plague*
+  below 16 px; *facility*/*ruin* and *outpost*/*memorial* at 12 px) are
+  **reproduced from that geometry**, not rebuilt — they are existing evidence,
+  and re-deriving them risks re-deriving them differently.
 
 ## The assumptions to interrogate
 
@@ -121,8 +130,9 @@ recommendation and a pointer to the evidence.
 1. **Scope nod.** Confirm the agenda and anything you would add or drop.
 2. **Direction.** Three or four *rendered* style directions — the same six
    subjects drawn in each, at 10/16/20/32 px, with the ladder result per
-   direction. Hex-cut is one of them, defended honestly. The user picks or
-   mixes.
+   direction. Hex-cut is one of them, defended honestly and entered as **the
+   existing catalogue geometry** (see the method rule above), never redrawn for
+   the occasion. The user picks or mixes.
 3. **Vocabulary.** The set membership and the grammar under the chosen
    direction: what earns a drawing, what shares a root, what is deliberately
    absent, and what the sim-maturity exclusions become.
