@@ -1067,6 +1067,77 @@ mass displacement. ⚠ But the metric cannot see that a mirror is perceptually
 confusable ("which way was it pointing?"), so rule 8 is **measured safe and
 perceptually unverified** — the same gestalt blind spot recorded in IL.3.
 
+#### IL.5 — the language designed, and proved against the matrix
+
+**https://claude.ai/code/artifact/aa6162ec-fc0b-41ff-8b60-59d68c867f19** (🔶)
+
+**The tension resolves three ways**, not as a compromise:
+
+1. **The two jobs sit on different surfaces.** Identification (*what is that?*)
+   happens on the map at 20 px, unlabelled, against neighbours. Comprehension
+   (*what does that mean?*) happens in the legend, tooltip and panel row —
+   16–24 px, labelled, once. The grammar's payoff is collected where there is a
+   label and room; its cost is paid where there is neither. So the grammar is
+   **optimised for the labelled surfaces and audited on the map**. This also
+   answers assumption 7 without needing two drawings per subject.
+2. **Sharing is structural, not massive** — a root must stay recognisable
+   without being most of the ink.
+3. **A residue transforms its root; it never annotates it.**
+
+**Three rules changed, two added, one re-scoped, one re-purposed.**
+
+| # | Rule | Provenance |
+|---|---|---|
+| 1 | hexagonal envelope | **chosen** (user, on cohesion; measurement overruled deliberately) |
+| 2 | the 60° family | **chosen** — measured a dead heat vs free silhouette; identity, *not* a legibility claim |
+| 8 | **the mass budget** — root + differentia, differentia reaches the silhouette | **new**; replaces "one connected mass + satellite", which constrained connectivity — never the failure mode |
+| 9 | **sub-form load limit**, max three icons per sub-form | **new** |
+| 10 | even optical weight **in a row only** | **re-scoped** — old global rule violated by 19 of 27 |
+| 11 | the ladder gate | **re-purposed** — now the audit that rules 8–9 were obeyed, not the thing that catches grammar failures |
+
+Rules 3–5 stay **measured**; 6 and 7 are marked **provisional** with what would
+settle them — 7 because a mirror pair measures safe (0.422) while no pixel
+metric can see that a mirror is perceptually confusable.
+
+**The proof — five icons redrawn, all 351 pairs re-measured at 20 px:**
+
+| | collide | tight | clean |
+|---|---|---|---|
+| catalogue set, hex-clipped | **2** | **11** | 338 |
+| after five redraws | **0** | **6** | 345 |
+
+| Pair | Before | After |
+|---|---|---|
+| facility / ruin | 0.877 | **0.298** |
+| mobilization / battlefield | 0.609 | **0.301** |
+| blockade / patrol | 0.688 | **0.190** |
+| blockade / nebula | 0.703 | **0.476** |
+| gate / blockade | 0.579 | **0.306** |
+| patrol / nebula | 0.574 | **0.265** |
+| blockade / infected | 0.605 | **0.441** |
+
+The residue rule is proven three times: `origin`→`scar` already obeyed it
+(0.254, untouched); `facility`→`ruin` and `mobilization`→`battlefield` were
+fixed by applying it. The load-limit rule fixed the entire hex-ring cluster.
+No new collision was introduced — an intermediate `blockade` (bar + corner
+posts) did collide with `starport` at 0.643 and was rejected on that
+measurement before it reached the artifact.
+
+⚠ **Two process errors caught in-session, both by verification rather than by
+review.** (1) The first instrument used alpha IoU alone and produced near-flat
+curves — corrected into two measures, and the flatness turned out to *be* a
+finding. (2) A `battlefield` redraw reported a perfect 0.000 which was an
+**empty icon**: a Python `replace(…, 1)` patched the first matching `case`,
+which lived in `buildIcon` rather than `buildV2`, so the new arm was dead code
+after the original. Caught by checking the icon had ink at all. *A suspiciously
+perfect number is a bug until proven otherwise.*
+
+**Not settled here:** six tight pairs remain (one, `infected`/`immune`,
+deliberately — the set's only differ-by-degree pair); the rest are cross-family
+and belong to the vocabulary gate. The redraws are **demonstration geometry,
+not production art** (kickoff boundary) — `patrol` and `ruin` in particular read
+thin at 20 px and would want a drawing pass.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
