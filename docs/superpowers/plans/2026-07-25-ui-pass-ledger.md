@@ -1179,6 +1179,83 @@ thin at 20 px and would want a drawing pass.
 
 </details>
 
+#### IL.6 — the design language, rewritten from the design framing
+
+After the IL.5 retraction the user set the frame: *"think purely from a graphic
+design perspective. What makes an icon set cohesive, visually distinct,
+evocative and readable."* Then two corrections that decided the rewrite:
+
+**1. Nothing in this world exists.** No player has ever seen a starport, a
+precursor site or a sterilization scar, so recognition-by-depiction is not
+available and "draw the real thing" is not a usable principle here.
+
+> **The set is a notation, not a collection of pictures. Every mark is learned,
+> and the set's first duty is to be learnable.**
+
+This *reverses* the position taken an hour earlier (that the grammar should be a
+fallback behind depiction). For an invented world the grammar is the entire
+mechanism, and it has to be built like a notation — few parts, stable meanings,
+compositional.
+
+**2. `facility` is fourteen facilities.** `InfraTypeId` carries fourteen
+buildable types in four `InfraFamily` groups; the set draws them all as one
+block, so **the system view is a field of identical icons**. The set was missing
+a structural layer, not a drawing.
+
+##### What `icon-set.md` §2 now says
+
+Twelve rules in three groups, each group answering one of the user's four
+criteria:
+
+- **§2.1 construction system (cohesion)** — the hexagon is a **field, not a
+  cutter**: icons compose *within* it and must not fill it, because a mark cut
+  flush to the envelope surrenders its silhouette to a shape all twenty-seven
+  share. Plus the 60° family (identity, not legibility), **one optical weight**
+  (reinstated as the strongest cohesion signal — judged by eye, coverage only a
+  diagnostic), one level of abstraction, consistent terminals.
+- **§2.2 distinctness discipline** — **silhouette first**; *if two icons have the
+  same outline they are the same icon*. The four channels that carry the read at
+  small size, in order: silhouette · topology · dominant axis · mass
+  distribution, with **no more than three icons sharing one topology-and-axis
+  combination**. And: **a difference is a silhouette event** — a related pair
+  *should* share most of its mass, and the failure mode is a timid difference,
+  never a shared root.
+- **§2.3 size contract** — two or three elements; 2.5-unit minimum; and the gate
+  is **the squint test judged by a person**, with the reason a mechanical score
+  cannot do it stated in the doc so it is not retried.
+
+##### §2.4 — the shape library, rebuilt as a notation
+
+**Eight primitives** (nouns: disc, diamond, hex ring, chevron, bar, block,
+shard, carry) — *a budget, not an inventory*. **Six operators** (verbs: struck,
+broken, hollowed, raised, bitten, massed), each defined as a silhouette event so
+applying one is automatically a large outline change.
+
+The operators absorb two rules the old grammar carried separately: an event and
+its residue are now *one primitive under one operator* (ruin = block **broken**;
+scar = diamond **hollowed**), and orientation is confined to the chevron, the one
+primitive whose meaning includes pointing.
+
+##### §2.5 — the facility ladder
+
+> A facility mark is its family's root; a member's mark is that root carrying one
+> member mark. **The map draws the root; the system view draws root plus member.**
+
+Four roots from the sim's own `InfraFamily` (Extraction · Processing · Heavy ·
+Support), so the vocabulary cannot drift from what the sim emits. Four roots
+replace one block at map scale — already the end of the identical sea — and a
+fifteenth facility type joins a family and inherits its root, costing no new
+primitive. ⚠ **Owed a measurement:** the system view's mark size, untaken; until
+it exists the member layer is specified but not committed.
+
+##### Also amended
+
+`§5.2` (the gate on the art) and `§5.3` (sourcing — **commission the fourteen
+parts first, not the marks**); `marks-glyphs.md` §6.4 and §13 to match. `§3`
+(the set) is flagged in-doc as owed a revision: it still lists twenty-seven
+entries against the old sub-form grammar and one `facility` row. **§2 governs
+where they disagree.**
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
