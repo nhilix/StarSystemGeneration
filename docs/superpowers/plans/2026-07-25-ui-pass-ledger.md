@@ -994,6 +994,79 @@ hasty redraw), six subjects is 15 pairs against the full set's 351, and these
 are browser rasterisations — the absolute floor still needs one pass through
 `StarGen/AtlasGlyph` before it is quoted as a measurement.
 
+#### IL.4 — the envelope settled, and the full collision surface
+
+**Gate 2 settled 2026-07-27: direction B, hex-cut *with* the envelope.** The
+user's call, on cohesion and interest — *"the starport and the fleet posted
+icons gain more cohesion and interest"*. This **overrides the measurement**,
+correctly: shape overlap and discriminating ink score pairwise
+distinguishability and are structurally blind to family resemblance, which is a
+primary criterion for a *set*. Recorded as the substrate everything else is now
+designed on top of. Rule 1 is therefore **kept and, for the first time,
+actually implemented** (the catalogue never clipped).
+
+**Gate 2's framing was wrong, and the user caught it.** A rendered bake-off can
+only compare what a rendering exposes — envelope and angle policy, rules 1–2 of
+ten. §2's other eight rules and the whole of §2.1 grammar were never opened.
+The session was redirected to start from **the tension** underneath both.
+
+##### The tension, stated
+
+> §2.1 buys learnability by making icons **share mass**. The map needs them to
+> **not share mass** so they can be told apart. Every composition rule is
+> therefore a collision generator, and rule 10 is the gate that fails them —
+> the doc presents the two as complementary when they pull against each other.
+
+##### The matrix — all 351 pairs, hex-clipped, at 20 px
+
+`scratchpad/matrix.html`, built on the same lifted geometry.
+
+| | count |
+|---|---|
+| collide (overlap > 0.70) | **2** |
+| tight (0.55–0.70) | **11** |
+| clean | **338** |
+
+**The set is 96% clean — but the failures sit in the grammar's own devices.**
+
+| Pair | Device | Overlap | Differing ink |
+|---|---|---|---|
+| facility / ruin | residue: *block bitten* | **0.877** | **13.6 px** |
+| blockade / nebula | hex ring vs hex mass | 0.703 | 54.1 px |
+| blockade / patrol | hex ring (same family) | 0.688 | 57.0 px |
+| mobilization / battlefield | residue: *axes sunk* | 0.609 | 46.3 px |
+| gate / blockade | hex ring | 0.579 | 72.0 px |
+| **origin / scar** | residue: *diamond hollowed* | **0.254** | **78.5 px** |
+
+##### Three findings that write the rules
+
+**1. The residue rule is not uniformly bad — it splits cleanly.**
+`origin`→`scar` *removes the shards and hollows the core* and measures 0.254,
+the best pair in the danger list. `facility`→`ruin` *cuts two small wedges into
+a kept block* and measures 0.877. The difference is not quality of drawing, it
+is whether the residue **reduces** its root or merely **annotates** it. Derived
+rule: **a residue is its root reduced, not its root annotated.**
+
+**2. The hex ring is over-subscribed.** It carries `gate`, `blockade`, `patrol`
+and (as a hex mass) `nebula` — four icons producing **three of the six worst
+pairs**. Ten sub-forms over 27 icons averages 2.7 each, but the distribution is
+lumpy and the lumps are exactly where the collisions are. Derived rule: a
+sub-form carries a **load limit**.
+
+**3. Rule 6 is violated by 70% of the set it governs.** "Even optical weight,
+34–46% inked": **19 of 27 icons fall outside the band**, from `origin` at 30%
+to `blockade` at 82%. Both extremes work fine. And coverage difference is
+actively *useful* — `precursor` at 31% against `infected` at 62% is part of why
+that pair separates. The rule's stated purpose ("no icon shouts over its
+neighbours in a legend row") is real but belongs to **the legend row**, not the
+map. Re-scope rather than delete.
+
+**4. Orientation survives the metric.** `fleetposted`/`reserve`, a pure mirror
+pair, measures 0.422 / 82.6 px — moving the bar across the envelope is a large
+mass displacement. ⚠ But the metric cannot see that a mirror is perceptually
+confusable ("which way was it pointing?"), so rule 8 is **measured safe and
+perceptually unverified** — the same gestalt blind spot recorded in IL.3.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
