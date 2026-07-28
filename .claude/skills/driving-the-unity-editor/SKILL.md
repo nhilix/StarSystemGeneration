@@ -34,7 +34,7 @@ skill exists.
 | # | Trap | What you see | Do this |
 |---|---|---|---|
 | 1 | **`key=value` args are ignored** | `success: true`, command runs with **defaults** | Args are **flag-style**: `--path X`, `--mode editor`. Never `path=X`. |
-| 2 | **`menu` ignores `--timeout`, caps at 30s** | `COMMAND_FAILED … timed out after 30000ms` while the editor **finishes fine** | Confirm completion by **polling for the artifacts**, never by exit code |
+| 2 | **The 30s cap ignores `--timeout` — for `menu` *and* `eval_file`** | `COMMAND_FAILED … timed out after 30000ms` while the editor **finishes fine** | Confirm completion by **polling for the artifacts**, never by exit code. Write your output to a known path and wait for it (Group 3: five of eight `eval_file` harnesses "failed" this way and every one completed) |
 | 3 | **`--project-path` is effectively mandatory** | `No Unity Editor instances found with reachable Pipeline servers` — even though it *is* running | Always pass `--project-path <repo>\unity` |
 | 4 | **Editor without `-automated`** | modal popups can block a run mid-flight | Launch with `-automated`, always |
 | 5 | **Server port drifts** across domain reloads (7800→7801→7802→…) | stale-port connection failures | Never cache the port; the CLI re-resolves per call |
@@ -125,7 +125,10 @@ unity command eval_file --file <abs path to .cs> --timeout 900000 --project-path
   (`System.IO.Path`, `UnityEngine.Object.FindAnyObjectByType<…>`,
   `StarGen.AtlasView.CameraRig`). Prefer `eval_file` over `--code` for anything
   past one line — quoting through PowerShell is its own trap.
-- The default `timeout` is 5000 ms. Pass a real one for anything that renders.
+- The default `timeout` is 5000 ms. Pass a real one for anything that renders —
+  but **the server caps at 30 s regardless** (trap 2), so anything slower must
+  **write its result to a file** and be waited on there. The compile-error path
+  is unaffected and still reports honestly.
 - `return new { … }` comes back as `data.result.result`; a compile failure comes
   back as a **`success:false` envelope with exit 6**, so this one does not lie.
 - **In edit mode nothing is wired**: `Awake` and `OnEnable` never ran, so call
