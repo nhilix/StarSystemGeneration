@@ -796,6 +796,26 @@ its terminus mark belongs to Group 4.
 `AtlasGlyphs.UvRect` derives every rect from `Columns`/`Rows` — the *enum* index
 is the frozen contract, the pixel layout is derived and may be repacked.
 
+**`icon-set.md` also ships as a catalogue artifact** (user ask):
+**https://claude.ai/code/artifact/981127f2-9d42-43ff-9edd-2eb73d039738** (🔶).
+It is *generated from the markdown file*, so the doc stays the single source of
+truth — a ~100-line converter renders it and injects a drawing beside every
+entry (at 36 px and again at 20 px, so each row shows the floor), plus a grouped
+plate of all twenty-seven at 56 px and the full ladder. **All 27 marks are
+constructed live from 60° polygon lists on the hex envelope**, which is what
+makes §2's rules checkable rather than asserted.
+
+Two build notes worth keeping: an artifact page carries no `<meta charset>` of
+its own (the wrapper owns `<head>`), so **encode every non-ASCII character as a
+numeric entity** or em-dashes arrive as `â€"`; and canvas hole-cutting is
+order-sensitive — `immune` rendered as a bare ring until the healing rim was
+drawn *before* the core rather than over it.
+
+The exercise found two more rule-10 collisions at 12 px — *facility*/*ruin* and
+*outpost*/*memorial* — both of which are event-and-residue pairs that
+**should** share a root, and both of which separate by 20 px. That is the floor
+doing exactly what it is for.
+
 *(the four decisions themselves: pending)*
 
 #### 3.8b — decided in-session, not escalated (all cheap to reverse)
