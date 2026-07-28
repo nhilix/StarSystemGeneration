@@ -936,6 +936,64 @@ below 16 px, and *facility*/*ruin* and *outpost*/*memorial* at 12 px — are
 **reproduced from that geometry rather than rebuilt**. They are existing
 evidence; re-deriving them risks re-deriving them differently.
 
+#### IL.3 — the bake-off, and two findings before the gate
+
+**https://claude.ai/code/artifact/fab89e0c-5855-4e01-818c-e3140a1e3be1** (⚖️)
+
+Four directions × the same six subjects (`starport`, `precursor`, `infected`,
+`gate`, `fleetposted`, `ruin` — chosen to stress disc, three-fold-outward,
+three-fold-inward, enclosure, orientation, and block-plus-bite), at
+10/16/20/32 px, all through one identical render path.
+
+| Dir | What | Worst-pair overlap @20 px | Discriminating ink @20 px |
+|---|---|---|---|
+| **A** | hex-cut, **as built** (lifted verbatim) | 0.507 | 74.2 px |
+| **B** | hex-cut, **as specified** (envelope clipped) | 0.575 | 56.0 px |
+| **C** | free silhouette (no envelope, no 60°) | **0.504** | **75.0 px** |
+| **D** | glow-native (core + halo) | 0.627 | 39.4 px |
+
+**Finding 1 — the hexagonal envelope was never implemented.** There is no
+`clip()` anywhere in the catalogue geometry. The flat-top hexagon appears only
+as a faint *stroked guide drawn behind* each icon on the display plate. So §2
+rule 1 — named as one of the three rules "nothing off the shelf will satisfy" —
+has never been exercised by the art that demonstrated the style. What was built
+and measured is *60° edge family + solid mass*, with a hexagon as an internal
+motif in six of twenty-seven icons. Rendering the rule for the first time (B)
+makes the worst pair **more** similar and costs **a quarter of the
+discriminating ink**: the clip removes exactly the extremities that distinguish.
+
+**Finding 2 — two of Group 3's three recorded collisions do not reproduce, and
+the third is worse than recorded.**
+
+| Pair | 12 px | 20 px | 24 px | Group 3 said |
+|---|---|---|---|---|
+| precursor / infected | 0.481 | 0.453 | 0.439 | converge below 16 px |
+| **facility / ruin** | **0.865** | **0.868** | **0.864** | converge at 12, separate by 20 |
+| outpost / memorial | 0.484 | 0.459 | 0.461 | converge at 12 px |
+
+`facility`/`ruin` is the worst pair in the whole set and **size never rescues
+it** — at 20 px only 15.2 px of ink differ between them. The claim that it
+"separates by 20" is not true of this geometry. Conversely the two pairs the
+record flags as caught-and-fixed measure as well separated at every size.
+
+**The instrument, and its correction.** The first attempt used alpha IoU alone
+and produced near-flat curves; that is not a defect of the measure but the
+finding — *shape similarity is scale-invariant, so no pixel floor rescues a pair
+drawn too alike*. Rule 10 only ever addressed the other half. The page now
+carries both: **shape overlap** (a property of the drawings) and
+**discriminating ink** (absolute differing alpha in px, which falls as the
+square of the size).
+
+**Stated limits.** Neither number models perception, and neither can see a
+*gestalt* — that `precursor` and `infected` both read as "a small three-lobed
+thing" while overlapping little is almost certainly what Group 3's eye was
+reporting. The measurements do not overturn that observation; they fail to reach
+it. The set needs both gates. Also: the three competitor directions are
+first-pass drawings by construction (only the incumbent was protected from a
+hasty redraw), six subjects is 15 pairs against the full set's 351, and these
+are browser rasterisations — the absolute floor still needs one pass through
+`StarGen/AtlasGlyph` before it is quoted as a measurement.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
