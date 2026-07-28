@@ -572,8 +572,8 @@ code.**
 | 3.5 | Read the evidence — images and numbers, not recall | — | ✅ |
 | 3.6 | Write `docs/design/ui/marks-glyphs.md` + the §12 amendment | — | ✅ |
 | 3.7 | Build the mock artifact | — | ✅ |
-| 3.8 | **User checkpoint** — the four escalated decisions | **user** | ⏳ |
-| 3.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ⏳ |
+| 3.8 | **User checkpoint** — the four escalated decisions | **user** | ✅ **SETTLED** 2026-07-27 (two accepted, one redirected, one dissolved) |
+| 3.9 | Wrap-up: commit, HANDOFF, merge, push, Trello, release the editor | — | ✅ |
 
 #### 3.4 — the evidence apparatus (reproducible; output gitignored)
 
@@ -590,6 +590,7 @@ session scratchpad (disposable; the recipes and numbers below are the record):
 | `sizes.cs` | rendered-size min/median/max per family per band; the hull and magnitude distributions the size channel is asked to carry; `GlyphFade`/`MapFade` at each band |
 | `budget.cs` | the **proposed** budget scored against the shipped one, band by band, plus `seed42-marks.json` (the mock's data) |
 | `extras.cs` | which authored glyph cells the data actually reaches; news magnitude/age distributions |
+| `uniform.cs` | the post-gate measurement: on-screen distance between **adjacent hexes** per band, and occlusion swept over eight uniform mark sizes |
 | `glyphsheet.cs` | the 16 icons through the real `StarGen/AtlasGlyph` shader at exact px sizes — `glyph-ladder-bare.png`, `glyph-ladder-chip.png` |
 | `forms.cs` | eight candidate forms, same path, same ladder — `form-ladder.png` |
 | `reach.cs` | 26 captures: all-families-on at four bands × three seeds, news-only, base-only, and two Ground close-ups of the worst stack |
@@ -816,7 +817,53 @@ The exercise found two more rule-10 collisions at 12 px — *facility*/*ruin* an
 **should** share a root, and both of which separate by 20 px. That is the floor
 doing exactly what it is for.
 
-*(the four decisions themselves: pending)*
+#### The gate itself — all four settled 2026-07-27
+
+- **(a) the mark budget** — **ACCEPTED as recommended.** One keystone per hex;
+  states ride the fixed six-slot hex collar; weight admits per band. The merge
+  happens in the sim's own coordinate, so no mark is ever moved away from what
+  it describes.
+- **(b) the icon vocabulary** — **ACCEPTED as recommended.** Retire the sixteen
+  placeholders; commission a bespoke hex-cut set to the ten rules, in three
+  build tiers by population × decision-weight. The set is `icon-set.md`.
+- **(c) what size encodes** — **REDIRECTED, and it simplified the design.**
+  *"I don't think size or any of this information should be encoded in these
+  manners. Different icons would serve a better purpose to differentiate between
+  rank, and other data points of individual entities can live within panel
+  summaries/tooltips etc."* So **size stops being a channel at all**: at any
+  altitude every mark is the same size, and the size changes with the band,
+  never with the datum. Kind comes from the icon; hulls, magnitude, progress,
+  stall and port tier go to the tooltip and the panel.
+- **(d) the outpost's form** — **DISSOLVED**, by the user: *"this question is
+  mute, it should get an icon from the library."* Correct — the form framing
+  belonged to a map with no icon vocabulary. The form measurements survive as
+  the *floors* (§5.2 of the design), not as a vocabulary.
+
+**(c) is the consequential one, because it made the icon load-bearing and
+therefore forced the mark to be big enough to carry one.** The constraint turned
+out to be geometry rather than taste, and it needed a new measurement
+(`uniform.cs` → `uniform.txt`): the **on-screen distance between *adjacent*
+hexes**, which is a pure function of altitude.
+
+| Band | Adjacent hexes | Mark | Occlusion (mature seeds) |
+|---|---|---|---|
+| Realm | **2.1 px** | 10 px | 1.1–5.0% |
+| Domains | 6.4 px | 12 px | 5.2–12.4% |
+| **Reach** | 15.2 px | **20 px** | 5.9–12.6% |
+| Ground | 80.7 px | 20 px, growing | 25–45% |
+
+**No drawing can be read at galaxy altitude** — the map gives a mark 2.1 px
+before it touches its neighbour. Reach is the first band where the geometry and
+the 20 px icon floor meet, which is what makes Reach the working altitude in a
+second, independent sense. Reaching the floor at Reach costs a few points of
+occlusion over a 16 px mark (1.0–8.1%) and buys the difference between a mark
+you can identify and one you cannot. Ground's 25–45% is **horizon compression**
+at the 25° pitch floor, in a band already crossfading into the orbit stage.
+
+The form/icon *tier* split dies with (c): one drawing per subject at every band,
+only the scale changing. Above Reach it is a locator; at Reach it is read; a
+family whose icon does not exist yet draws a plain disc, so nothing is blocked
+on art.
 
 #### 3.8b — decided in-session, not escalated (all cheap to reverse)
 
