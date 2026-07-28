@@ -5,7 +5,8 @@ the world, and the rules every drawing obeys.** This document is the
 commissioning brief for the icon set and the reference for anyone reading one.
 
 It rides `docs/design/ui/marks-glyphs.md`, which owns the mark budget, the
-collar and the two-tier split (§6 there is the summary; this is the set).
+collar, and the per-band mark size these drawings have to live inside (§6 there
+is the summary; this is the set).
 Populations quoted here are measured across the six mature radius-21 seeds and
 three degenerate worlds in the Group-3 evidence base — recipes in
 `docs/superpowers/plans/2026-07-25-ui-pass-ledger.md` §"Group 3".
@@ -14,31 +15,39 @@ three degenerate worlds in the Group-3 evidence base — recipes in
 
 ## 1. What an icon is for
 
-The atlas draws in **two tiers**, and only one of them is art.
+**A mark's icon is the only thing that says what kind of thing is there.** Size
+carries nothing (`marks-glyphs.md` §3); colour carries owner and family;
+position carries place. Kind is the icon's job, and quantities — hulls,
+magnitude, progress, tier — live in the tooltip and the panel, not on the map.
 
-| Tier | Floor | Drawn by | Carries |
+That makes the icon load-bearing, and it means the drawings have to survive the
+sizes the map can actually give them.
+
+**20 px is a measured floor.** Every icon in the shipped placeholder sheet was
+rendered through `StarGen/AtlasGlyph` at 6, 8, 10, 12, 14, 16, 20, 24, 32 and
+48 px: below 12 px everything is a speck; at 14–16 only a single closed
+silhouette reads at all; 20 px is where a well-drawn set arrives.
+
+**And the map's own geometry decides where 20 px is available.** Two marks at
+adjacent hexes cannot both be wider than the on-screen distance between those
+hexes, which is a pure function of altitude:
+
+| Surface | Adjacent hexes | Mark | The icon is |
 |---|---|---|---|
-| **Form** | 8–10 px | code, no assets | which *kind of place* this is, and which *families* are present here (the collar's six slots) |
-| **Icon** | **20 px** | this document | which *kind within a family* — this ruin rather than that one, a gate rather than a shipyard |
+| Realm | **2.1 px** | 10 px | a **locator** — a shape with a tint. No drawing can be read here; the map has no room for one |
+| Domains | 6.4 px | 12 px | a locator |
+| **Reach** | 15.2 px | **20 px** | **read.** The working altitude, and the reason the floor is 20 |
+| Ground | 80.7 px | 20 px, growing | read, large |
+| Hover tooltip · legend key · panel row | — | 16–24 px | read |
 
-**20 px is a measured floor, not a preference.** Every icon in the shipped
-placeholder sheet was rendered through `StarGen/AtlasGlyph` at 6, 8, 10, 12, 14,
-16, 20, 24, 32 and 48 px: below 12 px everything is a speck; at 14–16 only a
-single closed silhouette reads at all; 20 px is where a well-drawn set arrives.
-The map draws its marks at 11–20 px, so **icons do not appear on the map at
-Reach and above**. They appear on four surfaces that all have the pixels:
+**One drawing per subject, at every band.** Nothing switches between a "form
+map" and an "icon map"; only the scale changes. So the mark a player learns to
+recognise at Reach is the same mark they are already looking at from Realm — and
+an icon has to work *both* as a picture at 20 px and as a silhouette at 10.
 
-| Surface | Size | Role |
-|---|---|---|
-| **Ground** (the lowest map band) | 20–56 px | the keystone becomes its icon; each lit collar vertex becomes its family's icon |
-| **Hover tooltip** | 16–20 px | naming what is under the pointer |
-| **Legend key** | 16–20 px | teaching the vocabulary |
-| **Panel rows** | 16–24 px | the row's subject, beside its text |
-
-**Consequence for scheduling: the map is complete without any of this.** Realm,
-Domains and Reach are the form tier end to end, so the set can be commissioned
-and landed **family by family**, each family falling back to its collar pip
-until its icons exist. Nothing in the atlas is ever blocked on a drawing.
+**Nothing in the atlas is blocked on a drawing.** A family whose icon does not
+exist yet renders as a plain disc at the band's size, wearing the same tint and
+the same collar, so the set can be commissioned and landed **family by family**.
 
 ---
 
@@ -100,9 +109,9 @@ Three composition rules:
 - **A place icon contains its form.** A port's form is a solid disc, so the
   starport icon is a disc *elaborated* — berth arms added — not a different
   shape. An outpost's form is a diamond, so its icon is that diamond with a
-  stake. Descending from the pip map to the icon map therefore **adds detail to
-  a shape the player already knows** instead of swapping it. This is the same
-  continuity the collar gives the badges.
+  stake. **The silhouette a player reads at Realm is the core of the picture
+  they read at Reach** — descending adds detail to a shape already known instead
+  of swapping it, which is what lets one drawing serve every band (§1).
 - **An event and its residue share a root.** A battlefield is the crossed axes
   *sunk into the ground*; a ruin is the seated block *bitten*; a sterilization
   scar is the origin diamond *hollowed*. The pair reads as cause and consequence
@@ -149,9 +158,12 @@ Source: `PortLens.Markers`, `DomainInteriorMarks.Build(...).Outposts`.
 | **outpost** | the diamond, on a stake | *someone lives here and there is no market.* A frontier holding inside a domain; it can graduate into a port | 12–26 | **A** |
 | **market** | the disc, with a balance across it | *this is where the price you are reading comes from.* Panel and tooltip only — at map scale, a market is what a port **is** | one per port | C |
 
-Port **tier is not an icon distinction.** It is carried by the keystone's size
-and by the territory the port projects; three tier icons would be three
-near-identical discs. Measured: no world contains a port above tier 2.
+Port **tier is not an icon distinction, and it is not any other mark
+distinction either.** A tier-2 port projects a larger service radius, so **the
+territory around it is already the read** — putting the same fact in the mark as
+well is redundancy competing for pixels. Three tier icons would be three
+near-identical discs, and measured, no world contains a port above tier 2, so the
+whole encoding was carrying one bit.
 
 ### 3.2 Works — the in-flight world
 
@@ -329,18 +341,22 @@ way, in a browser, from polygon lists.
 
 ## 6. Interfaces
 
-- **`marks-glyphs.md`** — this set is the icon tier of its §6.4 split; the collar
-  (§2.2 there) decides *where* each icon appears at Ground, and the form tier
-  decides what is drawn above Ground.
+- **`marks-glyphs.md`** — owns the mark budget, the per-band mark size (§4.1
+  there, which sets what these drawings get) and the collar (§2.2 there, which
+  decides where a family's mark sits on a keystone). Its §3 is the decision that
+  makes this document load-bearing: size carries nothing, so the icon carries
+  kind.
 - **Group 4 (lanes & motion)** — freight, convoys and crawls are yours and take
   no icons here; a **completed** jump gate is a lane terminus, and §4 offers the
   gate icon if the terminus wants one.
 - **Group 5 (chrome)** — the legend key is one of the four icon surfaces (§1);
   legend and rail tints come from the shared declarations named in §2.2, never
   from literals.
-- **Group 6 (panels & selection)** — panel rows are an icon surface; the pip map
-  stops at family and the pointer resolves the kind, so a tooltip showing the
-  icon is what completes the read.
+- **Group 6 (panels & selection)** — panel rows are an icon surface, and above
+  Reach the mark is a locator, so the **tooltip is the only thing that can name
+  what a mark is** at Realm and Domains. Every quantity the map used to put in a
+  mark's size now lives with you: hulls, magnitude, progress and stall, port
+  tier.
 - **Tier 2 (synthesis)** — this document *is* the icon design. Tier 2's manifest
   is the production checklist derived from it: per entry, the columns of §3 plus
   its atlas cell and its recorded ladder result, tracked through the three build

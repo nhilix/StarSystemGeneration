@@ -107,7 +107,7 @@ Five properties make this the layout rather than *a* layout:
 1. **Position identifies; colour confirms.** You learn "top vertex means
    fighting" the way you learn a dashboard, and you learn it once. Colour is the
    redundant channel, not the only one — which is the whole of the colour-blind
-   answer here, since at 4 px no *form* can carry redundancy (§5.1).
+   answer here, since at 4 px no *form* can carry redundancy (§5.2).
 2. **Count is a shape, not a tally.** Three lit vertices out of six is a
    silhouette the eye resolves before it reads anything. There is no "+n" pip and
    nothing to count sequentially.
@@ -116,15 +116,23 @@ Five properties make this the layout rather than *a* layout:
 4. **It is this map's geometry.** Marks sit at hex centres on a hex lattice; a
    hexagonal collar is the shape the map is already made of, not a widget
    borrowed from somewhere else.
-5. **It survives the pip→icon handover (§4).** At Ground the same six vertices
-   carry each family's *icon* instead of its pip. One layout, two resolutions,
-   and the position a player learned at Reach is where the icon appears at
-   Ground.
+5. **It scales with the band and does not change shape.** The collar is always
+   the same six vertices at the same six angles; only its radius follows the
+   band's mark size (§4.1). The position a player learns at Realm is the position
+   they read at Ground.
 
-**Sizing.** Keystone 10 px, collar radius 8 px, pip 4 px — a **20 px** total
-footprint, which is *smaller* than a single glyph plus its contrast chip today
-(19–23 px) while carrying six states instead of one. The contrast chip (§9.1)
-covers the collar, so the pips sit on the same dark ground the keystone does.
+**Sizing.** The collar's radius is **0.8 × the mark**, its pips **0.4 ×**, so a
+badged place occupies about **1.7 × the mark** — 17 px at Realm's 10 px mark,
+34 px at Reach's 20 px. At Reach that is a little larger than one of today's
+glyphs plus its contrast chip (19–23 px), and it carries six states instead of
+one. The contrast chip (§9.1) covers the collar, so the pips sit on the same dark
+ground the keystone does.
+
+**Pips are colour and position only, at every band.** A pip is 0.4 × the mark —
+4 px at Realm, 8 px at Reach — so it is always below the 20 px icon floor and
+below the 8 px form floor (§5.2). That is not a shortfall: family is exactly what
+colour and a fixed address are good at, and *kind within family* is the
+keystone's job.
 
 **Degree is not encoded.** Two fleets at one hex light the same slot as one. The
 collar answers *what is here*; the pointer answers *how much*. That is the same
@@ -203,138 +211,162 @@ Two honest residuals:
 
 ---
 
-## 3. Size means rank, and nothing else
+## 3. Size carries no information
 
-The size channel currently carries four meanings, and the data says none of them
-arrives.
+> **Size is not a channel. At any altitude every mark is the same size, and the
+> size changes with the band — never with the datum. What a thing *is* comes
+> from its icon; how much of it there is comes from the tooltip and the panel.**
 
-- **Fleet size encodes hulls** as `13 + min(7, hulls × 0.5)`, which saturates at
-  14 hulls. Median hulls is **2**, so the **median fleet sits 1.0–1.5 px above
-  the floor of a 7 px channel**, and the fleets that would use the channel are
+The shipped atlas asks size to carry four different meanings, and the data says
+none of them arrives.
+
+- **Fleet size encodes hulls** as `13 + min(7, hulls × 0.5)`, saturating at 14
+  hulls. Median hulls is **2**, so the **median fleet sits 1.0–1.5 px above the
+  floor of a 7 px channel**, and every fleet big enough to use the channel is
   clamped together at the top.
 - **POI size encodes magnitude** as `12 + min(8, magnitude × 0.25)`, saturating
   at 32. Median magnitude is **2–3** against a maximum of **68–120**: the ramp
-  spends its whole range on the part of the distribution where nothing lives and
-  clamps exactly where the variance is.
+  spends its whole range where nothing lives and clamps exactly where the
+  variance is.
 - **Works site size encodes purpose and stall** — except `Sites` is a flat
   **15.0 px at every band on every seed**, and of the freight marks that *do*
   vary, **`Stalled` is false on all nine artifacts**, so two of the four sizes
   never render.
-- **War size encodes posture**, 16 px blockade against 14 px otherwise, across a
-  population of **0–3 stations per world**.
+- **War size encodes posture**, 16 px against 14 px, across a population of
+  **0–3 stations per world**.
 
-Meanwhile the *rendered* sizes of every glyph family sit inside **12–22 px** at
-every band from Realm to Ground, because the pixel floor wins almost everywhere
-(§4). Four meanings are being asked to separate inside a 10 px band that is
-already shared by five families.
+Meanwhile every rendered glyph in the atlas sits inside **12–22 px** at every
+band from Realm to Ground, because the pixel floor wins almost everywhere (§4).
+Four meanings were being asked to separate inside a 10 px band already shared by
+five families.
 
-> **Size is rank. There are three sizes: the keystone, its badges, and the
-> transient marks Group 4 carries. Quantity moves to admission — a bigger fleet
-> or a greater ruin *draws at a higher altitude*, it does not draw larger.**
+**Recalibrating those ramps was the obvious fix and it is the wrong one.** Size
+is a weak channel with a narrow range and no zero; it competes with every other
+mark for the same pixels; and it cannot say *what kind of thing* this is, which
+is the question a mark on a map is actually asked. So the channel is retired
+rather than tuned:
 
-That is the same sentence as §2.3 read from the other end, and it is why the two
-questions have one answer. Everything else the size channel was carrying has a
-better home already built:
-
-| Was | Now |
+| Was carried by size | Now carried by |
 |---|---|
-| fleet hulls → size | admission weight; the count reads in the panel |
-| POI magnitude → size | admission weight |
-| works purpose → size | colour (already: `WorksLens.FreightColorOf`) + glyph (§4.4) |
-| works stall → size | colour (already: the one loud red) |
-| war posture → size | glyph |
-| plague status → size | colour + glyph |
+| fleet hulls | the tooltip; the fleet panel |
+| POI magnitude | **admission** (§2.3) — a greater ruin draws at a higher altitude — and the panel |
+| works purpose | its **own icon** (`icon-set.md` §3.2) |
+| works stall | colour: the one loud red, unchanged |
+| war posture | its **own icon**, in the burn tint |
+| plague status | its **own icon** — infected and immune are two drawings |
+| port tier | the **territory the port projects**, which is tier-derived already |
 
-**Keystone size is 10 px** at its floor, because that is the measured size at
-which one solid form separates from another (§5.1). Badges are **4 px pips at a
-collar radius of 8 px** (§2.2), so a fully-badged place occupies **20 px** all
-told — *less* than the 19–23 px one glyph plus its contrast chip occupies today,
-while carrying six states instead of one.
-
----
-
-## 4. The pixel floor and the world size, re-derived
-
-`GlyphLayerBase` and `PortLayer` size every mark as
-`max(worldSize, pxFloor × pxWorld)`, capped at `_MaxPx`. The intent recorded in
-the code is "a world size that resolves as the camera descends plus a pixel
-floor that keeps the mark visible at altitude". Measured, the world term is
-**almost never in play**: rendered glyph sizes are 12–22 px from disc fit all the
-way down to `f = 0.16`, and only at Ground does the world size take over — where
-it immediately runs into `_MaxPx = 56` and clamps.
-
-That is not a bug to tune out. It is the shape of a real seam, and naming it is
-this section's whole contribution:
-
-> **The pixel floor governs the *pip map*; the world size governs the *icon
-> map*; the handover between them is the moment a mark stops being a locator and
-> becomes a portrait.**
-
-- **Realm, Domains, Reach — the pip map.** Every place is a keystone at its
-  floor size wearing the collar of §2.2. The map answers *where*, *whose*, *what
-  kind of place*, and *which families are present here*. It does not answer
-  *which kind of ruin*; the pointer does (Group 2's "hue narrows the field, the
-  pointer resolves it", applied to marks).
-- **Ground — the icon map.** The world term overtakes the floor, keystones pass
-  20 px, and marks **become their icons** — the keystone takes its own icon and
-  each lit collar slot takes its family's, **at the same six vertices**, so the
-  layout a player learned at Reach is the layout they read at Ground. This is
-  measured, not asserted: `stack-closeup-f005` is the first shot in the project
-  where authored icons are identifiable, and they are 30–56 px there.
-- **The handover is a crossfade, not a switch**, on the same curve family as
-  everything else, and it completes before the orbit crossfade begins so the two
-  never overlap.
-- **A family with no icon yet falls back to its pip**, at any size (§6.4). The
-  icon tier can land family by family without the map ever being wrong.
-
-`_MaxPx` stays as the clamp that stops a single mark eating the frame; the icon
-map's ceiling is the clamp, not an accident.
+Port tier deserves its own line, because it is the one place a rank genuinely
+exists. A tier-2 port's service radius is larger, so **the field around it is
+already the size read** — Group 2's territory does the work, and putting the
+same fact in the dot as well would be redundancy competing for pixels. Measured:
+no world contains a port above tier 2 anyway, so the whole encoding was carrying
+one bit.
 
 ---
 
-## 5. Form: the vocabulary below the icon floor
+## 4. How big a mark can be
 
-### 5.1 What a form costs in pixels — measured
+If size says nothing, the only question left is *how large should every mark
+be*, and the answer is not taste — it is the map's own geometry against the
+icon's readable floor.
 
-Eight candidate forms were rendered through the shipped `StarGen/AtlasGlyph`
-path at exact pixel sizes (ledger §3.4, `form-ladder.png`). The floor at which
-each stops reading as a generic blob:
+**The constraint is the distance between adjacent hexes on screen.** Two marks
+at neighbouring hexes cannot both be wider than that distance without
+overlapping, and it is a pure function of the band:
+
+| Band | Adjacent hexes, on screen |
+|---|---|
+| Realm (disc fit) | **2.1 px** |
+| Domains (`f = 0.70`) | **6.4 px** |
+| Reach (`f = 0.30`) | **15.2 px** |
+| Ground (`f = 0.05`) | **80.7 px** |
+
+That single row of numbers settles the argument that ran through the whole
+group. **An icon needs 20 px (§6.2). Realm gives a mark 2.1 px of room before
+its neighbour.** No drawing, no matter how well cut, can be read at galaxy
+altitude — not because the art is wrong but because the map has no space for it.
+Reach is the first band where the geometry and the floor meet.
+
+### 4.1 The size per band
+
+Measured against the admitted set of §2.3, one keystone per hex, occlusion being
+the fraction of on-screen marks whose centre lies inside another mark (badged
+marks count their collar, 1.7×):
+
+| Band | Mark | Occlusion, mature seeds | What the mark is |
+|---|---|---|---|
+| **Realm** | **10 px** | 1.1–5.0% | a **locator**. Kind is not the Realm question; the collar's colours say which families are here |
+| **Domains** | **12 px** | 5.2–12.4% | a locator |
+| **Reach** | **20 px** | 5.9–12.6% | **the icon, read.** This is the working altitude and the reason the floor is 20 |
+| **Ground** | 20 px, growing with world size | 25–45% | the icon, large |
+
+Three things this table is honest about.
+
+**Reaching the icon floor costs occlusion, and it is worth it.** At Reach a 16 px
+mark would occlude 1.0–8.1% and a 20 px mark occludes 5.9–12.6%. The extra few
+points buy the difference between a mark you can identify and one you cannot,
+and an overlap between two 20 px icons is a *legible* overlap — you can see both
+and hover either — where the shipped 12 px smudges at 56–79% occlusion were
+neither.
+
+**Ground's number is perspective, not density.** At the 25° pitch floor the
+ground plane runs to the horizon, so distant hexes compress toward the top of
+the frame and pile up there. It is also the band that is already crossfading
+into the orbit stage (Group 1 §4), so those marks are on their way out as it
+happens.
+
+**Above Reach the icon is drawn but not read.** The same drawing appears at every
+band; at 10–12 px it is a shape with a tint, which is exactly what a locator
+should be. Nothing switches, nothing pops, and the mark a player learns to
+recognise at Reach is the same mark they are looking at from Realm.
+
+---
+
+## 5. Below the icon floor
+
+At Realm and Domains a mark cannot say *what kind of thing* it is. That is not a
+gap to be filled with a second vocabulary — the two bands do not ask that
+question. What they do need is carried by the two channels that still work at
+10 px:
+
+- **Colour** — the keystone takes its owner's hue from the allocated identity
+  palette (Group 2 §2.2), and each lit collar slot takes its family's key colour.
+  At 4 px a pip is pure colour, and it works: hue is the one channel that does
+  not degrade with size.
+- **Position** — the collar's six fixed slots (§2.2). A player reading a Realm
+  frame can see *that* a place is fighting and *that* another is building,
+  because the lit vertex is in a known place, without either mark being
+  identifiable as a drawing.
+
+### 5.1 What a mark is before its icon exists
+
+The icon set lands family by family (`icon-set.md` §1). A family with no drawing
+yet renders as a **plain disc** at the band's size, wearing the same tint and the
+same collar. Nothing about the map is wrong in the meantime — it is exactly the
+Realm/Domains treatment applied at every band — and no atlas work is ever blocked
+on art.
+
+### 5.2 The floors, measured
+
+Recorded because they are what §4 and §6.2 rest on. Eight candidate forms
+rendered through the shipped `StarGen/AtlasGlyph` path at exact pixel sizes
+(ledger §3.4, `form-ladder.png`):
 
 | Form | Separates from a disc at |
 |---|---|
-| thick ring (≥30% band) | **8 px** |
+| thick ring (≥30% band) | 8 px |
 | solid square | 8–10 px |
-| solid diamond | **10 px** |
+| solid diamond | 10 px |
 | triangle | 10 px |
 | square ring | 12 px |
 | hollow diamond | 14–16 px |
 | thin ring (10% band) | 14–16 px |
 
-Below **8 px nothing separates from anything**: a 4–6 px mark of any form is one
-to three lit pixels. This sets the keystone floor at 10 px (§3) and it settles
-the outpost.
-
-### 5.2 The form vocabulary
-
-| Form | Means | Used by |
-|---|---|---|
-| **solid disc** | a market — a place that trades | port |
-| **solid diamond** | a claim without a market | **outpost** |
-| **thick ring** | a place that is gone — history, not commerce | POI |
-| **triangle** | a thing of the deep past, oriented | precursor origin, sterilization scar |
-| **solid square** | a built thing (already the orbit stage's facility mark) | reserved — SystemStage |
-
-The disc/diamond pair is the decision the outpost needed. **An outpost is a
-diamond at the same size as a port's disc**, because size and lightness are both
-spent (Group 2 §2.4) and — as §5.1 shows — every *hollow* form needs 12–16 px,
-which no keystone can promise. Diamond specifically: the square is already the
-orbit stage's facility glyph, and a diamond's 45° axis survives a pixel grid
-better than a square's, which aliases toward a disc at exactly the sizes that
-matter.
-
-Today an outpost is a **5.5 px dot** against a tier-1 port's **6.8 px dot**, with
-a quarter-lift toward white. That is 1.3 px and one luminance step, at every band
-on every seed. It is not a distinction; it is a rounding error.
+**Below 8 px nothing separates from anything** — a 4–6 px mark of any form is
+one to three lit pixels. Together with the 20 px icon floor this brackets the
+whole design: under 8 px a mark is a dot, from 8 to 20 px it is a silhouette
+with a tint, and at 20 px and above it is a picture.
 
 ---
 
@@ -379,31 +411,31 @@ The result is a property of *drawings*, not of these drawings:
 - **24–32 px** — where detailed line art finally resolves.
 
 > **20 px is the floor for an authored icon, and it is only reachable by a
-> drawing built as one silhouette. Below that a mark carries a form (§5), never
-> a picture.**
+> drawing built as one silhouette. Below that a mark is a locator (§5), never a
+> picture.**
 
 The atlas currently draws its glyphs at **11–20 px**, which is the whole reason
 `seed-42-works.png` is a field of orange smudges.
 
-### 6.3 Two tiers, and only one of them needs art
+### 6.3 Where the icon is read
 
-> **The form tier is generated and carries the map. The icon tier is authored
-> and carries the close reads.**
+One drawing per subject, drawn at the band's size (§4.1). It is *read* wherever
+it has 20 px:
 
-| Tier | Floor | Drawn by | Carries |
-|---|---|---|---|
-| **Form** | 8–10 px (§5.1) | code, no assets | which *kind of place* (disc / diamond / ring), and which *family* is present (the collar's six slots, §2.2) |
-| **Icon** | 20 px | authored sprites (`icon-set.md`) | which *kind within a family* — this ruin rather than that one, a gate rather than a shipyard |
+| Surface | Size | The icon is |
+|---|---|---|
+| Realm, Domains | 10–12 px | a locator — a shape with a tint |
+| **Reach** | **20 px** | **read.** The working altitude, and the reason the floor is 20 |
+| Ground | 20 px and growing | read, large |
+| Hover tooltip · legend key · panel row | 16–24 px | read |
 
-Icons therefore never appear on the map above Ground. Their four surfaces are
-**Ground, the hover tooltip, the legend key and panel rows** — all of which have
-20 px and more.
+Nothing switches between a "form map" and an "icon map": the same drawing
+appears everywhere and only its scale changes, so the mark a player learns to
+recognise at Reach is the one they are already looking at from Realm.
 
-This split is the schedule as well as the design: **the map is complete and
-shippable with zero icon art**, because Realm, Domains and Reach are the form
-tier end to end. The icon tier then lands family by family, each family falling
-back to its collar pip until its icons exist. Nothing in the atlas is ever
-blocked on a drawing.
+**And no atlas work is blocked on art.** A family whose icon does not exist yet
+draws a plain disc at the band's size (§5.1), wearing the same tint and the same
+collar. The set lands family by family.
 
 ### 6.4 The two rules that gate the set
 
@@ -542,10 +574,21 @@ glyphs sort above the port dots at the same hex. With one keystone per hex there
 is nothing to sort: the badge is part of the keystone's own mesh, in index order,
 exactly as the chip already is. Both constants come out.
 
-### 9.3 The dual sizing rule stays, re-justified
+### 9.3 The dual sizing rule is replaced by a per-band size
 
-Not as a fallback but as §4's seam. It is the only mechanism in the atlas that
-makes a mark behave differently at two altitudes, and now it has a stated job.
+`max(worldSize, pxFloor × pxWorld)` was written as "a world size that resolves as
+the camera descends plus a pixel floor that keeps the mark visible at altitude".
+Measured, the world term is almost never in play — rendered glyph sizes are
+12–22 px from disc fit down to `f = 0.16`, and the world term only takes over at
+Ground, where it immediately clamps at `_MaxPx = 56`. So the rule was a pixel
+floor with a decoration on it.
+
+**A mark's size is the band's size (§4.1), on the same continuous curve family as
+every other fade.** Below Ground the world term takes over as it does today, so
+the mark grows with the world as the camera lands, and `_MaxPx` stays as the
+clamp that stops one mark eating the frame. What goes is the pretence that two
+mechanisms are negotiating: one number, set by the band, and the datum never
+touches it (§3).
 
 ---
 
@@ -596,8 +639,9 @@ The marks channel owns three motions and no others.
 - **Emission.** A news pulse rings once, outward, when it first appears or when
   the scrub crosses its year (§7). This is the atlas's only *event* motion and
   it is the one thing the news layer was always good at.
-- **Resolve.** The pip→icon handover at Ground (§4) is a crossfade, not a
-  switch. Nothing pops.
+- **Resolve.** A mark's size follows the band (§4.1) on the same continuous
+  curve family as everything else. Nothing switches and nothing pops — the
+  drawing never changes, only its scale.
 - **Selection.** The selection ring never fades and never animates on the mark;
   it is Group 6's, and it is the one mark affordance that outranks the budget.
 
@@ -650,12 +694,14 @@ detailed here in §2.3.
   admitted-but-empty at this band is **silent**, not off, so its chip must say
   so. The band's current weight floors are legend content — *"showing the top
   tenth"* is a fact the player needs.
-- **Group 6 (panels & selection)** — the pip map deliberately stops at family:
-  **the pointer resolves the kind.** Hover on a keystone must list every badge
+- **Group 6 (panels & selection)** — **every per-entity quantity the map used to
+  put in a mark's size now lives with you** (§3): fleet hulls, POI magnitude,
+  works progress and stall, port tier. Hover on a keystone must list every badge
   behind it, and selection must be able to address a badge, not just its
   keystone — `PanelRequest.SubId` already carries exactly that shape for
-  outposts. Selection outranks the budget: a selected mark draws whatever its
-  band would have culled.
+  outposts. Above Reach a mark is a locator rather than a picture (§4.1), so the
+  tooltip is the only thing that can say *what* it is up there. Selection
+  outranks the budget: a selected mark draws whatever its band would have culled.
 - **Tier 2 (synthesis)** — **`docs/design/ui/icon-set.md` is the icon design**,
   delivered by this group: twenty-seven entries with what each depicts, what it
   tells the player, its Core query, its measured population and its build tier,
