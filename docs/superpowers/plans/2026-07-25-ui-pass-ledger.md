@@ -725,13 +725,44 @@ artifact's iframe.
 
 #### 3.8 — the gate
 
-*(pending)*
+**First pass REDIRECTED, 2026-07-27.** Two corrections, both taken:
+
+1. **The badge layout was underdesigned.** "Up to three pips on the keystone's
+   rim, then a *more* pip" is not a layout — it is a placement policy, and pips
+   at arbitrary angles are not readable at a glance. Redesigned as **the collar**
+   (design §2.2): six slots at the vertices of a hex, one per state family,
+   permanently. Position identifies and colour confirms; count is a silhouette
+   rather than a tally; nothing can overlap by construction; and the same six
+   vertices carry each family's *icon* at Ground, so the layout is learned once.
+   Six is the number of state families that exist, so there is no overflow case.
+   Footprint 20 px (keystone 10, collar radius 8, pip 4) — smaller than one of
+   today's glyphs plus its contrast chip.
+2. **The glyph section asked the wrong question.** It triaged the sixteen
+   placeholders ("which survive a cull") when the dive's job was to determine
+   **what icons should be developed**. The sixteen are licence-free game-icons.net
+   art pulled during K2 to prove the plumbing; there is no vocabulary to revise.
+   §6 was rewritten as a design: **the demand** (every distinction the map must
+   carry, with its measured population — §6.3), **the two tiers** (form,
+   generated, 8–10 px; icon, authored, 20 px — so the map ships with zero art,
+   §6.4), **the house style** (ten hex-cut rules: hexagonal envelope, 60° edge
+   family, solid mass, one connected form, 2.5-unit minimum feature, even optical
+   weight, orientation-as-meaning, and a ladder gate at 20 px — §6.5), **the set**
+   (thirty marks in three build tiers by population × decision-weight, §6.6), and
+   **sourcing** (commission it; the sixteen retire wholesale to dead enum cells so
+   the append-only rule holds — §6.7).
+
+Eleven Tier-A marks were then *built* to the rules in the mock and put through
+the ladder. The exercise immediately earned rule 10: **precursor** and **plague**
+are both three-fold and converge below 16 px. The gate catches it; taste would
+not have.
+
+*(the four decisions themselves: pending)*
 
 #### 3.8b — decided in-session, not escalated (all cheap to reverse)
 
 Listed here rather than in the gate brief, per the checkpoint protocol:
 transient marks (freight, convoys) leaving the mark channel for Group 4's
-strokes · the pip/icon handover being the re-justification of the dual-sizing
+strokes · the six collar slot assignments and their fixed clock positions · the pip/icon handover being the re-justification of the dual-sizing
 rule rather than a new mechanism · one contrast chip **per place** instead of
 per mark (the alpha-195 stack that goes opaque) · the `War 120` / `Plague 110`
 queue biases being deleted, since one keystone per hex leaves nothing to sort ·

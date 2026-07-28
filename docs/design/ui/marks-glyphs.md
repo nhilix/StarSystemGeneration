@@ -67,16 +67,69 @@ Fleet → War station → Plague — and the first one **is** the keystone. Ever
 else at that hex becomes a **badge** on it.
 
 The keystone is a **single billboard at a single point**: one owner tint, one
-form, one contrast chip. The badges are **pips** on its rim — small, family-
-coloured, countable — up to **three**, then a fourth neutral pip meaning *more*.
-Hover names them; selection opens them (Group 6).
+form, one contrast chip. Everything else at that hex becomes a badge, laid out
+by §2.2. Hover names them; selection opens them (Group 6).
 
 This is the whole declutter. There is no force-directed dodge and no top-N by
 screen density, because both would move a mark away from the thing it describes.
 The marks were co-located by the *sim*, so the merge is done in the sim's own
 coordinate — the hex — and it is exact, stable and order-independent.
 
-### 2.2 Weight admits: how count falls with altitude
+### 2.2 The collar: badges have addresses, not positions
+
+A badge that lands wherever there is room cannot be read at a glance, because it
+has to be *found* before it can be read — and at four pixels there is nothing to
+find it by. The badge layout is therefore **fixed**, and it is the map's own
+geometry.
+
+> **A keystone wears a collar of six slots at the vertices of a hex. Each state
+> family owns one slot, permanently. A slot is lit when that family is present
+> at this place and draws nothing when it is not.**
+
+| Slot | Family | Key colour |
+|---|---|---|
+| 12 o'clock | **war** — a station, a blockade, a siege | `WarLens.StationBurn` |
+| 2 o'clock | **plague** — infected or scarred | `PlagueLens` status colour |
+| 4 o'clock | **works** — something is being built here | `WorksLens.SiteAmber` |
+| 6 o'clock | **news** — word came from here | `NewsLens.Parchment` |
+| 8 o'clock | **fleet** — hulls are posted here | owner tint, lifted |
+| 10 o'clock | **POI** — the place remembers something | `PoiLens` type colour |
+
+Six is not a budget that might be exceeded; it is the count of state families
+that exist. A seventh family would need a seventh vertex, and the collar would
+stop being a hex — which is exactly the constraint that keeps the vocabulary
+from sprawling.
+
+Five properties make this the layout rather than *a* layout:
+
+1. **Position identifies; colour confirms.** You learn "top vertex means
+   fighting" the way you learn a dashboard, and you learn it once. Colour is the
+   redundant channel, not the only one — which is the whole of the colour-blind
+   answer here, since at 4 px no *form* can carry redundancy (§5.1).
+2. **Count is a shape, not a tally.** Three lit vertices out of six is a
+   silhouette the eye resolves before it reads anything. There is no "+n" pip and
+   nothing to count sequentially.
+3. **Nothing can overlap, by construction.** Slots are fixed and non-adjacent at
+   60°; a keystone with all six lit is still a clean figure.
+4. **It is this map's geometry.** Marks sit at hex centres on a hex lattice; a
+   hexagonal collar is the shape the map is already made of, not a widget
+   borrowed from somewhere else.
+5. **It survives the pip→icon handover (§4).** At Ground the same six vertices
+   carry each family's *icon* instead of its pip. One layout, two resolutions,
+   and the position a player learned at Reach is where the icon appears at
+   Ground.
+
+**Sizing.** Keystone 10 px, collar radius 8 px, pip 4 px — a **20 px** total
+footprint, which is *smaller* than a single glyph plus its contrast chip today
+(19–23 px) while carrying six states instead of one. The contrast chip (§9.1)
+covers the collar, so the pips sit on the same dark ground the keystone does.
+
+**Degree is not encoded.** Two fleets at one hex light the same slot as one. The
+collar answers *what is here*; the pointer answers *how much*. That is the same
+division Group 2 drew for the field — hue narrows, the pointer resolves — and it
+is what keeps a four-pixel mark honest.
+
+### 2.3 Weight admits: how count falls with altitude
 
 Group 1 requires that mark **count** fall as altitude rises, since the pixel
 floor means mark *size* cannot. The lever is admission, and every family already
@@ -118,7 +171,7 @@ because its war badge is admitted there. That single clause is what makes the
 Realm band answer its own question: **the galaxy view shows the important places
 and the eventful ones**, and nothing else.
 
-### 2.3 What it costs, measured
+### 2.4 What it costs, measured
 
 The rule above was run against all nine artifacts and compared with the shipped
 draw, same framing, same viewport, same projection.
@@ -177,7 +230,7 @@ already shared by five families.
 > transient marks Group 4 carries. Quantity moves to admission — a bigger fleet
 > or a greater ruin *draws at a higher altitude*, it does not draw larger.**
 
-That is the same sentence as §2.2 read from the other end, and it is why the two
+That is the same sentence as §2.3 read from the other end, and it is why the two
 questions have one answer. Everything else the size channel was carrying has a
 better home already built:
 
@@ -191,10 +244,10 @@ better home already built:
 | plague status → size | colour + glyph |
 
 **Keystone size is 10 px** at its floor, because that is the measured size at
-which one solid form separates from another (§5.1). **Badges are 6 px pips** on
-the keystone rim; a keystone with badges occupies about **24 px** all told —
-which is the same footprint one glyph plus its contrast chip occupies today
-(19–23 px), while now carrying every state at that place instead of one.
+which one solid form separates from another (§5.1). Badges are **4 px pips at a
+collar radius of 8 px** (§2.2), so a fully-badged place occupies **20 px** all
+told — *less* than the 19–23 px one glyph plus its contrast chip occupies today,
+while carrying six states instead of one.
 
 ---
 
@@ -216,17 +269,21 @@ this section's whole contribution:
 > becomes a portrait.**
 
 - **Realm, Domains, Reach — the pip map.** Every place is a keystone at its
-  floor size with pips for its states. The map answers *where*, *whose*, and
-  *what kind of place*. It does not answer *which kind of ruin*; the pointer
-  does (Group 2's "hue narrows the field, the pointer resolves it", applied to
-  marks).
+  floor size wearing the collar of §2.2. The map answers *where*, *whose*, *what
+  kind of place*, and *which families are present here*. It does not answer
+  *which kind of ruin*; the pointer does (Group 2's "hue narrows the field, the
+  pointer resolves it", applied to marks).
 - **Ground — the icon map.** The world term overtakes the floor, keystones pass
-  20 px, and marks **become their glyphs**. This is measured, not asserted:
-  `stack-closeup-f005` is the first shot in the project where the authored icons
-  are identifiable, and they are 30–56 px there.
+  20 px, and marks **become their icons** — the keystone takes its own icon and
+  each lit collar slot takes its family's, **at the same six vertices**, so the
+  layout a player learned at Reach is the layout they read at Ground. This is
+  measured, not asserted: `stack-closeup-f005` is the first shot in the project
+  where authored icons are identifiable, and they are 30–56 px there.
 - **The handover is a crossfade, not a switch**, on the same curve family as
   everything else, and it completes before the orbit crossfade begins so the two
   never overlap.
+- **A family with no icon yet falls back to its pip**, at any size (§6.4). The
+  icon tier can land family by family without the map ever being wrong.
 
 `_MaxPx` stays as the clamp that stops a single mark eating the frame; the icon
 map's ceiling is the clamp, not an accident.
@@ -281,86 +338,193 @@ on every seed. It is not a distinction; it is a rounding error.
 
 ## 6. The glyph vocabulary
 
-### 6.1 The readability ladder
+### 6.1 There isn't one yet
 
-Every one of the 16 authored icons was rendered through the real shader at 6, 8,
-10, 12, 14, 16, 20, 24, 32 and 48 px (`glyph-ladder-bare.png`,
-`glyph-ladder-chip.png`). The result is not one number, because the icons are not
-one kind of drawing:
+`Resources/AtlasGlyphs.png` holds sixteen icons pulled from game-icons.net during
+Slice K2 to prove the atlas *plumbing* — an authored sprite, a UV rect, a runtime
+tint, a contrast chip. They are licence-free placeholders picked for
+availability, not drawn for this map, and every measurement says so:
 
-- **6–12 px** — every icon is a speck. Nothing is identifiable, including the
-  simple ones.
-- **14–16 px** — icons that are a *single closed silhouette* begin to read:
-  `cancel`, `crossed-swords`, `checked-shield`, `tombstone`, `anchor`.
-- **20 px** — the honest floor. Most of the set reads. `radar-sweep`,
-  `flying-flag` and `cardboard-box` arrive here.
-- **24–32 px** — the detailed line art finally resolves: `cargo-ship`, `crane`,
-  `crystal-growth`, `rocket`, `regeneration`.
-- **`ancient-ruins` and `castle-ruins` never separate from each other**, at any
-  size in the ladder. Two brown building silhouettes.
-
-> **The readable floor for an authored icon is 20 px, and only for icons drawn
-> to a silhouette rule. Below that the mark carries a form, not a picture.**
-
-The atlas draws its glyphs at **11–20 px** — which is to say the entire authored
-vocabulary lives in the band where it does not resolve. `seed-42-works.png`'s
-orange smudges are not a rendering fault; they are the arithmetic.
-
-One free improvement fell out of the measurement: `Resources/AtlasGlyphs.png` is
-**512 × 640, DXT5, `mipmapCount = 1`**. A 128 px cell sampled down to 14 px is a
-raw bilinear read of four texels. Generating mipmaps costs nothing and improves
-every size below 128 — it does not move the floor (the floor is
-information-theoretic), but it removes the shimmer.
-
-### 6.2 The shape budget is allocated backwards
-
-Which authored cells the data actually reaches, across all nine artifacts:
-
-- **`PoiRuinedCapital` (castle-ruins) is never drawn.** Not once, on any seed.
-- **`FleetEscort` (checked-shield) is never drawn.** Escort never appears as a
-  marker posture.
+- **`PoiRuinedCapital` (castle-ruins) and `FleetEscort` (checked-shield) are
+  never drawn on any of the nine artifacts.** Two cells with no data behind them.
 - **`PoiPrecursor` (crystal-growth) is 57–87% of every POI population**
   (178–435 of 276–498). One icon is most of what the POI lens ever says.
-- **All six works kinds draw the same crane.** `GatePair` (74–136 per seed),
+- **All six works kinds draw the same crane** — `GatePair` (74–136 per seed),
   `PortRaise` (38–77), `FacilityConstruction` (23–72), `HullBatch`,
-  `Mobilization` and `OutpostGraduation` are genuinely different events — a jump
-  gate, a port being raised, a shipyard, a mobilization — and the map calls them
-  all "a crane".
+  `Mobilization`, `OutpostGraduation`. The largest real distinction in the whole
+  mark set has no shape at all.
+- **`ancient-ruins` and `castle-ruins` never separate from each other**, at any
+  size on the ladder.
 
-So the shape channel spends five cells on a distribution that is one type most
-of the time, two cells on things that never happen, and **zero** on the largest
-real distinction in the mark set.
+So the question is not which of the sixteen survive a cull. **The atlas has no
+icon vocabulary. This section designs one**, and the sixteen are what it
+replaces.
 
-### 6.3 The revision
+### 6.2 The floor the design has to clear
 
-**Three rules, and Tier 2 builds the manifest from them.**
+Every one of the sixteen was rendered through the real `StarGen/AtlasGlyph`
+shader at 6, 8, 10, 12, 14, 16, 20, 24, 32 and 48 px (`glyph-ladder-bare.png`).
+The result is a property of *drawings*, not of these drawings:
 
-1. **An icon must pass the silhouette test at 20 px** — readable as one filled
-   silhouette, and distinct in outline from every sibling in its family. This is
-   a **gate on the art**, verified by regenerating the ladder, not a matter of
-   taste. `ancient-ruins` / `castle-ruins` fail it as a pair.
-2. **An icon must have a population.** A cell whose type never occurs is not a
-   vocabulary item; it is a reservation. `PoiRuinedCapital` and `FleetEscort`
-   come out (their meanings stay in the panel text) and their cells are
-   reclaimed — the atlas is 4 × 5 = 20 cells with 17 in use, so the set has room
-   without growing.
-3. **Cells go where the distinctions are.** The works family gains icons for its
-   real kinds — gate, port raise, facility, hull batch, mobilization — and the
-   POI family sheds the ones its data does not populate.
+- **6–12 px** — everything is a speck, including the simple shapes.
+- **14–16 px** — only a *single closed silhouette* reads: `cancel`,
+  `crossed-swords`, `checked-shield`, `tombstone`, `anchor`.
+- **20 px** — where most of a well-drawn set arrives.
+- **24–32 px** — where detailed line art finally resolves.
 
-`AtlasGlyphs`' enum order is the atlas layout and **appending is the only legal
-edit**, so a re-cut set is a *new tail plus retired cells*, never a reorder. The
-retired cells stay in the enum, unused, with the reason recorded — that is the
-cheapest way to honour the append rule while changing what is drawn.
+> **20 px is the floor for an authored icon, and it is only reachable by a
+> drawing built as one silhouette. Below that a mark carries a form (§5), never
+> a picture.**
 
-### 6.4 Where an icon is still worth drawing
+The atlas currently draws its glyphs at **11–20 px**, which is the whole reason
+`seed-42-works.png` is a field of orange smudges. Under §4 that band belongs to
+the pip map, and **the icon tier lives at Ground, in the tooltip, in the legend
+key and in panel rows** — four surfaces that all have 20 px and more.
 
-Even under §4's pip map, authored shape earns its place in four surfaces that
-have the pixels: **Ground**, the **hover tooltip**, the **legend key**, and the
-**panel** row. The 16 icons were never wasted work — they were **filed at the
-wrong altitude**.
+One free improvement, unrelated to the art: `AtlasGlyphs.png` is **512 × 640,
+DXT5, `mipmapCount = 1`**, so a 128 px cell sampled to 14 px is a raw bilinear
+read of four texels. Mipmaps cost nothing and remove the shimmer at every size.
+They do not move the floor — the floor is information-theoretic.
 
----
+### 6.3 The demand: what this map actually has to say in shape
+
+The set is derived from the sim's own distinctions and their measured
+populations, not from what a stock library happens to contain. Ranges are across
+the six mature radius-21 seeds.
+
+| Group | Distinctions the map must carry | Population per world |
+|---|---|---|
+| **Places** | starport · outpost · market · jump gate | 178–219 ports · 12–26 outposts |
+| **Works** | gate laid · port raised · facility built · hull batch · mobilization · outpost graduating | 74–136 · 38–77 · 23–72 · 9–17 · 3–18 · 0–1 |
+| **Fleets** | posted · reserve · patrol · expedition · blockade | 42–61 · 21–28 · 10–19 · 1–4 · 0–2 |
+| **War** | station on blockade · station on expedition | 0–2 · 0–1 |
+| **Plague** | infected · scarred | 0–2 · 0–2 |
+| **Deep time** | precursor site · battlefield · memorial · ruin · sterilization scar · origin | 178–435 · 36–48 · 19–45 · 4–16 · 77–285 · 149–181 |
+| **Nature** | globular cluster · AGN outburst · merger stream · emission nebula · supernova remnant · dark cloud | 4–8 · 6–7 · 1–3 · 0–8 · 6 · **0 on every seed** |
+| **Word** | news origin | 70–96 shown |
+
+Three things fall out of that table that no stock set could have told us.
+
+**The precursor site is the single largest mark population in the atlas** —
+178–435 per world, more than there are ports. It is also the subject this game is
+most distinctive about: deep time, precursors, a galaxy far older than anyone
+living in it. It deserves the best-drawn icon in the set, and today it is a
+generic crystal cluster.
+
+**The works family needs five icons and has one.** Its kinds are both more
+numerous and more populous than the POI kinds that currently own five cells.
+
+**`DarkCloud` never occurs on any seed**, exactly like `RuinedCapital` and
+`FleetEscort`. Whatever rule admits a cell has to include *have a population*, or
+the set accumulates reservations.
+
+### 6.4 Two tiers, and only one of them needs art
+
+> **The form tier is generated and carries the map. The icon tier is authored
+> and carries the close reads.**
+
+| Tier | Floor | Drawn by | Carries |
+|---|---|---|---|
+| **Form** | 8–10 px (§5.1) | code, no assets | which *kind of place* (disc / diamond / ring / triangle), and which *family* is present (the collar's six slots, §2.2) |
+| **Icon** | 20 px | authored sprites | which *kind within a family* — this ruin rather than that one, a gate rather than a shipyard |
+
+This split is the schedule as well as the design: **the map is complete and
+shippable with zero icon art**, because Realm, Domains and Reach are the form
+tier end to end. The icon tier can then be commissioned and landed
+incrementally, family by family, each family falling back to its form until its
+icons exist. Nothing in the atlas is ever blocked on a drawing.
+
+### 6.5 The house style: hex-cut
+
+A set is a set because of its rules, not its subjects. These are the rules, and
+they are chosen so the icons belong to *this* map — which is hexagonal,
+near-black, additive, and read at a glance from a distance.
+
+1. **Hexagonal envelope.** Every icon is drawn inside a flat-top hexagon on a
+   24-unit grid, in the orientation the lattice draws. The mark sits at a hex
+   centre; its picture is hex-shaped. Nothing else on screen is.
+2. **The 60° family only.** Edges run at 0°, ±60°, ±120°, plus 90° where an icon
+   has a vertical axis of symmetry. No arbitrary angles; no true curves except
+   full circles and 60°-centred arcs.
+3. **Solid mass, no outline, no line art.** Icons are filled silhouettes. This is
+   the measured requirement from §6.2, not a taste: outlines are the first thing
+   to die between 32 px and 20 px.
+4. **One connected mass**, or one mass plus at most one deliberate satellite of
+   ≥ 4 units — a spark over a site, a moon beside a body. Floating detail is
+   noise at 20 px.
+5. **Minimum feature 2.5 units** — 2 px at the 20 px floor, which is what a
+   feature needs to survive a bilinear downsample. Counter-forms (holes) minimum
+   3 units.
+6. **Even optical weight:** 34–46% of the envelope inked, so no icon shouts over
+   its neighbours in a legend row or a collar.
+7. **Shared optical centre and baseline**, so a row of them aligns without
+   per-icon nudges.
+8. **Orientation is meaning, never decoration.** An icon that points, points
+   outward from its port (expedition, freight) or across a lane (blockade).
+9. **Pure white on transparent, tinted at runtime.** No gradients, no baked
+   colour, no shading — the atlas renders linear with a per-instance tint and
+   every existing layer already assumes exactly this.
+10. **Every icon passes the ladder at 20 px before it enters the set**, against
+    its own family siblings. The test is a regeneration of
+    `glyph-ladder-bare.png`, not an opinion.
+
+Rules 1, 2 and 8 are what make the set *this project's*. A licence-free library
+can satisfy 3–7 by accident; nothing off the shelf will be hex-cut, and that is
+precisely why the current sixteen read as borrowed.
+
+**The rules were exercised before being written down.** Eleven of the Tier-A
+marks (§6.6) were constructed from 60° polygons on the hex envelope and put
+through the ladder — they are in the group's mock artifact, and they are a
+*demonstration that the system produces a separable family*, not the proposed
+art. The exercise immediately earned rule 10: **precursor** (three shards
+outward) and **plague** (three bites inward) are both three-fold and converge
+below 16 px. The ladder catches it; a taste argument would not have.
+
+### 6.6 The set, and the order to build it
+
+Thirty marks, grouped by what they answer, ordered by population × how much a
+decision depends on them. **Tier A is the shippable core** — with it the icon
+tier is useful; without the rest it is merely incomplete.
+
+**A — build first (11).** precursor site · starport · outpost · gate under
+construction · port raising · facility · fleet posted · blockade · battle ·
+plague · news origin.
+
+**B — the second pass (10).** patrol · reserve · expedition · hull batch ·
+mobilization · memorial · battlefield · ruin · origin · sterilization scar.
+
+**C — completes the vocabulary (9).** market · jump gate (built) · immunity ·
+globular cluster · AGN outburst · merger stream · emission nebula · supernova
+remnant · dark cloud.
+
+Three deliberate absences: **`RuinedCapital`, `FleetEscort` and `DarkCloud` get
+no cell** until a world produces one — their meanings live in panel text, which
+costs nothing and lies about nothing. **`OutpostGraduation`** (0–1 per world) is
+a *variant* of port-raising, not its own cell. And **market** is a Ground-and-
+panel icon only: at map scale, a market is what a port *is*.
+
+### 6.7 Sourcing
+
+**Commission the set.** §6.5 is the brief, and it is specific enough to hand to
+an illustrator or to build as vector geometry directly — a 60°-grid silhouette
+on a hex envelope is closer to parametric construction than to freehand drawing.
+What cannot be bought is rules 1, 2 and 8: a stock set is by definition drawn to
+no envelope and no grid.
+
+The sixteen placeholders stay in the `AtlasGlyph` enum, unused, marked legacy.
+Enum order **is** the atlas layout and appending is the only legal edit, so the
+new set is a **new tail** — cells 17 onward — and the old cells are simply never
+referenced again. That honours the append rule exactly, at the cost of a few dead
+texels in a 512 × 640 sheet, which is the cheapest possible price for it.
+
+### 6.8 What Tier 2 inherits
+
+The icon manifest is built from §6.3 (the demand), §6.5 (the rules) and §6.6
+(the set and its order). Per entry it carries: **name · meaning · the sim query
+that produces it · measured population · atlas cell · tint rule · the surfaces it
+appears on (Ground / tooltip / legend / panel) · its ladder result at 20 px
+against its family siblings.** Two rules gate every entry: **pass at 20 px**, and
+**have a population**.
 
 ## 7. War and news at galaxy altitude
 
@@ -375,7 +539,7 @@ layers all draw at alpha zero. The all-families-on frame and the news-only frame
 at Realm are the same picture, and the measured 86–89% mark occlusion at Realm
 is occlusion among marks nobody can see.
 
-War is fixed by §2.2: war stations carry no weight floor and are admitted at
+War is fixed by §2.3: war stations carry no weight floor and are admitted at
 every band, and they drag their keystone in with them. The population is 0–3 per
 world, so it costs nothing.
 
@@ -522,7 +686,8 @@ Two degenerate cases the budget itself has to answer:
 | Situation | Behaviour |
 |---|---|
 | A hex whose only mark is a badge-class state (a fleet in the wilds) | The state **becomes** the keystone — the rank list is a preference, not a requirement |
-| More than four states at one hex | Three pips plus a neutral *more* pip; hover lists them all |
+| Every state family present at one hex | All six collar slots light. There is no overflow case, because there are exactly six families and six vertices (§2.2) |
+| Two of the same family at one hex (two fleets) | One lit slot. The collar says *what is here*; hover says how many |
 | A world with one port tier (every world we have) | The Realm filter admits that tier — a relative rank can never empty the map |
 | A world with 19 POIs (`epoch 42 2 21`) | Quantile floors are the world's own, so the top two still draw at Realm |
 | A pulse magnitude of 16,964 | Admission is a quantile, so an unbounded quantity needs no normalization |
@@ -569,7 +734,7 @@ Two smaller riders in the same row set:
   the world's top percentile draws at Realm. On seed-42 that is three marks.
 
 Recorded in `camera-nav-lod.md` §2 with the reasoning, per the hard rule, and
-detailed here in §2.2.
+detailed here in §2.3.
 
 ---
 
@@ -582,8 +747,10 @@ detailed here in §2.2.
   thing: a transient never merges into a hex keystone, so the two channels never
   argue about the same point. Group 1's open **lane-terminus seam** is
   unaffected by anything here.
-- **Group 5 (chrome)** — the legend must key **badge pip colours** by family, in
-  the same declaration the rail's chips read from (Group 2 §8); the legend head
+- **Group 5 (chrome)** — the legend must show **the collar itself**, not a list
+  of pip colours: six vertices, each labelled with its family, is the one figure
+  that teaches the layout, and the pip colours come from the same declaration the
+  rail's chips read from (Group 2 §8). The legend head
   carries the mark family's silent/blind line (§10); and a mark lens that is
   admitted-but-empty at this band is **silent**, not off, so its chip must say
   so. The band's current weight floors are legend content — *"showing the top
@@ -594,8 +761,11 @@ detailed here in §2.2.
   keystone — `PanelRequest.SubId` already carries exactly that shape for
   outposts. Selection outranks the budget: a selected mark draws whatever its
   band would have culled.
-- **Tier 2 (the icon manifest)** — §6.3 is the input. Every entry needs: name,
-  meaning, source, **the silhouette-test result at 20 px**, tint rule, the
-  surfaces it appears on (Ground / tooltip / legend / panel), and its atlas cell.
-  Retired cells stay in the enum with their reason. The two rules the manifest
-  enforces are *pass at 20 px* and *have a population*.
+- **Tier 2 (the icon manifest)** — the input is §6 entire: **§6.3** the demand
+  (every distinction the map must carry, with its measured population),
+  **§6.5** the house style (the ten hex-cut rules the art is drawn to and tested
+  against), **§6.6** the thirty-mark set in three build tiers, and **§6.8** the
+  per-entry columns. The manifest is a **commissioning brief**, not an audit of
+  the sixteen placeholders — those retire wholesale, staying in the enum as dead
+  cells so the append-only rule holds. Two gates on every entry: *pass the ladder
+  at 20 px against its family siblings*, and *have a population*.

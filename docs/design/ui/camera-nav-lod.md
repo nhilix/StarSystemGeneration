@@ -124,7 +124,7 @@ the world's own magnitude quantiles — **and a place is admitted whenever
 anything happening there is**, which is how the Realm band comes to show the
 important places *and* the eventful ones. Outposts move up a band with the same
 reasoning: there are only 12–26 per world and the frontier is the literal answer
-to the Domains question. Details in `docs/design/ui/marks-glyphs.md` §2.2 and
+to the Domains question. Details in `docs/design/ui/marks-glyphs.md` §2.3 and
 §12.
 
 **War and news resolve at Realm, not at Reach.** "Where is anything happening"
