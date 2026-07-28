@@ -31,7 +31,15 @@ into a production checklist and before anyone draws anything.
 5. `docs/superpowers/specs/2026-07-24-ui-design-pass-design.md` — governing
    principles and what **Tier 2** still owns (the manifest, i.e. the production
    checklist derived from your design — do not write it here).
-6. `.claude/skills/driving-the-unity-editor/SKILL.md` before your first Unity
+6. **The two Group-3 artifacts** — this is the work you are re-opening, and it
+   is rendered, not described:
+   - the Group-3 mock (📍), whose Decision-B exhibit builds the ten Tier-A marks
+     live from 60° polygon lists and runs them through the ladder —
+     https://claude.ai/code/artifact/de81e106-e169-46a3-a8d7-0134cca5e60d
+   - the `icon-set.md` catalogue (🔶), all twenty-seven marks constructed live,
+     each at 36 px and 20 px, plus the grouped plate and the full ladder —
+     https://claude.ai/code/artifact/981127f2-9d42-43ff-9edd-2eb73d039738
+7. `.claude/skills/driving-the-unity-editor/SKILL.md` before your first Unity
    command. Note two recorded traps: `eval`/`eval_file` inject as a **method
    body** (no `using`), and **`eval_file` is capped at 30 s regardless of
    `--timeout`** — five of Group 3's eight harnesses reported failure *while
