@@ -880,6 +880,62 @@ mipmaps on `AtlasGlyphs.png` · the seventeen silent/blind lines for the mark
 families · the motion inventory (emission, resolve, selection — and explicitly
 nothing else).
 
+### Icon library — the deep dive (IL)
+
+Branch `ui-pass-icon-library` off main `33add57`. Kickoff:
+`docs/superpowers/plans/2026-07-27-ui-pass-icon-library-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/icon-set.md` rewritten · a decision record at
+`docs/superpowers/specs/2026-07-27-icon-library-design.md` · mock artifact(s).
+**Zero atlas code.** This session re-opens Group 3's icon set as a design
+problem in its own right — the conclusions were plausible and internally
+consistent, but several load-bearing choices were asserted rather than
+explored, and no alternative was ever put next to them.
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| IL.1 | Scope nod | **user** | ✅ nodded 2026-07-27 (agenda + both amendments) |
+| IL.2 | Branch; open this ledger section | — | ✅ |
+| IL.3 | Lift the catalogue geometry; build the direction bake-off | — | |
+| IL.4 | **Gate — direction** | **user** | |
+| IL.5 | **Gate — vocabulary** (membership, grammar, the sim-maturity exclusions) | **user** | |
+| IL.6 | **Gate — the set** (every icon, the ladder, the in-situ plate, the revised doc) | **user** | |
+| IL.7 | Wrap-up: docs, HANDOFF, merge, push, Trello, release the editor | — | |
+
+#### IL.1 — the nod, and what it changed
+
+Agenda is the kickoff's eight assumptions, **plus two amendments the user
+took**:
+
+- **Added: the set has never been tested *as a set, in situ*.** Every
+  evaluation to date — Group 3's ladders, the catalogue plate, the eleven demo
+  marks — is a *lineup on a neutral plate at exact pixel sizes*. That measures
+  a drawing against its siblings; it does not measure the set doing its job.
+  The job is twenty-seven marks on the real map at Reach, wearing collars and
+  contrast chips, tinted per family, over a live field. Folded into IL.6.
+- **Resequenced: sourcing and build tiers (assumption 8) are decided last**,
+  cheaply and in-session, rather than carrying gate weight. They are downstream
+  of the direction and vocabulary calls, and under some outcomes the question
+  dissolves.
+
+Nothing was dropped. The **frame stays closed** per the kickoff's boundary:
+mark budget, the collar, size-carries-nothing, weight floors, per-band mark
+size. A change to any of those is an amendment flagged to the user, not a
+silent divergence.
+
+#### IL.2 — the incumbent enters as itself (user-directed)
+
+**Hex-cut is represented in the bake-off by its own best existing rendering —
+the 27-mark catalogue geometry — never by a fresh sketch.** A redraw would let
+the incumbent lose to the redraw rather than to a better direction, which would
+invalidate the comparison. The geometry is `buildIcon()` plus its helpers
+(`hexPath`, `poly`, `bar`, `rect`, `disc`, `diamond`) and 27 `case` arms,
+~230 lines, lifted verbatim from artifact `981127f2`.
+
+For the same reason the collisions Group 3 measured — *precursor* vs *plague*
+below 16 px, and *facility*/*ruin* and *outpost*/*memorial* at 12 px — are
+**reproduced from that geometry rather than rebuilt**. They are existing
+evidence; re-deriving them risks re-deriving them differently.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·
