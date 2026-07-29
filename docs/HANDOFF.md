@@ -1,3 +1,96 @@
+# Session Handoff — 2026-07-28 (UI design pass · Icon library deep dive MERGED — the notation)
+
+**The icon library — RE-OPENED, redesigned, merged & pushed.** Branch
+`ui-pass-icon-library` from main `33add57`. Group 3 produced `icon-set.md` as
+part of a wider dive; the user's judgment was that it landed too fast, and this
+session gave the library the full treatment. Design
+**`docs/design/ui/icon-set.md`** (§2 rewritten end to end, §3 rewritten as
+compositions); decision record
+**`docs/superpowers/specs/2026-07-27-icon-library-design.md`**; pass ledger
+**`docs/superpowers/plans/2026-07-25-ui-pass-ledger.md`** §"Icon library".
+
+Artifacts: **https://claude.ai/code/artifact/fab89e0c-5855-4e01-818c-e3140a1e3be1**
+⚖️ (the direction bake-off) and
+**https://claude.ai/code/artifact/aa6162ec-fc0b-41ff-8b60-59d68c867f19** 🔶
+(the design language — **its rule tables are superseded by the doc**; see the
+retraction note below).
+
+**Design pass — zero code, as scoped.** No `src/`, no `tests/`, no
+`unity/Assets`, `Atlas.unity` untouched, `dotnet test` untouched.
+`unity/ProjectSettings` churn left uncommitted per the standing rule.
+
+## The accepted design, in one line each
+
+**Nothing in this world exists, so the set is a notation, not a collection of
+pictures. Every mark is learned, and the set's first duty is to be learnable.**
+
+- **The hexagon is a field, not a cutter.** Icons compose *within* it and must
+  not fill it — a mark cut flush to the envelope surrenders its silhouette to a
+  shape the whole set shares. The envelope was **kept on the user's eye**
+  (cohesion and interest), against the measurement, and it had **never actually
+  been implemented**: there is no `clip()` in the catalogue geometry.
+- **Twelve rules in three groups** — construction system (cohesion),
+  distinctness discipline (silhouette first; spread topology · axis · mass; a
+  difference is a *silhouette event*), size contract. Every rule carries its
+  provenance; two are marked **provisional** with what would settle them.
+- **The library is eight primitives and six operators.** Nouns: disc, diamond,
+  hex ring, chevron, bar, block, shard, carry. Verbs: struck, broken, hollowed,
+  raised, bitten, massed — each *defined* as a silhouette event. A residue is one
+  primitive under one operator, so a related pair shares mass **by design**.
+- **The facility ladder.** Fourteen `InfraTypeId`s in four `InfraFamily` roots.
+  The map and the system view both draw **the root**; membership is *named* in
+  tooltip and panel, because a facility mark measures **8.1–16.3 px** in the
+  system view and never clears 20 px on a 1080p window.
+- **§3 is thirty marks, each stated as a composition** so it can be checked
+  against the library rather than taken on trust.
+- **The gate on the art is a squint test judged by a person**, and the reason a
+  mechanical score cannot replace it is written into the doc so it is not retried.
+
+## ⚠ The retraction that shaped the session
+
+A pixel-overlap instrument (alpha IoU + differing ink) was built and then used to
+**drive redesign**. Three of five redrawn icons came out unreadable while scoring
+better — Goodhart's law in full. **Ledger §IL.5 is retracted**, and the reasoning
+is in the decision record §2. Overlap has no relation to how a person tells
+shapes apart; measurement is kept only for genuinely mechanical facts
+(populations, on-screen distances, pixels a surface gives a mark) and for
+nominating suspects to look at. **The eye convicts.**
+
+The design-language artifact 🔶 was published *before* the §3 rewrite and the
+system-view measurement, so its tables are a snapshot, not the spec.
+`docs/design/ui/icon-set.md` is the single source of truth.
+
+## Unity
+
+Editor left **open** on port 7800 (`-automated`), used only for two `eval_file`
+measurement harnesses. `Atlas.unity` untouched — no capture run, no scene save.
+Close it if the next session needs batchmode.
+
+## NEXT UP
+
+**Draw the fourteen parts** — eight primitives, six operators. That is the whole
+next job and it is the *first* delivery: in a notation, a set whose parts are
+right is consistent by construction, and tier A is the first eleven
+*compositions*, not the first eleven drawings. **Gate 4 of the icon-library
+kickoff was deliberately not reached** — the session stopped at the design after
+two attempts to drive drawing from a score produced worse icons.
+
+**Three collisions are carried into that session's squint test**, each with its
+fallback already written in `icon-set.md`: the four facility roots (all take the
+block), `posted`/`reserve` (a mirror pair — rule 7's provisional status is
+exactly this), and `memorial`/`outpost` (both `diamond + bar`).
+
+**One atlas change is argued for but not made:** the system stage's facility
+world size 0.038 → 0.047 buys 20 px at closest zoom on a 1000-tall viewport, if
+the member layer is ever wanted on the mark rather than in the panel.
+
+**Tier 1 Group 4** (lanes, flows & motion) remains the last map-side group and is
+unblocked. Groups 5–6 stay blocked on **Slice CS**. **Tier/group kickoffs are the
+ORCHESTRATOR's to write** (user decision, 2026-07-25) — this session did not
+write one.
+
+---
+
 # Session Handoff — 2026-07-27 (UI design pass · Tier 1 Group 3 MERGED — marks, billboards & the glyph vocabulary)
 
 **Tier 1 Group 3 — COMPLETE, gate settled, merged & pushed.** Branch

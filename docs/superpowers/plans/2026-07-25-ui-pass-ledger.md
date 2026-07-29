@@ -880,6 +880,449 @@ mipmaps on `AtlasGlyphs.png` · the seventeen silent/blind lines for the mark
 families · the motion inventory (emission, resolve, selection — and explicitly
 nothing else).
 
+### Icon library — the deep dive (IL)
+
+Branch `ui-pass-icon-library` off main `33add57`. Kickoff:
+`docs/superpowers/plans/2026-07-27-ui-pass-icon-library-kickoff-prompt.md`.
+Deliverables: `docs/design/ui/icon-set.md` rewritten · a decision record at
+`docs/superpowers/specs/2026-07-27-icon-library-design.md` · mock artifact(s).
+**Zero atlas code.** This session re-opens Group 3's icon set as a design
+problem in its own right — the conclusions were plausible and internally
+consistent, but several load-bearing choices were asserted rather than
+explored, and no alternative was ever put next to them.
+
+| # | Task | Gate | Status |
+|---|---|---|---|
+| IL.1 | Scope nod | **user** | ✅ nodded 2026-07-27 (agenda + both amendments) |
+| IL.2 | Branch; open this ledger section | — | ✅ |
+| IL.3 | Lift the catalogue geometry; build the direction bake-off | — | |
+| IL.4 | **Gate — direction** | **user** | |
+| IL.5 | **Gate — vocabulary** (membership, grammar, the sim-maturity exclusions) | **user** | |
+| IL.6 | **Gate — the set** (every icon, the ladder, the in-situ plate, the revised doc) | **user** | |
+| IL.7 | Wrap-up: docs, HANDOFF, merge, push, Trello, release the editor | — | |
+
+#### IL.1 — the nod, and what it changed
+
+Agenda is the kickoff's eight assumptions, **plus two amendments the user
+took**:
+
+- **Added: the set has never been tested *as a set, in situ*.** Every
+  evaluation to date — Group 3's ladders, the catalogue plate, the eleven demo
+  marks — is a *lineup on a neutral plate at exact pixel sizes*. That measures
+  a drawing against its siblings; it does not measure the set doing its job.
+  The job is twenty-seven marks on the real map at Reach, wearing collars and
+  contrast chips, tinted per family, over a live field. Folded into IL.6.
+- **Resequenced: sourcing and build tiers (assumption 8) are decided last**,
+  cheaply and in-session, rather than carrying gate weight. They are downstream
+  of the direction and vocabulary calls, and under some outcomes the question
+  dissolves.
+
+Nothing was dropped. The **frame stays closed** per the kickoff's boundary:
+mark budget, the collar, size-carries-nothing, weight floors, per-band mark
+size. A change to any of those is an amendment flagged to the user, not a
+silent divergence.
+
+#### IL.2 — the incumbent enters as itself (user-directed)
+
+**Hex-cut is represented in the bake-off by its own best existing rendering —
+the 27-mark catalogue geometry — never by a fresh sketch.** A redraw would let
+the incumbent lose to the redraw rather than to a better direction, which would
+invalidate the comparison. The geometry is `buildIcon()` plus its helpers
+(`hexPath`, `poly`, `bar`, `rect`, `disc`, `diamond`) and 27 `case` arms,
+~230 lines, lifted verbatim from artifact `981127f2`.
+
+For the same reason the collisions Group 3 measured — *precursor* vs *plague*
+below 16 px, and *facility*/*ruin* and *outpost*/*memorial* at 12 px — are
+**reproduced from that geometry rather than rebuilt**. They are existing
+evidence; re-deriving them risks re-deriving them differently.
+
+#### IL.3 — the bake-off, and two findings before the gate
+
+**https://claude.ai/code/artifact/fab89e0c-5855-4e01-818c-e3140a1e3be1** (⚖️)
+
+Four directions × the same six subjects (`starport`, `precursor`, `infected`,
+`gate`, `fleetposted`, `ruin` — chosen to stress disc, three-fold-outward,
+three-fold-inward, enclosure, orientation, and block-plus-bite), at
+10/16/20/32 px, all through one identical render path.
+
+| Dir | What | Worst-pair overlap @20 px | Discriminating ink @20 px |
+|---|---|---|---|
+| **A** | hex-cut, **as built** (lifted verbatim) | 0.507 | 74.2 px |
+| **B** | hex-cut, **as specified** (envelope clipped) | 0.575 | 56.0 px |
+| **C** | free silhouette (no envelope, no 60°) | **0.504** | **75.0 px** |
+| **D** | glow-native (core + halo) | 0.627 | 39.4 px |
+
+**Finding 1 — the hexagonal envelope was never implemented.** There is no
+`clip()` anywhere in the catalogue geometry. The flat-top hexagon appears only
+as a faint *stroked guide drawn behind* each icon on the display plate. So §2
+rule 1 — named as one of the three rules "nothing off the shelf will satisfy" —
+has never been exercised by the art that demonstrated the style. What was built
+and measured is *60° edge family + solid mass*, with a hexagon as an internal
+motif in six of twenty-seven icons. Rendering the rule for the first time (B)
+makes the worst pair **more** similar and costs **a quarter of the
+discriminating ink**: the clip removes exactly the extremities that distinguish.
+
+**Finding 2 — two of Group 3's three recorded collisions do not reproduce, and
+the third is worse than recorded.**
+
+| Pair | 12 px | 20 px | 24 px | Group 3 said |
+|---|---|---|---|---|
+| precursor / infected | 0.481 | 0.453 | 0.439 | converge below 16 px |
+| **facility / ruin** | **0.865** | **0.868** | **0.864** | converge at 12, separate by 20 |
+| outpost / memorial | 0.484 | 0.459 | 0.461 | converge at 12 px |
+
+`facility`/`ruin` is the worst pair in the whole set and **size never rescues
+it** — at 20 px only 15.2 px of ink differ between them. The claim that it
+"separates by 20" is not true of this geometry. Conversely the two pairs the
+record flags as caught-and-fixed measure as well separated at every size.
+
+**The instrument, and its correction.** The first attempt used alpha IoU alone
+and produced near-flat curves; that is not a defect of the measure but the
+finding — *shape similarity is scale-invariant, so no pixel floor rescues a pair
+drawn too alike*. Rule 10 only ever addressed the other half. The page now
+carries both: **shape overlap** (a property of the drawings) and
+**discriminating ink** (absolute differing alpha in px, which falls as the
+square of the size).
+
+**Stated limits.** Neither number models perception, and neither can see a
+*gestalt* — that `precursor` and `infected` both read as "a small three-lobed
+thing" while overlapping little is almost certainly what Group 3's eye was
+reporting. The measurements do not overturn that observation; they fail to reach
+it. The set needs both gates. Also: the three competitor directions are
+first-pass drawings by construction (only the incumbent was protected from a
+hasty redraw), six subjects is 15 pairs against the full set's 351, and these
+are browser rasterisations — the absolute floor still needs one pass through
+`StarGen/AtlasGlyph` before it is quoted as a measurement.
+
+#### IL.4 — the envelope settled, and the full collision surface
+
+**Gate 2 settled 2026-07-27: direction B, hex-cut *with* the envelope.** The
+user's call, on cohesion and interest — *"the starport and the fleet posted
+icons gain more cohesion and interest"*. This **overrides the measurement**,
+correctly: shape overlap and discriminating ink score pairwise
+distinguishability and are structurally blind to family resemblance, which is a
+primary criterion for a *set*. Recorded as the substrate everything else is now
+designed on top of. Rule 1 is therefore **kept and, for the first time,
+actually implemented** (the catalogue never clipped).
+
+**Gate 2's framing was wrong, and the user caught it.** A rendered bake-off can
+only compare what a rendering exposes — envelope and angle policy, rules 1–2 of
+ten. §2's other eight rules and the whole of §2.1 grammar were never opened.
+The session was redirected to start from **the tension** underneath both.
+
+##### The tension, stated
+
+> §2.1 buys learnability by making icons **share mass**. The map needs them to
+> **not share mass** so they can be told apart. Every composition rule is
+> therefore a collision generator, and rule 10 is the gate that fails them —
+> the doc presents the two as complementary when they pull against each other.
+
+##### The matrix — all 351 pairs, hex-clipped, at 20 px
+
+`scratchpad/matrix.html`, built on the same lifted geometry.
+
+| | count |
+|---|---|
+| collide (overlap > 0.70) | **2** |
+| tight (0.55–0.70) | **11** |
+| clean | **338** |
+
+**The set is 96% clean — but the failures sit in the grammar's own devices.**
+
+| Pair | Device | Overlap | Differing ink |
+|---|---|---|---|
+| facility / ruin | residue: *block bitten* | **0.877** | **13.6 px** |
+| blockade / nebula | hex ring vs hex mass | 0.703 | 54.1 px |
+| blockade / patrol | hex ring (same family) | 0.688 | 57.0 px |
+| mobilization / battlefield | residue: *axes sunk* | 0.609 | 46.3 px |
+| gate / blockade | hex ring | 0.579 | 72.0 px |
+| **origin / scar** | residue: *diamond hollowed* | **0.254** | **78.5 px** |
+
+##### Three findings that write the rules
+
+**1. The residue rule is not uniformly bad — it splits cleanly.**
+`origin`→`scar` *removes the shards and hollows the core* and measures 0.254,
+the best pair in the danger list. `facility`→`ruin` *cuts two small wedges into
+a kept block* and measures 0.877. The difference is not quality of drawing, it
+is whether the residue **reduces** its root or merely **annotates** it. Derived
+rule: **a residue is its root reduced, not its root annotated.**
+
+**2. The hex ring is over-subscribed.** It carries `gate`, `blockade`, `patrol`
+and (as a hex mass) `nebula` — four icons producing **three of the six worst
+pairs**. Ten sub-forms over 27 icons averages 2.7 each, but the distribution is
+lumpy and the lumps are exactly where the collisions are. Derived rule: a
+sub-form carries a **load limit**.
+
+**3. Rule 6 is violated by 70% of the set it governs.** "Even optical weight,
+34–46% inked": **19 of 27 icons fall outside the band**, from `origin` at 30%
+to `blockade` at 82%. Both extremes work fine. And coverage difference is
+actively *useful* — `precursor` at 31% against `infected` at 62% is part of why
+that pair separates. The rule's stated purpose ("no icon shouts over its
+neighbours in a legend row") is real but belongs to **the legend row**, not the
+map. Re-scope rather than delete.
+
+**4. Orientation survives the metric.** `fleetposted`/`reserve`, a pure mirror
+pair, measures 0.422 / 82.6 px — moving the bar across the envelope is a large
+mass displacement. ⚠ But the metric cannot see that a mirror is perceptually
+confusable ("which way was it pointing?"), so rule 8 is **measured safe and
+perceptually unverified** — the same gestalt blind spot recorded in IL.3.
+
+#### IL.5 — ⚠ RETRACTED. The metric was not measuring legibility
+
+**Withdrawn by the user, 2026-07-27, and the withdrawal is correct.** Everything
+below stands as a record of a wrong turn; none of it is design.
+
+> *"Your measurements make no real world sense, the direction you used to
+> generate these new icons made illegible senseless blobs for most of the
+> resulting icons ... 'how many pixels overlap in each pixel pair' says
+> absolutely nothing about the shape language of the icon nor the actual
+> silhouette read to an actual human eye."*
+
+**What went wrong: Goodhart's law, in full.** Alpha IoU and differing-ink were
+adopted as a stand-in for "does this separate", the redraws were then optimised
+*against the stand-in*, and three of the five — `ruin`, `battlefield`, `patrol`
+— came out as sparse, unreadable scatter that scores better and depicts
+nothing. **A better number was produced by making worse icons.**
+
+**Why the metric cannot work, stated properly.** Pixel overlap has no relation
+to how a human tells shapes apart. A filled disc and a disc struck through by a
+bar overlap *heavily* and are instantly distinguishable, because the bar is a
+salient contour event. Two dissimilar spiky blobs can overlap *little* and be
+hopelessly confusable. Human shape discrimination runs on **silhouette contour,
+dominant axis, topology and metaphor recognition** — none of which IoU can see.
+This is the same blind spot recorded twice already in IL.3 and IL.4 as "cannot
+see a gestalt"; it was named, then acted against anyway.
+
+**The worst consequence** is that `facility`/`ruin` was "fixed" by destroying
+the right idea. A standing building and a broken building **should** share most
+of their mass — that shared mass is exactly what makes the pair read as cause
+and consequence. 0.877 was never the disease.
+
+**What survives:** the *observations* (the hex ring carries four icons; coverage
+runs 30–82%; the catalogue never implemented rule 1) are still facts about the
+set. What does not survive is any conclusion drawn from a pixel-overlap
+threshold, the five redraws, and the "0 collide / 6 tight" claim as evidence of
+anything worth having.
+
+<details><summary>Retracted content, kept for the record</summary>
+
+#### IL.5 — the language designed, and proved against the matrix
+
+**https://claude.ai/code/artifact/aa6162ec-fc0b-41ff-8b60-59d68c867f19** (🔶)
+
+**The tension resolves three ways**, not as a compromise:
+
+1. **The two jobs sit on different surfaces.** Identification (*what is that?*)
+   happens on the map at 20 px, unlabelled, against neighbours. Comprehension
+   (*what does that mean?*) happens in the legend, tooltip and panel row —
+   16–24 px, labelled, once. The grammar's payoff is collected where there is a
+   label and room; its cost is paid where there is neither. So the grammar is
+   **optimised for the labelled surfaces and audited on the map**. This also
+   answers assumption 7 without needing two drawings per subject.
+2. **Sharing is structural, not massive** — a root must stay recognisable
+   without being most of the ink.
+3. **A residue transforms its root; it never annotates it.**
+
+**Three rules changed, two added, one re-scoped, one re-purposed.**
+
+| # | Rule | Provenance |
+|---|---|---|
+| 1 | hexagonal envelope | **chosen** (user, on cohesion; measurement overruled deliberately) |
+| 2 | the 60° family | **chosen** — measured a dead heat vs free silhouette; identity, *not* a legibility claim |
+| 8 | **the mass budget** — root + differentia, differentia reaches the silhouette | **new**; replaces "one connected mass + satellite", which constrained connectivity — never the failure mode |
+| 9 | **sub-form load limit**, max three icons per sub-form | **new** |
+| 10 | even optical weight **in a row only** | **re-scoped** — old global rule violated by 19 of 27 |
+| 11 | the ladder gate | **re-purposed** — now the audit that rules 8–9 were obeyed, not the thing that catches grammar failures |
+
+Rules 3–5 stay **measured**; 6 and 7 are marked **provisional** with what would
+settle them — 7 because a mirror pair measures safe (0.422) while no pixel
+metric can see that a mirror is perceptually confusable.
+
+**The proof — five icons redrawn, all 351 pairs re-measured at 20 px:**
+
+| | collide | tight | clean |
+|---|---|---|---|
+| catalogue set, hex-clipped | **2** | **11** | 338 |
+| after five redraws | **0** | **6** | 345 |
+
+| Pair | Before | After |
+|---|---|---|
+| facility / ruin | 0.877 | **0.298** |
+| mobilization / battlefield | 0.609 | **0.301** |
+| blockade / patrol | 0.688 | **0.190** |
+| blockade / nebula | 0.703 | **0.476** |
+| gate / blockade | 0.579 | **0.306** |
+| patrol / nebula | 0.574 | **0.265** |
+| blockade / infected | 0.605 | **0.441** |
+
+The residue rule is proven three times: `origin`→`scar` already obeyed it
+(0.254, untouched); `facility`→`ruin` and `mobilization`→`battlefield` were
+fixed by applying it. The load-limit rule fixed the entire hex-ring cluster.
+No new collision was introduced — an intermediate `blockade` (bar + corner
+posts) did collide with `starport` at 0.643 and was rejected on that
+measurement before it reached the artifact.
+
+⚠ **Two process errors caught in-session, both by verification rather than by
+review.** (1) The first instrument used alpha IoU alone and produced near-flat
+curves — corrected into two measures, and the flatness turned out to *be* a
+finding. (2) A `battlefield` redraw reported a perfect 0.000 which was an
+**empty icon**: a Python `replace(…, 1)` patched the first matching `case`,
+which lived in `buildIcon` rather than `buildV2`, so the new arm was dead code
+after the original. Caught by checking the icon had ink at all. *A suspiciously
+perfect number is a bug until proven otherwise.*
+
+**Not settled here:** six tight pairs remain (one, `infected`/`immune`,
+deliberately — the set's only differ-by-degree pair); the rest are cross-family
+and belong to the vocabulary gate. The redraws are **demonstration geometry,
+not production art** (kickoff boundary) — `patrol` and `ruin` in particular read
+thin at 20 px and would want a drawing pass.
+
+</details>
+
+#### IL.6 — the design language, rewritten from the design framing
+
+After the IL.5 retraction the user set the frame: *"think purely from a graphic
+design perspective. What makes an icon set cohesive, visually distinct,
+evocative and readable."* Then two corrections that decided the rewrite:
+
+**1. Nothing in this world exists.** No player has ever seen a starport, a
+precursor site or a sterilization scar, so recognition-by-depiction is not
+available and "draw the real thing" is not a usable principle here.
+
+> **The set is a notation, not a collection of pictures. Every mark is learned,
+> and the set's first duty is to be learnable.**
+
+This *reverses* the position taken an hour earlier (that the grammar should be a
+fallback behind depiction). For an invented world the grammar is the entire
+mechanism, and it has to be built like a notation — few parts, stable meanings,
+compositional.
+
+**2. `facility` is fourteen facilities.** `InfraTypeId` carries fourteen
+buildable types in four `InfraFamily` groups; the set draws them all as one
+block, so **the system view is a field of identical icons**. The set was missing
+a structural layer, not a drawing.
+
+##### What `icon-set.md` §2 now says
+
+Twelve rules in three groups, each group answering one of the user's four
+criteria:
+
+- **§2.1 construction system (cohesion)** — the hexagon is a **field, not a
+  cutter**: icons compose *within* it and must not fill it, because a mark cut
+  flush to the envelope surrenders its silhouette to a shape all twenty-seven
+  share. Plus the 60° family (identity, not legibility), **one optical weight**
+  (reinstated as the strongest cohesion signal — judged by eye, coverage only a
+  diagnostic), one level of abstraction, consistent terminals.
+- **§2.2 distinctness discipline** — **silhouette first**; *if two icons have the
+  same outline they are the same icon*. The four channels that carry the read at
+  small size, in order: silhouette · topology · dominant axis · mass
+  distribution, with **no more than three icons sharing one topology-and-axis
+  combination**. And: **a difference is a silhouette event** — a related pair
+  *should* share most of its mass, and the failure mode is a timid difference,
+  never a shared root.
+- **§2.3 size contract** — two or three elements; 2.5-unit minimum; and the gate
+  is **the squint test judged by a person**, with the reason a mechanical score
+  cannot do it stated in the doc so it is not retried.
+
+##### §2.4 — the shape library, rebuilt as a notation
+
+**Eight primitives** (nouns: disc, diamond, hex ring, chevron, bar, block,
+shard, carry) — *a budget, not an inventory*. **Six operators** (verbs: struck,
+broken, hollowed, raised, bitten, massed), each defined as a silhouette event so
+applying one is automatically a large outline change.
+
+The operators absorb two rules the old grammar carried separately: an event and
+its residue are now *one primitive under one operator* (ruin = block **broken**;
+scar = diamond **hollowed**), and orientation is confined to the chevron, the one
+primitive whose meaning includes pointing.
+
+##### §2.5 — the facility ladder
+
+> A facility mark is its family's root; a member's mark is that root carrying one
+> member mark. **The map draws the root; the system view draws root plus member.**
+
+Four roots from the sim's own `InfraFamily` (Extraction · Processing · Heavy ·
+Support), so the vocabulary cannot drift from what the sim emits. Four roots
+replace one block at map scale — already the end of the identical sea — and a
+fifteenth facility type joins a family and inherits its root, costing no new
+primitive. ⚠ **Owed a measurement:** the system view's mark size, untaken; until
+it exists the member layer is specified but not committed.
+
+##### Also amended
+
+`§5.2` (the gate on the art) and `§5.3` (sourcing — **commission the fourteen
+parts first, not the marks**); `marks-glyphs.md` §6.4 and §13 to match. `§3`
+(the set) is flagged in-doc as owed a revision: it still lists twenty-seven
+entries against the old sub-form grammar and one `facility` row. **§2 governs
+where they disagree.**
+
+#### IL.7 — the system-view measurement, and §3 rewritten as compositions
+
+**The measurement (warm editor, `eval_file`, two harnesses).** The billboard px
+formula from `AtlasBillboard.shader`, against the shipped `SystemStage`
+constants (facility `world 0.038`, `pxFloor 7`, `_MaxPx 36`) and
+`CameraRig._minDistance = 2.5`:
+
+| camera distance | vh 1000 | vh 1440 | vh 2160 |
+|---|---|---|---|
+| 5.0 (stage fades in) | **8.1 px** | 11.7 | 17.6 |
+| 3.0 | 13.6 | 19.6 | 29.3 |
+| 2.5 (closest possible) | **16.3 px** | 23.5 | 35.2 |
+
+**A facility mark never clears 20 px on a 1080p-class window.** `_MaxPx = 36` is
+never reached — the binding constraint is the camera floor, not the cap. This
+**killed the member rung** of §2.5 as written: four family roots fit a
+single-closed-silhouette band, fourteen member variants do not. The member is now
+*named in the tooltip and the panel*, not drawn. Recorded alongside: raising the
+stage's facility world size 0.038 → 0.047 buys 20 px at closest zoom on a
+1000-tall viewport — a one-line atlas change, **not made here**, and it should be
+argued on whether a player needs *mine vs skimmer* at a glance.
+
+⚠ **An expected finding that did not survive its own check.** I predicted the
+facility marks overlap — the layout's radial step is 0.016 world, only 6.9 px
+against a 16.3 px mark, a 58% overlap. But the layout also rotates 0.85 rad per
+mark, and the angular term dominates: real centre-to-centre spacing is
+**23.3 px against a 16.3 px mark**, so they never touch. **The sea of identical
+icons is caused by one shared drawing and nothing else** — a cleaner diagnosis
+than the one I set out to confirm, and it would have been reported backwards
+without the second harness.
+
+##### §3 rewritten — thirty marks, every one a composition
+
+Each entry now states **what it composes from** in the §2.4 notation, so a mark
+can be checked against the library instead of taken on trust. Substantive
+changes, all driven by the rules rather than by taste:
+
+- **`facility` becomes four family roots** (§3.3, a new family): extraction ·
+  processing · heavy · support, from the sim's own `InfraFamily`. Four marks
+  replace one; membership is named, not drawn.
+- **`mobilization` and `battlefield` become `chevron massed` and `chevron
+  broken`** — one primitive, two operators, cause and consequence. This retires
+  *crossed axes*, a ninth primitive that earned its keep in exactly two marks.
+- **`blockade` moves off the chevron to `disc struck`.** Its subject is the
+  *port*, not the hulls, and it took a fourth mark off the chevron, which rule 8
+  was about to fail.
+- **`immune` becomes `disc + hex ring` (enclosed)**, not "the bites healing
+  closed" — a half-healed bite is exactly the timid internal annotation rule 9
+  forbids, and enclosure is what immunity means.
+- **`market` is exempted from the map contract** — it never draws on the map, so
+  it may carry a fine distinction from `starport` on the labelled surfaces where
+  it is actually read.
+- Sheet repack: **47 cells** (17 legacy + 30 new), 4 × 12 with one spare.
+
+**Three collisions are carried deliberately into the squint test rather than
+resolved on paper**, each with its fallback already written: the four facility
+roots (all take the block); `posted`/`reserve` (a mirror pair — rule 7's
+provisional status is exactly this); and `memorial`/`outpost` (both
+`diamond + bar`, separated only by proportion and tint). A fourth,
+`news origin`/`AGN outburst` (both `carry massed`), is recorded as tolerable
+because the two never share a band.
+
+**The build order gained a rung above tier A:** because the set is a notation,
+the first delivery is the **fourteen parts** — eight primitives, six operators —
+not the first eleven marks. A set whose parts are right is consistent by
+construction.
+
 ## Tier 2 — Synthesis
 
 Not started. Icon manifest · token conformance · interaction grammar ·

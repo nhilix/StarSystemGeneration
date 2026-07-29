@@ -441,17 +441,18 @@ collar. The set lands family by family.
 
 Stated here because they are budget constraints, not art direction:
 
-1. **Pass the ladder at 20 px against family siblings.** Mechanical, verified by
-   regenerating the sheet. It has already caught a real collision — in the eleven
-   marks built to the hex-cut rules during this dive, *precursor* (three shards
-   outward) and *plague* (three bites inward) are both three-fold and converge
-   below 16 px.
+1. **Read at 20 px against family siblings.** An icon enters the set when a
+   person can still tell it from the marks it shares a family and a screen with,
+   rendered at 20 px and blurred (`icon-set.md` §2.3). This is deliberately a
+   judgment: a mechanical overlap score was tried and abandoned, because pixel
+   coincidence has no relation to how a person tells shapes apart, and drawings
+   optimised against such a score become unreadable.
 2. **Have a population.** A cell for a type that never occurs is a reservation,
    not a vocabulary item. Three of the shipped sixteen are reservations.
 
-Everything else — the envelope, the 60° edge family, the grammar of shared
-sub-forms, the twenty-seven entries and their meanings, the atlas repack, the
-sourcing — is `icon-set.md`.
+Everything else — the hexagonal field, the 60° edge family, the notation of
+primitives and operators, the facility ladder, the entries and their meanings,
+the atlas repack, the sourcing — is `icon-set.md`.
 
 ## 7. War and news at galaxy altitude
 
@@ -702,10 +703,12 @@ detailed here in §2.3.
   outposts. Above Reach a mark is a locator rather than a picture (§4.1), so the
   tooltip is the only thing that can say *what* it is up there. Selection
   outranks the budget: a selected mark draws whatever its band would have culled.
-- **Tier 2 (synthesis)** — **`docs/design/ui/icon-set.md` is the icon design**,
-  delivered by this group: twenty-seven entries with what each depicts, what it
+- **Tier 2 (synthesis)** — **`docs/design/ui/icon-set.md` is the icon design**:
+  the hex-cut design language, the notation of primitives and operators every
+  mark composes from, the facility ladder, and per entry what it depicts, what it
   tells the player, its Core query, its measured population and its build tier,
-  plus the hex-cut language and the atlas repack. Tier 2's manifest is the
-  *production checklist* derived from it — each entry's atlas cell and its
-  recorded ladder result, tracked through the three build tiers — not an audit of
-  the sixteen placeholders, which retire wholesale.
+  plus the atlas repack. Tier 2's manifest is the *production checklist* derived
+  from it — each entry's atlas cell and its recorded read at 20 px, tracked
+  through the build tiers — not an audit of the sixteen placeholders, which
+  retire wholesale. **What gets commissioned first is the notation's fourteen
+  parts**, not the marks; the marks compose from them.
